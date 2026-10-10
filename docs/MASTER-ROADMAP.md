@@ -43,11 +43,11 @@ covered by the approved design; write the card when its predecessor is real.
 | B Trust | B-1 safety + declarations · B-2 production guard · B-3 self-protection + profile hook · B-4 errors · B-5 shaping + secrets · B-6 profiles · B-7 check-writes · B-8 server tools | JIT |
 | C Context | C-1 small results · C-2 listing modes + budgets | JIT |
 | D Projects and deployments | D-1 projects/members/crons/Git · D-2 deployment reads/logs/checks · D-3 deployment changes · D-4 releases | JIT |
-| E Variables and config | E-1 project env · E-2 shared env + custom environments · E-3 Global Config | JIT |
+| E Variables and config | E-1 project env · E-2 shared env + custom environments · E-3 Global Config · E-4 Global Config tokens + schema | JIT |
 | V Developer tools | V-1 runs/seed/cleanup · V-2 previews/env/aliases/bypass · V-3 logs/diagnosis/fetch/check · V-4 sandboxes · V-5 test webhooks | JIT |
 | N Domains | N-1 domains · N-2 DNS + certificates · N-3 registrar | JIT |
 | F Security and traffic | F-1 protection · F-2 firewall · F-3 routes/redirects/cache | JIT |
-| M Monitoring and integrations | M-1 logs/analytics · M-2 drains/webhooks · M-3 integrations/storage | JIT |
+| M Monitoring and integrations | M-1 logs/analytics · M-2 drains/webhooks · M-3 integrations/storage · M-4 Blob files | JIT |
 | O Owner | O-1 team/security · O-2 members/access groups · O-3 tokens · O-4 billing/activity · O-5 admin overview + dashboard map | JIT |
 | P Project profiles | P-1 known_apps + Appliance Desk · P-2 readiness · P-3 project setup + draft | JIT |
 | W Workflows | W-1 … W-6 (`designs/BATCH-W.md` §4 table) | JIT |

@@ -19,12 +19,18 @@ the model. **No code exists yet.** No Vercel token has been added anywhere. Noth
 
 ## Recent merges (newest first)
 
+**2026-10-10 — Gap check against prior toolkits (local commit, not pushed):** every Vercel tool name from Chris's
+earlier toolkits (robinsons-toolkit-mcp, robinsonai-mcp-servers, robinsons-toolkit-api, an archived optimizer index,
+planning docs) mapped in `audits/2026-10-10-prior-tools.md` — 273 unique names: 211 covered, 7 universal, 44 dropped
+with reasons, 9 tools added (Global Config tokens and schema → new card E-4; drain pause/resume → M-2; Blob files →
+new card M-4 with IN-15). Catalog now 232 hand-built + 4 universal = 236; work index 60 cards, validator passes.
+
 **2026-10-10 — Plan written (initial commits):** research audit (Vercel API, old toolkit inventory with 12 bugs, official
 connector comparison, credentials, testing, owner side, coverage matrix), TOOL-CATALOG (223 hand-built tools + 4
-universal), 15 batch designs, AGENTS, START-HERE, SESSION-START, PLAYBOOK, drift protocol, PLAN, MASTER-ROADMAP, owner
+universal at first commit; 232 + 4 = 236 after the gap check below), 15 batch designs, AGENTS, START-HERE, SESSION-START, PLAYBOOK, drift protocol, PLAN, MASTER-ROADMAP, owner
 inputs, go-live checklist, decisions, roadmap, owner guide, Appliance Desk project profile, work index with validator,
 first card A-1.
 
 ## Blocked
 
-Nothing in engineering. Owner inputs open: IN-00 … IN-14 (`OWNER-INPUTS.md`); none except IN-00 blocks A-1 … A-4.
+Nothing in engineering. Owner inputs open: IN-00 … IN-15 (`OWNER-INPUTS.md`); none except IN-00 blocks A-1 … A-4.

@@ -157,7 +157,7 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
 | What Chris can ask for | `docs/OWNER-GUIDE.md` |
 | Production/spend/secret constraints for PRs | `docs/AI-PR-READ-FIRST.md` |
 | The contract every Robinson server follows | `Robinson-AI-Systems/robinsons-toolkit-hub` `docs/CONTRACT.md` (RTC 1) |
-| Research: API, old toolkit, official connector, credentials, testing | `docs/audits/2026-10-10-research.md` |
+| Research: API, old toolkit, official connector, credentials, testing | `docs/audits/2026-10-10-research.md`; every prior tool name mapped: `docs/audits/2026-10-10-prior-tools.md` |
 | Retired documents (reference only) | `docs/archive/` |
 
 ## Engineering rules for every change
@@ -167,7 +167,8 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
   imports nothing Vercel-specific, so the hub can extract it into `robinson-mcp-core`.
 - **Vercel only through `src/vercel/client.js`** and its operation table `src/vercel/operations.js` (each operation's
   path version pinned and present in the vendored OpenAPI snapshot). Never call an undocumented endpoint; never move a
-  path version or the snapshot outside its own card.
+  path version or the snapshot outside its own card. The one exception is Blob files, which go through the pinned
+  official `@vercel/blob` package in `src/vercel/blob.js` (`docs/designs/BATCH-M.md` M6).
 - **Every tool name starts with `vercel_`** (`docs/TOOL-CATALOG.md` "Naming").
 - **No secret ever returned:** environment variable values of any type, tokens, bypass secrets, webhook secrets, Global
   Config tokens, transfer codes, passes. Created secrets go to the one-time-secret page; secret inputs come from the

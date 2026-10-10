@@ -446,6 +446,24 @@
       "ownerInputs": []
     },
     {
+      "id": "E-4",
+      "title": "Global Config tokens and schema",
+      "batch": "E",
+      "design": "docs/designs/BATCH-E.md",
+      "dependencies": [
+        "E-3"
+      ],
+      "card": "docs/pr-cards/E-4.md",
+      "status": "APPROVED",
+      "migration": "none",
+      "budget": 250,
+      "units": [
+        "E-4"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
       "id": "V-1",
       "title": "Runs, seed, cleanup",
       "batch": "V",
@@ -677,7 +695,7 @@
       "card": "docs/pr-cards/M-2.md",
       "status": "APPROVED",
       "migration": "none",
-      "budget": 300,
+      "budget": 340,
       "units": [
         "M-2"
       ],
@@ -701,6 +719,26 @@
       ],
       "readiness": "WRITE_CARD_AT_START",
       "ownerInputs": []
+    },
+    {
+      "id": "M-4",
+      "title": "Blob files",
+      "batch": "M",
+      "design": "docs/designs/BATCH-M.md",
+      "dependencies": [
+        "M-3"
+      ],
+      "card": "docs/pr-cards/M-4.md",
+      "status": "APPROVED",
+      "migration": "none",
+      "budget": 350,
+      "units": [
+        "M-4"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": [
+        "IN-15"
+      ]
     },
     {
       "id": "O-1",

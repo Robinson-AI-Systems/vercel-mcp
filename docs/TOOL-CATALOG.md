@@ -147,7 +147,7 @@ names, targets, kind (Config/Secret), branch and dates come out.
 | `vercel_environment_update` | Change a custom environment's name, branch rule or description | P | B O | E | — | E-2 |
 | `vercel_environment_delete` | Remove a custom environment | D | O | F | y | E-2 |
 
-## Global Config (formerly Edge Config) (`vercel_globalconfig_*`) — 7
+## Global Config (formerly Edge Config) (`vercel_globalconfig_*`) — 11
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
@@ -158,6 +158,10 @@ names, targets, kind (Config/Secret), branch and dates come out.
 | `vercel_globalconfig_patch_items` | Create, update or delete items in one batch (live projects read them immediately) | Cp | B Op | E | y | E-3 |
 | `vercel_globalconfig_create_token` | Read token for a store, shown once on the setup page | C 1x | B | F | — | E-3 |
 | `vercel_globalconfig_restore_backup` | Restore a store to a backup version (newest before a time, or by version) | Cp | Op | E | y | E-3 |
+| `vercel_globalconfig_list_tokens` | Read tokens of a store: label, ID, created — never the token itself | — | B O | R | — | E-4 |
+| `vercel_globalconfig_revoke_tokens` | Revoke one or more read tokens (apps still using them stop reading the store; preview names the connected projects) | D Cp | O | F | y | E-4 |
+| `vercel_globalconfig_get_schema` | The JSON schema a store's items must match (or "none") | — | B Op | R | — | E-4 |
+| `vercel_globalconfig_set_schema` | Set, replace or remove a store's JSON schema; preview checks the current items against it and lists any that would no longer match | Cp | B O | E | y | E-4 |
 
 ## Developer tools (`vercel_dev_*`) — 17 (preview only; `docs/designs/BATCH-V.md`)
 
@@ -284,13 +288,14 @@ Not built: certificate **upload** (the API takes a private key; a private key ne
 | `vercel_analytics_set_web_analytics` | Turn Web Analytics on/off for a project (on may be billed beyond included events) | $ | O | F | — | M-1 |
 | `vercel_analytics_set_speed_insights` | Turn Speed Insights on/off for a project (on may be billed) | $ | O | F | — | M-1 |
 
-## Drains and webhooks (`vercel_drain_*`, `vercel_webhook_*`) — 7
+## Drains and webhooks (`vercel_drain_*`, `vercel_webhook_*`) — 8
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
 | `vercel_drain_list` | Drains: type (logs, traces, analytics, audit), destination host, projects, status, last delivery | — | O Op | R | — | M-2 |
 | `vercel_drain_create` | Send logs/traces/analytics to an external HTTPS endpoint (data leaves the team; billed per GB) | $ C | O | F | — | M-2 |
 | `vercel_drain_delete` | Delete a drain | C | O | F | — | M-2 |
+| `vercel_drain_update` | Pause or resume a drain, or change its projects, sources, environments or sampling (widening what leaves the team needs confirm) | P (C when widening) | O Op | F | — | M-2 |
 | `vercel_drain_test` | Validate a drain destination with a test delivery | P | O | E | — | M-2 |
 | `vercel_webhook_list` | Account webhooks: URL host, events, projects | — | O Op | R | — | M-2 |
 | `vercel_webhook_create` | New webhook (Pro/Enterprise); its signing secret shown once on the setup page | C 1x | O B | F | — | M-2 |
@@ -308,6 +313,18 @@ Not built: certificate **upload** (the API takes a private key; a private key ne
 | `vercel_storage_get_store` | One storage store (Blob, Global Config, Marketplace): size, region, connected projects | — | O Op | R | y | M-3 |
 | `vercel_storage_create_blob_store` | New Blob store (storage and operations are billed beyond included usage) | $ | B O | F | — | M-3 |
 | `vercel_storage_delete_blob_store` | Delete a Blob store and every file in it (refused for profiled apps' stores) | D | O | F | y | M-3 |
+
+## Blob files (`vercel_blob_*`) — 4
+
+Files inside a Blob store, through Vercel's Blob API (not the REST reference; `docs/designs/BATCH-M.md` M6). The server
+reaches only the stores Chris connected on the setup page (IN-15); file contents are never returned, only metadata.
+
+| Tool | What it does | Safety | Aud. | Prof. | App | Card |
+|---|---|---|---|---|---|---|
+| `vercel_blob_list` | Files in a connected store: pathname, size, content type, uploaded; prefix filter and pages; folder summary by default | — | B O Op | R | y | M-4 |
+| `vercel_blob_head` | One file's metadata (size, type, uploaded, cache settings) without downloading it | — | B Op | R | — | M-4 |
+| `vercel_blob_put` | Upload one small file (≤4 MB, sent inline) to a connected store; refuses to overwrite unless asked; a store connected to a live project counts as production | Cp | B | E | y | M-4 |
+| `vercel_blob_delete` | Delete named files (≤100 per call; no wildcards); preview lists each file and size; refused on a profiled app's store without `outsideApp` | D Cp | O Op | F | y | M-4 |
 
 ## Owner: team and security settings (`vercel_team_*`) — 7
 
@@ -445,7 +462,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Releases | 12 | D |
 | Environment variables | 9 | E |
 | Shared variables and custom environments | 7 | E |
-| Global Config | 7 | E |
+| Global Config | 11 | E |
 | Developer tools | 17 | V |
 | Domains | 11 | N |
 | DNS and certificates | 9 | N |
@@ -454,8 +471,9 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Firewall | 11 | F |
 | Routes, redirects and cache | 8 | F |
 | Logs, observability and analytics | 5 | M |
-| Drains and webhooks | 7 | M |
+| Drains and webhooks | 8 | M |
 | Integrations and storage | 8 | M |
+| Blob files | 4 | M |
 | Owner: team and security settings | 7 | O |
 | Owner: members and access groups | 10 | O |
 | Owner: access tokens | 3 | O |
@@ -463,11 +481,11 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Owner: administration | 5 | O |
 | Project profiles | 5 | P |
 | Workflows | 12 | W |
-| **Hand-built total** | **223** | |
+| **Hand-built total** | **232** | |
 | Universal tools | 4 | U |
-| **All tools** | **227** | |
+| **All tools** | **236** | |
 
-Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 23 · V 17 · N 29 · F 27 · M 20 ·
-O 29 · P 5 · W 12 · U 4 · R 1 · X 1 (= 227). By lowest profile: `read_only` 99, `everyday` 154 (99 + 55), `full` all 227
+Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
+O 29 · P 5 · W 12 · U 4 · R 1 · X 1 (= 236). By lowest profile: `read_only` 103, `everyday` 160 (103 + 57), `full` all 236
 (B-6 prints the exact counts from the registry). In compact mode (`docs/designs/BATCH-C.md`) an agent loads about 20
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.

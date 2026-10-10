@@ -43,7 +43,7 @@ next bounded implementation.
 ## Batch E — Environment variables and configuration (`designs/BATCH-E.md`)
 - [ ] Every listed tool built; no environment variable value in any result, log or change-log row (planted-value test).
 - [ ] Values only from the setup page, server-side `generate`, or non-secret `value`; targets required; Secret by default.
-- [ ] Global Config on `/v1/global-config/*` only.
+- [ ] Global Config on `/v1/global-config/*` only; Global Config tokens never returned; schema changes previewed against current items (E-4).
 
 ## Batch V — Developer tools (`designs/BATCH-V.md`)
 - [ ] Runs recorded and tagged; cleanup touches only recorded objects.
@@ -60,6 +60,7 @@ next bounded implementation.
 
 ## Batch M — Monitoring, integrations and storage (`designs/BATCH-M.md`)
 - [ ] Every listed tool built; bounded queries; drains, analytics and stores spend- and confirm-guarded; webhook secrets on the one-time page.
+- [ ] Blob files (M-4): only stores connected on the setup page; no file contents or store credentials in any result; deletes previewed per file and refused on profiled stores.
 
 ## Batch O — Owner and administration (`designs/BATCH-O.md`)
 - [ ] Team, security, members, access groups, tokens, billing and activity tools built; owner writes guarded and logged; nobody locked out.

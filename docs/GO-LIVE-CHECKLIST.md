@@ -16,6 +16,7 @@ Legend: **Owner** = only Chris · **Agent** = Claude can do it once you say go.
 | [ ] | Protected projects list confirmed (IN-07) | Setup page (Owner) | Defaults | `vercel_list_protected_resources` shows the list |
 | [ ] | Connector added in Claude, preview mode (Owner) | claude.ai → Settings → Connectors | Not added | Claude answers "who am I connected as in Vercel?" correctly |
 | [ ] | Spend limit confirmed (IN-08) | Ask Claude: "set my Vercel spend limit to $X" (Owner confirms) | $0 default | `vercel_whoami` shows the limit |
+| [ ] | Blob stores the server may look inside (IN-15; none by default) | Setup page → Blob stores (Owner types each store's key there) | None | `vercel_blob_list` on that store lists its files; other stores answer "not connected" |
 | [ ] | Scratch project and its project key (IN-06) | Vercel dashboard + setup page (Owner) | None | The X-2 report shows the scratch run passing |
 
 ## 2. Production changes, per team

@@ -1,7 +1,7 @@
 # Design — Batch E: Environment variables and configuration
 
 Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch E.
-Cards E-1 … E-3. Depends on Batches B, C and D-1. Tool list: `docs/TOOL-CATALOG.md` sections Environment variables;
+Cards E-1 … E-4. Depends on Batches B, C and D-1. Tool list: `docs/TOOL-CATALOG.md` sections Environment variables;
 Shared variables and custom environments; Global Config.
 
 ## 0. Verify before starting
@@ -13,6 +13,7 @@ Shared variables and custom environments; Global Config.
 | E3 | Shared env: `/v1/env` (list/create/update/delete), `GET /v1/env/{id}`, `PATCH /v1/env/{id}/unlink/{projectId}`; custom environments `/v9/projects/{idOrName}/custom-environments[/{environmentSlugOrId}]` | same tool |
 | E4 | Global Config (formerly Edge Config) operations live under `/v1/global-config/*`; the old `/v1/edge-config/*` paths are not in the reference | same tool; research §2.3 |
 | E5 | Env create rejects keys with characters other than letters, digits and `_`, keys over 256 characters, values over 65,536 characters | errors page (`env_key_invalid_characters`, `env_key_invalid_length`, `env_value_invalid_length`) |
+| E6 | Global Config tokens and schema: `GET\|DELETE /v1/global-config/{id}/tokens` (list returns each token's value — the tool keeps only label, ID and created), `GET\|PATCH\|DELETE /v1/global-config/{id}/schema` | `node scripts/openapi-find.mjs "global config token"` and `"global config schema"` |
 
 ## 1. Decisions
 
@@ -46,6 +47,14 @@ confirmed step); it never redeploys by itself (W-5's rotate workflow does, with 
 Writing items of a store connected to a live project is production (apps read it at once). Store read tokens are `1x`.
 Restore picks "newest backup before <time>" or a version ID and previews the item diff.
 
+**E8. Global Config tokens and schema (added 2026-10-10, prior-tools gap check).** `vercel_globalconfig_list_tokens`
+returns label, ID and created date only; the token string from Vercel's response is dropped before shaping (a
+key-scan test plants one). `vercel_globalconfig_revoke_tokens` is `D` (an app still using a token stops reading the
+store; there is no way to bring the same token back) and production when the store is connected to a live project;
+the preview names the connected projects. `vercel_globalconfig_set_schema` previews by validating the store's current
+items against the new schema and listing every item that would fail; removing a schema is allowed and logged with the
+old schema so `vercel_undo_change` can restore it.
+
 **E7. Custom environments** (e.g. `staging`) are created with a branch rule; copying variables from another environment
 uses E3 (server-side). Deleting one is `D` and refused when a profile owns it.
 
@@ -66,6 +75,12 @@ production target is production; unlink is `D Cp`; custom environment create cop
 Tools: the 7 tools of "Global Config". Tests: item patch on a store connected to a live project is production; token
 goes to the one-time page; restore preview shows the diff; requests use `/v1/global-config/*` only (grep test).
 
+### E-4 — Global Config tokens and schema (S)
+Tools: `vercel_globalconfig_list_tokens`, `vercel_globalconfig_revoke_tokens`, `vercel_globalconfig_get_schema`,
+`vercel_globalconfig_set_schema` (E8). Tests: no token string in any list result (planted value); revoke on a store
+connected to a live project needs a production connection and `confirm`; schema preview lists items that would fail;
+schema removal is logged with the old schema and undoable.
+
 ## 5. Stop-and-ask points
 
 1. E2 false (no `visibility` on create): keep `type: 'sensitive'` as the Secret default; record it.
@@ -79,7 +94,10 @@ goes to the one-time page; restore preview shows the diff; requests use `/v1/glo
 | Values only from setup page, `generate` or non-secret `value` | `tests/unit/env-set.test.js` |
 | Production targets guarded; targets required | write-contract for `vercel_env_set` |
 | Global Config on current paths | `tests/unit/globalconfig.test.js` grep case |
+| Global Config tokens never returned; revoke and schema guarded | `tests/unit/globalconfig-tokens-schema.test.js` |
 
 ## Amendments
 
-(Dated entries only.)
+**2026-10-10 — Prior-tools gap check** (`docs/audits/2026-10-10-prior-tools.md`): card E-4 and decision E8 added for four
+tools the old toolkit had (Edge Config tokens list/delete, schema get/update) that this plan lacked. Approved scope
+together with IN-00.

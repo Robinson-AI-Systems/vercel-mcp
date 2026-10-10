@@ -55,3 +55,16 @@ read-only (X-2).
 **2026-10-10 — Appliance Desk is a completeness check and the first profile.** Its release-by-branch process, build-time
 migrations, cost rules, crons, stores and email DNS shaped the profile fields (`docs/designs/BATCH-P.md` P2), not the
 server's scope.
+
+**2026-10-10 — Gap check against prior toolkits.** Chris asked to check every Vercel tool he had built or planned across
+his Robinson's Toolkit repositories (and outside his organization) and close any gaps. Audit:
+`docs/audits/2026-10-10-prior-tools.md` (5 sources, 301 raw names, 273 unique). Result: 211 covered by planned tools or
+guided steps, 7 by the universal tools only, 44 deliberately dropped (25 operations Vercel has no public API for, such as
+middleware, comments, uptime and storage export; 10 for removed products KV and Postgres; 4 legacy secrets; 2
+deprecated or obsolete; 3 unsafe: decrypted values and the OIDC token), and **9 tools added**: `vercel_globalconfig_list_tokens`,
+`vercel_globalconfig_revoke_tokens`, `vercel_globalconfig_get_schema`, `vercel_globalconfig_set_schema` (new card E-4),
+`vercel_drain_update` (M-2), `vercel_blob_list`, `vercel_blob_head`, `vercel_blob_put`, `vercel_blob_delete` (new card
+M-4, owner input IN-15). Blob files move from ROADMAP into scope because Chris's earlier toolkits all had them and his
+apps keep files in Blob stores; they stay metadata-only, reach only stores Chris connects on the setup page, and are the
+single exception to "Vercel only through the REST client" (BATCH-M M6). Catalog: 232 hand-built + 4 universal = 236.
+Projects checked for needs: Appliance Desk, Cortiware, oldReplit, Household-Assistant — no further gaps.
