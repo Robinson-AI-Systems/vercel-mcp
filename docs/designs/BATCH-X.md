@@ -1,6 +1,6 @@
 # Design — Batch X: Undo, real-account smoke test, toolkit decision
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch X.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch X.
 Cards X-1 … X-3.
 
 ## 0. Verify before starting

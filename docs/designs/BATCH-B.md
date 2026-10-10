@@ -1,6 +1,6 @@
 # Design — Batch B: Trust layer (safety, production guard, spend, access, self-protection, errors, profiles)
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch B.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch B.
 Cards B-1 … B-8. Depends on Batch A.
 
 ## 0. Verify before starting

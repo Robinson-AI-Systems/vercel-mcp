@@ -1,6 +1,6 @@
 # Design — Batch A: Foundation (repo, tests, login, token store, Vercel client)
 
-Status: **APPROVED DESIGN pending IN-00** (plan approval). Written 2026-10-10 by Claude (Opus 5.5) for an empty
+Status: **APPROVED** (Chris, 2026-10-10) (plan approval). Written 2026-10-10 by Claude (Opus 5.5) for an empty
 repository. Scope and acceptance: `docs/PLAN.md` → Batch A. Cards A-1 … A-6.
 
 ## 0. Verify before starting

@@ -1,6 +1,6 @@
 # Design — Batch R: Hub-ready doors (Robinson Tool Contract, RTC 1)
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch R.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch R.
 Cards R-1 … R-3. Depends on Batches B and C.
 
 Each service gets its own solid, hosted server, and **Robinson's Toolkit** (`Robinson-AI-Systems/robinsons-toolkit-hub`,

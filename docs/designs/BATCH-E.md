@@ -1,6 +1,6 @@
 # Design — Batch E: Environment variables and configuration
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch E.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch E.
 Cards E-1 … E-4. Depends on Batches B, C and D-1. Tool list: `docs/TOOL-CATALOG.md` sections Environment variables;
 Shared variables and custom environments; Global Config.
 

@@ -1,6 +1,6 @@
 # Design — Batch U: Universal tools (every other Vercel operation)
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch U.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch U.
 Card U-1. Depends on Batches B and C (and A-4's vendored OpenAPI snapshot).
 
 Goal: an agent can do almost anything in Vercel for Chris. Hand-built tools cover the common jobs comfortably; four
