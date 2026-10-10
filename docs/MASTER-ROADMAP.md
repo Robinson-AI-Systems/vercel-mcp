@@ -18,7 +18,7 @@ READY). A-1 (repository, test harness, CI) merged in PR #1.
 | 5 Owner | O | Team, members, tokens, billing, admin overview and every dashboard setting | — |
 | 6 Projects | P → W | Optional project profiles and readiness for any app (Appliance Desk first), then the one-sentence jobs | IN-11 (Appliance Desk release rule) |
 | 7 Everything else | U → R | Universal access; the contract doors Robinson's Toolkit (the hub) uses | IN-10 (pass rate limit) |
-| 8 Close-out | X | Undo, real-team smoke test and scratch run, toolkit decision | IN-06, IN-14 |
+| 8 Close-out | X | Undo, real-team smoke test and scratch run | IN-06 |
 | Production | GO-LIVE-CHECKLIST | Only after Chris enables production per team | IN-09 |
 
 ## Implementing agent — paste this

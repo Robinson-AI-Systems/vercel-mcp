@@ -1133,26 +1133,6 @@
       "ownerInputs": [
         "IN-06"
       ]
-    },
-    {
-      "id": "X-3",
-      "title": "Toolkit decision note",
-      "batch": "X",
-      "design": "docs/designs/BATCH-X.md",
-      "dependencies": [
-        "X-2"
-      ],
-      "card": "docs/pr-cards/X-3.md",
-      "status": "APPROVED",
-      "migration": "none",
-      "budget": 0,
-      "units": [
-        "X-3"
-      ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": [
-        "IN-14"
-      ]
     }
   ]
 }
