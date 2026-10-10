@@ -7,7 +7,7 @@ yet. No Vercel token has been added anywhere. Nothing is deployed or live.
 
 - **Next card: A-2 — Database schema** ([card](pr-cards/A-2.md), READY). Then A-3 — connector login
   ([card](pr-cards/A-3.md), READY, two PRs). A-4 … A-6 are written just in time.
-- **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — repository public, **no automated review** ("I don't want the automated review at this time"); the implementer self-reviews every diff.
+- **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
 ## What works today (A-1)
