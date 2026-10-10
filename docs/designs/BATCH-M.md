@@ -1,6 +1,6 @@
 # Design — Batch M: Monitoring, integrations and storage
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch M.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch M.
 Cards M-1 … M-4. Depends on Batches B, C and D. Tool list: `docs/TOOL-CATALOG.md` sections Logs, observability and
 analytics; Drains and webhooks; Integrations and storage; Blob files.
 

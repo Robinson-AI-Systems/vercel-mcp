@@ -1,6 +1,6 @@
 # Design — Batch P: Project profiles (any app that runs its own Vercel setup)
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch P.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch P.
 Cards P-1 … P-3. Depends on Batches B, D, E, N, F, M.
 
 The Vercel MCP is a general development tool. An app Chris builds may manage parts of its own Vercel setup in its

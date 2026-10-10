@@ -11,7 +11,7 @@ READY). A-1 (repository, test harness, CI) merged in PR #1.
 
 | Stage | Batches | Why in this place | Owner gate |
 |---|---|---|---|
-| 1 Foundation | A | Nothing works without it | IN-00; IN-02/IN-03/IN-04 before A-5 can be tried for real |
+| 1 Foundation | A | Nothing works without it | IN-02/IN-03/IN-04 before A-5 can be tried for real |
 | 2 Safety | B → C | Every later tool is built on the safety layer (production, spend, access, secrets, self-protection) and the context rules | IN-07 (protected list), IN-08 (spend limit default) |
 | 3 Everyday building and running | D → E → V | Projects, deployments and releases, then variables, then the developer tools that make building any project on Vercel fast (previews per branch, env wiring, diagnosis, sandboxes, cleanup) | IN-09 only to use production mode for real; IN-13 before V-4 merges |
 | 4 The rest of the platform | N → F → M | Domains/DNS/registrar, security and traffic, monitoring and integrations | IN-08 for real purchases (never in tests) |

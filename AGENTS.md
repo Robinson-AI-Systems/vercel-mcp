@@ -126,13 +126,12 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
   not a cause; never skip, weaken or quarantine a test.
 - **The `ci` check is the single merge gate**, green at the exact head.
 - **Review:** read `docs/AI-PR-READ-FIRST.md` for anything touching production, spend, tokens, secrets, guards, auth or
-  passes, and record how each applicable constraint is honored. **This repo has no automated review** (IN-01, pending
-  Chris's confirmation, same as his Stripe decision): never wait for or request one. Before merging, inspect the whole
+  passes, and record how each applicable constraint is honored. **This repo has no automated review** (IN-01, Chris, 2026-10-10): never wait for or request one. Before merging, inspect the whole
   diff yourself against AI-PR-READ-FIRST and write "Self-review: <findings and dispositions>" in the PR; fix blocking
   findings (security, production, spend, data integrity, contract, acceptance) in one patch. If an organization-wide
   automated reviewer posts anyway, fix or answer each of its threads and resolve them; never wait for one. Never claim a
   review that didn't run.
-- **Merging (authorized by Chris once IN-01 is confirmed):** `ci` green at the exact head, acceptance met with evidence,
+- **Merging (authorized by Chris):** `ci` green at the exact head, acceptance met with evidence,
   self-review written → merge with the expected-head SHA. Stacks merge bottom-up, retargeting each PR to `main` first.
   Merging never covers a hard limit.
 - **Security, production or spend hole already on `main`:** fix it immediately in its own PR.

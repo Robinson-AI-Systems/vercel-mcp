@@ -76,3 +76,7 @@ consistency check joined `npm run check`, so the tool count in TOOL-CATALOG can 
 no tool can be registered without a catalog row. CI has four independent jobs and one aggregate `ci` job, the only
 check that gates a merge.
 
+
+**2026-10-10 — Plan approved; no automated review (Chris).** "I approve the plans, and I don't want the automated review
+at this time." IN-00 and IN-01 answered; designs marked APPROVED. An organization-wide Codex reviewer may still post
+until Chris turns it off for this repository; agents answer and resolve its threads but never wait for one.

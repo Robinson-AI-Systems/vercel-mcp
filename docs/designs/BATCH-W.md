@@ -1,6 +1,6 @@
 # Design — Batch W: Workflows in Chris's language
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch W.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch W.
 Cards W-1 … W-6. Depends on Batches D, E, V, N, F, M, O, P. Tool list: `docs/TOOL-CATALOG.md` section Workflows.
 
 Each workflow does a whole job server-side and answers in plain English, with `structuredContent` for agents (Batch C).

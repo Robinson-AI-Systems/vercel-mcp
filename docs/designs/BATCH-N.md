@@ -1,6 +1,6 @@
 # Design — Batch N: Domains, DNS, certificates and the registrar
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch N.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch N.
 Cards N-1 … N-3. Depends on Batches B, C and D-1. Tool list: `docs/TOOL-CATALOG.md` sections Domains; DNS and
 certificates; Domain registrar.
 

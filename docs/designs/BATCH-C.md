@@ -1,6 +1,6 @@
 # Design — Batch C: Cheap on context (small results, compact listing, budgets)
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch C.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch C.
 Cards C-1, C-2. Depends on Batch B. Every later tool is built to these rules, so this batch comes before any area tools.
 
 Why: a 236-tool server listed the ordinary way costs tens of thousands of tokens before an agent does anything, and

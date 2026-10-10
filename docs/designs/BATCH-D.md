@@ -1,6 +1,6 @@
 # Design — Batch D: Projects and deployments (projects, Git, crons, deployments, logs, releases)
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch D.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch D.
 Cards D-1 … D-4. Depends on Batches B and C. Tool list: `docs/TOOL-CATALOG.md` sections Projects, crons and Git;
 Deployments: reads, logs and checks; Deployments: changes; Releases.
 

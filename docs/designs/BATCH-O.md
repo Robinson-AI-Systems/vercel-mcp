@@ -1,6 +1,6 @@
 # Design — Batch O: Owner and administration
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch O.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch O.
 Cards O-1 … O-5. Depends on Batches B and C (O-5 also reads every area batch built so far). Tool list:
 `docs/TOOL-CATALOG.md` sections Owner: team and security settings; members and access groups; access tokens; billing,
 usage and activity; administration. Follows Robinson Tool Contract §11.

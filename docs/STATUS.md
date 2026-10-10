@@ -7,9 +7,7 @@ yet. No Vercel token has been added anywhere. Nothing is deployed or live.
 
 - **Next card: A-2 — Database schema** ([card](pr-cards/A-2.md), READY). Then A-3 — connector login
   ([card](pr-cards/A-3.md), READY, two PRs). A-4 … A-6 are written just in time.
-- **Pending confirmation:** IN-00 (whole plan) — Chris asked on 2026-10-10 for this repository to be made
-  implementation-ready, which covers building Batch A; IN-01 (public repository, no automated review) is applied
-  provisionally, the same as his Stripe decision.
+- **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — repository public, **no automated review** ("I don't want the automated review at this time"); the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
 ## What works today (A-1)
@@ -50,5 +48,5 @@ Appliance Desk project profile, work index with validator, card A-1.
 
 ## Blocked
 
-Nothing in engineering. Owner inputs open: IN-00 (confirm), IN-01 (confirm), IN-02 … IN-15 (`OWNER-INPUTS.md`); none
+Nothing in engineering. Owner inputs open: IN-02 … IN-15 (`OWNER-INPUTS.md`); none
 blocks A-2 … A-4.

@@ -1,6 +1,6 @@
 # Design — Batch V: Developer tools (build and test with Vercel)
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch V.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch V.
 Cards V-1 … V-5. Depends on Batches D and E. Tool list: `docs/TOOL-CATALOG.md` section Developer tools. Follows
 Robinson Tool Contract §10 (manifest `devTools: true`).
 

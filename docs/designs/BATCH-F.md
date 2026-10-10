@@ -1,6 +1,6 @@
 # Design — Batch F: Firewall, deployment protection and traffic
 
-Status: **APPROVED DESIGN pending IN-00**. Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch F.
+Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch F.
 Cards F-1 … F-3. Depends on Batches B, C and D. Tool list: `docs/TOOL-CATALOG.md` sections Deployment protection;
 Firewall; Routes, redirects and cache.
 
