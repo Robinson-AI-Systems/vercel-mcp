@@ -1,0 +1,57 @@
+# Decisions (dated)
+
+One entry per design decision, newest last. Reasons live here; current rules live in AGENTS and the designs.
+
+**2026-10-10 — Build a separate, hosted Vercel MCP in the Stripe MCP's form (hub Batch S, `S-vercel`).** Chris builds
+each toolset as its own solid, standalone server because official connectors give less functionality and different
+agents get different permissions with them. The research audit (`docs/audits/2026-10-10-research.md`) found the old
+toolkit's `vercel` namespace unsafe and drifted: 31 of 181 tools unreachable, no confirmation anywhere, decrypted secrets
+returned, redeploy and rollback wrong, 110 of 205 call sites on endpoints missing from the current reference.
+
+**2026-10-10 — Standalone first; RTC 1; three audiences.** Applied from the shared brief: fully usable without the hub;
+contract doors in Batch R; conformance joins CI only when the hub's package exists; every tool tagged builder / owner /
+operator; owner side is Batch O, developer side Batch V.
+
+**2026-10-10 — Every tool name starts with `vercel_`.** Vercel, Neon and GitHub share nouns (project, branch,
+deployment); two connectors in one Claude chat must not offer two `project_list` tools. Contract meta-tool names keep
+their contract form (`vercel_search_tools`, …); workflows are `vercel_workflow_*`; developer tools `vercel_dev_*`. This
+differs from the Stripe MCP's unprefixed area names; flagged to the coordinator so the Neon and GitHub plans and the
+contract's §3 wording can agree.
+
+**2026-10-10 — Node 24, not Node 20.** The shared brief says Node 20; Vercel deprecated Node 20 builds on 2026-10-01 and
+defaults to 24.x (Appliance Desk runs 24). Plain ES modules, nothing 24-only in `src/core/`.
+
+**2026-10-10 — Preview and production modes, with a two-step enable (the Stripe "live guard" for Vercel).** Every
+connection is preview (default) or production; production is offered per team only after `vercel_enable_production`
+plus the passphrase on the setup page. Production is defined precisely in `docs/designs/BATCH-B.md` B2 (production
+deployments, promote/rollback, rolling releases, production variables, live projects' settings, domains/DNS/certificates,
+protection, firewall, routing publish, cache, owner actions).
+
+**2026-10-10 — Team-scoped keys with expiry; project keys for narrow uses; full-account keys refused.** Vercel added
+project-scoped tokens on 2026-07-30; per-permission tokens (Sign in with Vercel) are private beta. Recommendation put to
+Chris as IN-04.
+
+**2026-10-10 — No environment variable value is ever returned, of any type.** Vercel's 2026 Config/Secret split cannot be
+trusted on legacy rows (`encrypted` type holds most real secrets; `visibility` missing). Values go in from the setup
+page, server-side generation, or non-secret plain values; copy and compare happen on the server; Chris views a
+decryptable value only on the setup page.
+
+**2026-10-10 — Spend guard with a $0 default limit.** Domains, renewals, transfers, credits, paid seats, Marketplace
+plans, stores, analytics add-ons, drains, rolling releases, build machines and sandboxes always need confirm; known prices
+(registrar, seat setting) count toward a daily limit that starts at $0 (IN-08).
+
+**2026-10-10 — Self-protection.** The server refuses to change its own Vercel project, the other Robinson servers'
+projects and the key it runs on, unless Chris edits the protected list on the setup page (IN-07).
+
+**2026-10-10 — A thin client over a dated OpenAPI snapshot, not `@vercel/sdk`.** The SDK lacks operations this plan
+needs, is 55 MB and republished almost daily; Vercel's OpenAPI `info.version` is a constant, so the pin is a dated
+snapshot with its hash plus each operation's path version in `src/vercel/operations.js`.
+
+**2026-10-10 — Testing: fake Vercel + snapshot validation + Vercel Labs' `emulate`.** There is no Vercel test mode. Unit
+tests use an in-process fake; every request is validated against the snapshot; core areas also run against `emulate`
+(pre-1.0, a second layer only). Real writes only in a scratch project with a project key (IN-06); real-team smoke test is
+read-only (X-2).
+
+**2026-10-10 — Appliance Desk is a completeness check and the first profile.** Its release-by-branch process, build-time
+migrations, cost rules, crons, stores and email DNS shaped the profile fields (`docs/designs/BATCH-P.md` P2), not the
+server's scope.

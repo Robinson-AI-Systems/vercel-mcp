@@ -1,0 +1,22 @@
+# Owner inputs and decisions
+
+Decisions only Chris can make, with stable IDs. Agents check here first and ask only for what the current card needs.
+An answer is "applied" only once the setting and its behavior are verified. Plain English throughout.
+
+| ID | Status | Question | Blocks | Recommended / safe default |
+|---|---|---|---|---|
+| IN-00 | **Open** | Approve this plan (all designs in `docs/designs/`) so building can start. | All cards | — |
+| IN-01 | **Pending Chris's confirmation (same as Stripe)** — applied provisionally; it mirrors his Stripe MCP decision of 2026-10-10 | Keep this repository public, and no automated (Codex) review — the building AI checks every change itself and writes down what it found? | Nothing (applied provisionally) | Public (free CI, secret scanning on); no automated review |
+| IN-02 | Awaiting Chris (before A-5 is tried for real) | Create a Vercel project `vercel-mcp` and a Neon database for it (free tiers). Claude can do both with your Vercel and Neon connectors once you say go. | Real deployment | Free tiers; no purchase |
+| IN-03 | Awaiting Chris (with IN-02) | Set two secrets in Vercel yourself: `ADMIN_PASSPHRASE` (the passphrase for the login and setup pages) and `TOKEN_ENCRYPTION_KEY` (DEPLOY.md shows how to make it). Claude never sees them. | Real deployment | — |
+| IN-04 | Awaiting Chris (after A-5 deploys) | Which kind of Vercel key should this server use? Vercel offers keys that reach your whole account, one team, or one project. | Using the server | **One team key per team, made by an Owner, expiring after 90 days** (the server reminds you 14 days before). Optional extra **project keys** for narrow uses. Whole-account keys refused unless you tick a box. (A finer "per permission" key exists only in Vercel's private beta — ROADMAP.) |
+| IN-05 | Awaiting Chris (with IN-04) | Which Vercel teams should the server manage? | Using the server | The "Robinson AI Systems" team first; add others any time on the setup page |
+| IN-06 | Awaiting Chris (before X-2) | Create a scratch project for real-world write tests (e.g. `rtc-scratch`, an empty static site) in your team, and a project key limited to it, pasted on the setup page. It costs nothing within your Pro plan and cannot touch any other project. | X-2 write run (read-only smoke runs without it) | As recommended |
+| IN-07 | Awaiting Chris (before B-3 merges) | Which Vercel projects must this server never change (it can still read them)? You can edit the list only on the setup page. | B-3 defaults | This server's own project plus `stripe-mcp`, `google-workspace-mcp`, `vercel-mcp`, `neon-mcp`, `github-mcp`, `robinsons-toolkit-hub` (whichever exist), and the key the server runs on |
+| IN-08 | Awaiting Chris (before B-8 merges) | Daily spend limit for things that cost money (domains, renewals, paid team seats, paid add-ons), and the price of one paid team seat. Changeable any time. | B-8 default; purchases | **$0** — every purchase refused until you raise it for that moment; seat price as Vercel lists it (O-2 checks) |
+| IN-09 | Later | Turn on production changes for a team (two steps: ask Claude, then type your passphrase on the setup page). Until then the server can deploy previews, read everything and change nothing live. | Any production change | Off until you say so, per team |
+| IN-10 | Awaiting Chris (before R-2 merges) | How many calls per minute may one agent pass make? | R-2 default | 120 per minute (same as the Stripe MCP), adjustable per pass |
+| IN-11 | Awaiting Chris (before P-1 is used for Appliance Desk) | Appliance Desk releases by moving its `live` branch (its own release workflow). Should this server be blocked from pushing a different version to its live site, except for an emergency rollback? | Appliance Desk profile | **Yes**: promote blocked unless you say "outside the app"; emergency rollback allowed with your OK |
+| IN-12 | Awaiting Chris (guided, any time) | Turn on Vercel Spend Management for the team: a monthly on-demand budget with email alerts. Do **not** turn on "pause production deployments" (it would take the rental site down). | Nothing | Budget around $40 with alerts at 50/75/100%; pause **off** |
+| IN-13 | Awaiting Chris (before V-4 merges) | How many Vercel Sandbox minutes per day may agents use through this server? | V-4 default | 60 minutes a day (a few cents) |
+| IN-14 | Later (Batch X) | The old toolkit's `vercel` namespace: keep for local use, retire, or point its compound tools at this server. | X-3 follow-up | Decide after this server is in use |
