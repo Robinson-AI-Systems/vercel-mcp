@@ -40,7 +40,7 @@ and exact versions; `scripts/check-secrets.mjs` (tracked files, planted-token te
 
 **2026-10-10 — Gap check against prior toolkits:** every Vercel tool name from Chris's earlier toolkits mapped in
 `audits/2026-10-10-prior-tools.md` — 273 unique names: 211 covered, 7 universal, 44 dropped with reasons, 9 tools added
-(E-4, M-2, M-4 with IN-15). Catalog 232 hand-built + 4 universal = 236; work index 60 cards.
+(E-4, M-2, M-4 with IN-15). Catalog 232 hand-built + 4 universal = 236; work index 59 cards (old-toolkit decision note dropped).
 
 **2026-10-10 — Plan written:** research audit, TOOL-CATALOG, 15 batch designs, AGENTS, START-HERE, SESSION-START,
 PLAYBOOK, drift protocol, PLAN, MASTER-ROADMAP, owner inputs, go-live checklist, decisions, roadmap, owner guide,
@@ -48,5 +48,5 @@ Appliance Desk project profile, work index with validator, card A-1.
 
 ## Blocked
 
-Nothing in engineering. Owner inputs open: IN-02 … IN-15 (`OWNER-INPUTS.md`); none
+Nothing in engineering. Owner inputs open: IN-02 … IN-15 except IN-14 (answered: not needed) (`OWNER-INPUTS.md`); none
 blocks A-2 … A-4.

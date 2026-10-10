@@ -54,4 +54,4 @@ covered by the approved design; write the card when its predecessor is real.
 | W Workflows | W-1 … W-6 (`designs/BATCH-W.md` §4 table) | JIT |
 | U Universal | U-1 | JIT |
 | R Hub-ready doors (RTC 1) | R-1 passes · R-2 HTTPS API, manifest, rate limit · R-3 conformance in CI | JIT |
-| X Close-out | X-1 undo · X-2 smoke + scratch run · X-3 toolkit note | JIT |
+| X Close-out | X-1 undo · X-2 smoke + scratch run | JIT |
