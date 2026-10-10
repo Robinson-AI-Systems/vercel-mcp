@@ -17,7 +17,10 @@ export function missingDocs(changed, body = '') {
   if (!code || EXCEPTION.test(body || '')) return [];
   const missing = [];
   if (!has('docs/STATUS.md')) missing.push('docs/STATUS.md');
-  if (!changed.some((path) => /^docs\/pr-cards\/(?!README\.md$|validate-index\.py$)/.test(path))) {
+  // A real card (docs/pr-cards/<ID>.md) or the work index — not README, the validator or a resume note (*.progress.md).
+  const isCardOrIndex = (path) => path === 'docs/pr-cards/work-index.json' ||
+    (/^docs\/pr-cards\/[^/]+\.md$/.test(path) && !/(?:^|\/)README\.md$|\.progress\.md$/.test(path));
+  if (!changed.some(isCardOrIndex)) {
     missing.push('a PR card or docs/pr-cards/work-index.json');
   }
   if (tools && !has('docs/TOOL-CATALOG.md')) missing.push('docs/TOOL-CATALOG.md');

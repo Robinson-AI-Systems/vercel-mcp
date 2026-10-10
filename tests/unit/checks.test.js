@@ -103,6 +103,11 @@ describe('check-docs-updated (DRIFT-PROTOCOL checklist B)', () => {
     expect(missingDocs(['scripts/x.mjs', 'docs/STATUS.md', 'docs/pr-cards/work-index.json'])).toEqual([]);
     expect(missingDocs(['api/mcp.js', 'docs/STATUS.md', 'docs/pr-cards/README.md'])).toEqual(['a PR card or docs/pr-cards/work-index.json']);
   });
+  it('does not accept a resume note, README or validator in place of the card or work index', () => {
+    expect(missingDocs(['src/x.js', 'docs/STATUS.md', 'docs/pr-cards/A-2.progress.md'])).toEqual(['a PR card or docs/pr-cards/work-index.json']);
+    expect(missingDocs(['src/x.js', 'docs/STATUS.md', 'docs/pr-cards/validate-index.py'])).toEqual(['a PR card or docs/pr-cards/work-index.json']);
+    expect(missingDocs(['src/x.js', 'docs/STATUS.md', 'docs/pr-cards/A-2.md'])).toEqual([]);
+  });
   it('requires TOOL-CATALOG when a tool module changes', () => {
     expect(missingDocs(['src/tools/projects.js', 'docs/STATUS.md', 'docs/pr-cards/D-1.md'])).toEqual(['docs/TOOL-CATALOG.md']);
   });
