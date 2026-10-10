@@ -82,5 +82,5 @@ next bounded implementation.
 - [ ] Same eight write-contract checks through MCP, `vercel_call` and HTTPS.
 - [ ] RTC 1 conformance green in CI (when the hub's package exists; never a blocker before).
 
-## Batch X — Undo, smoke test, toolkit decision (`designs/BATCH-X.md`)
-- [ ] Undo for every clean opposite; read-only smoke report against the real team; scratch-project write run (IN-06); toolkit decision note delivered.
+## Batch X — Undo, smoke test (`designs/BATCH-X.md`)
+- [ ] Undo for every clean opposite; read-only smoke report against the real team; scratch-project write run (IN-06).

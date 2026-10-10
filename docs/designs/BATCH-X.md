@@ -1,7 +1,7 @@
-# Design — Batch X: Undo, real-account smoke test, toolkit decision
+# Design — Batch X: Undo, real-account smoke test
 
 Status: **APPROVED** (Chris, 2026-10-10). Written 2026-10-10. Scope and acceptance: `docs/PLAN.md` → Batch X.
-Cards X-1 … X-3.
+Cards X-1 … X-2.
 
 ## 0. Verify before starting
 
@@ -27,9 +27,6 @@ real team on a **preview-mode** connection (refuses production mode), with a rea
 `docs/audits/smoke-<date>.md` (tool, ok/failed, error in words, time). Writes are exercised for real only in the scratch
 project (IN-06): seed → preview deploy → env wiring → alias → bypass → fetch → cleanup, recorded in the same report.
 
-**X3. Toolkit decision note:** one page for Chris — keep the old toolkit's `vercel` namespace for local use, retire it,
-or point its compound tools at this server through the hub; the work each needs. Chris decides (IN-14); a later card in
-the hub does it.
 
 ## 4. Work units
 
@@ -38,8 +35,6 @@ Tool: `vercel_undo_change`. Tests: each clean opposite on fake Vercel; deletion 
 opposite; undo of an undo; production undo refused on a preview connection.
 ### X-2 — Read-only smoke test and scratch-project write run (M)
 Done when: report committed; every failure fixed or listed as a known gap with its card.
-### X-3 — Toolkit decision note (S, docs)
-
 ## 5. Stop-and-ask points
 
 1. IN-06 not answered: X-2 runs the read-only part only and says so.
@@ -50,7 +45,6 @@ Done when: report committed; every failure fixed or listed as a known gap with i
 |---|---|
 | Undo for every clean opposite | `tests/unit/undo.test.js` |
 | Read-only smoke and scratch run | `docs/audits/smoke-<date>.md` |
-| Toolkit note delivered | X-3 PR |
 
 ## Amendments
 

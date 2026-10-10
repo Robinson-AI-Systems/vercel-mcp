@@ -80,3 +80,8 @@ check that gates a merge.
 **2026-10-10 — Plan approved; no automated review (Chris).** "I approve the plans, and I don't want the automated review
 at this time." IN-00 and IN-01 answered; designs marked APPROVED. An organization-wide Codex reviewer may still post
 until Chris turns it off for this repository; agents answer and resolve its threads but never wait for one.
+
+**2026-10-10 — No compatibility with the old toolkits (Chris).** "The reference to the older toolkits was to help make sure
+you designed this custom MCP with as much functionality as possible … I don't need legacy compatibility." Removed the
+old-name map from D-1 and the toolkit decision note (X-3); IN-14 answered "not needed". The prior-tools audit stays as
+the completeness checklist it was meant to be.
