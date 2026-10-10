@@ -191,7 +191,7 @@ or URLs with credentials.
 
 ```bash
 npm ci
-npm run check                                     # quick gate: secrets, docs, index, lint, write-safety, token budgets
+npm run check                                     # quick gate: secrets, docs, index, lint, catalog, write-safety, core-imports, budgets
 npx vitest run tests/unit/<file>.test.js          # one unit file
 npm run test:db -- tests/db/<file>.test.js        # throwaway Postgres (scripts/local-postgres-test.sh)
 npm run test:emulate -- tests/emulate/<file>.test.js   # against Vercel Labs' emulate (scripts/emulate.sh starts it)

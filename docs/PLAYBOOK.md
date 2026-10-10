@@ -61,11 +61,13 @@ git diff --name-only origin/<base>...HEAD -- api src scripts | wc -l
 
 ### 4a. The quick gate (every push)
 
-`npm run check` = secret scan (`scripts/check-secrets.mjs`, fails on anything shaped like a real Vercel token
-(`vcp_…`, `vercel_blob_rw_…`), Stripe key, webhook secret, GitHub token or connection string with a password), docs check
-(`scripts/check-docs-updated.mjs`), index validation (`docs/pr-cards/validate-index.py`), lint, write-safety
+`npm run check` = secret scan (`scripts/check-secrets.mjs`, every tracked file; fails on anything shaped like a real
+Vercel token (`vcp_…`, `vci_…`, `vca_…`, `vercel_blob_rw_…`), Stripe key, webhook secret, GitHub token, real-length
+`team_`/`prj_`/`dpl_` ID or connection string with a password — fake values contain `FAKE`), docs check
+(`scripts/check-docs-updated.mjs`; locally it compares with `origin/main`), index validation
+(`docs/pr-cards/validate-index.py`), lint, catalog consistency (`scripts/check-catalog.mjs`), write-safety
 (`scripts/check-writes.mjs`), core-imports check (`scripts/check-core-imports.mjs`), token budgets
-(`scripts/check-budgets.mjs`). Never `--no-verify`.
+(`scripts/check-budgets.mjs`). Never `--no-verify`. A new file is scanned only once it is tracked: `git add` first.
 
 ### 4b. Add the checks your change needs
 
@@ -97,6 +99,16 @@ pushed branch. Conflicts in STATUS, MASTER-ROADMAP or `work-index.json`: keep bo
 
 ## Step 6 — Docs as if merged, then open the PR
 
+Open it with the REST API (GraphQL `gh pr …` commands are blocked in Claude Code sessions):
+
+```bash
+git fetch origin main && git push -u origin HEAD
+GH_PAGER=cat gh api repos/Robinson-AI-Systems/vercel-mcp/pulls -f title='<type>: <plain description>' \
+  -f head="$(git branch --show-current)" -f base=main -F body=@/path/to/pr-body.md --jq '.number, .html_url'
+# later edits: gh api -X PATCH repos/Robinson-AI-Systems/vercel-mcp/pulls/<n> -F body=@/path/to/pr-body.md
+```
+
+
 DRIFT-PROTOCOL checklist B (CI checks it): card `MERGED (#n)`, STATUS names the next card, `work-index.json` status,
 TOOL-CATALOG marks for built tools, ARCHITECTURE for env vars/tables, GO-LIVE-CHECKLIST for new switches,
 OWNER-INPUTS for new questions, DECISIONS for decisions. PR title `<type>: <plain description>`. Description in plain
@@ -114,7 +126,8 @@ what is not included; CI runs used. Delete the resume note in the final commit.
 
 ## Step 8 — Preview
 
-Vercel builds a preview of this server per branch. Previews share the production database, so they must never enable
+Once the Vercel project exists (IN-02; until then skip this step and say so in the PR), Vercel builds a preview of this
+server per branch. Previews share the production database, so they must never enable
 production mode: `api/vercel/setup.js` and the login page treat `production_enabled` as false on non-production
 deployments (A-5, A12). For a card that changes a door or login, open the preview's home page and confirm the tool
 counts shown match the PR. Never point a preview of this server at a real team's production.
@@ -122,14 +135,24 @@ counts shown match the PR. Never point a preview of this server at a real team's
 ## Step 9 — Merge (authorized when all are true)
 
 `ci` green at the exact head; acceptance met with evidence; self-review written. Merge with the expected-head SHA (merge
-commits). Stacks merge bottom-up, retargeting each PR to `main` first. After the lower PR merges, sync the successor
+commits): `GH_PAGER=cat gh api -X PUT repos/Robinson-AI-Systems/vercel-mcp/pulls/<n>/merge -f sha=<head-sha>
+-f merge_method=merge`. Then check once that the push-to-`main` run is green (Step 10 command with the merge SHA). Stacks merge bottom-up, retargeting each PR to `main` first. After the lower PR merges, sync the successor
 once onto final `main`.
 
 ## Step 10 — Waiting and stopping
 
 - External waits are checkpoints: check once, act on anything new, then build the immediate successor.
-- A quiet bounded CI wait is allowed: at most 60 seconds per wait, 10 minutes total
-  (`timeout 300 gh run watch <id> --exit-status --interval 60 > /tmp/ci-wait.log 2>&1`); timeout means pending.
+- A quiet bounded CI wait is allowed: one check per command, `sleep 60` at most between checks, about 15 minutes in
+  total; still pending after that means "pending" — record it in STATUS and do other work. One check:
+
+  ```bash
+  sleep 60; GH_PAGER=cat gh api "repos/Robinson-AI-Systems/vercel-mcp/commits/<head-sha>/check-runs" \
+    --jq '.check_runs[] | "\(.name) \(.status) \(.conclusion) \(.html_url)"'
+  ```
+
+  The checks are `check`, `unit`, `db`, `emulate` and the gate **`ci`**. Merge only when `ci` is `completed success`
+  at the exact head SHA. Red: open the failing job's log
+  (`gh api repos/Robinson-AI-Systems/vercel-mcp/actions/jobs/<job-id>/logs | tail -80`), fix every failure, push once.
 - Before ending a turn: commit, update the resume note and STATUS (exact head, pending gates, next action), and tell
   Chris in plain English.
 

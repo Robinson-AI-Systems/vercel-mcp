@@ -68,3 +68,11 @@ M-4, owner input IN-15). Blob files move from ROADMAP into scope because Chris's
 apps keep files in Blob stores; they stay metadata-only, reach only stores Chris connects on the setup page, and are the
 single exception to "Vercel only through the REST client" (BATCH-M M6). Catalog: 232 hand-built + 4 universal = 236.
 Projects checked for needs: Appliance Desk, Cortiware, oldReplit, Household-Assistant — no further gaps.
+
+**2026-10-10 — A-1 foundation as built (PR #1).** Copied the Stripe MCP's proven A-1 files (`e2f90e8`) because the hub
+has no core package release yet and the Stripe MCP's Batches B–C have not merged (BATCH-A amendment). `emulate` 0.12.1 is
+a pinned devDependency, not an `npx` download, so CI and laptops run the same version from the lockfile. A catalog
+consistency check joined `npm run check`, so the tool count in TOOL-CATALOG can never silently drift from its tables and
+no tool can be registered without a catalog row. CI has four independent jobs and one aggregate `ci` job, the only
+check that gates a merge.
+

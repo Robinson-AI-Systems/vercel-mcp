@@ -4,7 +4,8 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Next:** A-1 (ready as soon as Chris approves the plan, IN-00).
+**Next:** A-2 — database schema ([card](pr-cards/A-2.md), READY), then A-3 — connector login ([card](pr-cards/A-3.md),
+READY). A-1 (repository, test harness, CI) merged in PR #1.
 
 ## Order and why
 
@@ -39,7 +40,7 @@ covered by the approved design; write the card when its predecessor is real.
 
 | Batch | Cards | Card status |
 |---|---|---|
-| A Foundation | A-1 repo, CI, checks · A-2 schema · A-3 login · A-4 Vercel client + OpenAPI snapshot · A-5 token store, setup page, one-time secrets, pending inputs · A-6 DEPLOY.md | A-1 [card](pr-cards/A-1.md); rest JIT |
+| A Foundation | A-1 repo, CI, checks · A-2 schema · A-3 login · A-4 Vercel client + OpenAPI snapshot · A-5 token store, setup page, one-time secrets, pending inputs · A-6 DEPLOY.md | A-1 MERGED (#1) · A-2, A-3 READY ([A-2](pr-cards/A-2.md), [A-3](pr-cards/A-3.md)); A-4 … A-6 JIT |
 | B Trust | B-1 safety + declarations · B-2 production guard · B-3 self-protection + profile hook · B-4 errors · B-5 shaping + secrets · B-6 profiles · B-7 check-writes · B-8 server tools | JIT |
 | C Context | C-1 small results · C-2 listing modes + budgets | JIT |
 | D Projects and deployments | D-1 projects/members/crons/Git · D-2 deployment reads/logs/checks · D-3 deployment changes · D-4 releases | JIT |

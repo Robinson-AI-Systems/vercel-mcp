@@ -8,7 +8,8 @@ only when a step below names them, a section at a time. `AGENTS.md` still govern
 Work happens in whatever workspace you were given (a cloud agent workspace, a Vercel Sandbox, a laptop). Code reaches
 GitHub only as git commits pushed to an `ai/*` branch. Never copy source files through tool output.
 
-1. `git fetch origin && git status -sb && git log --oneline -5`; `npm ci` once per checkout.
+1. `git fetch origin && git status -sb && git log --oneline -5`; `npm ci` once per checkout (Node 24 in CI; Node 22+
+   works locally — npm only warns about `engines`). Sanity: `npm run check && npm test` should pass on a clean `main`.
 2. `sed -n '1,40p' docs/STATUS.md` → the **Next** section names the card.
 3. Resume note? `ls docs/pr-cards/*.progress.md 2>/dev/null` — if your card has one, continue from its "Next step".
    Do not restart work it lists as done.
@@ -34,7 +35,9 @@ resources; widening default token, connection or pass permissions or the protect
 4. **Code first, then docs.** In an implementation PR, edit only the docs checklist B names.
 5. When the card is complete: update the docs **as if this PR had already merged** (card `MERGED (#n)`, STATUS,
    `work-index.json`, TOOL-CATALOG marks, ARCHITECTURE when infra changed — checklist B), push once, open the PR,
-   then follow PLAYBOOK Steps 5–9.
+   then follow PLAYBOOK Steps 5–9: open the PR with the REST command in Step 6 (never `gh pr …`), check CI with
+   the one-check command in Step 10 (bounded, ~15 min), merge with the expected-head SHA (Step 9) when the **`ci`**
+   check is green at the exact head.
 
 ## 4. Resume note — so stopping never loses your place
 
@@ -56,7 +59,8 @@ Delete it in the card's final commit.
 - Every search has a path and `| head -50`. Only commands that finish by themselves; `timeout 600` for slow ones.
 - Pipe long output through `| tail -80`. Same command fails twice → change approach or record the blocker.
 - After ~10 reads/searches without an edit, make the smallest next edit.
-- CI and reviews: check once, act on what is new, then do other work.
+- CI and reviews: check once, act on what is new, then do other work. No automated reviewer is expected (IN-01).
+- No local Postgres? `npm run test:db` exits 2 and says so; push and let CI's `db` job run it (say so in the PR).
 
 ## 6. Stopping
 
