@@ -222,3 +222,13 @@ Done when: a reviewer pretending to be Chris can follow it without a question.
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-10 — A-1 as built (drift check A, PR #1).** (1) Copy source for A-1: the hub has no `robinson-mcp-core`
+release and the Stripe MCP's Batches B–C have not merged, so A-1 copied the Stripe MCP's A-1 files at `e2f90e8` (itself
+the Workspace pattern, already proven in CI); A-2 and A-3 take their code from the same source (cards name the files).
+(2) §0 row A3 checked: `emulate@0.12.1` (newest) needs the `start` subcommand, accepts any bearer token, refuses a
+missing one with 401 `not_authenticated`, and answers `GET /v2/user` and `GET /v10/projects` with Vercel-shaped JSON;
+it is a pinned devDependency and `scripts/emulate.sh` refuses any other installed version. The deployment and env-write
+rows are checked by the cards that call them (A-4 onward). (3) `scripts/check-catalog.mjs` added to `npm run check`:
+TOOL-CATALOG section counts and totals must match its rows and every registered tool must be listed. (4) The docs check
+treats `src/tools/index.js` (the module list) as code, not as a tool change.

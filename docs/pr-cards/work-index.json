@@ -27,14 +27,17 @@
       "design": "docs/designs/BATCH-A.md",
       "dependencies": [],
       "card": "docs/pr-cards/A-1.md",
-      "status": "READY",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "A-1"
       ],
-      "readiness": "READY",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        1
+      ]
     },
     {
       "id": "A-2",
@@ -45,13 +48,13 @@
         "A-1"
       ],
       "card": "docs/pr-cards/A-2.md",
-      "status": "APPROVED",
+      "status": "READY",
       "migration": "foundation",
       "budget": 250,
       "units": [
         "A-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": []
     },
     {
@@ -63,13 +66,13 @@
         "A-2"
       ],
       "card": "docs/pr-cards/A-3.md",
-      "status": "APPROVED",
+      "status": "READY",
       "migration": "none",
       "budget": 450,
       "units": [
         "A-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": []
     },
     {

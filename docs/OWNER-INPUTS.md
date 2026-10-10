@@ -5,7 +5,7 @@ An answer is "applied" only once the setting and its behavior are verified. Plai
 
 | ID | Status | Question | Blocks | Recommended / safe default |
 |---|---|---|---|---|
-| IN-00 | **Open** | Approve this plan (all designs in `docs/designs/`) so building can start. | All cards | — |
+| IN-00 | **Pending Chris's confirmation** — on 2026-10-10 Chris asked for this repository to be made implementation-ready, applied as approval to build Batch A (A-1 merged) | Approve this plan (all designs in `docs/designs/`) so building can continue past Batch A. | Batch B onward | — |
 | IN-01 | **Pending Chris's confirmation (same as Stripe)** — applied provisionally; it mirrors his Stripe MCP decision of 2026-10-10 | Keep this repository public, and no automated (Codex) review — the building AI checks every change itself and writes down what it found? | Nothing (applied provisionally) | Public (free CI, secret scanning on); no automated review |
 | IN-02 | Awaiting Chris (before A-5 is tried for real) | Create a Vercel project `vercel-mcp` and a Neon database for it (free tiers). Claude can do both with your Vercel and Neon connectors once you say go. | Real deployment | Free tiers; no purchase |
 | IN-03 | Awaiting Chris (with IN-02) | Set two secrets in Vercel yourself: `ADMIN_PASSPHRASE` (the passphrase for the login and setup pages) and `TOKEN_ENCRYPTION_KEY` (DEPLOY.md shows how to make it). Claude never sees them. | Real deployment | — |

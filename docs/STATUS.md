@@ -1,36 +1,54 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-10. Plan written by Claude (Opus 5.5) following the hub's server playbook, with the Stripe MCP plan as
-the model. **No code exists yet.** No Vercel token has been added anywhere. Nothing is live.
+Updated 2026-10-10. **Foundation built (A-1, PR #1):** test harness, checks and CI are real and green; no tools exist
+yet. No Vercel token has been added anywhere. Nothing is deployed or live.
 
 ## Next
 
-- **Waiting on Chris:** IN-00 — approve the plan. Then A-1 (repository, test harness, CI and doc checks,
-  [card](pr-cards/A-1.md)) is ready; A-2 … A-6 follow (JIT).
-- **Pending confirmation:** IN-01 — repository public, no automated review (the same choice Chris made for the Stripe
-  MCP on 2026-10-10); applied provisionally.
+- **Next card: A-2 — Database schema** ([card](pr-cards/A-2.md), READY). Then A-3 — connector login
+  ([card](pr-cards/A-3.md), READY, two PRs). A-4 … A-6 are written just in time.
+- **Pending confirmation:** IN-00 (whole plan) — Chris asked on 2026-10-10 for this repository to be made
+  implementation-ready, which covers building Batch A; IN-01 (public repository, no automated review) is applied
+  provisionally, the same as his Stripe decision.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
+
+## What works today (A-1)
+
+| Command | What it proves |
+|---|---|
+| `npm run check` | secret scan of every tracked file, docs reconciliation, work-index validation, lint, catalog consistency (236 tools), write-safety, core-imports, token budgets |
+| `npm test` | unit suite: fake Vercel API, registry, every check script against planted violations, db contract on the fake |
+| `npm run test:db` | the db contract on throwaway Postgres (CI service; locally a disposable cluster from local binaries) |
+| `npm run test:emulate` | Vercel Labs' `emulate` 0.12.1 started on localhost, Vercel-shaped reads answered, stopped afterwards |
+
+CI (`.github/workflows/ci.yml`): jobs `check`, `unit`, `db`, `emulate`; the aggregate job **`ci`** is the single merge
+gate and fails unless all four succeeded. Proof it turns red: [run 38077445050](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38077445050) — a deliberately failing unit
+test made `unit` and `ci` red while `check`, `db` and `emulate` passed; the test was then removed. Final green run:
+linked in PR #1.
 
 ## Environment
 
-- Repo: `Robinson-AI-Systems/vercel-mcp`, default branch `main`. The plan is committed locally on `main` because the
-  repository was empty; every later change goes through an `ai/*` branch and a PR.
-- Vercel project, Neon database and Vercel tokens for this server: not created yet (IN-02, IN-03, IN-04).
+- Repo: `Robinson-AI-Systems/vercel-mcp` (public), default branch `main`. Every change goes through an `ai/*` branch and
+  a PR; CI must be green at the exact head before merge.
+- Vercel project, Neon database and Vercel tokens for this server: not created yet (IN-02, IN-03, IN-04). Not needed
+  until A-5 is tried for real.
 
 ## Recent merges (newest first)
 
-**2026-10-10 — Gap check against prior toolkits (local commit, not pushed):** every Vercel tool name from Chris's
-earlier toolkits (robinsons-toolkit-mcp, robinsonai-mcp-servers, robinsons-toolkit-api, an archived optimizer index,
-planning docs) mapped in `audits/2026-10-10-prior-tools.md` — 273 unique names: 211 covered, 7 universal, 44 dropped
-with reasons, 9 tools added (Global Config tokens and schema → new card E-4; drain pause/resume → M-2; Blob files →
-new card M-4 with IN-15). Catalog now 232 hand-built + 4 universal = 236; work index 60 cards, validator passes.
+**2026-10-10 — A-1 foundation (PR #1, branch `ai/claude/a-1-foundation`):** Node 24 ESM package with committed lockfile
+and exact versions; `scripts/check-secrets.mjs` (tracked files, planted-token test), `check-docs-updated`,
+`check-catalog`, `check-writes`, `check-budgets`, `check-core-imports`; empty registry (`mergeNamespaces`);
+`test/helpers/fake-vercel.js`; throwaway-Postgres harness; pinned `emulate` runner; four CI jobs plus `ci`.
 
-**2026-10-10 — Plan written (initial commits):** research audit (Vercel API, old toolkit inventory with 12 bugs, official
-connector comparison, credentials, testing, owner side, coverage matrix), TOOL-CATALOG (223 hand-built tools + 4
-universal at first commit; 232 + 4 = 236 after the gap check below), 15 batch designs, AGENTS, START-HERE, SESSION-START, PLAYBOOK, drift protocol, PLAN, MASTER-ROADMAP, owner
-inputs, go-live checklist, decisions, roadmap, owner guide, Appliance Desk project profile, work index with validator,
-first card A-1.
+**2026-10-10 — Gap check against prior toolkits:** every Vercel tool name from Chris's earlier toolkits mapped in
+`audits/2026-10-10-prior-tools.md` — 273 unique names: 211 covered, 7 universal, 44 dropped with reasons, 9 tools added
+(E-4, M-2, M-4 with IN-15). Catalog 232 hand-built + 4 universal = 236; work index 60 cards.
+
+**2026-10-10 — Plan written:** research audit, TOOL-CATALOG, 15 batch designs, AGENTS, START-HERE, SESSION-START,
+PLAYBOOK, drift protocol, PLAN, MASTER-ROADMAP, owner inputs, go-live checklist, decisions, roadmap, owner guide,
+Appliance Desk project profile, work index with validator, card A-1.
 
 ## Blocked
 
-Nothing in engineering. Owner inputs open: IN-00 … IN-15 (`OWNER-INPUTS.md`); none except IN-00 blocks A-1 … A-4.
+Nothing in engineering. Owner inputs open: IN-00 (confirm), IN-01 (confirm), IN-02 … IN-15 (`OWNER-INPUTS.md`); none
+blocks A-2 … A-4.
