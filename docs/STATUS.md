@@ -22,7 +22,9 @@ yet. No Vercel token has been added anywhere. Nothing is deployed or live.
 | `npm run test:emulate` | Vercel Labs' `emulate` 0.12.1 started on localhost, Vercel-shaped reads answered, stopped afterwards |
 
 CI (`.github/workflows/ci.yml`): jobs `check`, `unit`, `db`, `emulate`; the aggregate job **`ci`** is the single merge
-gate and fails unless all four succeeded. Proof it turns red: see PR #1 (red run and final green run linked there).
+gate and fails unless all four succeeded. Proof it turns red: [run 38077445050](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38077445050) — a deliberately failing unit
+test made `unit` and `ci` red while `check`, `db` and `emulate` passed; the test was then removed. Final green run:
+linked in PR #1.
 
 ## Environment
 
