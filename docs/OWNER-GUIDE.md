@@ -27,3 +27,5 @@ it does not work yet. This file is updated as features ship.
 | "Undo that." | Reverses the last change when it has a clean opposite; says plainly when it doesn't | X |
 | "Make a 24-hour read-only pass for Codex." | A pass shown once on your setup page; the agent uses it through Robinson's Toolkit (`rtool`) or the HTTPS API | R |
 | Anything else in Vercel | The universal tools find the right Vercel operation and run it with the same safety | U |
+
+For instructions on owner-controlled activation of this server (without sharing keys with an AI), see [DEPLOY.md](DEPLOY.md). No Vercel team is connected or deployed as part of completing Batch A.
