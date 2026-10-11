@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1c Git discovery (#49):** provider-approved namespace and repository reads, server-stored credentials, per-token exception only for the Vercel Git namespace endpoint (no unsupported teamId), team injection on repo search, sanitized outputs, scope denial and request-shape tests. D-1 IN_PROGRESS; next crons. No owner/production gate changes.
+
 - **D-1b member and cursor reads (#48):** authenticated project member/role list, server-selected team and strict project-only account restriction, safe summaries, bounded pagination inputs and project-list cursor continuation. Fake HTTP, malformed input and scope denial regressions; offline only. D-1 remains IN_PROGRESS; next cron and Git discovery.
 
 - **D-1a project reads (#47):** server-selected encrypted credential binding and two verified read-only project operations (team list/single project), fail-closed project-account isolation, bounded response fields, fake REST tests, and no provider writes. D-1 remains IN_PROGRESS; next project member, cron and Git reads.

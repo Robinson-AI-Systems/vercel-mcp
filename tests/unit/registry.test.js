@@ -6,7 +6,7 @@ const make = (name) => ({ tools: [{ name }], handlers: { [name]: async () => nul
 
 describe('tool registry', () => {
   it('registers safe read and owner-only operations with explicit allowlist', () => {
-    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_check_token', 'vercel_get_result', 'vercel_enable_production', 'vercel_disable_production', 'vercel_list_protected_resources', 'vercel_list_connections', 'vercel_recent_changes', 'vercel_where_is_setting', 'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection', 'vercel_search_tools', 'vercel_call', 'vercel_batch', 'vercel_describe_tool', 'vercel_project_list', 'vercel_project_get', 'vercel_project_list_members']);
+    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_check_token', 'vercel_get_result', 'vercel_enable_production', 'vercel_disable_production', 'vercel_list_protected_resources', 'vercel_list_connections', 'vercel_recent_changes', 'vercel_where_is_setting', 'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection', 'vercel_search_tools', 'vercel_call', 'vercel_batch', 'vercel_describe_tool', 'vercel_project_list', 'vercel_project_get', 'vercel_project_list_members', 'vercel_git_list_namespaces', 'vercel_git_search_repos']);
     expect(registry.tools.filter(x=>x.writes===true).map(x=>x.localAdmin)).toEqual([true, true, true, true, true]);
   });
   it('merges namespaces and keeps each handler', () => {

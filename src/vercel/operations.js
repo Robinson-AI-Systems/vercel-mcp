@@ -6,6 +6,8 @@ export const OPS = Object.freeze({
   projects_list: Object.freeze({ method: 'GET', path: '/v10/projects' }),
   projects_get: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}' }),
   projects_members_list: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/members' }),
+  git_namespaces: Object.freeze({ method: 'GET', path: '/v1/integrations/git-namespaces', teamScoped: false }),
+  git_repos_search: Object.freeze({ method: 'GET', path: '/v1/integrations/search-repo' }),
   projects_create: Object.freeze({ method: 'POST', path: '/v11/projects' })
 });
 
