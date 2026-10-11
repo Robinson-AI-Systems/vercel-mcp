@@ -21,6 +21,16 @@ reason to stop. Designs govern behavior; cards cannot silently override them.
 
 Validate coverage with `python3 docs/pr-cards/validate-index.py`.
 
+## Execution detail without extra discovery
+
+Use [implementation guidance](../implementation-guidance/README.md) to select only the recipe for this unit.
+Record existing paths separately from proposed paths. Include exact exported signatures, argument → API/SQL
+mappings, before/read-back invariants, ordered steps, named fixtures with expected outcomes and forbidden side effects,
+focused commands, dependency evidence, and what the successor inherits. Copy patterns only after checking the baseline;
+the guidance is a locator, not a replacement for approved scope or drift checklist A.
+For the next B-8b slice, use the [worked example](../implementation-guidance/B-8b.md) when writing its JIT card.
+Do not prewrite distant cards or mark proposed helpers as implemented.
+
 ## Effort guide for Sol 5.6
 
 Light: read tools in an area whose pattern already exists; docs cards. Medium: safety layer, guards, production and

@@ -7,6 +7,8 @@ Modelled on `Robinson-AI-Systems/stripe-mcp` `AGENTS.md` (2026-10-10), which is 
 
 **Implementing an approved PR card?** Read `docs/SESSION-START.md` (one page) and the card, then work. Open the
 sections below when a step names them.
+Use `docs/implementation-guidance/README.md` to locate the matching execution recipe when writing or reconciling a
+card; read only that recipe. It maps existing code and proposed work without changing approved scope or owner gates.
 
 **Other sessions** (design, planning, review): this file → `docs/START-HERE.md` → `docs/STATUS.md` →
 `docs/MASTER-ROADMAP.md` → the relevant `docs/PLAN.md` section and design headings.
