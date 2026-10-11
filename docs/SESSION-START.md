@@ -97,8 +97,18 @@ package instead, in that package's types and documentation — a wrong parameter
 Run the full `npm run check` and `npm test` before every push: CI should only confirm what you already know.
 
 **No shell?** If your workspace cannot run commands (you edit through a GitHub connector), you cannot validate locally:
-open the PR as a **draft** after the first slice and push **each slice** — CI is your test runner (this replaces "one push
+open the PR as a **draft** after the first slice and push **each slice once the previous run has finished** — CI is
+your test runner (this replaces "one push
 per CI cycle"). Read failures from check-run annotations and fix them before adding the next slice.
+
+**CI cadence: one complete run per fix batch.** Every push starts a full CI run, and that is intended: the merge gate
+must be green at the exact head, because a fix in one place can break another. So make each run count:
+- **Never push while your PR's CI run is still in progress.** Wait for every job to finish (PLAYBOOK Step 10's bounded
+  wait; build the next slice locally meanwhile), collect **all** failures, fix them together, then push once.
+- Run the checks locally first whenever you can (`npm run check`, `npm test`, and the db/mock tests the change touches),
+  so CI confirms rather than discovers.
+- "Re-run failed jobs" on GitHub is only for an infrastructure hiccup with no code change (a runner or network error);
+  any code change gets a full run.
 
 **Leave an exact recovery point.** Never end a turn with a plan, a promise ("I'll now …") or a summary while work
 remains. End every turn right after a push whose resume note's "Next step" is the exact next action — a command or a
