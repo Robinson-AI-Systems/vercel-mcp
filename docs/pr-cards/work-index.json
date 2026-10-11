@@ -351,14 +351,19 @@
         "B-8"
       ],
       "card": "docs/pr-cards/C-1.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "result_store",
       "budget": 400,
       "units": [
         "C-1"
       ],
-      "readiness": "READY",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        41,
+        42,
+        43
+      ]
     },
     {
       "id": "C-2",
@@ -375,7 +380,7 @@
       "units": [
         "C-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": []
     },
     {

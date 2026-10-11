@@ -9,7 +9,22 @@ import { visibleToProfile, listProfileTools, profileToolCounts as countByProfile
 const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection'];
 export const listMcpTools = (registry, connection) =>
-  listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS });
+  listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS })
+    .map(tool=>{
+      const read=tool.writes===undefined ? !LOCAL_OWNER_TOOLS.includes(tool.name) :
+        tool.writes===false;
+      const annotations={
+        readOnlyHint:read,destructiveHint:false,idempotentHint:read,
+        openWorldHint:true,...tool.annotations
+      };
+      if(!read || tool.name==='vercel_get_result')return {...tool,annotations};
+      return {...tool,annotations,inputSchema:{
+        ...tool.inputSchema,properties:{...tool.inputSchema?.properties,
+          fields:{type:'string',maxLength:800,description:'Comma-separated safe dotted result fields'},
+          detail:{type:'string',enum:['summary','full'],description:'Small summary or full read view'}
+        }
+      }};
+    });
 export const profileToolCounts = registry =>
   countByProfile(registry, { localOwnerTools: LOCAL_OWNER_TOOLS });
 function mayUse(tool, connection) {
@@ -25,8 +40,24 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
     return { isError: true, content: [{ type: 'text', text: 'Tool unavailable' }] };
   }
   try {
-    const result = await handler(args || {}, { connection, db, env, fetchImpl });
-    return typeof shapeResult === 'function' ? shapeResult(result, { connection, tool: name }) : result;
+    const view={};
+    let handlerArgs=args || {};
+    if(item.writes===false && name!=='vercel_get_result'){
+      if(handlerArgs && typeof handlerArgs==='object' && !Array.isArray(handlerArgs)){
+        view.fields=handlerArgs.fields;
+        view.detail=handlerArgs.detail;
+        if(view.detail!==undefined && !['summary','full'].includes(view.detail))
+          return {isError:true,content:[{type:'text',text:'Invalid detail selection'}]};
+        if(view.fields!==undefined && (typeof view.fields!=='string' || view.fields.length>800))
+          return {isError:true,content:[{type:'text',text:'Invalid fields selection'}]};
+        handlerArgs={...handlerArgs};
+        delete handlerArgs.fields;delete handlerArgs.detail;
+      }
+    }
+    const result=await handler(handlerArgs,{connection,db,env,fetchImpl});
+    return typeof shapeResult==='function' ? await shapeResult(result,{
+      connection,tool:name,args:view,db,readOnly:item.writes===false
+    }) : result;
   } catch (caught) {
     if (typeof formatError === 'function') {
       try {
