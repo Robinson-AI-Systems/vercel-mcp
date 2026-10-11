@@ -118,6 +118,51 @@ export function createDb(query) {
             AT TIME ZONE 'America/Denver')`;
       return Number(rows[0]?.cents || 0);
     },
+    async recordChange(entry) {
+      if (!entry || !entry.account || !entry.tool || !entry.summary ||
+        typeof entry.dryRun !== 'boolean' || typeof entry.production !== 'boolean') {
+        throw new TypeError('A complete safe audit record is required');
+      }
+      // Audit is a permanent record: secrets must never be recorded even if
+      // a caller accidentally fails to redact a provider response.
+      const fields = [entry.before, entry.after, entry.result, entry.inverse, entry.targets];
+      function assertNoCredentials(value) {
+        if (value === undefined || value === null) return;
+        if (Array.isArray(value)) { for (const item of value) assertNoCredentials(item); return; }
+        if (typeof value === 'object') {
+          for (const [key, item] of Object.entries(value)) {
+            if (/(token|secret|password|credential|auth.?code|private.?key|decrypted.?value)/i.test(key)) {
+              throw new TypeError('Audit data contains a sensitive field');
+            }
+            assertNoCredentials(item);
+          }
+          return;
+        }
+        if (typeof value === 'string' &&
+          /(?:vcp_|github_pat_|ghp_|whsec_|sk_live_)[A-Za-z0-9_-]{8,}/.test(value)) {
+          throw new TypeError('Audit data contains a sensitive credential');
+        }
+      }
+      for (const field of [...fields, entry.summary, entry.moneyLine]) assertNoCredentials(field);
+      const before = JSON.stringify({ snapshot: entry.before ?? null, targets: entry.targets ?? [] });
+      const after = JSON.stringify(entry.after ?? null);
+      const result = JSON.stringify(entry.result ?? null);
+      const inverse = JSON.stringify(entry.inverse ?? null);
+      const summary = String(entry.summary) + (entry.moneyLine ? ' | ' + String(entry.moneyLine) : '');
+      if (Buffer.byteLength(before + after + result + inverse + summary) > 8192) {
+        throw new TypeError('Audit record exceeds safe 8 KB limit');
+      }
+      const run = getSql();
+      const rows = await run`INSERT INTO change_log
+        (vercel_account, mode, tool, summary, before, after, dry_run,
+          production, request_key, result, inverse)
+        VALUES (${entry.account}, ${entry.mode || 'preview'}, ${entry.tool}, ${summary},
+          ${before}::jsonb, ${after}::jsonb, ${entry.dryRun},
+          ${entry.production}, ${entry.requestKey || null},
+          ${result}::jsonb, ${inverse}::jsonb)
+        RETURNING id`;
+      return rows[0].id;
+    },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
         throw new TypeError('Missing OAuth client registration fields');
