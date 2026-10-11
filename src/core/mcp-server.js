@@ -4,9 +4,18 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { requireMcpToken } from './mcp-auth.js';
 
+// Only these two internal owner administrative switches are eligible before
+// the general write-tool gateway exists. They never call a Vercel write API.
+const LOCAL_OWNER_TOOLS = new Set(['vercel_enable_production', 'vercel_disable_production']);
+function mayUse(tool, connection) {
+  if (!tool?.profiles?.includes(connection?.profile)) return false;
+  if (tool.writes === false) return true;
+  return tool.writes === true && tool.localAdmin === true &&
+    LOCAL_OWNER_TOOLS.has(tool.name) && connection.profile === 'full';
+}
 export async function dispatchReadOnlyTool({ registry, name, args, connection, db }) {
   const item = registry.tools.find((tool) => tool.name === name);
-  if (!item || item.writes !== false || !item.profiles?.includes(connection.profile)) {
+  if (!mayUse(item, connection)) {
     return { isError: true, content: [{ type: 'text', text: 'Tool unavailable for this connection' }] };
   }
   const handler = registry.handlers[name];
@@ -27,8 +36,8 @@ export function createMcpHandler({ db, registry, env = process.env }) {
     const server = new Server({ name: 'robinson-vercel-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: registry.tools
-        .filter((tool) => tool.writes === false && tool.profiles?.includes(connection.profile))
-        .map((tool) => Object.fromEntries(Object.entries(tool).filter(([key]) => key !== 'writes' && key !== 'profiles')))
+        .filter((tool) => mayUse(tool, connection))
+        .map((tool) => Object.fromEntries(Object.entries(tool).filter(([key]) => !['writes','profiles','localAdmin','writeContract'].includes(key))))
     }));
     server.setRequestHandler(CallToolRequestSchema, async (request) =>
       dispatchReadOnlyTool({
