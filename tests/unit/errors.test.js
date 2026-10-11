@@ -32,18 +32,18 @@ describe('B-4 plain-language Vercel provider errors',()=>{
    expect(response.next).toContain('Wait');
  });
  it('never copies raw provider messages, token-looking context or upstream payloads',()=>{
-   const raw={error:{code:'unknown_code',message:'vcp_secret_EXAMPLE_token_value'},status:500,
+   const raw={error:{code:'unknown_code',message:'vcp_FAKE_secret_example_value'},status:500,
      body:{password:'bad-password'}};
    const output=JSON.stringify(vercelErrorResult(raw,{team:'sk_live_SECRET'}));
-   expect(output).not.toContain('vcp_secret_EXAMPLE_token_value');
+   expect(output).not.toContain('vcp_FAKE_secret_example_value');
    expect(output).not.toContain('sk_live_SECRET');
    expect(output).not.toContain('bad-password');
    expect(output).toContain('What to do');
  });
  it('does not echo untrusted codes or credential-shaped labels',()=>{
-   const raw={error:{code:'vcp_very_long_secret_identifier',message:'private'},status:401};
+   const raw={error:{code:'vcp_FAKE_long_secret_identifier',message:'private'},status:401};
    const value=JSON.stringify(vercelErrorResult(raw,{team:'vcp_SECRET'}));
-   expect(value).not.toContain('vcp_very_long_secret_identifier');
+   expect(value).not.toContain('vcp_FAKE_long_secret_identifier');
    expect(value).not.toContain('vcp_SECRET');
    expect(explainVercelError({code:'forbidden',status:403},{projectScoped:true,project:'sk_live_SECRET'}).why)
      .not.toContain('sk_live_SECRET');
