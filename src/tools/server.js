@@ -26,7 +26,13 @@ export const serverTools = {
     { name:'vercel_get_result',writes:false,profiles:PROFILES,
       description:'Read a page of a stored large result; only the original authenticated bearer can access it.',
       inputSchema:{type:'object',properties:{
-        handle:{type:'string',pattern:'^res_[a-f0-9]{32}
+        handle:{type:'string',pattern:'^res_[a-f0-9]{32}$'},
+        page:{type:'integer',minimum:0,maximum:10000},
+        fields:{type:'string',maxLength:800}
+      },required:['handle'],additionalProperties:false},
+      annotations:{readOnlyHint:true}
+    }
+  ],
   handlers: {
     async vercel_get_result(args,{connection,db}){
       if(!args || typeof args!=='object' || Array.isArray(args) ||
@@ -52,62 +58,6 @@ export const serverTools = {
           text:'Stored page exceeds safe display size; select fewer fields'}]};
       return asText(payload);
     },
-    async vercel_whoami(_args, { connection, db }) {
-      const accounts = await db.listVercelAccounts();
-      const row = accounts.find(account => account.id === connection.account);
-      if (!row) return { isError: true,
-        content: [{ type: 'text', text: 'No Vercel account is connected' }] };
-      const spent = typeof db.getTodaySpendCents === 'function'
-        ? await db.getTodaySpendCents(row.id) : null;
-      const expiry = row.token_expires_at && new Date(row.token_expires_at).getTime();
-      const daysLeft = Number.isFinite(expiry) ? Math.ceil((expiry - Date.now()) / 86400000) : null;
-      const tokenWarning = daysLeft === null ? null : daysLeft <= 0 ?
-        'Vercel token expired; rotate it using the authenticated owner setup page.' :
-        daysLeft <= 14 ? 'Vercel token expires within ' + daysLeft +
-          ' days; verify renewal through owner setup.' : null;
-      return asText({ account: safe(row), mode: connection.mode,
-        profile: connection.profile, listing: connection.listing,
-        spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent,
-        tokenWarning });
-    },
-    async vercel_list_accounts(args, { connection, db }) {
-      // A connector is bound to one Vercel account. The owner setup page,
-      // not an arbitrary OAuth connection, can enumerate every configured team.
-      if (!args || typeof args !== 'object' || Array.isArray(args) ||
-          Object.keys(args).length !== 0) {
-        return { isError: true, content: [{ type: 'text', text: 'This tool takes no arguments' }] };
-      }
-      if (typeof connection?.account !== 'string' || !connection.account ||
-          typeof db.getVercelAccountSafe !== 'function') {
-        throw new Error('Authenticated account lookup unavailable');
-      }
-      const account = await db.getVercelAccountSafe(connection.account);
-      if (!account) return { isError: true, content: [{ type: 'text',
-        text: 'No Vercel account is connected' }] };
-      return asText({ accounts: [safe(account)], count: 1 });
-    },
-    async vercel_check_token(args, { connection, db, env, fetchImpl }) {
-      // The MCP dispatcher does not currently enforce argument schemas itself.
-      // Reject every caller-supplied token, account selector and privilege flag.
-      if (!args || typeof args !== 'object' || Array.isArray(args) ||
-          Object.keys(args).length !== 0) {
-        return { isError: true, content: [{ type: 'text', text: 'This tool takes no arguments' }] };
-      }
-      if (typeof connection?.account !== 'string') throw new Error('Connection account unavailable');
-      return asText(await recheckStoredToken({
-        db, accountId: connection.account, env, fetchImpl
-      }));
-    }
-  }
-};
-},
-        page:{type:'integer',minimum:0,maximum:10000},
-        fields:{type:'string',maxLength:800}
-      },required:['handle'],additionalProperties:false},
-      annotations:{readOnlyHint:true}
-    }
-  ],
-  handlers: {
     async vercel_whoami(_args, { connection, db }) {
       const accounts = await db.listVercelAccounts();
       const row = accounts.find(account => account.id === connection.account);

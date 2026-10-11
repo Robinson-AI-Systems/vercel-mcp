@@ -3,7 +3,6 @@ import {prepareResult} from '../core/result-rules.js';
 import {summarizeObject} from '../tools/summaries.js';
 import {shapeMcpResult} from './shape.js';
 function text(payload){return {type:'text',text:JSON.stringify(payload)}}
-const size=value=>Buffer.byteLength(JSON.stringify(value),'utf8');
 export async function shapeStoredMcpResult(response,{connection,db,args={},readOnly=false,tool}={}){
   if(!readOnly)return shapeMcpResult(response,{connection,tool});
   if(!response || !Array.isArray(response.content))throw new TypeError('Invalid tool result');
