@@ -18,6 +18,10 @@ function fixture(){
       if(replay.has(key))return replay.get(key);
       replay.set(key,{state:'pending'});return {state:'claimed',claimId:'claimed_FAKE'};
     },complete:async({key,result})=>replay.set(key,{state:'completed',result})}),
+    consumeOneTimeSecret:vi.fn(async({id,account:a})=>{
+      const row=store.get(id);if(!row || row.vercel_account!==a)return null;
+      store.delete(id);return row;
+    }),
     recordChange:vi.fn(async()=>{}),setOwnerSpendLimit:vi.fn(async()=>true)
   };
   const connection={account,mode:'production',profile:'full',listing:'catalog'};
