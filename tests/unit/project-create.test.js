@@ -1,5 +1,4 @@
 import {describe,it,expect,vi,beforeEach} from 'vitest';
-import {randomBytes} from 'node:crypto';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
 import {registry} from '../../src/tools/index.js';
 import {dispatchReadOnlyTool,listMcpTools} from '../../src/core/mcp-server.js';
@@ -67,7 +66,7 @@ describe('D-1f guarded project creation',()=>{
   });
   it('rejects protected names, malformed inputs, project-only credentials and existing projects',async()=>{
     const f=fixture();
-    const bad=[{name:'vercel-mcp',confirm:true},{name:'../demo',confirm:true},
+    const bad=[{name:'../demo',confirm:true},
       {name:'demo-site',teamId:'other',confirm:true},{name:'demo-site',confirm:'yes'},
       {name:'demo-site',framework:'unknown'}];
     for(const args of bad){const r=await f.call(args);expect(r.isError || parse(r).status==='refused_by_guard').toBe(true);}
@@ -76,6 +75,10 @@ describe('D-1f guarded project creation',()=>{
     expect(parse(await f.call({name:'demo-site',confirm:true})).status).toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(0);
     loadToken.mockResolvedValue(token);
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    expect(parse(await f.call({name:'vercel-mcp',confirm:true})).status).toBe('refused_by_guard');
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+    f.fake.calls.length=0;
     f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_FAKE_EXISTS',name:'demo-site'});
     expect(parse(await f.call({name:'demo-site',confirm:true})).status).toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(1);
