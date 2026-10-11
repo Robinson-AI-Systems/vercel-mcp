@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
 import { encryptSecret } from '../../src/core/secret-box.js';
 import { checkProductionWrite, requestProductionEnable, approveProductionEnable, disableProduction } from '../../src/tools/production-guard.js';
