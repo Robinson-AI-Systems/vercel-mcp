@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **B-1 through B-3 merged (#17–#19):** write-contract and production approval safety, protected-resource and self-token guards.
-- **B-4 completed for review (PR #20):** sanitized, actionable Vercel error reports including safe technical context and Denver-local retry times; no live API operations.
-- **Next B-5:** result shaping, recursive secret redaction, and safe handling of one-time secret input and generation; then B-6 → B-7 → B-8 → C.
-- **Owner approval stays mandatory:** IN-07 protected defaults remain conservative; real activation, spend, and production changes are not authorized.
+- **B-1 through B-4 merged (#17–#20):** write-safety, production approval, protected-resource guards and safe error explanations.
+- **B-5 implemented for PR #21:** recursive safe shaping at MCP and audit boundaries; one-use owner secret input and generated values; results never contain created credentials. No live Vercel writes.
+- **Next B-6:** enforce listing profiles in every door and home-page counts. Then B-7 → B-8 → C.
+- **Pending owner inputs:** conservative IN-07 protected defaults; real activation, spend, and production changes still require independent approval.
 
 ## What works today (A-1)
 
@@ -31,6 +31,10 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-5 result shaping (PR #21, pending CI/merge):** added provider-neutral recursive secret redaction, Denver-local millisecond dates, integer-cents display, size/depth checks and Vercel MCP boundary integration; one-use owner-input resolver and encrypted created-secret references. Offline unit tests; no real provider calls.
+
+**2026-10-11 — B-4 verified MERGED (#20):** commit `83bdd0ccb1ed642c773032f68da656aafda2835e` and all five post-merge checks succeeded. No real credentials or production operations.
 
 **2026-10-11 — B-4 error reporting (PR #20 pending CI/merge):** reconciled unfinished branch with merged B-3; maps recognized provider codes to safe actionable explanations, preserves status, safe operation and Denver rate-limit window, and rejects credential-shaped scope labels. Unit and MCP dispatch tests. No live writes or credentials.
 

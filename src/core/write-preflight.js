@@ -1,10 +1,12 @@
 // Provider-neutral write policy. Unknown targets and missing guards always deny.
+import { compact } from './util.js';
 export function refusal(reason, status = 'refused_by_guard') {
   return { status, confirmed: false, reason };
 }
 export function safeShape(ctx, value) {
   if (typeof ctx.shape !== 'function') throw new Error('Output shaper is unavailable');
-  const output = ctx.shape(value);
+  // Even an identity shaper supplied by a caller cannot allow secrets into audit/replay.
+  const output = compact(ctx.shape(value));
   const encoded = JSON.stringify(output);
   if (output === undefined || !encoded || Buffer.byteLength(encoded) > 8192) {
     throw new Error('Output cannot be safely shaped within 8 KB');
