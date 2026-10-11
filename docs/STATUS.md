@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1f guarded empty-project creation (#52):** signed server-scope stored credential, pre-create existence check, explicit preview confirmation, parent project target self/app guards, double-scope durable replay, real POST /v11/projects, and independent GET read-back. Does not attach Git, env variables, deployments or spend. Next D-1 settings mutation and member roles; no live activation.
+
 - **D-1e guarded-provider transport and mandatory session handoff (#51):** independent logical/transport replay keys, server-selected credentials, fail-closed write binding, explicit routine-write profile metadata and immediate five-merge close-out. The general gateway has no project mutation published yet. Next: independently test and register project creation with `defineWrite`, followed by project and member changes. Production remains inactive.
 
 - **D-1d cron schedule read (#50):** read project `crons.definitions` (not a fabricated array), return only route/schedule/source and UTC schedule with January/July Denver DST examples for simple daily expressions. No job invocation, URL query or secrets, cross-project access blocked. Missing definitions reported unavailable rather than empty. Project alias and cron-count projection corrected. D-1 remains IN_PROGRESS; next guarded project/member/cron/Git mutations, no owner/production changes.

@@ -77,7 +77,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 |---|---|---|---|---|---|---|
 | `vercel_project_list` | Projects in the team: name, framework, production URL, last production deploy, paused or not | — | B O Op | R | — | D-1 (built #47) |
 | `vercel_project_get` | One project: framework, commands, root directory, Node version, Git repo and production branch, protection summary, domains count, crons | — | B O Op | R | y | D-1 (built #47) |
-| `vercel_project_create` | New project, optionally from a Git repository; framework and commands explicit | P | B | E | — | D-1 |
+| `vercel_project_create` | New project, optionally from a Git repository; framework and commands explicit | P | B | E | — | D-1 (built #52) |
 | `vercel_project_update_settings` | Name, framework, build/install/dev/output commands, root directory, Node version, ignored-build-step command, skew protection, directory listing | Cp | B O | E | y | D-1 |
 | `vercel_project_set_build_resources` | Build machine type, build concurrency, function default memory/duration/region, fluid compute (each can raise the bill) | $ Cp | O | F | y | D-1 |
 | `vercel_project_delete` | Delete a project and all its deployments (cannot be undone; refused for protected and profiled projects) | D PR | O | F | y | D-1 |
