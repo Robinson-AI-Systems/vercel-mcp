@@ -1,4 +1,5 @@
 // Account-information tools: strict read-only, never return credentials.
+import { recheckStoredToken } from '../vercel/tokens.js';
 const PROFILES = ['read_only', 'everyday', 'full'];
 const asText = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
 function safe(row) {
@@ -15,6 +16,10 @@ export const serverTools = {
       annotations: { readOnlyHint: true }, writes: false, profiles: PROFILES },
     { name: 'vercel_list_accounts',
       description: 'List configured Vercel teams and project accounts without exposing credentials.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true }, writes: false, profiles: PROFILES },
+    { name: 'vercel_check_token',
+      description: 'Safely recheck stored Vercel token read access; does not prove write permissions.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true }, writes: false, profiles: PROFILES }
   ],
@@ -40,6 +45,18 @@ export const serverTools = {
     async vercel_list_accounts(_args, { db }) {
       const accounts = await db.listVercelAccounts();
       return asText({ accounts: accounts.map(safe), count: accounts.length });
+    },
+    async vercel_check_token(args, { connection, db, env, fetchImpl }) {
+      // The MCP dispatcher does not currently enforce argument schemas itself.
+      // Reject every caller-supplied token, account selector and privilege flag.
+      if (!args || typeof args !== 'object' || Array.isArray(args) ||
+          Object.keys(args).length !== 0) {
+        return { isError: true, content: [{ type: 'text', text: 'This tool takes no arguments' }] };
+      }
+      if (typeof connection?.account !== 'string') throw new Error('Connection account unavailable');
+      return asText(await recheckStoredToken({
+        db, accountId: connection.account, env, fetchImpl
+      }));
     }
   }
 };
