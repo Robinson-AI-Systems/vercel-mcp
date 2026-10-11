@@ -5,9 +5,9 @@ import { registry } from '../../src/tools/index.js';
 const make = (name) => ({ tools: [{ name }], handlers: { [name]: async () => null } });
 
 describe('tool registry', () => {
-  it('is empty until A-5 registers the first read tools', () => {
-    expect(registry.tools).toEqual([]);
-    expect(Object.keys(registry.handlers)).toEqual([]);
+  it('registers only two read-only account tools', () => {
+    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts']);
+    expect(registry.tools.every(x => x.writes === false)).toBe(true);
   });
   it('merges namespaces and keeps each handler', () => {
     const merged = mergeNamespaces([make('vercel_a'), make('vercel_b')]);
