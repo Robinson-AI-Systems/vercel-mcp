@@ -30,7 +30,7 @@ function compile(schema, id) {
   // Root-wrapper lets component $refs resolve at #/components/schemas/*.
   const root = { type: 'object', required: ['value'],
     properties: { value: schema }, components: readOpenApi().components || {} };
-  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, allowUnionTypes: true });
+  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, coerceTypes: true, allowUnionTypes: true });
   const validator = ajv.compile(root);
   validators.set(id, validator);
   return validator;
