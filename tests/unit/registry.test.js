@@ -6,8 +6,8 @@ const make = (name) => ({ tools: [{ name }], handlers: { [name]: async () => nul
 
 describe('tool registry', () => {
   it('registers safe read and owner-only operations with explicit allowlist', () => {
-    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_check_token', 'vercel_enable_production', 'vercel_disable_production', 'vercel_list_protected_resources', 'vercel_list_connections', 'vercel_recent_changes', 'vercel_where_is_setting']);
-    expect(registry.tools.filter(x=>x.writes===true).map(x=>x.localAdmin)).toEqual([true, true]);
+    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_check_token', 'vercel_enable_production', 'vercel_disable_production', 'vercel_list_protected_resources', 'vercel_list_connections', 'vercel_recent_changes', 'vercel_where_is_setting', 'vercel_set_default_account']);
+    expect(registry.tools.filter(x=>x.writes===true).map(x=>x.localAdmin)).toEqual([true, true, true]);
   });
   it('merges namespaces and keeps each handler', () => {
     const merged = mergeNamespaces([make('vercel_a'), make('vercel_b')]);
