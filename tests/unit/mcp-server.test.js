@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
+import { vercelErrorResult } from '../../src/tools/errors.js';
 
 const connection = { clientId: 'client_fixture', account: 'team_fixture', mode: 'preview', profile: 'everyday', listing: 'catalog' };
 
@@ -34,6 +35,21 @@ describe('default-deny MCP tool dispatch', () => {
     expect(blocked).toMatchObject({ isError: true });
   });
 
+  it('formats provider errors with safe actionable guidance when configured', async () => {
+    const registry = {
+      tools: [{ name: 'vercel_project_get', writes: false, profiles: ['everyday'] }],
+      handlers: { vercel_project_get: async () => {
+        throw Object.assign(new Error('vcp_FAKEprovider-secret'), { code: 'rate_limited', status: 429 });
+      } }
+    };
+    const result = await dispatchReadOnlyTool({ registry, name:'vercel_project_get',
+      connection, db:{}, formatError:vercelErrorResult });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('temporarily limited');
+    expect(result.content[0].text).toContain('operation vercel_project_get');
+    expect(result.content[0].text).toContain('HTTP 429');
+    expect(result.content[0].text).not.toContain('vcp_FAKEprovider-secret');
+  });
   it('hides handler errors from tool callers', async () => {
     const registry = {
       tools: [{ name: 'vercel_project_get', writes: false, profiles: ['everyday'] }],

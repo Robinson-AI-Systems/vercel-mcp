@@ -13,7 +13,7 @@ function mayUse(tool, connection) {
   return tool.writes === true && tool.localAdmin === true &&
     LOCAL_OWNER_TOOLS.has(tool.name) && connection.profile === 'full';
 }
-export async function dispatchReadOnlyTool({ registry, name, args, connection, db }) {
+export async function dispatchReadOnlyTool({ registry, name, args, connection, db, formatError }) {
   const item = registry.tools.find((tool) => tool.name === name);
   if (!mayUse(item, connection)) {
     return { isError: true, content: [{ type: 'text', text: 'Tool unavailable for this connection' }] };
@@ -24,12 +24,23 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
   }
   try {
     return await handler(args || {}, { connection, db });
-  } catch {
+  } catch (caught) {
+    if (typeof formatError === 'function') {
+      try {
+        const retry = caught?.retryAfterMs;
+        return formatError(caught, {
+          team: connection?.account, operation: name,
+          projectScoped: connection?.projectScoped === true,
+          project: connection?.projectName,
+          resetAtMs: Number.isFinite(retry) && retry >= 0 ? Date.now() + retry : undefined
+        });
+      } catch { /* safe default below */ }
+    }
     return { isError: true, content: [{ type: 'text', text: 'Could not read account details; check server setup' }] };
   }
 }
 
-export function createMcpHandler({ db, registry, env = process.env }) {
+export function createMcpHandler({ db, registry, env = process.env, formatError }) {
   return async function mcp(req, res) {
     const connection = await requireMcpToken(req, res, db, env);
     if (!connection) return;
@@ -45,7 +56,7 @@ export function createMcpHandler({ db, registry, env = process.env }) {
         name: request.params?.name,
         args: request.params?.arguments,
         connection,
-        db
+        db, formatError
       })
     );
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

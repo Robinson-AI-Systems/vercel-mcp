@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **B-1 (#17) and B-2 (#18) merged:** guarded write contract and owner-only two-step production approval.
-- **B-3 implemented (PR #19, CI pending):** fail-closed project/descendant/self-token protection, tenant-scoped protected-resource listing, add-only owner setup editor requiring fresh passphrase and CSRF, no-profile app guard hook.
-- **Next B-4:** plain-language handling of Vercel errors; no live resource operations, provider tokens, or production activation. IN-07 default protection decision remains open and cannot be silently loosened.
-- **Remaining safety order:** B-4 → B-5 → B-6 → B-7 → B-8 → C. Owner approvals remain required for real activation/spend/live changes.
+- **B-1 through B-3 merged (#17–#19):** write-contract and production approval safety, protected-resource and self-token guards.
+- **B-4 completed for review (PR #20):** sanitized, actionable Vercel error reports including safe technical context and Denver-local retry times; no live API operations.
+- **Next B-5:** result shaping, recursive secret redaction, and safe handling of one-time secret input and generation; then B-6 → B-7 → B-8 → C.
+- **Owner approval stays mandatory:** IN-07 protected defaults remain conservative; real activation, spend, and production changes are not authorized.
 
 ## What works today (A-1)
 
@@ -31,6 +31,8 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-4 error reporting (PR #20 pending CI/merge):** reconciled unfinished branch with merged B-3; maps recognized provider codes to safe actionable explanations, preserves status, safe operation and Denver rate-limit window, and rejects credential-shaped scope labels. Unit and MCP dispatch tests. No live writes or credentials.
 
 **2026-10-11 — B-3 self-protection (PR #19 pending):** global/team protected-project rules and inherited child-resource guards, protected server token and ID, owner-authenticated add-only protection editor, read-only listing and application guard hook; unit and isolated Postgres tests. No live resources modified.
 

@@ -171,7 +171,7 @@ export function makeVercelClient({
           await sleep(waitMs);
           continue;
         }
-        throw error('rate_limited', 'Vercel rate limit reached', { retryAfterMs: waitMs });
+        throw error('rate_limited', 'Vercel rate limit reached', { status: 429, retryAfterMs: waitMs });
       }
       if (attempt === 0 && RETRYABLE.has(method) && response.status >= 500) continue;
       if (isWrite && response.status >= 500) {
