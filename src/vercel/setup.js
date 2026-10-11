@@ -73,7 +73,13 @@ function exactDollarCents(value) {
 function dollars(cents) {
   return '$' + Math.floor(cents / 100) + '.' + String(cents % 100).padStart(2, '0');
 }
-function panel(accounts, csrf, message = '') {
+async function connectionChoices(db, accounts) {
+  if (typeof db.listAccountConnections !== 'function') return [];
+  const groups = await Promise.all(accounts.map(async account =>
+    db.listAccountConnections({account: account.id, limit: 20})));
+  return groups.flat().filter(row => row.kind === 'connector' && row.revoked_at == null);
+}
+function panel(accounts, csrf, message = '', connections = []) {
   const options = accounts.map(a => '<option value="' + escapeHtml(a.id) + '">' +
     escapeHtml(a.label) + '</option>').join('');
   const list = accounts.length ? '<ul>' + accounts.map(a => '<li>' +
@@ -110,6 +116,19 @@ function panel(accounts, csrf, message = '') {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this account limit</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Update daily spend limit</button></form></section>' +
+    '<section><h2>Revoke one OAuth connector (owner only)</h2>' +
+    '<p>Current account-scoped references (may change on refresh). The last active connector ' +
+    'and server credential cannot be revoked. A stale reference is refused.</p>' +
+    (connections.length ? '<ul>' + connections.map(row =>
+      '<li>' + escapeHtml(row.vercel_account) + ' — ' + escapeHtml(row.id) + '</li>').join('') +
+      '</ul>' : '<p>No active connector references listed.</p>') +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="revoke_connection">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Exact current connection reference<input name="connectionRef" required pattern="conn_[a-f0-9]{20}" autocomplete="off"></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm targeted revocation</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Revoke selected connector</button></form></section>' +
     '<section><h2>Recheck stored token read access</h2>' +
     '<p>Checks access to the stored team/project without replacing credentials, enabling writes or proving expiry.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -168,7 +187,9 @@ export async function handleSetup(req, res, {
   if (req.method === 'GET') {
     if (!session) return html(res, 200, 'Administrator sign in', loginForm());
     const accounts = await db.listVercelAccounts();
-    return html(res, 200, 'Vercel account setup', panel(accounts, session.csrf));
+    return html(res, 200, 'Vercel account setup', panel(accounts, session.csrf,
+      '', await connectionChoices(db, accounts)));
+
   }
   let params;
   try { params = paramsOf(req); } catch {
@@ -263,6 +284,29 @@ export async function handleSetup(req, res, {
       }
       message = 'Daily spending limit saved as ' + dollars(cents) +
         '. No spending, purchase or production access was authorized.';
+    } else if (params.action === 'revoke_connection') {
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Revocation requires the production server.</p>');
+      }
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes' ||
+        typeof params.connectionRef !== 'string' ||
+        !/^conn_[a-f0-9]{20}$/.test(params.connectionRef)) {
+        return html(res, 403, 'Permission denied', '<p>Select an exact current account connector and confirm.</p>');
+      }
+      const approval = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (approval.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (approval.status !== 'ok') return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      if (typeof db.revokeOwnerConnection !== 'function' ||
+        !(await db.revokeOwnerConnection({account:params.account,connectionId:params.connectionRef}))) {
+        return html(res, 409, 'Unavailable', '<p>Connector missing, stale or the last active one.</p>');
+      }
+      message = 'The selected connector was revoked and independently verified.';
     } else if (params.action === 'recheck_token') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 403, 'Invalid account', '<p>Choose a connected account.</p>');
@@ -338,7 +382,10 @@ export async function handleSetup(req, res, {
     } else {
       return html(res, 400, 'Invalid form', '<p>Unknown operation.</p>');
     }
-    return html(res, 200, 'Vercel account setup', panel(await db.listVercelAccounts(), session.csrf, message));
+    const updated = await db.listVercelAccounts();
+    return html(res, 200, 'Vercel account setup',
+      panel(updated, session.csrf, message, await connectionChoices(db, updated)));
+
   } catch {
     // Do not reflect provider exceptions or credentials.
     return html(res, 400, 'Setup failed', '<p>Could not complete the request. Check configuration and account access.</p>');

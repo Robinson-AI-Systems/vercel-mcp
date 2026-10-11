@@ -237,6 +237,43 @@ describe('A-5 owner-only setup security', () => {
     expect(fail.statusCode).toBe(400);
     expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
   });
+  it('revokes exactly the selected connector after session, CSRF and fresh passphrase',async()=>{
+    const h=harness(),revoke=vi.fn(async()=>true);
+    h.db.revokeOwnerConnection=revoke;
+    h.db.listAccountConnections=async()=>[{
+      id:'conn_0123456789abcdef0123',vercel_account:'team_FAKE',kind:'connector',revoked_at:null
+    }];
+    const auth=await signIn(h),prod={...env,VERCEL_ENV:'production'};
+    const payload={action:'revoke_connection',account:'team_FAKE',confirm:'yes',
+      connectionRef:'conn_0123456789abcdef0123',csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE};
+    expect((await h.call('POST',payload,null,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,csrf:'wrong'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',payload,auth.cookie)).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,account:'team_OTHER'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,confirm:'no'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,connectionRef:'invalid'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,passphrase:'wrong'},auth.cookie,{env:prod})).statusCode).toBe(401);
+    expect(revoke).not.toHaveBeenCalled();
+    const yes=await h.call('POST',payload,auth.cookie,{env:prod});
+    expect(yes.statusCode).toBe(200);
+    expect(revoke).toHaveBeenCalledWith({account:'team_FAKE',connectionId:'conn_0123456789abcdef0123'});
+    expect(yes.body).toContain('independently verified');
+    expect(yes.body).not.toContain(env.ADMIN_PASSPHRASE);
+    expect((await h.call('GET',null,auth.cookie)).body).toContain('conn_0123456789abcdef0123');
+    expect(h.provider).not.toHaveBeenCalled();
+  });
+  it('never reports unverified or failed revocation as success',async()=>{
+    const h=harness(),auth=await signIn(h),prod={...env,VERCEL_ENV:'production'};
+    const data={action:'revoke_connection',account:'team_FAKE',confirm:'yes',
+      connectionRef:'conn_0123456789abcdef0123',csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE};
+    const denied=await h.call('POST',data,auth.cookie,{env:prod,
+      db:{...h.db,revokeOwnerConnection:async()=>false}});
+    expect(denied.statusCode).toBe(409);
+    const errored=await h.call('POST',data,auth.cookie,{env:prod,
+      db:{...h.db,revokeOwnerConnection:async()=>{throw Error('NEVER_ECHO');}}});
+    expect(errored.statusCode).toBe(400);
+    expect(errored.body).not.toContain('NEVER_ECHO');
+  });
   it('fails closed when owner secrets are missing', async () => {
     const h = harness(), res = await h.call('GET', null, null,
       { env: { ADMIN_PASSPHRASE: env.ADMIN_PASSPHRASE } });
