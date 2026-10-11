@@ -36,6 +36,7 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
       {id:99,name:'web',private:true,defaultBranch:'main',accessToken:'secret'}]});
+    expect(validateRequest('git_repos_search',{query:{teamId:'team_FAKE',provider:'github',namespaceId:'1234',query:'web'}})).toBe(true);
     const result=parse(await call('vercel_git_search_repos',{
       provider:'github',namespaceId:'1234',query:'web'},fake));
     expect(result.repositories).toEqual([{id:99,name:'web',fullName:null,url:null,
