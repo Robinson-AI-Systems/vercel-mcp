@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-10",
+  "updated": "2026-10-11",
   "order": [
     "A",
     "B",
@@ -48,14 +48,17 @@
         "A-1"
       ],
       "card": "docs/pr-cards/A-2.md",
-      "status": "READY",
+      "status": "MERGED",
       "migration": "foundation",
       "budget": 250,
       "units": [
         "A-2"
       ],
-      "readiness": "READY",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        6
+      ]
     },
     {
       "id": "A-3",
