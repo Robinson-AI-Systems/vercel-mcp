@@ -13,7 +13,7 @@ function mayUse(tool, connection) {
   return tool.writes === true && tool.localAdmin === true &&
     LOCAL_OWNER_TOOLS.has(tool.name) && connection.profile === 'full';
 }
-export async function dispatchReadOnlyTool({ registry, name, args, connection, db, formatError }) {
+export async function dispatchReadOnlyTool({ registry, name, args, connection, db, formatError, shapeResult }) {
   const item = registry.tools.find((tool) => tool.name === name);
   if (!mayUse(item, connection)) {
     return { isError: true, content: [{ type: 'text', text: 'Tool unavailable for this connection' }] };
@@ -23,7 +23,8 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
     return { isError: true, content: [{ type: 'text', text: 'Tool unavailable' }] };
   }
   try {
-    return await handler(args || {}, { connection, db });
+    const result = await handler(args || {}, { connection, db });
+    return typeof shapeResult === 'function' ? shapeResult(result, { connection, tool: name }) : result;
   } catch (caught) {
     if (typeof formatError === 'function') {
       try {
@@ -40,7 +41,7 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
   }
 }
 
-export function createMcpHandler({ db, registry, env = process.env, formatError }) {
+export function createMcpHandler({ db, registry, env = process.env, formatError, shapeResult }) {
   return async function mcp(req, res) {
     const connection = await requireMcpToken(req, res, db, env);
     if (!connection) return;
@@ -56,7 +57,7 @@ export function createMcpHandler({ db, registry, env = process.env, formatError 
         name: request.params?.name,
         args: request.params?.arguments,
         connection,
-        db, formatError
+        db, formatError, shapeResult
       })
     );
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

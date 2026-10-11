@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
 import { vercelErrorResult } from '../../src/tools/errors.js';
+import { shapeMcpResult } from '../../src/vercel/shape.js';
 
 const connection = { clientId: 'client_fixture', account: 'team_fixture', mode: 'preview', profile: 'everyday', listing: 'catalog' };
 
@@ -49,6 +50,22 @@ describe('default-deny MCP tool dispatch', () => {
     expect(result.content[0].text).toContain('operation vercel_project_get');
     expect(result.content[0].text).toContain('HTTP 429');
     expect(result.content[0].text).not.toContain('vcp_FAKEprovider-secret');
+  });
+  it('shapes JSON tool text and banners production without leaking nested secrets', async () => {
+    const registry = {
+      tools: [{ name: 'vercel_example', writes: false, profiles: ['everyday'] }],
+      handlers: { vercel_example: async () => ({
+        content: [{ type: 'text', text: JSON.stringify({ metadata: { token: 'FAKE_secret' },
+          amountCents: 1299 }) }]
+      }) }
+    };
+    const result = await dispatchReadOnlyTool({ registry, name: 'vercel_example',
+      connection: { ...connection, mode: 'production' }, shapeResult: shapeMcpResult });
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.mode).toBe('PRODUCTION');
+    expect(payload.banner).toContain('PRODUCTION');
+    expect(payload.result.metadata.token).toBe('[hidden]');
+    expect(payload.result.amountCents_display).toBe('$12.99');
   });
   it('hides handler errors from tool callers', async () => {
     const registry = {
