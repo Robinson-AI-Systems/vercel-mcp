@@ -1,12 +1,10 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-10. **Foundation built (A-1, PR #1):** test harness, checks and CI are real and green; no tools exist
-yet. No Vercel token has been added anywhere. Nothing is deployed or live.
+Updated 2026-10-11. **A-2 database schema implementation completed in PR #6; merge pending.** The nine-table schema and tests are in the draft PR. No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
-- **Next card: A-2 — Database schema** ([card](pr-cards/A-2.md), READY). Then A-3 — connector login
-  ([card](pr-cards/A-3.md), READY, two PRs). A-4 … A-6 are written just in time.
+- **Next after A-2 merges: A-3 — connector login** ([card](pr-cards/A-3.md), READY, two PRs). A-4 … A-6 are written just in time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
@@ -31,7 +29,10 @@ linked in PR #1.
 - Vercel project, Neon database and Vercel tokens for this server: not created yet (IN-02, IN-03, IN-04). Not needed
   until A-5 is tried for real.
 
-## Recent merges (newest first)
+## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — A-2 database schema (PR #6, awaiting merge):** nine additive tables and eight indexes; lazy Neon configuration; frozen connection-field contract; fake and throwaway-Postgres schema tests. Initial CI run: `unit`, `db`, and `emulate` passed; `check` correctly caught missing checklist-B documentation. Documentation is now reconciled in this branch; a fresh full CI run is required before the PR is ready.
+
 
 **2026-10-10 — CI cadence (docs + CI config PR):** never push while a PR's CI run is in progress (SESSION-START §6,
 PLAYBOOK Step 5); obsolete PR runs are cancelled, runs on `main` never are. Next action unchanged.
