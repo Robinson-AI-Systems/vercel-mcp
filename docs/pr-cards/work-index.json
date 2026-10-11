@@ -138,17 +138,20 @@
         "A-5"
       ],
       "card": "docs/pr-cards/A-6.md",
-      "status": "READY",
+      "status": "MERGED",
       "migration": "none",
       "budget": 0,
       "units": [
         "A-6"
       ],
-      "readiness": "READY",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-02",
         "IN-03",
         "IN-04"
+      ],
+      "pr": [
+        16
       ]
     },
     {
@@ -160,13 +163,13 @@
         "A-5"
       ],
       "card": "docs/pr-cards/B-1.md",
-      "status": "APPROVED",
+      "status": "READY",
       "migration": "none",
       "budget": 500,
       "units": [
         "B-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": []
     },
     {

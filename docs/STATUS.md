@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **A-5 built in PRs #13/#14/#15**, subject to #15 exact-head CI and merge: encrypted vault, credentials, authenticated owner setup, protective defaults and two read-only MCP tools.
-- **Next A-6:** owner deployment instructions in `docs/DEPLOY.md`; do not create live resources or configure secrets.
-- **Then B-1:** approved trust/safety layer. There are no public write tools, no live Vercel tokens, no Neon DB and no deployment. IN-02/03/04/07 still require owner action.
-- **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X.
+- **Batch A implementation and deployment instructions completed** in PRs #1, #6, #7, #8, #12–#16; `docs/DEPLOY.md` covers the owner-controlled setup but **no real infrastructure or credentials have been provisioned**.
+- **Next B-1:** production-quality shared write safety with production/spend/access declarations, read-back and contract tests. All writes remain unavailable until their safety contracts and later guards are implemented.
+- **Owner gates:** IN-02/03/04/05/07/09 remain unapproved for real activation or production changes. No paid resource or real account write.
+- **Queue:** B → C → D → E → V → N → F → M → O → P → W → U → R → X.
 
 ## What works today (A-1)
 
@@ -31,6 +31,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — A-6 owner deployment instructions (PR #16, merge pending):** added `docs/DEPLOY.md` explaining controlled dedicated Vercel/Neon setup, safe environment variables, owner-only token entry, read-only MCP connector sign-in and troubleshooting. Documentation only; no external services created.
+
 
 **2026-10-11 — A-5 owner setup (PRs #13/#14 merged, #15 merge pending):** AES-GCM encrypted credentials, atomic one-time values and inputs, passphrase-locked setup with encrypted 15-minute cookie and CSRF, conservative protected-project defaults, and safe read-only account tools. All tested offline, no live secrets.
 

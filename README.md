@@ -7,3 +7,5 @@ Contract but works fully on its own.
 
 **Status:** foundation (A-1), database schema (A-2), OAuth/MCP endpoints (A-3) and validated Vercel HTTP client (A-4, PR #12) implemented. Account token setup, tool handlers and real deployment remain; no Neon database or Vercel token has been configured. Start at
 [`docs/START-HERE.md`](docs/START-HERE.md). AI agents: read [`AGENTS.md`](AGENTS.md) first.
+
+For future owner-approved Vercel/Neon setup and read-only connector testing, see [docs/DEPLOY.md](docs/DEPLOY.md). No live infrastructure is provisioned by the documentation.
