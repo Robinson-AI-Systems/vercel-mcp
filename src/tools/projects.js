@@ -13,7 +13,9 @@ export function projectSummary(row){
   if(!row || typeof row!=='object' || Array.isArray(row))throw new TypeError('Invalid project response');
   return {
     id:row.id,name:row.name,framework:row.framework??null,
-    productionUrl:row.productionUrl??row.alias?.[0]??null,
+    productionUrl:typeof row.productionUrl==='string'?row.productionUrl:
+      typeof row.alias?.[0]==='string'?row.alias[0]:
+      typeof row.alias?.[0]?.alias==='string'?row.alias[0].alias:null,
     gitRepo:row.link?.repo??null,productionBranch:row.link?.productionBranch??null,
     paused:row.pauseStatus?.status==='PAUSED' || row.paused===true,
     nodeVersion:row.nodeVersion??null
@@ -93,7 +95,7 @@ export const projectsTools={
         rootDirectory:row.rootDirectory??null,
         lastProductionAt:row.latestProductionDeployments?.[0]?.createdAt??null,
         domainsCount:Array.isArray(row.domains)?row.domains.length:null,
-        cronsCount:Array.isArray(row.crons)?row.crons.length:null});
+        cronsCount:Array.isArray(row.crons?.definitions)?row.crons.definitions.length:null});
     }
   }
 };

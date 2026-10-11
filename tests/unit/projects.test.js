@@ -73,6 +73,18 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(data).not.toHaveProperty('secret');
     expect(fake.calls[0].params).toEqual({idOrName:'prj_DEMO'});
   });
+  it('projects object-form cron metadata and alias safely without echoing nested provider data',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:'prj_DEMO',name:'app',alias:[{alias:'app.vercel.app',rawToken:'private'}],
+      crons:{definitions:[{path:'/api/sync',schedule:'0 0 * * *'}]},
+      token:'never-output'});
+    const data=parse(await call('vercel_project_get',{project:'prj_DEMO'},db,fake.fetch));
+    expect(data.cronsCount).toBe(1);
+    expect(data.productionUrl).toBe('app.vercel.app');
+    expect(JSON.stringify(data)).not.toContain('private');
+    expect(JSON.stringify(data)).not.toContain('never-output');
+  });
   it('avoids team enumeration for a project-scoped connection',async()=>{
     loadToken.mockResolvedValue(fixture('project'));
     const fake=makeFakeVercel();
