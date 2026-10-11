@@ -4,7 +4,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endp
 
 ## Next
 
-- **Next: A-4 — Vercel API client, operation table and OpenAPI index.** The exact official JSON has been vendored at `vendor/vercel-openapi/openapi-2026-10-11.json` with verified source, date, SHA-256 and 451 operations in `SOURCE.md`; the missing-file blocker is resolved. The A-4 client, validation and tests remain to implement. A-5/A-6 remain just-in-time.
+- **In progress: A-4 — Vercel API client and OpenAPI index.** Branch `ai/gpt6/a-4-vercel-client`; the verified original 451-operation snapshot is pinned, and initial lookup/diff scripts and operation registry have been added. API transport, validation, tests and the full CI merge gate are still pending; A-5/A-6 remain just-in-time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
@@ -30,6 +30,8 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — Branch reconciliation:** no open PRs or drafts at session start; ten prior AI branches had zero commits ahead of `main`, while `ai/gpt6/a-3b-oauth-endpoints` had only one superseded documentation line in `docs/pr-cards/A-3.md`. That line is already corrected by the merged A-3 record; do not merge the divergent old branch. No historical implementation needs recovery.
 
 **2026-10-11 — Official Vercel OpenAPI snapshot (A-4 prerequisite):** imported the original 11,611,860-byte response from `https://vercel.com/openapi.json` without reformatting, at `vendor/vercel-openapi/openapi-2026-10-11.json`. `SOURCE.md` records SHA-256 `af1db6e9c95e446468f0c3974653298afe8079db03ee2872429a65cb60a72544` and 451 HTTP operations. This is **not** completion of A-4; client and validators remain.
 
