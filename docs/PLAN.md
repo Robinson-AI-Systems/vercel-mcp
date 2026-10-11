@@ -31,9 +31,9 @@ next bounded implementation.
 - [ ] Server tools (change log, connections, spend limit, production enable/disable, token check, protected-resource list, where-is-setting).
 
 ## Batch C — Cheap on context (`designs/BATCH-C.md`)
-- [ ] Summaries (env summaries never carry values), `fields`, `detail`, handles, annotations, structured output; logs summarized.
-- [ ] Catalog and compact listing; meta-tools route through the wrapped handlers.
-- [ ] Budgets enforced in CI: compact <5,000 tokens, everyday catalog <20,000, descriptions ≤160 characters, results ≤8 KB or a handle.
+- [x] Summaries (env summaries never carry values), `fields`, `detail`, handles, annotations, structured output; logs summarized.
+- [x] Catalog and compact listing; meta-tools route through the wrapped handlers.
+- [x] Budgets enforced in CI: compact <5,000 tokens, everyday catalog <20,000, descriptions ≤160 characters, results ≤8 KB or a handle.
 
 ## Batch D — Projects and deployments (`designs/BATCH-D.md`)
 - [ ] Every tool in TOOL-CATALOG sections Projects, crons and Git; Deployments (both); Releases built and marked.
