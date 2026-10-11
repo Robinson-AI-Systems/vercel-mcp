@@ -35,6 +35,42 @@ export function createDb(query) {
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
         production_enabled, is_default FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
+    // A-5a: all single-use retrieval is an atomic DELETE RETURNING, never a
+    // SELECT followed by DELETE (which could expose the same value twice).
+    async insertOneTimeSecret({ id, account = null, kind, label = null, ciphertext, expiresAt }) {
+      if (!id || !kind || !ciphertext || !(expiresAt instanceof Date)) throw new TypeError('Invalid one-time secret');
+      const run = getSql();
+      await run`INSERT INTO one_time_secrets
+        (id, vercel_account, kind, label, ciphertext, expires_at)
+        VALUES (${id}, ${account}, ${kind}, ${label}, ${ciphertext}, ${expiresAt})`;
+    },
+    async consumeOneTimeSecret({ id, account = null }) {
+      if (!id) return null;
+      const run = getSql();
+      const rows = await run`DELETE FROM one_time_secrets WHERE id = ${id}
+        AND vercel_account IS NOT DISTINCT FROM ${account}
+        AND expires_at > now()
+        RETURNING id, vercel_account, kind, label, ciphertext`;
+      return rows[0] ?? null;
+    },
+    async insertPendingInput({ id, account, kind, label, ciphertext, expiresAt }) {
+      if (!id || !account || !kind || !label || !ciphertext || !(expiresAt instanceof Date)) {
+        throw new TypeError('Invalid pending secret input');
+      }
+      const run = getSql();
+      await run`INSERT INTO pending_inputs
+        (id, vercel_account, kind, label, ciphertext, expires_at)
+        VALUES (${id}, ${account}, ${kind}, ${label}, ${ciphertext}, ${expiresAt})`;
+    },
+    async consumePendingInput({ id, account, kind }) {
+      if (!id || !account || !kind) return null;
+      const run = getSql();
+      const rows = await run`DELETE FROM pending_inputs WHERE id = ${id}
+        AND vercel_account = ${account} AND kind = ${kind}
+        AND expires_at > now()
+        RETURNING id, vercel_account, kind, label, ciphertext`;
+      return rows[0] ?? null;
+    },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
         throw new TypeError('Missing OAuth client registration fields');
