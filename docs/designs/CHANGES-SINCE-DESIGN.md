@@ -24,3 +24,9 @@ are not yet in their design. A card consuming an entry says so; batch close-out 
 - `SCHEMA_TABLES` contains the nine Batch A tables; `CONNECTION_FIELDS` is exactly `vercel_account`, `mode`, `profile`, `listing`; `connectionSettings(row)` copies only those fields for OAuth refresh.
 - `test/helpers/fake-db.js` now implements idempotent `initSchema()` and `listTables()` while preserving `put/get`.
 - `protected_resources` uses `UNIQUE NULLS NOT DISTINCT (vercel_account, kind, match)` to prevent duplicate global defaults. PostgreSQL 15+ is required; A-6 deployment instructions must state this.
+
+
+**2026-10-11 — A-3a (PR #7), inherited by A-3b.**
+- `src/core/oauth.js` is service-neutral and provides `randomToken`, SHA-256 `hashToken`, timing-safe `secretsMatch`, S256-only PKCE verification, redirect URI validation, trusted client IP normalization, and `evaluateLogin` with a 5-failure/15-minute database-backed lockout policy.
+- `src/db.js` and `test/helpers/fake-db.js` implement OAuth client registration with hashed client secrets, hashed single-use authorization codes, hashed access/refresh tokens, access-token expiry/revocation checks, same-client atomic refresh rotation, and login-attempt counters.
+- Connection scope is copied only through A-2's `connectionSettings(row)` helper: `vercel_account`, `mode`, `profile`, and `listing`. OAuth defaults use `preview`, `everyday`, and `catalog`; the production-mode deployment gate belongs to A-3b.

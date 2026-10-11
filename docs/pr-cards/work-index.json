@@ -69,13 +69,13 @@
         "A-2"
       ],
       "card": "docs/pr-cards/A-3.md",
-      "status": "READY",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 450,
       "units": [
         "A-3"
       ],
-      "readiness": "READY",
+      "readiness": "IN_PROGRESS",
       "ownerInputs": []
     },
     {
