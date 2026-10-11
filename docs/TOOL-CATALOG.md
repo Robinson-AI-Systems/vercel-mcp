@@ -48,6 +48,8 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
 Protected-resource listings now include both global and team-scoped rules; the editor is additive-only under owner sign-in.
 
+**B-5 output and secret handling (built #21):** Every MCP result passes recursive secret masking, bounding and Denver-local/money presentation; production mode receives a visible banner. Secrets are accepted only from owner one-use inputs or server-generated values; any created secret is stored encrypted and revealed only through setup. This is shared infrastructure, not a new published tool.
+
 **B-4 error presentation (built #20):** Recognized provider failures return plain-language next actions. MCP results never echo raw upstream messages or credential-shaped labels; technical codes are allowlisted and rate-limit windows display in Denver time. This is shared error handling, not a new published tool.
 | `vercel_recent_changes` | What was changed through this server (filter by tool, project, mode, date; previews hidden unless asked) | — | B O Op | R | — | B-8 |
 | `vercel_undo_change` | Undo one change-log entry when it has a clean opposite; says plainly when it does not | C | Op | E | y | X-1 |
