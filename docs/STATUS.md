@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **Batch A implementation and deployment instructions completed** in PRs #1, #6, #7, #8, #12–#16; `docs/DEPLOY.md` covers the owner-controlled setup but **no real infrastructure or credentials have been provisioned**.
-- **Next B-1:** production-quality shared write safety with production/spend/access declarations, read-back and contract tests. All writes remain unavailable until their safety contracts and later guards are implemented.
-- **Owner gates:** IN-02/03/04/05/07/09 remain unapproved for real activation or production changes. No paid resource or real account write.
-- **Queue:** B → C → D → E → V → N → F → M → O → P → W → U → R → X.
+- **B-1 implemented in PR #17**, subject to its exact-head CI/merge: service-neutral write executor, conservative production/spend declarations, durable replay, sanitized audit and eight write-contract tests. No write tools are exposed to agents.
+- **Next B-2:** two-step, owner-approved production enablement and enforced live-resource guard; IN-09 remains off unless explicitly approved.
+- **Owner constraints:** IN-02/03/04/07/09 still gate any real activation or protected production change. No live Vercel/Neon resources are in use.
+- **Queue:** B-2 → B-3 → B-4 → B-5 → B-6 → B-7 → B-8 → C → D → E → V → N → F → M → O → P → W → U → R → X.
 
 ## What works today (A-1)
 
@@ -31,6 +31,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-1 trust-layer primitives (PR #17, merge pending):** generic fail-closed write policy, production classification, integer-cents spend checks, durable request replay and sanitized audit logs. Contract tests cover all eight expected behaviors; no public mutations.
+
 
 **2026-10-11 — A-6 owner deployment instructions (PR #16, merge pending):** added `docs/DEPLOY.md` explaining controlled dedicated Vercel/Neon setup, safe environment variables, owner-only token entry, read-only MCP connector sign-in and troubleshooting. Documentation only; no external services created.
 

@@ -25,6 +25,12 @@ As of 2026-10-11: **A-1 through A-3 implemented** (PRs #1, #6, #7, #8), **A-4 tr
 - PR #14 (pending) adds `src/vercel/tokens.js`, provider-verified team/project read probes, and `src/db.js` helpers to encrypt account tokens at rest. No bearer token is passed through MCP or exposed by read tools. Visibility probes cannot prove the full token permission scope; no production or write authorization may be inferred from them.
 - The account-owner setup page and first MCP tools do **not** yet exist; A-5b2 (PR #15) implements the passphrase-locked `/api/vercel/setup` page, 15-minute encrypted owner session and CSRF, one-time reveal, global protected default seed, and `vercel_whoami` / `vercel_list_accounts` read-only tools. No live setup yet.
 
+## Batch B trust layer (B-1 PR #17, pending merge)
+
+- `src/core/write-preflight.js` and `src/core/write.js` define the only planned mutation execution contract: production/targets declarations, strict scope, protective hooks, dry-run, confirmation, replay and independent read-back. Unknown state fails closed. Core has **no Vercel-specific imports**.
+- `src/vercel/production.js` and `src/vercel/spend.js` classify live risks and use integer USD cents. Default spend cap is $0; unknown priced actions never execute without an explicit owner decision.
+- `src/db.js` `recordChange` writes sanitized permanent audit records, rejecting nested secret-shaped keys/strings. No public mutating MCP tools exist; B-2/B-3 supply remaining runtime guard wiring.
+
 ## Environment variables
 
 - `DATABASE_URL`: required to initialize the Neon database; no real database has been created/configured yet.
