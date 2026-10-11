@@ -117,3 +117,39 @@ export async function consumeOwnerAccountChange({db,env=process.env,account,refe
   if(receipt?.kind!==KIND) return null;
   return decode(receipt.value,account);
 }
+
+/**
+ * Database-only application of an already independently approved request.
+ * This function is NOT an MCP handler or an owner authenticator. Only owner
+ * setup invokes it after session, CSRF, fresh passphrase, confirm and one-use
+ * reference consumption. Every DB method performs its own atomic audit and
+ * independent read-back; never claim success on an ambiguous result.
+ */
+export async function applyApprovedOwnerAccountChange({db,request}) {
+  if(!request || !validateOwnerEnvelope(request,request.issuerAccount))
+    return {status:'refused',confirmed:false};
+  if(!db || typeof db.listVercelAccounts!=='function')
+    return {status:'refused',confirmed:false};
+  const accounts=await db.listVercelAccounts();
+  if(!accounts.some(row=>row.id===request.issuerAccount))
+    return {status:'refused',confirmed:false};
+  let ok=false;
+  if(request.action==='default'){
+    if(!accounts.some(row=>row.id===request.targetAccount) ||
+      typeof db.setDefaultOwnerAccount!=='function')
+      return {status:'refused',confirmed:false};
+    ok=await db.setDefaultOwnerAccount(request.targetAccount);
+  } else if(request.action==='spend'){
+    if(typeof db.setOwnerSpendLimit!=='function')
+      return {status:'refused',confirmed:false};
+    ok=await db.setOwnerSpendLimit(request.issuerAccount,request.limitCents);
+  } else if(request.action==='revoke'){
+    if(typeof db.revokeOwnerConnection!=='function')
+      return {status:'refused',confirmed:false};
+    ok=await db.revokeOwnerConnection({
+      account:request.issuerAccount,connectionId:request.connectionRef
+    });
+  }
+  return {status:ok===true?'applied':'unverified',confirmed:ok===true,
+    action:request.action};
+}

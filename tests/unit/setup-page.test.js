@@ -302,6 +302,57 @@ describe('A-5 owner-only setup security', () => {
     expect(bad.statusCode).toBe(400);
     expect(bad.body).not.toContain('SECRET_INTERNAL_ERROR');
   });
+  it('applies an owner request only after independent session/CSRF/confirmation/passphrase',async()=>{
+    const h=harness(),auth=await signIn(h),prod={...env,VERCEL_ENV:'production'};
+    const reference='01234567-89ab-4cde-8012-3456789abcde';
+    const request={version:1,issuerAccount:'team_FAKE',action:'spend',
+      targetAccount:null,connectionRef:null,limitCents:1125};
+    const inspect=vi.fn(async()=>request),consume=vi.fn(async()=>request);
+    const apply=vi.fn(async()=>({status:'applied',confirmed:true}));
+    const body={action:'approve_owner_request',account:'team_FAKE',reference,
+      csrf:auth.csrf,confirm:'yes',passphrase:env.ADMIN_PASSPHRASE};
+    const funcs={inspectOwnerChangeFn:inspect,consumeOwnerChangeFn:consume,applyApprovedChangeFn:apply};
+    expect((await h.call('POST',body,null,{...funcs,env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,csrf:'bad'},auth.cookie,{...funcs,env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',body,auth.cookie,funcs)).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,account:'team_OTHER'},auth.cookie,{...funcs,env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,reference:'bad'},auth.cookie,{...funcs,env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,confirm:'no'},auth.cookie,{...funcs,env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,passphrase:'wrong'},auth.cookie,{...funcs,env:prod})).statusCode).toBe(401);
+    expect(inspect).not.toHaveBeenCalled();
+    expect(consume).not.toHaveBeenCalled();
+    expect(apply).not.toHaveBeenCalled();
+    const ok=await h.call('POST',body,auth.cookie,{...funcs,env:prod});
+    expect(ok.statusCode).toBe(200);
+    expect(ok.body).toContain('independently verified');
+    expect(apply).toHaveBeenCalledWith({db:h.db,request});
+    expect(h.provider).not.toHaveBeenCalled();
+    expect(ok.body).not.toContain(env.ADMIN_PASSPHRASE);
+  });
+  it('refuses exhausted, changed, and unverified approvals without claiming success',async()=>{
+    const h=harness(),auth=await signIn(h),prod={...env,VERCEL_ENV:'production'};
+    const request={version:1,issuerAccount:'team_FAKE',action:'default',
+      targetAccount:'team_FAKE',connectionRef:null,limitCents:null};
+    const body={action:'approve_owner_request',account:'team_FAKE',
+      reference:'01234567-89ab-4cde-8012-3456789abcde',
+      csrf:auth.csrf,confirm:'yes',passphrase:env.ADMIN_PASSPHRASE};
+    const base={env:prod,inspectOwnerChangeFn:async()=>request};
+    const missing=await h.call('POST',body,auth.cookie,{...base,consumeOwnerChangeFn:async()=>null});
+    expect(missing.statusCode).toBe(409);
+    const changed=await h.call('POST',body,auth.cookie,{...base,
+      consumeOwnerChangeFn:async()=>({...request,targetAccount:'team_OTHER'})});
+    expect(changed.statusCode).toBe(409);
+    const unverified=await h.call('POST',body,auth.cookie,{...base,
+      consumeOwnerChangeFn:async()=>request,
+      applyApprovedChangeFn:async()=>({status:'unverified',confirmed:false})});
+    expect(unverified.statusCode).toBe(409);
+    expect(unverified.body).not.toContain('independently verified');
+    const providerError=await h.call('POST',body,auth.cookie,{...base,
+      consumeOwnerChangeFn:async()=>request,
+      applyApprovedChangeFn:async()=>{throw Error('NEVER_ECHO_INTERNAL');}});
+    expect(providerError.statusCode).toBe(400);
+    expect(providerError.body).not.toContain('NEVER_ECHO_INTERNAL');
+  });
   it('fails closed when owner secrets are missing', async () => {
     const h = harness(), res = await h.call('GET', null, null,
       { env: { ADMIN_PASSPHRASE: env.ADMIN_PASSPHRASE } });
