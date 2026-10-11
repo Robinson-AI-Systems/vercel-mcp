@@ -8,15 +8,19 @@ only when a step below names them, a section at a time. `AGENTS.md` still govern
 Your session can end at any moment (the chat stops between actions), so the next session starts here, not at a new card.
 
 1. `R=$(git remote get-url origin | sed -E 's#.*github.com[:/]##; s#\.git$##')` then
-   `gh api "repos/$R/pulls?state=open" --jq '.[]|"\(.number) \(.head.ref) \(.head.sha)"'`.
-2. For each open `ai/*` PR: check `ci` at its exact head
+   `gh api "repos/$R/pulls?state=open" --jq '.[]|select(.head.ref|startswith("ai/<tool>/"))|"\(.number) \(.head.ref) \(.head.sha)"'`
+   with `<tool>` = your own branch prefix (`sol`, `gpt6`, `claude` …). **Yours** = branches under your own prefix,
+   including ones a previous session of yours opened (one agent that used several prefixes, e.g. `sol` and `gpt6`,
+   checks each). Another agent's PR is not yours: leave it alone unless Chris asks.
+2. For each of your open PRs, first fetch its exact head — `git fetch origin <branch> && git checkout -B <branch>
+   FETCH_HEAD`, confirm `git rev-parse HEAD` equals the PR's head SHA — and read its resume note (§4). Then check `ci`
+   at that head
    (`gh api "repos/$R/commits/<sha>/check-runs" --jq '.check_runs[]|"\(.id) \(.name) \(.conclusion)"'`).
    - **Red → that is your task now.** Read every failure (job logs may not download; use
      `gh api "repos/$R/check-runs/<id>/annotations"`), reproduce locally, fix all of them, push once, re-check.
    - **Green and acceptance met → merge** (PLAYBOOK Step 9). **Pending →** build the next slice meanwhile.
    - Review threads open → fix or answer each, then resolve.
-3. Check out that branch and read its resume note (§4) — continue from its "Next step".
-4. Only when nothing of yours is open: §1 and the next card.
+3. Continue from the resume note's "Next step". Only when nothing of yours is open: §1 and the next card.
 
 ## 1. Find your place (2 minutes)
 
@@ -85,8 +89,9 @@ Delete it in the card's final commit.
 
 **Validate in thin slices.** Write the smallest piece plus its test, then run that test and lint the files you touched
 (`npx vitest run <file>`, `npx eslint <files>`) **before** writing the next piece. Never write more than about 150
-production lines without running tests. Look up every external API parameter in the vendored API description before
-coding it (`node scripts/openapi-find.mjs "<words>"` once it exists) — a wrong parameter is the most common CI failure.
+production lines without running tests. Look up every external API parameter before coding it — in the vendored API description
+(`node scripts/openapi-find.mjs "<words>"` once it exists), or, for calls the design routes through a pinned official
+package instead, in that package's types and documentation — a wrong parameter is the most common CI failure.
 Run the full `npm run check` and `npm test` before every push: CI should only confirm what you already know.
 
 **No shell?** If your workspace cannot run commands (you edit through a GitHub connector), you cannot validate locally:
@@ -98,8 +103,8 @@ remains. End every turn right after a push whose resume note's "Next step" is th
 file and function, e.g. "CI red at 8adb4bf: `tests/unit/billing.test.js` expects old message; update it, then lint
 `src/tools/billing.js`".
 
-**Stopping** happens only for a real blocker. Before stopping: commit and push, update the resume note and
-`docs/STATUS.md`, and say in one plain-English paragraph what is done and exactly what Chris needs to decide.
+**Stopping** happens only for a real blocker. Before stopping: update the resume note and `docs/STATUS.md`, then
+commit and push them with the work, and say in one plain-English paragraph what is done and exactly what Chris needs to decide.
 
 ## Restart message for Chris to paste when a session stops
 
