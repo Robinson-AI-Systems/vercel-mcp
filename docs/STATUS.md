@@ -1,10 +1,10 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-2 schema is complete in PR #6 (CI green; merge pending). A-3a OAuth primitives are in progress on a stacked branch.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-11. **A-2 schema is complete in PR #6 and A-3a OAuth primitives/store are complete in PR #7; both are CI-green and awaiting merge in stack order.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
-- **Current: A-3a — OAuth primitives and fake login-attempt store**, stacked on A-2 PR #6. Then A-3a's PostgreSQL store tests, followed by A-3b endpoints after A-3a is complete. A-4 … A-6 are written just in time.
+- **Next after A-2 and A-3a merge: A-3b — connector endpoints**, completing A-3. Then A-4 … A-6 are written just in time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
@@ -31,7 +31,7 @@ linked in PR #1.
 
 ## Recent merges and implementation checkpoints (newest first)
 
-**2026-10-11 — A-3a first slice:** added portable OAuth primitives and unit coverage on `ai/gpt6/a-3a-oauth-primitives`, stacked on A-2 PR #6. Next: add OAuth persistence methods to `src/db.js`, mirror them in the fake, and add throwaway-Postgres OAuth store tests. PR #7 will be opened as a draft so CI can validate the slice.
+**2026-10-11 — A-3a OAuth primitives and store (PR #7, stacked on PR #6):** added portable OAuth primitives, hashed OAuth client/code/access/refresh storage, single-use authorization codes, atomic refresh-token rotation, revocation, and database-counted login attempts. Unit and throwaway-Postgres tests pass. CI run [38139649010](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38139649010) passed `check`, `unit`, `db`, `emulate`, and aggregate `ci` at head `04f129a84aff6d9f1826c4519b82afcabd9305a9`. PR #7 remains stacked on A-2 PR #6; A-3b endpoints are next.
 
 
 **2026-10-11 — A-2 database schema (PR #6, merge pending):** nine additive tables and eight indexes; lazy Neon configuration; frozen connection-field contract; fake and throwaway-Postgres schema tests. CI run [38138978886](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38138978886) passed all four jobs and the aggregate `ci` gate at head `1a0948ae9dac24aab2ab562dbd3d5be07ad88e60`. The earlier run correctly caught missing checklist-B documentation; that was fixed before the green run. This workspace cannot run the checks locally.
