@@ -293,14 +293,17 @@
         "B-1"
       ],
       "card": "docs/pr-cards/B-7.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 150,
       "units": [
         "B-7"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        23
+      ]
     },
     {
       "id": "B-8",

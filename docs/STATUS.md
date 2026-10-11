@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **B-1 through B-5 merged (#17–#21):** write-safety foundation, production approval, protected-resource guards, safe provider errors and secret-safe output shaping.
-- **B-6 implemented for PR #22:** central profile filtering for MCP listing/direct invocation and home-page per-profile counts; all write tools remain hidden from read_only.
-- **Next B-7:** strengthen check-writes against required safety metadata and catalog marks. Then B-8 → C.
-- **Owner gates unchanged:** real activation, spending, production changes and protected-resource defaults require explicit approval.
+- **B-1 through B-6 merged (#17–#22):** guarded safety layer, production owner approval, resource protections, sanitized errors/results and profile filtering.
+- **B-7 prepared for PR #23:** enhanced static CI guard requires production/targets and catalog-aligned spending/access/secret risk declarations, with planted failure tests.
+- **Next B-8:** working owner and account administration tools from the approved design; split substantial risk areas if needed. Then C.
+- **Owner gates unchanged:** no real activation, spending, production or protected resource default changes.
 
 ## What works today (A-1)
 
@@ -31,6 +31,10 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-7 write declarations (PR #23 pending CI/merge):** strict catalog-linked write safety checks and violation regression tests; no external actions.
+
+**2026-10-11 — B-6 verified merged (#22):** strict profile filtering and home-page counts; main `1c925847c2f808282b5689a321e50a22e65c4141`.
 
 **2026-10-11 — B-6 profiles (PR #22 pending CI/merge):** centralized strict profile-based listing and tool invocation, retained exact local owner switch allowlist, added home-page counts and direct-invocation regression tests. No live provider actions.
 

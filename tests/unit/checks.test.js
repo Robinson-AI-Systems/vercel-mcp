@@ -11,9 +11,9 @@ import { missingDocs } from '../../scripts/check-docs-updated.mjs';
 const dirs = [];
 afterEach(() => { while (dirs.length) rmSync(dirs.pop(), { recursive: true, force: true }); });
 
-describe('check-writes (starting form)', () => {
+describe('check-writes (strict B-7 form)', () => {
   const read = { name: 'vercel_project_get', writes: false };
-  const write = { name: 'vercel_project_update', writes: true, writeContract: {},
+  const write = { name: 'vercel_project_update', writes: true, writeContract: { production: true, targets: true },
     inputSchema: { properties: { dryRun: {}, confirm: {} } } };
   it('passes well-declared read and write tools', () => expect(checkWrites([read, write])).toEqual([]));
   it('fails a write tool without dryRun/confirm or a write contract', () => {
