@@ -50,7 +50,7 @@ function compile(schema, id) {
   const root = { type: 'object', required: ['value'],
     properties: { value: normalizeNullableDeclarations(schema) },
     components: normalizedComponents ??= normalizeNullableDeclarations(readOpenApi().components || {}) };
-  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, coerceTypes: true, allowUnionTypes: true });
+  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, coerceTypes: false, allowUnionTypes: true });
   const validator = ajv.compile(root);
   validators.set(id, validator);
   return validator;

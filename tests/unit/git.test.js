@@ -64,6 +64,8 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     expect(normalizeNullableDeclarations({properties:{id:{nullable:true,enum:['safe']},
       typed:{type:'string',nullable:true,maxLength:4}}})).toEqual({properties:{
       id:{enum:['safe']},typed:{type:'string',nullable:true,maxLength:4}}});
+    // Numeric-looking namespace IDs must match the string branch only, never
+    // also coerce into the number branch and falsely fail oneOf.
     expect(normalizeNullableDeclarations({oneOf:[{type:'string'},{type:'number'},
       {type:'string'},{type:'number'}]})).toEqual({oneOf:[{type:'string'},{type:'number'}]});
   });
