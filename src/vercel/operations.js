@@ -4,6 +4,7 @@ export const OPS = Object.freeze({
   user_get: Object.freeze({ method: 'GET', path: '/v2/user' }),
   teams_list: Object.freeze({ method: 'GET', path: '/v2/teams' }),
   projects_list: Object.freeze({ method: 'GET', path: '/v10/projects' }),
+  projects_get: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}' }),
   projects_create: Object.freeze({ method: 'POST', path: '/v11/projects' })
 });
 

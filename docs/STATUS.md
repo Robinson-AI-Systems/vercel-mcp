@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1a project reads (#47):** server-selected encrypted credential binding and two verified read-only project operations (team list/single project), fail-closed project-account isolation, bounded response fields, fake REST tests, and no provider writes. D-1 remains IN_PROGRESS; next project member, cron and Git reads.
+
 - **B-1 through B-7 merged (#17–#23):** guarded write architecture, owner production approval, self-protection, safe errors/output, profiles, and catalog-enforced write-safety CI.
 - **B-8a verified merged (#24):** main `fad643a011171fee5766be9d05c0e4aa602e9ba9`, all five post-merge CI checks passed. Three read-only server tools (connections, recent changes, guided dashboard directions), scoped queries and token expiry warnings. All offline/test-only.
 - **B-8b owner administration built in #26–#35:** scoped read/recheck and account isolation; local owner-only default selection (#30), exact spend limits (#31), serialized connector revoke (#32); encrypted single-use requests (#33), owner review (#34), and independently authenticated local application (#35). These are server-side, offline-tested capabilities, **not live operations**.

@@ -397,14 +397,17 @@
         "C-2"
       ],
       "card": "docs/pr-cards/D-1.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 500,
       "units": [
         "D-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "READY",
+      "ownerInputs": [],
+      "pr": [
+        47
+      ]
     },
     {
       "id": "D-2",

@@ -6,5 +6,6 @@ import { protectedTools } from './protected.js';
 import { observabilityTools } from './observability.js';
 import { ownerTools } from './owner.js';
 import {metaTools} from './meta.js';
+import {projectsTools} from './projects.js';
 
-export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools]);
+export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools]);
