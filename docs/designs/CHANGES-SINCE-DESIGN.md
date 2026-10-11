@@ -30,3 +30,10 @@ are not yet in their design. A card consuming an entry says so; batch close-out 
 - `src/core/oauth.js` is service-neutral and provides `randomToken`, SHA-256 `hashToken`, timing-safe `secretsMatch`, S256-only PKCE verification, redirect URI validation, trusted client IP normalization, and `evaluateLogin` with a 5-failure/15-minute database-backed lockout policy.
 - `src/db.js` and `test/helpers/fake-db.js` implement OAuth client registration with hashed client secrets, hashed single-use authorization codes, hashed access/refresh tokens, access-token expiry/revocation checks, same-client atomic refresh rotation, and login-attempt counters.
 - Connection scope is copied only through A-2's `connectionSettings(row)` helper: `vercel_account`, `mode`, `profile`, and `listing`. OAuth defaults use `preview`, `everyday`, and `catalog`; the production-mode deployment gate belongs to A-3b.
+
+
+**2026-10-11 — A-3b (PR #8), inherited by A-4.**
+- OAuth handlers are service-neutral and receive a `service` adapter for account labels, safe account listing, and allowed modes. The Vercel adapter only offers production mode when `VERCEL_ENV === 'production'` and the account's `production_enabled` flag is true.
+- `PUBLIC_BASE_URL` is the sole issuer/resource origin; request Host headers do not determine OAuth metadata or resource binding. OAuth requests use a 16 KiB body cap, `no-store`, and `nosniff`.
+- OAuth registration, authorization-code/refresh grants, well-known metadata, bearer authentication, and the MCP Streamable HTTP endpoint are implemented. MCP dispatch is default-deny: only registered tools marked read-only and allowed by the connection profile can run.
+- `/api/index` provides a status page; `vercel.json` rewrites the root and OAuth well-known URLs to serverless endpoints. The registry remains empty until Batch B; no Vercel API client or live account has been configured.

@@ -2,8 +2,9 @@
 import { SCHEMA_TABLES, connectionSettings } from '../../src/db.js';
 import { hashToken } from '../../src/core/oauth.js';
 
-export function createFakeDb({ clock = () => Date.now() } = {}) {
+export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
   const rows = new Map();
+  const accountRows = new Map(accounts.map((account) => [account.id, structuredClone(account)]));
   const tables = new Set();
   const clients = new Map();
   const codes = new Map();
@@ -14,6 +15,14 @@ export function createFakeDb({ clock = () => Date.now() } = {}) {
     listTables() { return [...tables].sort(); },
     async put(key, value) { rows.set(key, structuredClone(value)); },
     async get(key) { return rows.has(key) ? structuredClone(rows.get(key)) : null; },
+    async listVercelAccounts() {
+      return [...accountRows.values()].map((account) => ({
+        id: account.id, team_id: account.team_id, team_slug: account.team_slug,
+        label: account.label, scope: account.scope, project_id: account.project_id,
+        project_name: account.project_name, production_enabled: Boolean(account.production_enabled),
+        is_default: Boolean(account.is_default)
+      }));
+    },
 
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
