@@ -73,3 +73,7 @@ Implemented in A-3 PR #8:
 
 No OpenAPI snapshot vendored yet (A-4). Record the snapshot date, SHA-256 and operation count here when A-4 ships, and
 every path-version or snapshot move after that.
+
+## Batch B-2: owner production permission switch
+
+PR #18 adds two strictly allowlisted **local** owner tools. Enabling production is never a tool-only action: a full-profile agent can request a 10-minute reference on a production deployment, but only the signed-in owner can reenter the passphrase with CSRF on `/api/vercel/setup` and consume it exactly once. Vercel preview deployments refuse enablement. Confirmed disable clears the selected account's flag and revokes its production connector credentials. No Vercel REST write endpoint is called by these tools. All other write tools remain blocked at the MCP boundary until the later Batch B contract is complete.

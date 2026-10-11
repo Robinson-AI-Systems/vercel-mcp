@@ -184,15 +184,18 @@
         "B-1"
       ],
       "card": "docs/pr-cards/B-2.md",
-      "status": "READY",
+      "status": "MERGED",
       "migration": "none",
       "budget": 300,
       "units": [
         "B-2"
       ],
-      "readiness": "READY",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-09"
+      ],
+      "pr": [
+        18
       ]
     },
     {
@@ -204,13 +207,13 @@
         "B-1"
       ],
       "card": "docs/pr-cards/B-3.md",
-      "status": "APPROVED",
+      "status": "READY",
       "migration": "none",
       "budget": 300,
       "units": [
         "B-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": [
         "IN-07"
       ]
