@@ -3,15 +3,16 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { requireMcpToken } from './mcp-auth.js';
+import { visibleToProfile, listProfileTools, profileToolCounts as countByProfile } from './profiles.js';
 
-// Only these two internal owner administrative switches are eligible before
-// the general write-tool gateway exists. They never call a Vercel write API.
-const LOCAL_OWNER_TOOLS = new Set(['vercel_enable_production', 'vercel_disable_production']);
+// Explicit local owner operations are the only writes permitted before the general gateway.
+const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production'];
+export const listMcpTools = (registry, connection) =>
+  listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS });
+export const profileToolCounts = registry =>
+  countByProfile(registry, { localOwnerTools: LOCAL_OWNER_TOOLS });
 function mayUse(tool, connection) {
-  if (!tool?.profiles?.includes(connection?.profile)) return false;
-  if (tool.writes === false) return true;
-  return tool.writes === true && tool.localAdmin === true &&
-    LOCAL_OWNER_TOOLS.has(tool.name) && connection.profile === 'full';
+  return visibleToProfile(tool, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS });
 }
 export async function dispatchReadOnlyTool({ registry, name, args, connection, db, formatError, shapeResult }) {
   const item = registry.tools.find((tool) => tool.name === name);
@@ -47,9 +48,7 @@ export function createMcpHandler({ db, registry, env = process.env, formatError,
     if (!connection) return;
     const server = new Server({ name: 'robinson-vercel-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: registry.tools
-        .filter((tool) => mayUse(tool, connection))
-        .map((tool) => Object.fromEntries(Object.entries(tool).filter(([key]) => !['writes','profiles','localAdmin','writeContract'].includes(key))))
+      tools: listMcpTools(registry, connection)
     }));
     server.setRequestHandler(CallToolRequestSchema, async (request) =>
       dispatchReadOnlyTool({

@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **B-1 through B-4 merged (#17–#20):** write-safety, production approval, protected-resource guards and safe error explanations.
-- **B-5 implemented for PR #21:** recursive safe shaping at MCP and audit boundaries; one-use owner secret input and generated values; results never contain created credentials. No live Vercel writes.
-- **Next B-6:** enforce listing profiles in every door and home-page counts. Then B-7 → B-8 → C.
-- **Pending owner inputs:** conservative IN-07 protected defaults; real activation, spend, and production changes still require independent approval.
+- **B-1 through B-5 merged (#17–#21):** write-safety foundation, production approval, protected-resource guards, safe provider errors and secret-safe output shaping.
+- **B-6 implemented for PR #22:** central profile filtering for MCP listing/direct invocation and home-page per-profile counts; all write tools remain hidden from read_only.
+- **Next B-7:** strengthen check-writes against required safety metadata and catalog marks. Then B-8 → C.
+- **Owner gates unchanged:** real activation, spending, production changes and protected-resource defaults require explicit approval.
 
 ## What works today (A-1)
 
@@ -31,6 +31,10 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-6 profiles (PR #22 pending CI/merge):** centralized strict profile-based listing and tool invocation, retained exact local owner switch allowlist, added home-page counts and direct-invocation regression tests. No live provider actions.
+
+**2026-10-11 — B-5 verified merged (#21):** safe recursive output and encrypted one-use input handling, aggregate CI green; main `0bc55c5ed23cef009236e20f27a838f0be0f7f97`.
 
 **2026-10-11 — B-5 result shaping (PR #21, pending CI/merge):** added provider-neutral recursive secret redaction, Denver-local millisecond dates, integer-cents display, size/depth checks and Vercel MCP boundary integration; one-use owner-input resolver and encrypted created-secret references. Offline unit tests; no real provider calls.
 
