@@ -2,10 +2,11 @@
 // Additive by design: schema initialization never drops or rewrites existing data.
 import { neon } from '@neondatabase/serverless';
 import { hashToken } from './core/oauth.js';
+import { randomUUID } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -140,6 +141,50 @@ export function createDb(query) {
           AND attempted_at > now() - ${minutes} * interval '1 minute'`;
       return rows[0].count;
     },
+    // Atomic, cross-instance reservation: a timed-out write stays pending, not blindly retried.
+    requestReplayStore() {
+      return {
+        async claim({ key, account, mode, tool, ttlMs = 600000 }) {
+          if (typeof key !== 'string' || !/^[a-zA-Z0-9_-]{8,160}$/.test(key)) {
+            throw new TypeError('Invalid write replay key');
+          }
+          if (!account || !tool || !Number.isSafeInteger(ttlMs) || ttlMs < 1 || ttlMs > 600000) {
+            throw new TypeError('Invalid write replay scope or lifetime');
+          }
+          const run = getSql();
+          const claimId = randomUUID();
+          const expiresAt = new Date(Date.now() + ttlMs);
+          // A unique constraint serializes racing callers, even on separate serverless instances.
+          const rows = await run`INSERT INTO request_replay
+            (request_key, vercel_account, mode, tool, claim_id, expires_at, status)
+            VALUES (${key}, ${account}, ${mode}, ${tool}, ${claimId}, ${expiresAt}, 'pending')
+            ON CONFLICT (request_key) DO UPDATE SET
+              claim_id = EXCLUDED.claim_id, expires_at = EXCLUDED.expires_at,
+              vercel_account = EXCLUDED.vercel_account, mode = EXCLUDED.mode,
+              tool = EXCLUDED.tool, status = 'pending', result = NULL
+            WHERE request_replay.expires_at <= now()
+            RETURNING claim_id`;
+          if (rows.length) return { state: 'claimed', claimId };
+          const existing = await run`SELECT status, result FROM request_replay
+            WHERE request_key = ${key} AND expires_at > now()`;
+          if (existing[0]?.status === 'completed') return { state: 'completed', result: existing[0].result };
+          return { state: 'pending' };
+        },
+        async complete({ key, claimId, result }) {
+          if (!claimId || result === undefined) throw new TypeError('Missing replay claim or shaped result');
+          const serialized = JSON.stringify(result);
+          if (!serialized || Buffer.byteLength(serialized) > 8192) {
+            throw new TypeError('Replay result exceeds the safe storage limit');
+          }
+          const run = getSql();
+          const rows = await run`UPDATE request_replay SET
+            status = 'completed', result = ${serialized}::jsonb
+            WHERE request_key = ${key} AND claim_id = ${claimId} AND status = 'pending'
+            RETURNING request_key`;
+          if (!rows.length) throw new Error('The replay claim expired or was replaced; verify the write before retry');
+        }
+      };
+    },
     async initSchema() {
       const run = getSql();
       await run`CREATE TABLE IF NOT EXISTS vercel_accounts (
@@ -180,6 +225,11 @@ export function createDb(query) {
         id BIGSERIAL PRIMARY KEY, vercel_account TEXT, kind TEXT NOT NULL, match TEXT NOT NULL, note TEXT,
         source TEXT NOT NULL DEFAULT 'default', added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE NULLS NOT DISTINCT (vercel_account, kind, match))`;
+
+      await run`CREATE TABLE IF NOT EXISTS request_replay (
+        request_key TEXT PRIMARY KEY, vercel_account TEXT NOT NULL, mode TEXT NOT NULL,
+        tool TEXT NOT NULL, claim_id UUID NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+        expires_at TIMESTAMPTZ NOT NULL, result JSONB)`;
 
       await run`CREATE INDEX IF NOT EXISTS change_log_request_key ON change_log (request_key, at)`;
       await run`CREATE INDEX IF NOT EXISTS oauth_codes_expires_at ON oauth_codes (expires_at)`;

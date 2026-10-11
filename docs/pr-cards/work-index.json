@@ -91,14 +91,17 @@
         "A-3"
       ],
       "card": "docs/pr-cards/A-4.md",
-      "status": "APPROVED",
-      "migration": "none",
+      "status": "MERGED",
+      "migration": "request_replay",
       "budget": 400,
       "units": [
         "A-4"
       ],
-      "readiness": "READY",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        12
+      ]
     },
     {
       "id": "A-5",

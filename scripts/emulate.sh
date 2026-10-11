@@ -20,7 +20,7 @@ if curl -s -o /dev/null -m 2 "http://127.0.0.1:$PORT/"; then
 fi
 
 log="$(mktemp)"
-node "$BIN" start --service vercel --port "$PORT" --host 127.0.0.1 >"$log" 2>&1 &
+node "$BIN" start --service vercel --seed test/fixtures/vercel-emulate.yaml --port "$PORT" --host 127.0.0.1 >"$log" 2>&1 &
 pid=$!
 cleanup() {
   kill "$pid" >/dev/null 2>&1 || true
@@ -32,7 +32,7 @@ trap cleanup EXIT
 ready=""
 for _ in $(seq 1 30); do
   if ! kill -0 "$pid" 2>/dev/null; then break; fi
-  code="$(curl -s -o /dev/null -w '%{http_code}' -m 2 -H 'Authorization: Bearer vcp_FAKEemulate' \
+  code="$(curl -s -o /dev/null -w '%{http_code}' -m 2 -H 'Authorization: Bearer vcp_FAKEemulateToken' \
     "http://127.0.0.1:$PORT/v2/user" || true)"
   if [[ "$code" == "200" ]]; then ready=1; break; fi
   sleep 1
