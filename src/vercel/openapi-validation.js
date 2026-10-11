@@ -46,11 +46,19 @@ export function openApiOperation(id) {
 
 function compile(schema, id) {
   if (validators.has(id)) return validators.get(id);
+  // Pinned Git namespaceId declares the union as malformed duplicated oneOf.
+  // Under normal query-string coercion both numeric and string arms match.
+  // This exact API parameter is a union-of-types; do not loosen other oneOf.
+  let normalized=normalizeNullableDeclarations(schema);
+  if(id==='git_repos_search:query:namespaceId' && Array.isArray(normalized.oneOf)){
+    const {oneOf,...rest}=normalized;
+    normalized={...rest,anyOf:oneOf};
+  }
   // Root-wrapper lets component $refs resolve at #/components/schemas/*.
   const root = { type: 'object', required: ['value'],
-    properties: { value: normalizeNullableDeclarations(schema) },
+    properties: { value: normalized },
     components: normalizedComponents ??= normalizeNullableDeclarations(readOpenApi().components || {}) };
-  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, coerceTypes: false, allowUnionTypes: true });
+  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, coerceTypes: true, allowUnionTypes: true });
   const validator = ajv.compile(root);
   validators.set(id, validator);
   return validator;
