@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1d cron schedule read (#50):** read project `crons.definitions` (not a fabricated array), return only route/schedule/source and UTC schedule with January/July Denver DST examples for simple daily expressions. No job invocation, URL query or secrets, cross-project access blocked. Missing definitions reported unavailable rather than empty. Project alias and cron-count projection corrected. D-1 remains IN_PROGRESS; next guarded project/member/cron/Git mutations, no owner/production changes.
+
 - **D-1c Git discovery (#49):** pinned-schema compatibility normalizer strips invalid untyped nullable annotations and exact duplicate oneOf alternatives without removing allowed-type constraints, with a narrow Git namespaceId union compatibility rule that retains established request coercion;  provider-approved namespace and repository reads, server-stored credentials, per-token exception only for the Vercel Git namespace endpoint (no unsupported teamId), team injection on repo search, sanitized outputs, scope denial and request-shape tests. D-1 IN_PROGRESS; next crons. No owner/production gate changes.
 
 - **D-1b member and cursor reads (#48):** authenticated project member/role list, server-selected team and strict project-only account restriction, safe summaries, bounded pagination inputs and project-list cursor continuation. Fake HTTP, malformed input and scope denial regressions; offline only. D-1 remains IN_PROGRESS; next cron and Git discovery.
