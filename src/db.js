@@ -1,6 +1,7 @@
 // Database schema and the only SQL entry point for Robinson Vercel MCP.
 // Additive by design: schema initialization never drops or rewrites existing data.
 import { neon } from '@neondatabase/serverless';
+import { hashToken } from './core/oauth.js';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
@@ -28,6 +29,112 @@ export function createDb(query) {
   }
 
   return {
+    async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
+      if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
+        throw new TypeError('Missing OAuth client registration fields');
+      }
+      const run = getSql();
+      const data = JSON.stringify({
+        client_secret_hash: hashToken(clientSecret),
+        redirect_uris: redirectUris,
+        client_name: clientName || null
+      });
+      await run`INSERT INTO oauth_clients (client_id, data) VALUES (${clientId}, ${data}::jsonb)`;
+    },
+    async getOAuthClient(clientId) {
+      const run = getSql();
+      const rows = await run`SELECT client_id, data FROM oauth_clients WHERE client_id = ${clientId}`;
+      return rows[0] ? { client_id: rows[0].client_id, ...rows[0].data } : null;
+    },
+    async createAuthCode({
+      code, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',
+      vercelAccount = null, mode = 'preview', profile = 'everyday', listing = 'catalog', ttlSeconds = 600
+    }) {
+      const run = getSql();
+      const data = JSON.stringify({
+        redirect_uri: redirectUri,
+        code_challenge: codeChallenge,
+        code_challenge_method: codeChallengeMethod
+      });
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+      await run`INSERT INTO oauth_codes
+        (code, client_id, data, vercel_account, mode, profile, listing, expires_at)
+        VALUES (${hashToken(code)}, ${clientId}, ${data}::jsonb, ${vercelAccount},
+          ${mode}, ${profile}, ${listing}, ${expiresAt})`;
+    },
+    async consumeAuthCode(code) {
+      if (typeof code !== 'string' || !code) return null;
+      const run = getSql();
+      const rows = await run`DELETE FROM oauth_codes WHERE code = ${hashToken(code)}
+        AND expires_at > now()
+        RETURNING client_id, data, vercel_account, mode, profile, listing`;
+      const row = rows[0];
+      return row ? { client_id: row.client_id, ...row.data, ...connectionSettings(row) } : null;
+    },
+    async createAccessToken({
+      accessToken, refreshToken, clientId, vercelAccount = null,
+      mode = 'preview', profile = 'everyday', listing = 'catalog', ttlSeconds = 3600
+    }) {
+      const run = getSql();
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+      await run`INSERT INTO oauth_tokens
+        (token_hash, refresh_hash, client_id, vercel_account, mode, profile, listing, expires_at)
+        VALUES (${hashToken(accessToken)}, ${refreshToken ? hashToken(refreshToken) : null},
+          ${clientId}, ${vercelAccount}, ${mode}, ${profile}, ${listing}, ${expiresAt})`;
+    },
+    async getAccessToken(accessToken) {
+      if (typeof accessToken !== 'string' || !accessToken) return null;
+      const run = getSql();
+      const rows = await run`SELECT client_id, vercel_account, mode, profile, listing, kind,
+        expires_at, revoked_at FROM oauth_tokens WHERE token_hash = ${hashToken(accessToken)}
+        AND expires_at > now() AND revoked_at IS NULL AND kind = 'connector'`;
+      return rows[0] || null;
+    },
+    async getTokenByRefreshToken(refreshToken) {
+      if (typeof refreshToken !== 'string' || !refreshToken) return null;
+      const run = getSql();
+      const rows = await run`SELECT client_id, vercel_account, mode, profile, listing
+        FROM oauth_tokens WHERE refresh_hash = ${hashToken(refreshToken)}
+        AND revoked_at IS NULL AND kind = 'connector'`;
+      return rows[0] || null;
+    },
+    async rotateRefreshToken({
+      refreshToken, clientId, accessToken, newRefreshToken, ttlSeconds = 3600
+    }) {
+      const run = getSql();
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+      const rows = await run`UPDATE oauth_tokens SET
+        token_hash = ${hashToken(accessToken)}, refresh_hash = ${hashToken(newRefreshToken)},
+        expires_at = ${expiresAt}, last_used_at = NULL
+        WHERE refresh_hash = ${hashToken(refreshToken)} AND client_id = ${clientId}
+          AND revoked_at IS NULL AND kind = 'connector'
+        RETURNING client_id, vercel_account, mode, profile, listing`;
+      return rows[0] || null;
+    },
+    async revokeAccessToken(accessToken) {
+      if (typeof accessToken !== 'string' || !accessToken) return false;
+      const run = getSql();
+      const rows = await run`UPDATE oauth_tokens SET revoked_at = now()
+        WHERE token_hash = ${hashToken(accessToken)} AND revoked_at IS NULL
+        RETURNING token_hash`;
+      return rows.length > 0;
+    },
+    async recordLoginAttempt(ip) {
+      const run = getSql();
+      const rows = await run`INSERT INTO login_attempts (ip, success) VALUES (${ip}, FALSE) RETURNING id`;
+      return rows[0].id;
+    },
+    async markLoginAttemptSucceeded(id) {
+      const run = getSql();
+      await run`UPDATE login_attempts SET success = TRUE WHERE id = ${id}`;
+    },
+    async countRecentFailedLogins(ip, minutes = 15) {
+      const run = getSql();
+      const rows = await run`SELECT count(*)::integer AS count FROM login_attempts
+        WHERE ip = ${ip} AND success = FALSE
+          AND attempted_at > now() - ${minutes} * interval '1 minute'`;
+      return rows[0].count;
+    },
     async initSchema() {
       const run = getSql();
       await run`CREATE TABLE IF NOT EXISTS vercel_accounts (
