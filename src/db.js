@@ -29,6 +29,11 @@ export function createDb(query) {
   }
 
   return {
+    async listVercelAccounts() {
+      const run = getSql();
+      return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
+        production_enabled, is_default FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
+    },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
         throw new TypeError('Missing OAuth client registration fields');
