@@ -8,7 +8,8 @@ import { storeToken, recheckStoredToken } from './tokens.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
-import { inspectOwnerAccountChange } from './owner-approvals.js';
+import { inspectOwnerAccountChange, consumeOwnerAccountChange,
+  applyApprovedOwnerAccountChange } from './owner-approvals.js';
 
 export const PROTECTED_DEFAULTS = Object.freeze([
   'vercel-mcp', 'stripe-mcp', 'google-workspace-mcp', 'neon-mcp',
@@ -136,8 +137,8 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm targeted revocation</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Revoke selected connector</button></form></section>' +
-    '<section><h2>Review pending owner change (no approval)</h2>' +
-    '<p>Review the exact action and target. This read never applies or consumes a request.</p>' +
+    '<section><h2>Review a pending owner change</h2>' +
+    '<p>Review the exact action and target before separately approving. Review never applies or consumes a request.</p>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="review_owner_request">' +
     '<label>Requesting account<select name="account" required>' + options + '</select></label>' +
@@ -191,7 +192,9 @@ function panel(accounts, csrf, message = '', connections = []) {
 export async function handleSetup(req, res, {
   db, env = process.env, now = () => Date.now(), storeTokenFn = storeToken,
   recheckTokenFn = recheckStoredToken,
-  inspectOwnerChangeFn = inspectOwnerAccountChange
+  inspectOwnerChangeFn = inspectOwnerAccountChange,
+  consumeOwnerChangeFn = consumeOwnerAccountChange,
+  applyApprovedChangeFn = applyApprovedOwnerAccountChange
 }) {
   headers(res);
   if (!only(res, req, ['GET', 'POST'])) return;
@@ -336,7 +339,55 @@ export async function handleSetup(req, res, {
         '<p>Read-only review: no account change has been approved or applied.</p>' +
         '<p>Requested action: '+escapeHtml(ownerRequestSummary(request))+'</p>' +
         '<p>Issuing account: '+escapeHtml(request.issuerAccount)+'</p>' +
-        '<p>Execution requires separate authenticated owner approval, which is not enabled here.</p>');
+        '<form method="post">' + csrfInput(session.csrf) +
+        '<input type="hidden" name="action" value="approve_owner_request">' +
+        '<input type="hidden" name="account" value="'+escapeHtml(params.account)+'">' +
+        '<input type="hidden" name="reference" value="'+escapeHtml(params.reference)+'">' +
+        '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this exact owner account change</label>' +
+        '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+        '<button type="submit">Approve and apply this exact change</button></form>');
+    } else if (params.action === 'approve_owner_request') {
+      if(env.VERCEL_ENV!=='production') {
+        return html(res,403,'Unavailable','<p>Approval requires the production server.</p>');
+      }
+      if(!accounts.some(a=>a.id===params.account) || params.confirm!=='yes' ||
+        typeof params.reference!=='string' || !/^[0-9a-f-]{36}$/.test(params.reference)) {
+        return html(res,403,'Permission denied','<p>Select a valid request and explicitly confirm.</p>');
+      }
+      const verified=await evaluateLogin({
+        ip:clientIp(req),supplied:String(params.passphrase||''),
+        expected:env.ADMIN_PASSPHRASE,store:db
+      });
+      if(verified.status==='locked') {
+        res.setHeader('Retry-After','900');
+        return html(res,429,'Permission denied','<p>Too many passphrase attempts.</p>');
+      }
+      if(verified.status!=='ok') {
+        return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
+      }
+      // Read exact request before consuming. The encrypted reference is scoped,
+      // expiring and single-use; no wildcard or client-supplied target is accepted.
+      const preview=await inspectOwnerChangeFn({
+        db,env,account:params.account,reference:params.reference
+      });
+      if(!preview) return html(res,409,'Unavailable','<p>Request missing or expired.</p>');
+      if(!accounts.some(a=>a.id===preview.issuerAccount)) {
+        return html(res,409,'Unavailable','<p>Issuing account is no longer configured.</p>');
+      }
+      // Consume only after all independent owner proofs; any concurrent second
+      // attempt observes missing receipt. Do not re-use or reissue on failure.
+      const approved=await consumeOwnerChangeFn({
+        db,env,account:params.account,reference:params.reference,now
+      });
+      if(!approved || JSON.stringify(approved)!==JSON.stringify(preview)) {
+        return html(res,409,'Unavailable','<p>Owner request was used, changed, or expired.</p>');
+      }
+      const outcome=await applyApprovedChangeFn({db,request:approved});
+      if(outcome?.status!=='applied' || outcome.confirmed!==true) {
+        return html(res,409,'Not verified','<p>The change was not verified. Inspect current account state before making another request.</p>');
+      }
+      message='Owner-approved '+approved.action+
+        ' change independently verified. The approval reference cannot be reused.';
     } else if (params.action === 'recheck_token') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 403, 'Invalid account', '<p>Choose a connected account.</p>');
