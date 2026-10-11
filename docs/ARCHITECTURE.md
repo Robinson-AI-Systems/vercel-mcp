@@ -77,3 +77,7 @@ every path-version or snapshot move after that.
 ## Batch B-2: owner production permission switch
 
 PR #18 adds two strictly allowlisted **local** owner tools. Enabling production is never a tool-only action: a full-profile agent can request a 10-minute reference on a production deployment, but only the signed-in owner can reenter the passphrase with CSRF on `/api/vercel/setup` and consume it exactly once. Vercel preview deployments refuse enablement. Confirmed disable clears the selected account's flag and revokes its production connector credentials. No Vercel REST write endpoint is called by these tools. All other write tools remain blocked at the MCP boundary until the later Batch B contract is complete.
+
+## Batch B-3: protected-resource safety
+
+PR #19 implements tenant/global `protected_resources` queries, fail-closed `checkProtected` over project identities and child resources, self-project/token protections, an add-only owner editor with CSRF+fresh passphrase and read-only protected-resource listing. The `checkApp` hook currently allows operations only in the absence of known app profiles; Batch P will define app ownership. No real write tool invokes provider mutations.

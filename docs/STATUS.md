@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **B-1 merged (#17):** validated generic write safety, replay, provider read-back and auditing; all exact-head checks green.
-- **B-2 implemented (PR #18, final gate pending):** two-step production enable request on full-profile preview connection, independent owner passphrase approval in setup within 10 minutes; fail-closed preview deployment refusal; immediate confirmed disable and production connector revocation. No real production activation occurred.
-- **Next B-3:** self-protection guard and application-profile hook. Owner input IN-07 is still open, so conservative protected defaults remain and must not be weakened.
-- **No live account, real Neon DB, Vercel token or production writes.** Owner gates IN-02/03/04/07/09 remain; queue B-3 → B-4 → B-5 → B-6 → B-7 → B-8 → C.
+- **B-1 (#17) and B-2 (#18) merged:** guarded write contract and owner-only two-step production approval.
+- **B-3 implemented (PR #19, CI pending):** fail-closed project/descendant/self-token protection, tenant-scoped protected-resource listing, add-only owner setup editor requiring fresh passphrase and CSRF, no-profile app guard hook.
+- **Next B-4:** plain-language handling of Vercel errors; no live resource operations, provider tokens, or production activation. IN-07 default protection decision remains open and cannot be silently loosened.
+- **Remaining safety order:** B-4 → B-5 → B-6 → B-7 → B-8 → C. Owner approvals remain required for real activation/spend/live changes.
 
 ## What works today (A-1)
 
@@ -31,6 +31,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-3 self-protection (PR #19 pending):** global/team protected-project rules and inherited child-resource guards, protected server token and ID, owner-authenticated add-only protection editor, read-only listing and application guard hook; unit and isolated Postgres tests. No live resources modified.
+
 
 **2026-10-11 — B-2 owner production guard (PR #18 pending):** adds dedicated pending approval from full preview profile, expiring one-time reference, owner password reentry under setup CSRF, production-server-only switch, confirmed disable with bearer revocation, event audit. Unit and disposable Postgres tests validate no direct AI production enablement. No live change.
 
