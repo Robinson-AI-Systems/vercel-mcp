@@ -64,6 +64,8 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     expect(normalizeNullableDeclarations({properties:{id:{nullable:true,enum:['safe']},
       typed:{type:'string',nullable:true,maxLength:4}}})).toEqual({properties:{
       id:{enum:['safe']},typed:{type:'string',nullable:true,maxLength:4}}});
+    expect(normalizeNullableDeclarations({oneOf:[{type:'string'},{type:'number'},
+      {type:'string'},{type:'number'}]})).toEqual({oneOf:[{type:'string'},{type:'number'}]});
   });
   it('allows only allowlisted token-scoped operation to omit the team selector',async()=>{
     expect(validateRequest('git_namespaces',{query:{provider:'github'}})).toBe(true);

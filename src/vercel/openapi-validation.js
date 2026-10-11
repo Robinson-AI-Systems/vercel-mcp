@@ -14,9 +14,16 @@ const HTTP_METHODS = ['get', 'head', 'delete', 'post', 'put', 'patch'];
 export function normalizeNullableDeclarations(value){
   if(Array.isArray(value))return value.map(normalizeNullableDeclarations);
   if(!value || typeof value!=='object')return value;
-  return Object.fromEntries(Object.entries(value)
+  const fixed=Object.fromEntries(Object.entries(value)
     .filter(([key])=>!(key==='nullable' && !Object.hasOwn(value,'type')))
     .map(([key,child])=>[key,normalizeNullableDeclarations(child)]));
+  // Exact duplicate oneOf alternatives in the pinned snapshot make every
+  // matching value invalid (Vercel Git namespaceId repeats string/number twice).
+  // Collapse IDENTICAL schemas only, preserving unrelated oneOf exclusions.
+  if(Array.isArray(fixed.oneOf))fixed.oneOf=[...new Map(
+    fixed.oneOf.map(option=>[JSON.stringify(option),option])
+  ).values()];
+  return fixed;
 }
 let normalizedComponents;
 
