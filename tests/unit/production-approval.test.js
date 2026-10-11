@@ -93,6 +93,8 @@ describe('B-2 two-step production permission', () => {
     expect(registry.tools.filter(x=>x.writes).map(x=>x.name)).toEqual(['vercel_enable_production','vercel_disable_production']);
     expect((await dispatchReadOnlyTool({registry,name:'vercel_enable_production',connection:{...conn,profile:'read_only'},db})).isError).toBe(true);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
-    expect(r.isError).toBe(false);
+    // The test runner is not a production Vercel deployment, so the
+    // exposed tool must refuse even an eligible full-profile caller.
+    expect(r.isError).toBe(true);
   });
 });
