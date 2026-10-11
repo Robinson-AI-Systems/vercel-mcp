@@ -64,6 +64,15 @@ function loginForm(message = '') {
     '<label>Administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Sign in</button></form>';
 }
+function exactDollarCents(value) {
+  if (typeof value !== 'string' || !/^(?:0|[1-9][0-9]{0,7})(?:\.[0-9]{1,2})?$/.test(value)) return null;
+  const [whole, fraction = ''] = value.split('.');
+  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  return Number.isSafeInteger(cents) && cents <= 2147483647 ? cents : null;
+}
+function dollars(cents) {
+  return '$' + Math.floor(cents / 100) + '.' + String(cents % 100).padStart(2, '0');
+}
 function panel(accounts, csrf, message = '') {
   const options = accounts.map(a => '<option value="' + escapeHtml(a.id) + '">' +
     escapeHtml(a.label) + '</option>').join('');
@@ -89,6 +98,18 @@ function panel(accounts, csrf, message = '') {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm the account-wide selection</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Set default account</button></form></section>' +
+    '<section><h2>Daily spend limit (owner only)</h2>' +
+    '<p>Existing account limits: ' + (accounts.map(a =>
+      escapeHtml(a.label) + ' ' + escapeHtml(dollars(a.spend_limit_cents ?? 0))).join('; ') || 'none') +
+    '. Default is $0.00. Raising a limit does not authorize purchases or enable production. ' +
+    'This changes only the server database; preview deployments cannot change the limit.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="set_spend_limit">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Daily limit in USD (e.g. 0.00 or 11.25)<input name="limitDollars" inputmode="decimal" required></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this account limit</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Update daily spend limit</button></form></section>' +
     '<section><h2>Recheck stored token read access</h2>' +
     '<p>Checks access to the stored team/project without replacing credentials, enabling writes or proving expiry.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -217,6 +238,31 @@ export async function handleSetup(req, res, {
         return html(res, 409, 'Unavailable', '<p>Account selection could not be verified.</p>');
       }
       message = 'Default account updated for new connections; existing connections remain unchanged.';
+    } else if (params.action === 'set_spend_limit') {
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Account limit changes require the production server.</p>');
+      }
+      const cents = exactDollarCents(params.limitDollars);
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes' || cents === null) {
+        return html(res, 403, 'Permission denied', '<p>Select an account and confirm an exact USD limit.</p>');
+      }
+      const approval = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (approval.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (approval.status !== 'ok') {
+        return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      }
+      if (typeof db.setOwnerSpendLimit !== 'function' ||
+          !(await db.setOwnerSpendLimit(params.account, cents))) {
+        return html(res, 409, 'Unavailable', '<p>Account limit change could not be verified.</p>');
+      }
+      message = 'Daily spending limit saved as ' + dollars(cents) +
+        '. No spending, purchase or production access was authorized.';
     } else if (params.action === 'recheck_token') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 403, 'Invalid account', '<p>Choose a connected account.</p>');

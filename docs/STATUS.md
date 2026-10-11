@@ -7,6 +7,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 - **B-1 through B-7 merged (#17–#23):** guarded write architecture, owner production approval, self-protection, safe errors/output, profiles, and catalog-enforced write-safety CI.
 - **B-8a verified merged (#24):** main `fad643a011171fee5766be9d05c0e4aa602e9ba9`, all five post-merge CI checks passed. Three read-only server tools (connections, recent changes, guided dashboard directions), scoped queries and token expiry warnings. All offline/test-only.
 - **B-8b safe reads/isolation and owner contract merged (#26–#29).** **Owner default selection (#30, pending CI/merge):** authenticated production-server setup form with fresh passphrase, CSRF, confirmation, atomic database update/audit and concurrency tests. Remaining B-8b: MCP owner approvals, targeted connection revoke and spend limits; IN-07/IN-08 still pending. Then C.
+- **B-8b owner spend-limit control (#31, pending CI/merge):** owner-only production-server form with separate session, CSRF, confirmation and passphrase approval. Exact USD-decimal parser, account-scoped single-statement SQL audit/read-back; no AI-callable write, purchase or default increase. Remaining B-8b: targeted connection revocation and durable MCP owner approvals, subject to IN-07/IN-08.
 - **Not activated:** no Neon instance initialized, real Vercel token set, or server deployed. Owner inputs IN-07/IN-08 and all live change approvals remain outstanding.
 
 ## What works today (A-1)
