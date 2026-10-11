@@ -79,6 +79,15 @@ Vercel token (`vcp_…`, `vci_…`, `vca_…`, `vercel_blob_rw_…`), Stripe key
 | A door (HTTPS API, `vercel_call`) | `npx vitest run tests/doors/` |
 | Listing or descriptions | `node scripts/check-budgets.mjs --print` |
 
+**GitHub REST testing fallback (mandatory without a local runner).** When this environment has no terminal,
+use a draft PR and the GitHub REST API instead of pretending the commands above ran locally. For the exact
+branch head, query `GET /repos/{owner}/{repo}/commits/{sha}/check-runs` and inspect
+`/actions/runs/{run_id}/jobs`, `/actions/jobs/{job_id}/logs`, and
+`/check-runs/{check_run_id}/annotations` for failures. Run real unit, disposable Postgres and emulator
+tests through the existing GitHub Actions workflow; do not substitute a mocked pass, bypass checks, or
+ask Chris to use his PC. A code fix means a new commit and new full exact-head CI run. Do not push while
+the previous CI cycle is running. Say clearly in the PR that tests ran in GitHub Actions, not locally.
+
 ### 4c. Registries that break CI when you forget them
 
 `src/tools/index.js` module list · `src/vercel/operations.js` · TOOL-CATALOG row · `profiles` metadata ·

@@ -99,10 +99,16 @@ production lines without running tests. Look up every external API parameter bef
 package instead, in that package's types and documentation — a wrong parameter is the most common CI failure.
 Run the full `npm run check` and `npm test` before every push: CI should only confirm what you already know.
 
-**No shell?** If your workspace cannot run commands (you edit through a GitHub connector), you cannot validate locally:
-open the PR as a **draft** after the first slice and push **each slice once the previous run has finished** — CI is
-your test runner (this replaces "one push
-per CI cycle"). Read failures from check-run annotations and fix them before adding the next slice.
+**No local shell or test runner? Use GitHub REST (standing owner instruction).** Do not stop, ask Chris to run
+tests, or claim local execution. Commit through the GitHub REST connector on an `ai/*` branch; open a **draft**
+PR to trigger CI. For its **exact head SHA**, inspect REST `GET /repos/{owner}/{repo}/commits/{sha}/check-runs`,
+`GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs`, the job log endpoint
+`GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs`, and
+`GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations` as needed.
+Use the `check`, `unit`, `db`, `emulate`, and aggregate `ci` jobs as the remote test runner.
+Wait for all jobs to finish before pushing fixes; diagnose every failure via logs/annotations, fix it, then
+verify the new exact head. Label results **GitHub Actions CI**, not local tests. Never merge without green
+required checks. Follow PLAYBOOK Step 4b and Steps 5–9; this is a permanent fallback for this environment.
 
 **CI cadence: one complete run per fix batch.** Every push starts a full CI run, and that is intended: the merge gate
 must be green at the exact head, because a fix in one place can break another. So make each run count:
