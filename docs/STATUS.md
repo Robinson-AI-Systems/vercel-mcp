@@ -1,12 +1,12 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official OpenAPI transport (PR #12) are implemented, with exact-head CI verification required before PR #12 merges.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official OpenAPI transport (PR #12) are implemented, with all five post-merge CI checks green on `main`.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
-- **In progress: A-5 — encrypted Vercel token store and setup page, one-time secrets and pending inputs (draft PR #13).** A-4's pinned 451-operation OpenAPI client, team scoping, strict shape checks, 25-second timeout, bounded retries, rate-limit handling, pagination and ten-minute atomic replay have been implemented on PR #12; A-5 is the next approved execution card. First slice adds authenticated encryption and unit coverage; durable storage, passphrase-only setup routes and tool handlers remain to implement. Real Vercel/Neon deployment awaits IN-02/IN-03 and must not occur automatically.nch `ai/gpt6/a-4-vercel-client`; the verified original 451-operation snapshot is pinned, and lookup/diff scripts, an initial operation registry, strict OpenAPI validation, and a fail-closed HTTP client with fake/emulator tests are in draft PR #12. The additive replay table passed CI disposable-Postgres verification, but A-4 PR #12 is still draft; the last run exposed a scoped-emulator fixture setup issue and a client claim-variable bug. A seeded fake team and claim-variable fix are now being checked with CI; A-5/A-6 remain just-in-time.
-- **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
-- **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
+- **Active A-5a:** Draft PR #13 (`ai/gpt6/a-5-secure-credentials`) implements authenticated encryption and atomic one-use secret/pending-input storage, including disposable-Postgres tests. This is the secure vault slice, **not** the complete A-5 card.
+- **Next A-5b:** Encrypted Vercel token store, scope probes, passphrase-locked owner setup, protected defaults and two read-only tools. No real Vercel/Neon activation without owner inputs IN-02/IN-03/IN-04.
+- **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X. Existing main has A-1 to A-4 merged; all five post-merge CI checks passed for PR #12.
 
 ## What works today (A-1)
 

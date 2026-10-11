@@ -20,7 +20,9 @@ describe('server-only authenticated credential encryption', () => {
   });
   it('rejects invalid, absent or weak keys and tampered ciphertext', () => {
     const box = encryptSecret(fakeSecret, 'pending:account_A', env);
-    expect(() => decryptSecret(box.slice(0, -1) + 'A', 'pending:account_A', env)).toThrow();
+    const parts = box.split('.');
+    parts[2] = (parts[2][0] === 'A' ? 'B' : 'A') + parts[2].slice(1);
+    expect(() => decryptSecret(parts.join('.'), 'pending:account_A', env)).toThrow();
     expect(() => encryptSecret(fakeSecret, 'pending:account_A', {})).toThrow(/not configured/);
     expect(() => encryptSecret(fakeSecret, 'pending:account_A', { TOKEN_ENCRYPTION_KEY: 'weak' }))
       .toThrow(/32-byte/);
