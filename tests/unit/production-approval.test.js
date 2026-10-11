@@ -90,7 +90,10 @@ describe('B-2 two-step production permission', () => {
   });
   it('only exposes explicitly allowlisted local owner admin tools to full connections', async () => {
     const db=fixture().db;
-    expect(registry.tools.filter(x=>x.writes).map(x=>x.name)).toEqual(['vercel_enable_production','vercel_disable_production','vercel_set_default_account','vercel_set_spend_limit','vercel_revoke_connection']);
+    expect(registry.tools.filter(x=>x.writes && x.localAdmin).map(x=>x.name))
+      .toEqual(['vercel_enable_production','vercel_disable_production','vercel_set_default_account','vercel_set_spend_limit','vercel_revoke_connection']);
+    expect(registry.tools.filter(x=>x.writes && x.guardedWrite).map(x=>x.name))
+      .toEqual(['vercel_project_create']);
     expect((await dispatchReadOnlyTool({registry,name:'vercel_enable_production',connection:{...conn,profile:'read_only'},db})).isError).toBe(true);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
     // The test runner is not a production Vercel deployment, so the
