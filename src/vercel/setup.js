@@ -7,6 +7,7 @@ import { escapeHtml, paramsOf, only, send } from '../core/http.js';
 import { storeToken } from './tokens.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
+import { approveProductionEnable } from '../tools/production-guard.js';
 
 export const PROTECTED_DEFAULTS = Object.freeze([
   'vercel-mcp', 'stripe-mcp', 'google-workspace-mcp', 'neon-mcp',
@@ -93,6 +94,15 @@ function panel(accounts, csrf, message = '') {
     '<label>Secret reference<input name="id" required></label>' +
     '<label>Account<select name="account"><option value="">Server / global</option>' + options + '</select></label>' +
     '<button type="submit">Reveal once</button></form></section>' +
+    '<section><h2>Approve production access (second step)</h2>' +
+    '<p>Production is disabled by default. First request it using vercel_enable_production, ' +
+    'then reenter the administrator passphrase here within 10 minutes. Preview deployments cannot enable it.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="approve_production">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Pending request reference<input name="id" required></label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Approve production access for this team</button></form></section>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="logout"><button type="submit">Sign out</button></form>';
 }
@@ -158,6 +168,31 @@ export async function handleSetup(req, res, {
         projectId: params.projectId || null, allowFull: params.allowFull === 'yes', env
       });
       message = 'Token verified and encrypted for ' + result.id;
+    } else if (params.action === 'approve_production') {
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Production access cannot be enabled from preview.</p>');
+      }
+      if (!accounts.some(a => a.id === params.account)) {
+        return html(res, 403, 'Unavailable', '<p>That account is not connected.</p>');
+      }
+      const decision = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (decision.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (decision.status !== 'ok') {
+        return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      }
+      const approved = await approveProductionEnable({
+        db, env, account: params.account, reference: params.id, now
+      });
+      if (approved.status !== 'enabled') {
+        return html(res, 403, 'Unavailable', '<p>Production approval is invalid or expired.</p>');
+      }
+      message = 'Production access enabled for ' + approved.account;
     } else if (params.action === 'pending_input') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 400, 'Invalid account', '<p>Choose a connected account.</p>');
