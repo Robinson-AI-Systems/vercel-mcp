@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { scanFiles, scanText } from '../../scripts/check-secrets.mjs';
+import { isPinnedOpenApiSnapshot, PINNED_OPENAPI, scanFiles, scanText } from '../../scripts/check-secrets.mjs';
 
 const SCRIPT = resolve('scripts/check-secrets.mjs');
 // Real-shaped values are assembled at run time so this file itself never contains one.
@@ -13,6 +13,14 @@ const tempDir = () => { const d = mkdtempSync(join(tmpdir(), 'vercel-mcp-secret-
 afterEach(() => { while (dirs.length) rmSync(dirs.pop(), { recursive: true, force: true }); });
 
 describe('secret scan', () => {
+  it('permits only the untouched SHA-pinned official API document', () => {
+    const bytes = readFileSync(PINNED_OPENAPI.path);
+    expect(isPinnedOpenApiSnapshot(PINNED_OPENAPI.path, bytes)).toBe(true);
+    expect(scanFiles([PINNED_OPENAPI.path])).toEqual([]);
+    expect(isPinnedOpenApiSnapshot(PINNED_OPENAPI.path, Buffer.concat([bytes, Buffer.from('x')]))).toBe(false);
+    expect(isPinnedOpenApiSnapshot('src/other.json', bytes)).toBe(false);
+  });
+
   it('fails on a planted real-shaped vcp_ token in a file, without printing the value', () => {
     const dir = tempDir();
     const path = join(dir, 'planted.js');
