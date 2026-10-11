@@ -48,6 +48,8 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
 Protected-resource listings now include both global and team-scoped rules; the editor is additive-only under owner sign-in.
 
+**B-6 connection profiles (built #22):** The same fail-closed eligibility rules drive both MCP discovery and direct invocation, and the home page shows available tools by read-only, everyday and full profiles. The read-only profile has no write tools, including when an agent calls one by name. This is shared authorization infrastructure.
+
 **B-5 output and secret handling (built #21):** Every MCP result passes recursive secret masking, bounding and Denver-local/money presentation; production mode receives a visible banner. Secrets are accepted only from owner one-use inputs or server-generated values; any created secret is stored encrypted and revealed only through setup. This is shared infrastructure, not a new published tool.
 
 **B-4 error presentation (built #20):** Recognized provider failures return plain-language next actions. MCP results never echo raw upstream messages or credential-shaped labels; technical codes are allowlisted and rate-limit windows display in Denver time. This is shared error handling, not a new published tool.
