@@ -6,7 +6,8 @@ import { requireMcpToken } from './mcp-auth.js';
 import { visibleToProfile, listProfileTools, profileToolCounts as countByProfile } from './profiles.js';
 
 // Explicit local owner operations are the only writes permitted before the general gateway.
-const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production'];
+const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
+  'vercel_set_default_account'];
 export const listMcpTools = (registry, connection) =>
   listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS });
 export const profileToolCounts = registry =>
