@@ -4,7 +4,7 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Next:** C-2 — compact versus catalog tool discovery, safe search/describe/call/batch meta tools and CI token budgets. C-1 scoped result handles and summaries completed through PR #43; B-8 owner approvals stay independent.
+**Next:** D-1 — projects, members, crons and Git using the pinned Vercel API transport and existing guards. Batch C completed through PR #46 (C-1 handles/views and C-2 scoped discovery, dispatch and tokenizer-enforced budgets). B-8 owner approvals stay independent.
 A-1 through A-6 and B-1 through B-8 are merged (B-8 completed #40). The official OpenAPI remains pinned to 2026-10-11.
 Use [implementation guidance](implementation-guidance/README.md) for current helper paths, recipes and the B-8b worked
 example when writing the JIT card. No live database, token or deployment is configured; owner gates remain unchanged.

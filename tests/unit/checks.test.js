@@ -27,14 +27,14 @@ describe('check-writes (strict B-7 form)', () => {
   });
 });
 
-describe('check-budgets (starting form)', () => {
+describe('check-budgets (pinned tokenizer)', () => {
   it('fails a description over 160 characters or missing', () => {
     expect(checkBudgets([{ name: 'vercel_a', description: 'x'.repeat(161) }, { name: 'vercel_b' }]))
       .toEqual(['vercel_a: description 161 characters (max 160)', 'vercel_b: missing description']);
   });
   it('fails a listing over 20,000 estimated tokens', () => {
     const tools = Array.from({ length: 50 }, (_, i) => ({ name: `vercel_t${i}`, description: 'ok',
-      inputSchema: { properties: { blob: { description: 'y'.repeat(2000) } } } }));
+      inputSchema: { properties: { blob: { description: 'y'.repeat(4500) } } } }));
     expect(checkBudgets(tools).at(-1)).toMatch(/tool listing ~\d+ tokens \(max 20000\)/);
     expect(checkBudgets(tools.slice(0, 5))).toEqual([]);
   });

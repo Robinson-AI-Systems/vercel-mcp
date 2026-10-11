@@ -374,17 +374,18 @@
         "C-1"
       ],
       "card": "docs/pr-cards/C-2.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "C-2"
       ],
-      "readiness": "READY",
+      "readiness": "MERGED",
       "ownerInputs": [],
       "pr": [
         44,
-        45
+        45,
+        46
       ]
     },
     {
