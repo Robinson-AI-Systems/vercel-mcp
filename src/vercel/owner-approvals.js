@@ -1,6 +1,7 @@
 // Approval-request envelopes, not owner permission. No Vercel or account mutation here.
 // An OAuth profile merely proposes; the independently signed-in owner must apply.
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
+import { decryptSecret } from '../core/secret-box.js';
 
 const KIND = 'owner_account_change';
 const ACTIONS = new Set(['default','spend','revoke']);
@@ -79,21 +80,40 @@ export async function requestOwnerAccountChange({
     reference:receipt.id,expiresAt:receipt.expiresAt,
     preview:summary,ownerApprovalRequired:true};
 }
+
+function validateOwnerEnvelope(payload,account) {
+  if(!payload || payload.version!==1 || payload.issuerAccount!==account ||
+    !ACTIONS.has(payload.action)) return null;
+  if(payload.action==='default' && IDS.test(payload.targetAccount||'') &&
+    payload.connectionRef===null && payload.limitCents===null) return payload;
+  if(payload.action==='spend' && payload.targetAccount===null &&
+    payload.connectionRef===null && Number.isInteger(payload.limitCents) &&
+    payload.limitCents>=0 && payload.limitCents<=2147483647) return payload;
+  if(payload.action==='revoke' && payload.targetAccount===null &&
+    payload.limitCents===null && REF.test(payload.connectionRef||'')) return payload;
+  return null;
+}
+function decode(value,account) {
+  try {return validateOwnerEnvelope(JSON.parse(value),account);}catch{return null;}
+}
+/** Read-only preview; only authenticated owner setup should call this. */
+export async function inspectOwnerAccountChange({db,env=process.env,account,reference}) {
+  if(!IDS.test(account||'') || typeof reference!=='string' ||
+    !/^[0-9a-f-]{36}$/.test(reference) ||
+    typeof db.getOwnerApprovalRequest!=='function') return null;
+  const row=await db.getOwnerApprovalRequest({account,reference});
+  if(!row || row.kind!==KIND || row.vercel_account!==account) return null;
+  let value;
+  try {
+    value=decryptSecret(row.ciphertext,'once:'+account+':'+KIND+':'+reference,env);
+  } catch {return null;}
+  return decode(value,account);
+}
+/** Single-use consumption is distinct from inspection and never applies a mutation. */
 export async function consumeOwnerAccountChange({db,env=process.env,account,reference,now=()=>Date.now()}) {
   if(!IDS.test(account||'') || typeof reference!=='string' ||
-      !/^[0-9a-f-]{36}$/.test(reference)) return null;
+    !/^[0-9a-f-]{36}$/.test(reference)) return null;
   const receipt=await oneTimeSecrets({db,env,now}).reveal({id:reference,account});
   if(receipt?.kind!==KIND) return null;
-  let payload;
-  try {payload=JSON.parse(receipt.value);} catch {return null;}
-  if(!payload || payload.version!==1 || payload.issuerAccount!==account ||
-      !ACTIONS.has(payload.action)) return null;
-  if(payload.action==='default' && IDS.test(payload.targetAccount||'') &&
-      payload.connectionRef===null && payload.limitCents===null) return payload;
-  if(payload.action==='spend' && payload.targetAccount===null &&
-      payload.connectionRef===null && Number.isInteger(payload.limitCents) &&
-      payload.limitCents>=0 && payload.limitCents<=2147483647) return payload;
-  if(payload.action==='revoke' && payload.targetAccount===null &&
-      payload.limitCents===null && REF.test(payload.connectionRef||'')) return payload;
-  return null;
+  return decode(receipt.value,account);
 }

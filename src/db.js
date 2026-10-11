@@ -139,6 +139,21 @@ export function createDb(query) {
       return readback.length === 1 && readback[0].revoked === true;
     },
 
+    /** Scoped and non-consuming encrypted owner approval inspection. */
+    async getOwnerApprovalRequest({account,reference}) {
+      if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
+        typeof reference !== 'string' || !/^[0-9a-f-]{36}$/.test(reference)) {
+        throw new TypeError('Invalid pending approval lookup');
+      }
+      const run=getSql();
+      const rows=await run`SELECT id,vercel_account,kind,ciphertext,expires_at
+        FROM one_time_secrets
+        WHERE id=${reference} AND vercel_account=${account}
+          AND kind='owner_account_change' AND expires_at>now()
+          AND viewed_at IS NULL LIMIT 1`;
+      return rows[0] ?? null;
+    },
+
     /** Bounded account audit; never fetch raw before/after or replay data. */
     async listRecentChanges({ account, tool = null, projectId = null, mode = null,
       since = null, includePreviews = false, limit = 20 }) {
