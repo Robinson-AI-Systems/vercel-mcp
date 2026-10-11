@@ -124,3 +124,11 @@ Complete this read slice with mapping/negative/door evidence; owner-write/concur
 mutation slices. Record internal service signature, safe probe fields and unresolved owner policies in CHANGES-SINCE-DESIGN. Keep unbuilt
 revoke/default/spend tools absent and B-8 IN_PROGRESS. Next slices inherit owner proof/target/replay decisions, not
 permission to bypass them. B-8 close-out checks PLAN item-by-item; C inherits safe dispatch/output and no widened defaults.
+
+## 6. Reconciled owner-authorization decision (#29)
+
+The initial worked example predates the [B-8b owner-boundary contract](../designs/B-8B-OWNER-BOUNDARY.md).
+Use that contract for owner identity and local default-account concurrency/audit mapping. Do not
+expose `vercel_set_default_account` through MCP or infer owner identity from `full`; the first
+eligible independent mutation is an authenticated production-server setup form. All other
+future owner mutations remain conditional on durable approval and DB-level guard evidence.

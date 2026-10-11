@@ -178,3 +178,13 @@ Tests: per write tool through the write-contract helper; `vercel_whoami` warns 1
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-11 — B-8b conservative owner authorization boundary (PR #29).** An authenticated MCP connection
+is not owner identity; `full` and `confirm` never authorize an account-wide write. Account changes
+apply only after CSRF-protected owner setup and fresh passphrase, with DB lockout and safe atomic audit.
+No real service can be changed by an AI request alone. The first supported local owner action is
+selecting the global default account, atomically and with production-server-only setup approval.
+Later revoke/spend MCP operations remain disabled until they have durable target-bound approval
+and concurrency safeguards. See [B-8b owner boundary](B-8B-OWNER-BOUNDARY.md) for exact invariants,
+negative tests and successor requirements. This refines implementation without widening the
+previously approved production, spend, access or secret rules; IN-07 and IN-08 remain outstanding.
