@@ -8,6 +8,7 @@ import { storeToken, recheckStoredToken } from './tokens.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
+import { inspectOwnerAccountChange } from './owner-approvals.js';
 
 export const PROTECTED_DEFAULTS = Object.freeze([
   'vercel-mcp', 'stripe-mcp', 'google-workspace-mcp', 'neon-mcp',
@@ -79,6 +80,12 @@ async function connectionChoices(db, accounts) {
     db.listAccountConnections({account: account.id, limit: 20})));
   return groups.flat().filter(row => row.kind === 'connector' && row.revoked_at == null);
 }
+function ownerRequestSummary(req) {
+  if (req.action==='default') return 'Select '+req.targetAccount+' as the new default Vercel account';
+  if (req.action==='spend') return 'Set '+req.issuerAccount+' daily spend limit to '+dollars(req.limitCents);
+  return 'Revoke connector '+req.connectionRef+' from '+req.issuerAccount+
+    ' (subject to last-active protection)';
+}
 function panel(accounts, csrf, message = '', connections = []) {
   const options = accounts.map(a => '<option value="' + escapeHtml(a.id) + '">' +
     escapeHtml(a.label) + '</option>').join('');
@@ -129,6 +136,13 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm targeted revocation</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Revoke selected connector</button></form></section>' +
+    '<section><h2>Review pending owner change (no approval)</h2>' +
+    '<p>Review the exact action and target. This read never applies or consumes a request.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="review_owner_request">' +
+    '<label>Requesting account<select name="account" required>' + options + '</select></label>' +
+    '<label>Pending reference<input name="reference" required autocomplete="off"></label>' +
+    '<button type="submit">Review request</button></form></section>' +
     '<section><h2>Recheck stored token read access</h2>' +
     '<p>Checks access to the stored team/project without replacing credentials, enabling writes or proving expiry.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -176,7 +190,8 @@ function panel(accounts, csrf, message = '', connections = []) {
  */
 export async function handleSetup(req, res, {
   db, env = process.env, now = () => Date.now(), storeTokenFn = storeToken,
-  recheckTokenFn = recheckStoredToken
+  recheckTokenFn = recheckStoredToken,
+  inspectOwnerChangeFn = inspectOwnerAccountChange
 }) {
   headers(res);
   if (!only(res, req, ['GET', 'POST'])) return;
@@ -307,6 +322,21 @@ export async function handleSetup(req, res, {
         return html(res, 409, 'Unavailable', '<p>Connector missing, stale or the last active one.</p>');
       }
       message = 'The selected connector was revoked and independently verified.';
+    } else if (params.action === 'review_owner_request') {
+      if(env.VERCEL_ENV!=='production')
+        return html(res,403,'Unavailable','<p>Review requires the production server.</p>');
+      if(!accounts.some(a=>a.id===params.account) ||
+        typeof params.reference!=='string' || !/^[0-9a-f-]{36}$/.test(params.reference)) {
+        return html(res,403,'Permission denied','<p>Invalid account or pending reference.</p>');
+      }
+      const request=await inspectOwnerChangeFn({db,env,account:params.account,reference:params.reference});
+      if(!request)
+        return html(res,404,'Unavailable','<p>Request expired, missing, or belongs to another account.</p>');
+      return html(res,200,'Review owner change',
+        '<p>Read-only review: no account change has been approved or applied.</p>' +
+        '<p>Requested action: '+escapeHtml(ownerRequestSummary(request))+'</p>' +
+        '<p>Issuing account: '+escapeHtml(request.issuerAccount)+'</p>' +
+        '<p>Execution requires separate authenticated owner approval, which is not enabled here.</p>');
     } else if (params.action === 'recheck_token') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 403, 'Invalid account', '<p>Choose a connected account.</p>');

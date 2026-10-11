@@ -274,6 +274,34 @@ describe('A-5 owner-only setup security', () => {
     expect(errored.statusCode).toBe(400);
     expect(errored.body).not.toContain('NEVER_ECHO');
   });
+  it('reviews exact pending request only after session and CSRF in production',async()=>{
+    const h=harness(), auth=await signIn(h), prod={...env,VERCEL_ENV:'production'};
+    const reference='01234567-89ab-4cde-8012-3456789abcde';
+    const reader=vi.fn(async()=>({version:1,issuerAccount:'team_FAKE',action:'spend',
+      targetAccount:null,connectionRef:null,limitCents:1125}));
+    const payload={action:'review_owner_request',account:'team_FAKE',reference,csrf:auth.csrf};
+    expect((await h.call('POST',payload,null,{env:prod,inspectOwnerChangeFn:reader})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,csrf:'wrong'},auth.cookie,
+      {env:prod,inspectOwnerChangeFn:reader})).statusCode).toBe(403);
+    expect((await h.call('POST',payload,auth.cookie,{inspectOwnerChangeFn:reader})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,account:'team_OTHER'},auth.cookie,
+      {env:prod,inspectOwnerChangeFn:reader})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,reference:'bad'},auth.cookie,
+      {env:prod,inspectOwnerChangeFn:reader})).statusCode).toBe(403);
+    expect(reader).not.toHaveBeenCalled();
+    const ok=await h.call('POST',payload,auth.cookie,{env:prod,inspectOwnerChangeFn:reader});
+    expect(ok.statusCode).toBe(200);
+    expect(ok.body).toContain('$11.25');
+    expect(ok.body).toContain('no account change has been approved or applied');
+    expect(reader).toHaveBeenCalledWith({db:h.db,env:prod,account:'team_FAKE',reference});
+    expect(h.provider).not.toHaveBeenCalled();
+    expect((await h.call('POST',payload,auth.cookie,{env:prod,
+      inspectOwnerChangeFn:async()=>null})).statusCode).toBe(404);
+    const bad=await h.call('POST',payload,auth.cookie,{env:prod,
+      inspectOwnerChangeFn:async()=>{throw Error('SECRET_INTERNAL_ERROR');}});
+    expect(bad.statusCode).toBe(400);
+    expect(bad.body).not.toContain('SECRET_INTERNAL_ERROR');
+  });
   it('fails closed when owner secrets are missing', async () => {
     const h = harness(), res = await h.call('GET', null, null,
       { env: { ADMIN_PASSPHRASE: env.ADMIN_PASSPHRASE } });
