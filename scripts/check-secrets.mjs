@@ -4,10 +4,22 @@
 //   node scripts/check-secrets.mjs              scan every file `git ls-files` lists (what CI checks out)
 //   node scripts/check-secrets.mjs --file a b   scan the named files only
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 const FAKE = /FAKE/;
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', 'example.test', 'example.com', 'host']);
+
+// Vercel's unmodified public API document includes a real-ID-shaped example.
+// Only this exact reviewed upstream blob is exempt, never a modified copy.
+export const PINNED_OPENAPI = Object.freeze({
+  path: 'vendor/vercel-openapi/openapi-2026-10-11.json',
+  sha256: 'af1db6e9c95e446468f0c3974653298afe8079db03ee2872429a65cb60a72544'
+});
+export function isPinnedOpenApiSnapshot(path, bytes) {
+  return path === PINNED_OPENAPI.path &&
+    createHash('sha256').update(bytes).digest('hex') === PINNED_OPENAPI.sha256;
+}
 
 // [kind, pattern, may a value containing FAKE be exempt?]
 const RULES = [
@@ -46,6 +58,7 @@ export function scanFiles(paths) {
   for (const path of paths) {
     if (!fs.existsSync(path) || !fs.statSync(path).isFile()) continue;
     const bytes = fs.readFileSync(path);
+    if (isPinnedOpenApiSnapshot(path, bytes)) continue; // exact public snapshot, verified by hash
     if (bytes.includes(0)) continue; // binary
     const types = scanText(bytes.toString('utf8'));
     if (types.length) failures.push({ path, types });
