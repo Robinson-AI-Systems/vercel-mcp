@@ -37,7 +37,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
 | `vercel_whoami` | Which team (or project-scoped account), connection mode (PREVIEW/PRODUCTION), profile, token scope, token last 4 and expiry, daily spend limit and used today | — | B O Op | R | — | A-5 built #15; B-8a built #24; B-8ba built #24; B-8ba built #24; B-8b |
-| `vercel_list_accounts` | Teams and project-scoped accounts this server holds tokens for, with scope, expiry and whether production is enabled | — | O | R | — | A-5 built #15 |
+| `vercel_list_accounts` | Show only the current authenticated connection's account and safe settings; global account management remains on owner setup | — | O | R | — | A-5 built #15; B-8 account isolation #28 |
 | `vercel_set_default_account` | Which account new connections pick first | P | O | F | — | B-8 |
 | `vercel_check_token` | Re-probe the stored token with bounded GETs; report selected team/project read access, not expiry or write permissions | — | O | R | — | B-8b read-only built #26 |
 | `vercel_list_connections` | Claude connections and passes: account, mode, profile, listing, last used, expiry | — | O | R | — | B-8 |
