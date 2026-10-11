@@ -6,7 +6,7 @@ const make = (name) => ({ tools: [{ name }], handlers: { [name]: async () => nul
 
 describe('tool registry', () => {
   it('registers only two read-only account tools', () => {
-    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_enable_production', 'vercel_disable_production']);
+    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_enable_production', 'vercel_disable_production', 'vercel_list_protected_resources']);
     expect(registry.tools.filter(x=>x.writes===true).map(x=>x.localAdmin)).toEqual([true, true]);
   });
   it('merges namespaces and keeps each handler', () => {
