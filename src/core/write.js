@@ -36,6 +36,9 @@ export function defineWrite(spec) {
   if (spec.risk?.access && typeof spec.access !== 'function') {
     throw new TypeError('Access-changing write requires access declaration');
   }
+  if (spec.approvalOnly && (spec.risk?.spend || spec.risk?.access)) {
+    throw new TypeError('Approval proposal cannot itself spend or widen access');
+  }
   const writeContract = Object.freeze({
     production: true, targets: true, spend: Boolean(spec.risk?.spend),
     access: Boolean(spec.risk?.access),
@@ -89,8 +92,22 @@ export function defineWrite(spec) {
     catch { verification = { confirmed: null }; }
     const confirmed = typeof verification?.confirmed === 'boolean' ?
       verification.confirmed : null;
-    const result = safeShape(ctx, { status: 'applied', mode, confirmed,
-      preview: summary, moneyLine, requestKey });
+    // An owner-request write issues an approval reference; it never applies an
+    // account mutation. Do not call an issued reference a confirmed account change.
+    if (spec.approvalOnly && (confirmed !== true ||
+      providerResult?.status !== 'awaiting_owner_approval' ||
+      providerResult?.ownerApprovalRequired !== true ||
+      typeof providerResult?.reference !== 'string' ||
+      typeof providerResult?.expiresAt !== 'string')) {
+      return { status: 'outcome_unknown', mode, confirmed: null, requestKey,
+        reason: 'The owner approval request could not be verified; do not retry blindly' };
+    }
+    const result = safeShape(ctx, spec.approvalOnly ?
+      { status: 'awaiting_owner_approval', mode, confirmed: false,
+        ownerApprovalRequired: true, reference: providerResult.reference,
+        expiresAt: providerResult.expiresAt, preview: summary, requestKey,
+        reviewAt: '/api/vercel/setup' } :
+      { status: 'applied', mode, confirmed, preview: summary, moneyLine, requestKey });
     const inverse = typeof spec.inverse === 'function'
       ? safeShape(ctx, await spec.inverse(args, before, providerResult, ctx)) : null;
     await ctx.audit({ ...auditBase, dryRun: false,

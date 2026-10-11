@@ -48,6 +48,8 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
 Protected-resource listings now include both global and team-scoped rules; the editor is additive-only under owner sign-in.
 
+**B-8b owner-request write-contract foundation (#37):** An MCP request is only an encrypted owner-approval proposal, never an account mutation. Account/connector targets use production and self-protection checks, durable replay and independently inspected envelopes; a verified proposal returns `awaiting_owner_approval` with `confirmed:false`. No named owner account mutation is registered in this foundation slice. The owner must separately review, confirm and reenter the passphrase on setup before any change. IN-07/IN-08 remain pending.
+
 **B-8a account observability (built #24):** `vercel_list_connections` and `vercel_recent_changes` show only scoped, bounded metadata/safe audit summaries; `vercel_where_is_setting` gives guided dashboard navigation and clearly distinguishes manual vs future API verification. `vercel_whoami` warns of token expiry within fourteen days. Account changes remain B-8b.
 
 **B-7 static safety gate (built #23):** The check-writes CI step cross-checks this catalog's Safety marks against every registered tool's read/write classification and write-contract flags, including production, targets, spend, access and one-time secrets. Adding an incompletely declared write now fails CI before merge.
