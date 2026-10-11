@@ -1,0 +1,18 @@
+# Completely fake Vercel emulator fixture; localhost only, no live tokens.
+tokens:
+  vcp_FAKEemulateToken:
+    login: developer
+    scopes: []
+
+vercel:
+  users:
+    - username: developer
+      name: Fixture Developer
+      email: developer@example.test
+  teams:
+    - slug: a4-test-team
+      name: A4 Test Team
+  projects:
+    - name: a4-test-project
+      team: a4-test-team
+      framework: nextjs

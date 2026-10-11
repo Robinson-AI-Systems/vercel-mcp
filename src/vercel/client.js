@@ -185,7 +185,7 @@ export function makeVercelClient({
       const safe = options.shapeResult(envelope);
       if (safe === undefined) throw error('unsafe_write_result', 'Write result must be safely shaped');
       const verified = safeReplayResult(safe);
-      await replayStore.complete({ key, claimId: claimed.claimId, result: verified });
+      await replayStore.complete({ key, claimId, result: verified });
       return verified;
     }
     return envelope;
