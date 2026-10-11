@@ -11,5 +11,6 @@ import {gitTools} from './git.js';
 import {cronsTools} from './crons.js';
 import {projectCreateTools} from './project-create.js';
 import {projectSettingsTools} from './project-settings.js';
+import {projectMemberTools} from './project-members.js';
 
-export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools]);
+export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools]);
