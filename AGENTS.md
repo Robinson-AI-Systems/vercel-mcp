@@ -27,10 +27,16 @@ sections below when a step names them.
 7. **Explore budget:** after about 10 focused reads/searches without an edit, write down what you know and make the
    smallest justified edit with its test — or report a true blocker. Never guess unsafely to save a read.
 8. **Checkpoints:** one coherent work unit with its tests → local commit → update the card's resume note. Publish the
-   complete, checked tree with one push.
+   complete, checked tree with one push (a turn that must end pushes what it has with an exact resume note; no-shell workspaces push each slice — SESSION-START §6).
 9. **External waits are checkpoints, not a loop** (PLAYBOOK Step 10).
 10. **Two-lane conveyor:** lane A builds the current card and its immediate successor; lane B handles CI/review/merge of
     the predecessor. At most two unmerged implementation PRs in a chain.
+11. **Finish before starting.** Every session begins with `docs/SESSION-START.md` §0: an open PR of yours with red CI
+    is the current task — fix it before any new card.
+12. **Problems are not blockers.** Red CI, lint, failing tests, wrong parameters, conflicts and unclear code are yours to
+    fix; stop only for a hard limit or an owner decision the current step needs (SESSION-START §6).
+13. **Thin slices, then a recovery point.** Run each slice's tests and lint before writing the next (≤ ~150 lines between
+    runs); end every turn right after a push whose resume note names the exact next action.
 
 ## What this is
 

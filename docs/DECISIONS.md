@@ -85,3 +85,9 @@ until Chris turns it off for this repository; agents answer and resolve its thre
 you designed this custom MCP with as much functionality as possible … I don't need legacy compatibility." Removed the
 old-name map from D-1 and the toolkit decision note (X-3); IN-14 answered "not needed". The prior-tools audit stays as
 the completeness checklist it was meant to be.
+
+**2026-10-10 — Stronger anti-stall rules (from the implementing agent's own diagnosis).** Sol stopped after opening a PR
+with red CI although nothing blocked it. Its reasons: too much code before running tests; preventable CI errors (a wrong
+API parameter, lint, outdated test expectations); no rule forcing a red PR to be finished first; and chat sessions that
+end between actions. Added: SESSION-START §0 (finish open PRs first), §6 (problems vs real blockers, thin slices, a
+no-shell path with draft PRs, an exact recovery point at every push) and AGENTS rules 11–13.
