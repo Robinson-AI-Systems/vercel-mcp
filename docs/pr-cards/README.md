@@ -28,7 +28,7 @@ Record existing paths separately from proposed paths. Include exact exported sig
 mappings, before/read-back invariants, ordered steps, named fixtures with expected outcomes and forbidden side effects,
 focused commands, dependency evidence, and what the successor inherits. Copy patterns only after checking the baseline;
 the guidance is a locator, not a replacement for approved scope or drift checklist A.
-For the next B-8b slice, use the [worked example](../implementation-guidance/B-8b.md) when writing its JIT card.
+For current C-1 work, use [remaining implementation map](../implementation-guidance/REMAINING.md) and [Batch C design](../designs/BATCH-C.md); the B-8b worked example is historical.
 Do not prewrite distant cards or mark proposed helpers as implemented.
 
 ## Effort guide for Sol 5.6

@@ -120,3 +120,5 @@ are not exposed until a durable independent owner-approval path and existing wri
 Revoke requires protection against last active OAuth bearer and concurrent refresh/revocation;
 spend remains default $0 pending IN-08. This is an engineering restriction, not an owner
 authorization to activate anything. Details: `docs/designs/B-8B-OWNER-BOUNDARY.md`.
+
+**2026-10-11 — B-8 completion (#40): MCP owner tools remain proposal-only, even with `confirm`.** Default-account, exact-cent spend-limit and exact-connector revocation requests use the generic mandatory guarded write pipeline only to issue verified encrypted one-use approval references. The authenticated setup application is a separately trusted actor with session, CSRF, owner passphrase reentry, explicit confirmation and atomic read-back-verified DB changes. No OAuth profile or MCP transport can apply those owner changes on its own. Future C-2 and R-2 doors must preserve the identical registry/guards. IN-07/IN-08 and production activation remain pending.

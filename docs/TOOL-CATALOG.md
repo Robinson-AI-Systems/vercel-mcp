@@ -41,12 +41,14 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_set_default_account` | Propose changing the global default; exact target requires separate signed-in owner approval | P | O | F | — | B-8b built #38 |
 | `vercel_check_token` | Re-probe the stored token with bounded GETs; report selected team/project read access, not expiry or write permissions | — | O | R | — | B-8b read-only built #26 |
 | `vercel_list_connections` | Claude connections and passes: account, mode, profile, listing, last used, expiry | — | O | R | — | B-8 |
-| `vercel_revoke_connection` | Switch a connection or pass off at once | C | O | F | — | B-8 |
+| `vercel_revoke_connection` | Propose revoking an exact current OAuth connector; independently authenticated owner must approve | C | O | F | — | B-8b built #40 |
 | `vercel_enable_production` | Request a ten-minute team production approval; only owner passphrase reentry on setup can enable it | C | O | F | — | B-2 |
 | `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | P | O | F | — | B-2 |
 | `vercel_set_spend_limit` | Propose a tenant-scoped exact-cent daily limit for separate owner approval; no spending or default change | C | O | F | — | B-8b built #39 |
 | `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
 Protected-resource listings now include both global and team-scoped rules; the editor is additive-only under owner sign-in.
+
+**B-8 close-out (#40):** All three B-8b MCP tools are guarded owner-approval proposals, not instant mutations. Default-account (#38), spend-limit (#39) and exact connector revoke (#40) require a separate owner setup session, CSRF, fresh passphrase and confirmation for any SQL change; no AI-supplied `confirm` authorizes applying the change. IN-07/IN-08 and production activation are unchanged.
 
 **B-8b owner-request write-contract foundation (#37):** An MCP request is only an encrypted owner-approval proposal, never an account mutation. Account/connector targets use production and self-protection checks, durable replay and independently inspected envelopes; a verified proposal returns `awaiting_owner_approval` with `confirmed:false`. No named owner account mutation is registered in this foundation slice. The owner must separately review, confirm and reenter the passphrase on setup before any change. IN-07/IN-08 remain pending.
 
