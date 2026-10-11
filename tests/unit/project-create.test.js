@@ -83,4 +83,50 @@ describe('D-1f guarded project creation',()=>{
     expect(parse(await f.call({name:'demo-site',confirm:true})).status).toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(1);
   });
+  it('does not mutate when project read-back disagrees with the created identity',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+      .resolves({id:'prj_FAKE_OTHER',name:'unexpected'});
+    f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+    const result=parse(await f.call({name:'demo-site',confirm:true,requestKey:'differentFAKE01'}));
+    expect(result).toMatchObject({status:'applied',confirmed:false});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST','GET']);
+  });
+  it('reports unknown read-back without retrying POST or falsely confirming',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(503);
+    f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+    const result=parse(await f.call({name:'demo-site',confirm:true,requestKey:'unknownFAKE01'}));
+    expect(result).toMatchObject({status:'applied',confirmed:null});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
+  });
+  it('routes through meta vercel_call and still denies unauthorized profiles before provider I/O',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const viaCall=(profile)=>dispatchReadOnlyTool({registry,name:'vercel_call',
+      args:{name:'vercel_project_create',args:{name:'meta-project',confirm:false}},
+      db:f.db,connection:{...connection,profile},fetchImpl:f.fake.fetch});
+    const denied=await viaCall('read_only');
+    expect(denied.isError).toBe(true);
+    expect(f.fake.calls).toHaveLength(0);
+    const allowed=parse(await viaCall('everyday'));
+    expect(allowed.status).toBe('needs_confirmation');
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+  });
+  it('refuses unknown write outcome and never retries a failed POST automatically',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    f.fake.when('POST','/v11/projects').rejects(503);
+    const result=parse(await f.call({name:'demo-site',confirm:true,requestKey:'failureFAKE01'}));
+    expect(result.status).toBe('outcome_unknown');
+    expect(result.confirmed).toBeNull();
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
+  });
+  it('uses the real tool contract with declared guards and does not declare unrelated spend/access risk',()=>{
+    const tool=registry.tools.find(x=>x.name==='vercel_project_create');
+    expect(tool.writeContract).toMatchObject({production:true,targets:true,
+      spend:false,access:false,secretOut:false,secretIn:false});
+    expect(tool.guardedWrite).toBe(true);
+  });
+
 });
