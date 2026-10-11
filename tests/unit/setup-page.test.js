@@ -152,6 +152,48 @@ describe('A-5 owner-only setup security', () => {
     expect(failed.statusCode).toBe(400);
     expect(failed.body).not.toContain('DO_NOT_ECHO_PROVIDER');
   });
+  it('changes default only with owner session, CSRF, explicit confirmation and fresh passphrase',async()=>{
+    const h = harness(), change = vi.fn(async()=>true);
+    h.db.setDefaultOwnerAccount = change;
+    const body = {action:'set_default_account',account:'team_FAKE',confirm:'yes',
+      passphrase:env.ADMIN_PASSPHRASE};
+    expect((await h.call('POST',body,null,{env:{...env,VERCEL_ENV:'production'}})).statusCode).toBe(403);
+    const auth=await signIn(h);
+    const prod={...env,VERCEL_ENV:'production'};
+    expect((await h.call('POST',{...body,csrf:'invalid'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,csrf:auth.csrf,confirm:'no'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,csrf:auth.csrf,account:'team_OTHER'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...body,csrf:auth.csrf},auth.cookie)).statusCode).toBe(403);
+    expect(change).not.toHaveBeenCalled();
+    const wrong=await h.call('POST',{...body,csrf:auth.csrf,passphrase:'incorrect'},auth.cookie,{env:prod});
+    expect(wrong.statusCode).toBe(401);
+    expect(change).not.toHaveBeenCalled();
+    const good=await h.call('POST',{...body,csrf:auth.csrf},auth.cookie,{env:prod});
+    expect(good.statusCode).toBe(200);
+    expect(change).toHaveBeenCalledOnce();
+    expect(change).toHaveBeenCalledWith('team_FAKE');
+    expect(good.body).toContain('existing connections remain unchanged');
+    expect(good.body).not.toContain(env.ADMIN_PASSPHRASE);
+    expect(good.body).not.toContain(env.TOKEN_ENCRYPTION_KEY);
+    const page=await h.call('GET',null,auth.cookie);
+    expect(page.body).toContain('Default account for new connections');
+  });
+  it('never claims success when the database rejects or cannot verify owner selection',async()=>{
+    const h=harness();
+    const auth=await signIn(h), prod={...env,VERCEL_ENV:'production'};
+    const body={action:'set_default_account',account:'team_FAKE',confirm:'yes',
+      csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE};
+    const denied=await h.call('POST',body,auth.cookie,{
+      env:prod,db:{...h.db,setDefaultOwnerAccount:vi.fn(async()=>false)}
+    });
+    expect(denied.statusCode).toBe(409);
+    expect(denied.body).not.toContain('updated');
+    const errored=await h.call('POST',body,auth.cookie,{
+      env:prod,db:{...h.db,setDefaultOwnerAccount:async()=>{throw Error('DO_NOT_ECHO_DATABASE');}}
+    });
+    expect(errored.statusCode).toBe(400);
+    expect(errored.body).not.toContain('DO_NOT_ECHO_DATABASE');
+  });
   it('fails closed when owner secrets are missing', async () => {
     const h = harness(), res = await h.call('GET', null, null,
       { env: { ADMIN_PASSPHRASE: env.ADMIN_PASSPHRASE } });

@@ -50,3 +50,9 @@ authority for the app's launch.
 | [ ] | Preview database differs from production (checked without showing values) | Verified by the app |
 | [ ] | Email DNS records marked as owned in the profile | Not seeded (P-1) |
 | [ ] | Ten crons present on the live deployment | Scheduled |
+
+## B-8 owner default-account control (not activated)
+
+| Done | Item | Where / how | Today | How you know it worked |
+|---|---|---|---|---|
+| [ ] | Choose the default connected Vercel account for *new* connectors only | Owner: production-server setup page, authenticated session, CSRF, explicit confirmation, reenter passphrase | No server or account is live; no change made | After the owner selects an existing team, owner setup lists it first; existing connections keep their account and mode. Does **not** permit agent-initiated default changes or spending |

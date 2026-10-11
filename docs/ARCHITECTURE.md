@@ -81,3 +81,14 @@ PR #18 adds two strictly allowlisted **local** owner tools. Enabling production 
 ## Batch B-3: protected-resource safety
 
 PR #19 implements tenant/global `protected_resources` queries, fail-closed `checkProtected` over project identities and child resources, self-project/token protections, an add-only owner editor with CSRF+fresh passphrase and read-only protected-resource listing. The `checkApp` hook currently allows operations only in the absence of known app profiles; Batch P will define app ownership. No real write tool invokes provider mutations.
+
+## B-8b owner-only default account selection (#30)
+
+The production server's `/api/vercel/setup` owner page (not the MCP/OAuth connector) offers
+a global default-account selector guarded by short-lived authenticated session, CSRF, explicit
+confirmation and fresh passphrase under DB-backed lockout. `createDb().setDefaultOwnerAccount(id)`
+performs conditional all-account default-flag selection and safe `change_log` insertion within
+a single Postgres statement, then independently checks that exactly one selected default remains.
+It never alters credentials, OAuth token settings, production-enabled flags or Vercel resources.
+Preview deployments cannot activate the form. The MCP named write is **not registered**;
+B-8 remaining revoke/spend and independent approval still require implementation and owner gates.
