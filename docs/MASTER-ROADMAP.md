@@ -4,7 +4,10 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Next:** A-5 — encrypted Vercel token storage, authenticated setup page, one-time secrets, pending inputs, and protected-resource seeding. A-4 is implemented in PR #12 (exact-head CI and merge gate required); the official OpenAPI document remains pinned to 2026-10-11. No live database, token or Vercel deployment is configured; IN-02/IN-03 remain owner gates for real activation.
+**Next:** B-8b — finish server/account administration after B-8a merged in PR #24; then C-1/C-2.
+A-1 through A-6 and B-1 through B-7 are merged. The official OpenAPI remains pinned to 2026-10-11.
+Use [implementation guidance](implementation-guidance/README.md) for current helper paths, recipes and the B-8b worked
+example when writing the JIT card. No live database, token or deployment is configured; owner gates remain unchanged.
 
 ## Order and why
 

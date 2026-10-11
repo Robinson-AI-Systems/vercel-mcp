@@ -5,7 +5,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 ## Next
 
 - **B-1 through B-7 merged (#17–#23):** guarded write architecture, owner production approval, self-protection, safe errors/output, profiles, and catalog-enforced write-safety CI.
-- **B-8a PR #24 pending CI/merge:** three read-only server tools (connections, recent changes, guided dashboard setting directions), tenant-scoped database queries and token expiry warnings. All offline/test-only.
+- **B-8a verified merged (#24):** main `fad643a011171fee5766be9d05c0e4aa602e9ba9`, all five post-merge CI checks passed. Three read-only server tools (connections, recent changes, guided dashboard directions), scoped queries and token expiry warnings. All offline/test-only.
 - **Next B-8b:** remaining account administration and owner-controlled account changes: default account, token probe, targeted revocation, spend-limit settings. Retain explicit safety approvals. Then C.
 - **Not activated:** no Neon instance initialized, real Vercel token set, or server deployed. Owner inputs IN-07/IN-08 and all live change approvals remain outstanding.
 
@@ -31,6 +31,11 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — Implementation guidance:** added current-code locators, reusable execution recipes, remaining-work map
+and a B-8b worked example; startup/card-writing instructions link only the relevant sections. Proposed paths and
+unresolved owner/connection boundaries are explicit; no product behavior, defaults, owner inputs or work-index status
+changed. Verified #24 merged; B-8b remains next. See [guidance](implementation-guidance/README.md).
 
 **2026-10-11 — B-8a (PR #24 pending CI/merge):** working bounded read-only account/connection metadata and change-log summaries, guided settings map, near-expiry warnings; disposable Postgres tenant-isolation regression. Remaining B-8b owner mutations explicitly deferred.
 

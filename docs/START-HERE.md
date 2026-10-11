@@ -16,6 +16,10 @@ Chris operates mostly from a phone; everything he reads must be plain language.
    [drift protocol](implementation-contracts/DRIFT-PROTOCOL.md) applies every time.
 5. PLAN's acceptance for the batch and PLAYBOOK's verification commands.
 
+For concrete files, mappings, tests and successor contracts, select one recipe from
+[implementation guidance](implementation-guidance/README.md). It also maps remaining batches and works through B-8b;
+these are execution aids, not prewritten distant cards or changes to the approved designs.
+
 ## Code map (target; confirm the actual path before editing)
 
 `api/` Vercel functions (`mcp.js` connector, `oauth/*` login, `vercel/setup.js` token page, one-time secrets, pending
