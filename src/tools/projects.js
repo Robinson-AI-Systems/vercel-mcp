@@ -28,7 +28,7 @@ export const projectsTools={
     {name:'vercel_project_get',writes:false,profiles:PROFILES,area:'projects',
       description:'Read safe project settings, Git linkage, build commands and production status by ID or name.',
       inputSchema:{...schema({project:{type:'string',minLength:1,maxLength:128}}),required:['project']},
-      annotations:{readOnlyHint:true}}
+      annotations:{readOnlyHint:true}},
     {name:'vercel_project_list_members',writes:false,profiles:PROFILES,area:'projects',
       description:'List project members and roles in an authenticated, project-scoped page without secrets.',
       inputSchema:{...schema({project:{type:'string',minLength:1,maxLength:128},
