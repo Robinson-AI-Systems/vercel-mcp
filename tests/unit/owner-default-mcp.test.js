@@ -16,6 +16,10 @@ function fixture(){
       const row=rows.get(reference);
       return row?.vercel_account===a && row.expiresAt.getTime()>Date.now()?row:null;
     }),
+    consumeOneTimeSecret:vi.fn(async({id,account:a})=>{
+      const row=rows.get(id);if(!row || row.vercel_account!==a)return null;
+      rows.delete(id);return row;
+    }),
     recordChange:vi.fn(async()=>{}),
     setDefaultOwnerAccount:vi.fn(async()=>true),
     requestReplayStore:()=>({
