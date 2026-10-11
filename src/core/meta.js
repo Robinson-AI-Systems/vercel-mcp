@@ -19,7 +19,7 @@ export function searchVisibleTools(catalog,{query,area,audience,limit=10}={}){
           'write (confirmation and applicable owner approval required)':'read-only'};
     }).filter(x=>x.score===tokens.length)
     .sort((a,b)=>b.score-a.score || a.name.localeCompare(b.name));
-  return {count:rows.length,tools:rows.slice(0,limit).map(({score,...row})=>row),
+  return {count:rows.length,tools:rows.slice(0,limit).map(row=>({name:row.name,description:row.description,safety:row.safety})),
     hasMore:rows.length>limit};
 }
 export function describeVisibleTool(catalog,name){
