@@ -1,6 +1,6 @@
 // Prevent changes to the MCP server itself or owner-designated protected projects.
 // Reads are never blocked. Missing ownership metadata fails closed for writes.
-const KINDS = new Set(['project','domain','dns_record','env','store','token','deployment','alias','certificate']);
+const KINDS = new Set(['account','project','domain','dns_record','env','store','token','deployment','alias','certificate']);
 const CHILDREN = new Set(['domain','dns_record','env','store','deployment','alias','certificate']);
 const SAFE_NAMES = new Set(['vercel-mcp','stripe-mcp','google-workspace-mcp',
   'neon-mcp','github-mcp','robinsons-toolkit-hub']);
