@@ -6,7 +6,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 - **B-1 through B-7 merged (#17–#23):** guarded write architecture, owner production approval, self-protection, safe errors/output, profiles, and catalog-enforced write-safety CI.
 - **B-8a verified merged (#24):** main `fad643a011171fee5766be9d05c0e4aa602e9ba9`, all five post-merge CI checks passed. Three read-only server tools (connections, recent changes, guided dashboard directions), scoped queries and token expiry warnings. All offline/test-only.
-- **B-8b read slices merged (#26/#27):** safe token GET recheck through MCP and signed-in owner page. **Account-list isolation (#28, pending CI/merge):** OAuth connections see only their selected account, not the owner's other teams. Remaining owner mutations: default, targeted revoke and spend limits require reviewed owner identity/concurrency policy. Then C.
+- **B-8b safe reads/isolation merged (#26–#28).** **Owner authorization contract (#29, pending CI/merge):** conservative setup-only owner proof and atomic default-account specification. Next implement only the separately authenticated default-account owner form; leave MCP account changes, revocation and spend disabled until all contracts/owner inputs are satisfied. Then C.
 - **Not activated:** no Neon instance initialized, real Vercel token set, or server deployed. Owner inputs IN-07/IN-08 and all live change approvals remain outstanding.
 
 ## What works today (A-1)
@@ -31,6 +31,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-8b owner boundary design (#29, pending CI/merge):** reviewed trust boundary for locally authenticated owner-only default selection, future targeted revocation/spend and concurrency/audit requirements. No code/DB mutation, no MCP write exposure or live resources. Next safe slice: implement default selection in the existing owner setup form with offline DB/unit evidence.
+
 
 **2026-10-11 — B-8 account-list isolation (#28, pending CI/merge):** connector-scoped account lookup replaces global enumeration for `vercel_list_accounts`. Owner web panel retains authenticated global listing. Disposable Postgres test checks safe columns, tenant filtering and missing account; unit tests reject forged selector and verify no cross-account data. No owner operations enabled, B-8 still IN_PROGRESS.
 

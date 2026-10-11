@@ -111,3 +111,12 @@ CI cancels an obsolete PR run when a newer push arrives.
 **2026-10-11 — B-2 production enable needs independent owner reauthentication.** A confirmed AI-issued request is only a ten-minute encrypted, single-use pending record; it never changes `production_enabled` alone. The owner must reenter `ADMIN_PASSPHRASE` on the authenticated CSRF-protected setup page; the server must itself run in production mode; the reference must match the chosen account. Disabling is an owner-confirmed local safety action revoking production connector tokens. Exposing precisely these two local administrative tools does not open the general provider-write MCP gateway. No real authorization inferred from offline tests.
 
 **2026-10-11 — B-3 protections stay additive until IN-07.** Protected-project defaults cannot be removed or weakened by the new setup editor while the owner's exact protected list remains undecided. A signed-in owner may add a team-scoped project only after fresh passphrase and CSRF verification. The safety check treats unresolvable descendants, absent protected-resource data and the server's own project/credential as protected. The app hook is stable but has no app profiles until Batch P. No live service writes were performed.
+
+**2026-10-11 — B-8b owner authorization implementation boundary (#29).** Reuse existing
+authenticated owner setup, CSRF and fresh `evaluateLogin` proof for account-wide local writes;
+never infer owner status from a connector profile. Stage the global default-account owner form
+first, with atomic SQL/audit and production-deployment restriction. The catalog's MCP write names
+are not exposed until a durable independent owner-approval path and existing write contracts pass.
+Revoke requires protection against last active OAuth bearer and concurrent refresh/revocation;
+spend remains default $0 pending IN-08. This is an engineering restriction, not an owner
+authorization to activate anything. Details: `docs/designs/B-8B-OWNER-BOUNDARY.md`.
