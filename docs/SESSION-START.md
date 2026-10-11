@@ -18,7 +18,9 @@ Your session can end at any moment (the chat stops between actions), so the next
    (`gh api "repos/$R/commits/<sha>/check-runs" --jq '.check_runs[]|"\(.id) \(.name) \(.conclusion)"'`).
    - **Red → that is your task now.** Read every failure (job logs may not download; use
      `gh api "repos/$R/check-runs/<id>/annotations"`), reproduce locally, fix all of them, push once, re-check.
-   - **Green and acceptance met → merge** (PLAYBOOK Step 9). **Pending →** build the next slice meanwhile.
+   - **Green and acceptance met → bring it up to date, then merge** (PLAYBOOK Steps 5 and 9): if
+     `gh api "repos/$R/compare/main...<sha>" --jq .behind_by` is above 0, `git fetch origin main && git merge origin/main`,
+     run the checks, push, and merge only when `ci` is green at that new head. **Pending →** build the next slice meanwhile.
    - Review threads open → fix or answer each, then resolve.
 3. Continue from the resume note's "Next step". Only when nothing of yours is open: §1 and the next card.
 
