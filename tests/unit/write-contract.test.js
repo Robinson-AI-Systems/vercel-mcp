@@ -29,7 +29,11 @@ describe('B-1 contract hardening', () => {
     const a = writeRequestKey('fixture_update', { name: 'a', confirm: true }, ctx, 600000);
     expect(a).toBe(writeRequestKey('fixture_update', { name: 'a', dryRun: true }, ctx, 600000));
     expect(a).not.toBe(writeRequestKey('fixture_update', { name: 'b' }, ctx, 600000));
-    expect(writeRequestKey('fixture_update', { requestKey: 'owner_key_123' }, ctx, 600000)).toBe('owner_key_123');
+    const override = writeRequestKey('fixture_update', { requestKey: 'owner_key_123' }, ctx, 600000);
+    expect(override).toMatch(/^rmcp_scoped_[a-f0-9]{64}$/);
+    expect(override).toBe(writeRequestKey('fixture_update', { requestKey: 'owner_key_123' }, ctx, 600000));
+    expect(override).not.toBe(writeRequestKey('fixture_update', { requestKey: 'owner_key_123' }, { ...ctx, account: 'another' }, 600000));
+    expect(override).not.toBe(writeRequestKey('another_tool', { requestKey: 'owner_key_123' }, ctx, 600000));
     expect(() => writeRequestKey('fixture_update', { requestKey: '..' }, ctx)).toThrow();
   });
 });
