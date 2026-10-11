@@ -131,3 +131,18 @@ commit and push them with the work, and say in one plain-English paragraph what 
 
 > Continue the Vercel MCP work. Read `docs/SESSION-START.md` and do §0 first: finish any open PR of yours (fix red
 > CI, then merge) before starting the next card. Then keep going card after card; stop only for a real blocker (§6).
+
+## 7. Mandatory session close-out after the fifth merge
+
+Do this immediately, before any more development or tool exploration. This applies to REST-only sessions too.
+
+1. Fetch the live `main` ref and record its exact commit SHA. Verify the five session PRs are **merged**
+   (not merely closed), including their exact last head SHAs and merge commits.
+2. For that new main SHA, retrieve the post-merge `push` workflow run and its individual `check`, `unit`,
+   `db`, `emulate` and aggregate `ci` conclusions. Do not confuse PR-head CI with post-merge CI.
+3. List open PRs and the five PRs' review threads; any unresolved thread must be handled or reported precisely.
+4. Immediately send the user the final count, commit SHA, exact CI results, unresolved/owner gates, next card,
+   and a **short, copy-ready continuation prompt** pointing to repository documentation. Stop at five merges.
+5. If a check is pending, an endpoint unavailable or the session cannot finish: state exactly which SHA, PR,
+   check or review is unverified and how the next session should recover. Do not claim a successful five-PR
+   session, quietly disappear, or postpone the handoff waiting for a check to finish.

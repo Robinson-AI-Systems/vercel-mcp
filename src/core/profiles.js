@@ -1,6 +1,6 @@
 // Provider-neutral profile access checks: one predicate for discovery and direct invocation.
 export const PROFILES = Object.freeze(['read_only', 'everyday', 'full']);
-const INTERNAL_FIELDS = new Set(['writes', 'profiles', 'localAdmin', 'writeContract']);
+const INTERNAL_FIELDS = new Set(['writes', 'profiles', 'localAdmin', 'writeContract', 'guardedWrite']);
 
 export function visibleToProfile(tool, profile, { localOwnerTools = [] } = {}) {
   if (!PROFILES.includes(profile) || !tool || !Array.isArray(tool.profiles) ||
@@ -8,10 +8,14 @@ export function visibleToProfile(tool, profile, { localOwnerTools = [] } = {}) {
   // Every read is allowed only when explicitly declared. Unknown/missing writes fail closed.
   if (tool.writes === false) return true;
   if (tool.writes !== true || profile === 'read_only') return false;
-  // Until the generic guarded write gateway is implemented, only local owner
-  // switches in an explicit allowlist can be called; never arbitrary writes.
-  return profile === 'full' && tool.localAdmin === true &&
+  // Owner-only administration is never promoted to a routine write.
+  if (tool.localAdmin === true) return profile === 'full' &&
     localOwnerTools.includes(tool.name);
+  // Ordinary provider writes must opt in individually, prove defineWrite's
+  // mandatory safety declarations and be permitted by the connection profile.
+  // An unannotated future write stays invisible and uncallable.
+  return tool.guardedWrite === true && tool.writeContract?.production === true &&
+    tool.writeContract?.targets === true && ['everyday','full'].includes(profile);
 }
 
 export function listProfileTools(registry, profile, options = {}) {

@@ -48,6 +48,14 @@ card; read only that recipe. It maps existing code and proposed work without cha
     never claim otherwise, never skip tests for lack of a shell, and do not require Chris's PC. See
     `docs/SESSION-START.md` §6 and `docs/PLAYBOOK.md` Step 4b for the REST workflow.
 
+15. **Mandatory five-merge close-out (never stall after the fifth merge).** Immediately after a session's fifth
+    successful merge, run the close-out checklist in SESSION-START §7. Verify the exact main SHA, five merged
+    PR numbers and exact heads, all five post-merge CI check conclusions, zero remaining session PRs,
+    and every review thread resolved. Then deliver the plain-English outcome and the compact copy-ready
+    next-session prompt in the **same reply**. Do not start a sixth PR. If GitHub CI is pending or an
+    API call is blocked, give the exact verified state and recovery action in the handoff now;
+    never silently wait or report pending checks as passed.
+
 ## What this is
 
 **Robinson Vercel MCP** is a hosted MCP server (Vercel + Neon) that lets Chris's AI agents operate his Vercel teams
