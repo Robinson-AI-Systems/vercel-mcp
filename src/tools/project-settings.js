@@ -4,13 +4,14 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
+import {validateRequest} from '../vercel/openapi-validation.js';
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const NAME=/^[a-z0-9][a-z0-9._-]{0,99}$/;
-const FRAMEWORKS=['nextjs','vite','astro','nuxtjs'];
 const props={
   project:{type:'string',minLength:1,maxLength:128},
   name:{type:'string',pattern:NAME.source,maxLength:100},
-  framework:{type:'string',enum:FRAMEWORKS},
+  framework:{anyOf:[{type:'string',minLength:1,maxLength:100},{type:'null'}],
+    description:'A Vercel-supported framework identifier or null; validated against pinned OpenAPI'},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}
 };
@@ -21,7 +22,8 @@ function validate(args){
     typeof args.project!=='string'||!ID.test(args.project)||
     (args.name===undefined && args.framework===undefined)||
     (args.name!==undefined&&(typeof args.name!=='string'||!NAME.test(args.name)))||
-    (args.framework!==undefined&&!FRAMEWORKS.includes(args.framework))||
+    (args.framework!==undefined&&args.framework!==null&&
+      (typeof args.framework!=='string'||args.framework.length===0||args.framework.length>100))||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
     throw new TypeError('Invalid project settings request');
@@ -36,6 +38,10 @@ const update=defineWrite({
   name:'vercel_project_update_settings',
   async before(args,ctx){
     validate(args);
+    if(args.framework!==undefined)validateRequest('projects_update',{
+      path:{idOrName:args.project},query:{teamId:'team_FAKE_validation'},
+      body:{framework:args.framework}
+    });
     const {client,account}=await readProvider(ctx);
     if(account.scope==='project'&&args.project!==account.project_id)
       throw new TypeError('Connection cannot change another project');
@@ -44,14 +50,13 @@ const update=defineWrite({
       (account.scope==='project'&&row.id!==account.project_id))
       throw new TypeError('Project identity unavailable');
     // Undefined production metadata is unknown, and is treated as live.
-    const live=!Array.isArray(row.latestProductionDeployments) ||
-      row.latestProductionDeployments.length>0;
+    const live=row.hasDeployments!==false;
     if((args.name===undefined||args.name===row.name) &&
       (args.framework===undefined||args.framework===(row.framework??null)))
       throw new TypeError('No settings change requested');
     return {id:row.id,name:row.name,framework:row.framework??null,live,
       newName:args.name??row.name,
-      newFramework:args.framework??row.framework??null,
+      newFramework:args.framework!==undefined?args.framework:row.framework??null,
       changeName:args.name!==undefined,
       changeFramework:args.framework!==undefined};
   },
@@ -64,8 +69,8 @@ const update=defineWrite({
   },
   async production(_args,_ctx,before){
     return {production:before.live,why:before.live?
-      'Project has production deployments or live status is unknown':
-      'Project has an explicitly empty production deployment list'};
+      'Project may have existing deployments or live status is unknown':
+      'Vercel reports hasDeployments=false'};
   },
   async targets(_args,before){
     return [{kind:'project',id:before.id,name:before.name},

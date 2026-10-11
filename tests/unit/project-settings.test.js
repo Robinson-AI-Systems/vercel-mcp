@@ -24,7 +24,7 @@ function fixture(){
   return {fake,call,rows};
 }
 const parse=r=>JSON.parse(r.content[0].text);
-const before={id:'prj_FAKE_OLD',name:'old-site',framework:'nextjs',latestProductionDeployments:[]};
+const before={id:'prj_FAKE_OLD',name:'old-site',framework:'nextjs',hasDeployments:false};
 describe('D-1g guarded project settings',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
   it('renames a non-live project with exact PATCH and independent GET verification',async()=>{
@@ -41,14 +41,23 @@ describe('D-1g guarded project settings',()=>{
     f.fake.verify();
   });
   it('requires production mode for a project serving or possibly serving live traffic',async()=>{
-    for(const live of [[{id:'dpl_FAKE'}],undefined]){
+    for(const live of [true,undefined]){
       const f=fixture();
       f.fake.when('GET','/v9/projects/{idOrName}')
-        .resolves({...before,latestProductionDeployments:live});
+        .resolves({...before,hasDeployments:live});
       const r=parse(await f.call({project:'prj_FAKE_OLD',framework:'vite',confirm:true}));
       expect(r.status).toBe('refused_by_guard');
       expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
     }
+  });
+  it('accepts the full pinned framework vocabulary and permits explicit null clearing',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
+      .resolves({...before,framework:'remix'});
+    f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({...before,framework:'remix'});
+    const result=parse(await f.call({project:'prj_FAKE_OLD',framework:'remix',confirm:true}));
+    expect(result.status).toBe('applied');
+    expect(f.fake.calls[1].body).toEqual({framework:'remix'});
   });
   it('refuses mutation for absent confirmation or dry-run and blocks protected rename',async()=>{
     const f=fixture();
