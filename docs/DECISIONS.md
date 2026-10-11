@@ -91,3 +91,9 @@ with red CI although nothing blocked it. Its reasons: too much code before runni
 API parameter, lint, outdated test expectations); no rule forcing a red PR to be finished first; and chat sessions that
 end between actions. Added: SESSION-START §0 (finish open PRs first), §6 (problems vs real blockers, thin slices, a
 no-shell path with draft PRs, an exact recovery point at every push) and AGENTS rules 11–13.
+
+**2026-10-10 — CI cadence (from the implementing agent's review of its own CI use).** Every push runs the full CI on
+purpose (the merge gate must be green at the exact head). The waste was pushing fixes while a run was still going, which
+started overlapping full runs. Rule added to SESSION-START §6: never push while your PR's run is in progress; collect all
+failures, fix them together, push once; run checks locally first; "re-run failed jobs" only for infrastructure hiccups.
+CI cancels an obsolete PR run when a newer push arrives.
