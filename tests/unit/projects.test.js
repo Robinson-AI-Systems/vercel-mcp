@@ -30,6 +30,38 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(fake.calls[0].headers.authorization).toBe('Bearer [hidden]');
     expect(loadToken).toHaveBeenCalledWith(expect.objectContaining({accountId:'acct_ALPHA'}));
   });
+  it('pages project listing using only a safe numeric cursor',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v10/projects').resolves({projects:[],pagination:{next:null}});
+    const result=parse(await call('vercel_project_list',{limit:8,until:1699999999999},db,fake.fetch));
+    expect(result.count).toBe(0);
+    expect(fake.calls[0].query).toMatchObject({teamId:'team_ALPHA',limit:'8',until:'1699999999999'});
+    expect((await call('vercel_project_list',{until:'not-numeric'},db,fake.fetch)).isError).toBe(true);
+    expect(fake.calls).toHaveLength(1);
+  });
+  it('lists bounded project membership safely with server-selected team',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/projects/{idOrName}/members').resolves({
+      members:[{uid:'user_A',email:'a@example.test',role:'ADMIN',name:'A',
+        token:'sensitive-never-display'}],pagination:{next:1700000000000}});
+    const data=parse(await call('vercel_project_list_members',{project:'prj_DEMO',limit:10},db,fake.fetch));
+    expect(data.members).toEqual([{id:'user_A',email:'a@example.test',role:'ADMIN',
+      name:'A',createdAt:null}]);
+    expect(data.next).toBe(1700000000000);
+    expect(JSON.stringify(data)).not.toContain('sensitive-never-display');
+    expect(fake.calls[0].query).toMatchObject({teamId:'team_ALPHA',limit:'10'});
+    expect(fake.calls[0].params.idOrName).toBe('prj_DEMO');
+  });
+  it('denies project-member traversal, caller token and forged scope before network',async()=>{
+    const fake=makeFakeVercel();
+    for(const args of [{project:'prj_DEMO',teamId:'other'},
+      {project:'../steal'},{project:'prj_DEMO',until:-1},{project:'prj_DEMO',limit:200}]){
+      expect((await call('vercel_project_list_members',args,db,fake.fetch)).isError).toBe(true);
+    }
+    loadToken.mockResolvedValue(fixture('project'));
+    expect((await call('vercel_project_list_members',{project:'prj_OTHER'},db,fake.fetch)).isError).toBe(true);
+    expect(fake.calls).toHaveLength(0);
+  });
   it('gets safe build and Git fields by a validated project identifier',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v9/projects/{idOrName}').resolves({
