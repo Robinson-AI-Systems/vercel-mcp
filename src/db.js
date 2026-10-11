@@ -33,7 +33,7 @@ export function createDb(query) {
     async listVercelAccounts() {
       const run = getSql();
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
-        production_enabled, is_default FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
+        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
     // A-5a: all single-use retrieval is an atomic DELETE RETURNING, never a
     // SELECT followed by DELETE (which could expose the same value twice).
@@ -70,6 +70,35 @@ export function createDb(query) {
         AND expires_at > now()
         RETURNING id, vercel_account, kind, label, ciphertext`;
       return rows[0] ?? null;
+    },
+    // Only owner setup routes may call these credential methods. Tool handlers
+    // must never select token_enc or return decrypted credentials.
+    async upsertVercelAccount({ id, teamId, teamSlug, label, scope, projectId = null,
+      projectName = null, tokenEnc, tokenLast4, expiresAt = null, probe }) {
+      if (!id || !teamId || !teamSlug || !label ||
+        !['team', 'project', 'full'].includes(scope) || !tokenEnc ||
+        !/^[a-zA-Z0-9]{4}$/.test(tokenLast4) ||
+        (scope === 'project' && !projectId)) throw new TypeError('Invalid Vercel account');
+      const run = getSql();
+      const summary = JSON.stringify(probe);
+      await run`INSERT INTO vercel_accounts
+        (id, team_id, team_slug, label, scope, project_id, project_name,
+          token_enc, token_last4, token_expires_at, token_checked_at, token_probe)
+        VALUES (${id}, ${teamId}, ${teamSlug}, ${label}, ${scope}, ${projectId}, ${projectName},
+          ${tokenEnc}, ${tokenLast4}, ${expiresAt}, now(), ${summary}::jsonb)
+        ON CONFLICT (id) DO UPDATE SET
+          team_slug = EXCLUDED.team_slug, label = EXCLUDED.label, scope = EXCLUDED.scope,
+          project_id = EXCLUDED.project_id, project_name = EXCLUDED.project_name,
+          token_enc = EXCLUDED.token_enc, token_last4 = EXCLUDED.token_last4,
+          token_expires_at = EXCLUDED.token_expires_at,
+          token_checked_at = now(), token_probe = EXCLUDED.token_probe`;
+    },
+    async getAccountCredential(id) {
+      if (typeof id !== 'string' || !id) return null;
+      const run = getSql();
+      const rows = await run`SELECT id, team_id, scope, project_id, token_enc, token_expires_at
+        FROM vercel_accounts WHERE id = ${id}`;
+      return rows[0] || null;
     },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {

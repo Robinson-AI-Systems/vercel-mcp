@@ -4,9 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **Active A-5a:** Draft PR #13 (`ai/gpt6/a-5-secure-credentials`) implements authenticated encryption and atomic one-use secret/pending-input storage, including disposable-Postgres tests. This is the secure vault slice, **not** the complete A-5 card.
-- **Next A-5b:** Encrypted Vercel token store, scope probes, passphrase-locked owner setup, protected defaults and two read-only tools. No real Vercel/Neon activation without owner inputs IN-02/IN-03/IN-04.
-- **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X. Existing main has A-1 to A-4 merged; all five post-merge CI checks passed for PR #12.
+- **A-5a merged:** PR #13 added AES-256-GCM vault and atomic one-use pending inputs; no live credentials stored.
+- **A-5b1 implemented (PR #14, exact-head CI pending):** adds Vercel team/project read probes and encrypted account token persistence; token scope is *not* proven by read visibility alone and remains constrained by the forthcoming safety layer.
+- **A-5b2 next:** password-protected owner setup, protected defaults, and two read-only tools. A-5 remains incomplete until A-5b2 merges.
+- **Owner gates:** IN-02/IN-03/IN-04 for any live activation; no deployment, purchases, or real-team changes.
 
 ## What works today (A-1)
 
