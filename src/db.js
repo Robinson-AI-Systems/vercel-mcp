@@ -36,6 +36,17 @@ export function createDb(query) {
         production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
 
+    /** Safe single-account read for MCP callers: no cross-account enumeration or secrets. */
+    async getVercelAccountSafe(id) {
+      if (typeof id !== 'string' || !id || id.length > 256) {
+        throw new TypeError('An authenticated Vercel account is required');
+      }
+      const run = getSql();
+      const rows = await run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
+        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents
+        FROM vercel_accounts WHERE id = ${id} LIMIT 1`;
+      return rows[0] ?? null;
+    },
     /** Tenant-scoped connection listing: never SELECT token_hash or refresh_hash. */
     async listAccountConnections({ account, includeRevoked = false, limit = 20 }) {
       if (typeof account !== 'string' || !account || typeof includeRevoked !== 'boolean' ||

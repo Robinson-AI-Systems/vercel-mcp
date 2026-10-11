@@ -14,6 +14,12 @@ beforeAll(async()=>{
   db=createDb(neonShapedQuery());
   await db.initSchema();
   await rawQuery([
+    'INSERT INTO vercel_accounts(id,team_id,team_slug,label,scope,token_enc,token_last4)',
+    'VALUES',
+    "('team_one','team_one','one','Selected owner','team','v1_FAKE_enc','1234'),",
+    "('team_two','team_two','two','DO_NOT_LEAK_PRIVATE','full','v1_FAKE_other','5678')"
+  ].join(' '));
+  await rawQuery([
     'INSERT INTO oauth_tokens(token_hash,client_id,vercel_account,mode,profile,listing,kind,expires_at)',
     'VALUES',
     "('hash_fixture_one','client_one','team_one','preview','read_only','catalog','connector',now()+interval '1 day'),",
@@ -32,6 +38,17 @@ beforeAll(async()=>{
 });
 afterAll(async()=>{await closeIsolatedSchema();});
 
+it('fetches only the selected account without selecting ciphertext or another tenant',async()=>{
+  const row=await db.getVercelAccountSafe('team_one');
+  expect(row.id).toBe('team_one');
+  expect(row.label).toBe('Selected owner');
+  expect(JSON.stringify(row)).not.toContain('DO_NOT_LEAK');
+  expect(JSON.stringify(row)).not.toContain('v1_FAKE_enc');
+  expect(JSON.stringify(row)).not.toContain('token_enc');
+  expect(await db.getVercelAccountSafe('missing')).toBeNull();
+  await expect(db.getVercelAccountSafe('')).rejects.toThrow();
+  await expect(db.getVercelAccountSafe('x'.repeat(257))).rejects.toThrow();
+});
 it('returns scoped active connections without token hashes',async()=>{
   const rows=await db.listAccountConnections({account:'team_one'});
   expect(rows).toHaveLength(1);

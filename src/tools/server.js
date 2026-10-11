@@ -42,9 +42,21 @@ export const serverTools = {
         spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent,
         tokenWarning });
     },
-    async vercel_list_accounts(_args, { db }) {
-      const accounts = await db.listVercelAccounts();
-      return asText({ accounts: accounts.map(safe), count: accounts.length });
+    async vercel_list_accounts(args, { connection, db }) {
+      // A connector is bound to one Vercel account. The owner setup page,
+      // not an arbitrary OAuth connection, can enumerate every configured team.
+      if (!args || typeof args !== 'object' || Array.isArray(args) ||
+          Object.keys(args).length !== 0) {
+        return { isError: true, content: [{ type: 'text', text: 'This tool takes no arguments' }] };
+      }
+      if (typeof connection?.account !== 'string' || !connection.account ||
+          typeof db.getVercelAccountSafe !== 'function') {
+        throw new Error('Authenticated account lookup unavailable');
+      }
+      const account = await db.getVercelAccountSafe(connection.account);
+      if (!account) return { isError: true, content: [{ type: 'text',
+        text: 'No Vercel account is connected' }] };
+      return asText({ accounts: [safe(account)], count: 1 });
     },
     async vercel_check_token(args, { connection, db, env, fetchImpl }) {
       // The MCP dispatcher does not currently enforce argument schemas itself.
