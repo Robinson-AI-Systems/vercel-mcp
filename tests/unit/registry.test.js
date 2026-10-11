@@ -5,8 +5,8 @@ import { registry } from '../../src/tools/index.js';
 const make = (name) => ({ tools: [{ name }], handlers: { [name]: async () => null } });
 
 describe('tool registry', () => {
-  it('registers only two read-only account tools', () => {
-    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_enable_production', 'vercel_disable_production', 'vercel_list_protected_resources']);
+  it('registers safe read and owner-only operations with explicit allowlist', () => {
+    expect(registry.tools.map(x => x.name)).toEqual(['vercel_whoami', 'vercel_list_accounts', 'vercel_enable_production', 'vercel_disable_production', 'vercel_list_protected_resources', 'vercel_list_connections', 'vercel_recent_changes', 'vercel_where_is_setting']);
     expect(registry.tools.filter(x=>x.writes===true).map(x=>x.localAdmin)).toEqual([true, true]);
   });
   it('merges namespaces and keeps each handler', () => {

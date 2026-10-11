@@ -35,6 +35,45 @@ export function createDb(query) {
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
         production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
+
+    /** Tenant-scoped connection listing: never SELECT token_hash or refresh_hash. */
+    async listAccountConnections({ account, includeRevoked = false, limit = 20 }) {
+      if (typeof account !== 'string' || !account || typeof includeRevoked !== 'boolean' ||
+        !Number.isInteger(limit) || limit < 1 || limit > 20) {
+        throw new TypeError('Invalid account connection listing');
+      }
+      const run = getSql();
+      return run`SELECT 'conn_' || LEFT(md5(token_hash), 20) AS id,
+        client_id, vercel_account, mode, profile, listing, kind,
+        created_at, last_used_at, expires_at, revoked_at
+        FROM oauth_tokens WHERE vercel_account = ${account}
+          AND (${includeRevoked} OR revoked_at IS NULL)
+        ORDER BY created_at DESC, token_hash DESC LIMIT ${limit}`;
+    },
+    /** Bounded account audit; never fetch raw before/after or replay data. */
+    async listRecentChanges({ account, tool = null, projectId = null, mode = null,
+      since = null, includePreviews = false, limit = 20 }) {
+      if (typeof account !== 'string' || !account ||
+        (tool !== null && (typeof tool !== 'string' || !/^vercel_[a-z0-9_]{1,80}$/.test(tool))) ||
+        (projectId !== null && (typeof projectId !== 'string' ||
+          !/^[a-zA-Z0-9_-]{2,128}$/.test(projectId))) ||
+        (mode !== null && !['preview','production'].includes(mode)) ||
+        typeof includePreviews !== 'boolean' ||
+        !Number.isInteger(limit) || limit < 1 || limit > 20 ||
+        (since !== null && (typeof since !== 'string' || !Number.isFinite(Date.parse(since))))) {
+        throw new TypeError('Invalid account audit filter');
+      }
+      const run = getSql();
+      return run`SELECT id, at, tool, project_id, mode,
+        LEFT(summary, 160) AS summary, dry_run, production, spend_cents
+        FROM change_log WHERE vercel_account = ${account}
+          AND (${tool}::text IS NULL OR tool = ${tool})
+          AND (${projectId}::text IS NULL OR project_id = ${projectId})
+          AND (${mode}::text IS NULL OR mode = ${mode})
+          AND (${since}::timestamptz IS NULL OR at >= ${since}::timestamptz)
+          AND (${includePreviews} OR dry_run = FALSE)
+        ORDER BY at DESC, id DESC LIMIT ${limit}`;
+    },
     // A-5a: all single-use retrieval is an atomic DELETE RETURNING, never a
     // SELECT followed by DELETE (which could expose the same value twice).
     async insertOneTimeSecret({ id, account = null, kind, label = null, ciphertext, expiresAt }) {

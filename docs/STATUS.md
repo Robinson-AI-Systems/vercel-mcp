@@ -4,10 +4,10 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **B-1 through B-6 merged (#17–#22):** guarded safety layer, production owner approval, resource protections, sanitized errors/results and profile filtering.
-- **B-7 prepared for PR #23:** enhanced static CI guard requires production/targets and catalog-aligned spending/access/secret risk declarations, with planted failure tests.
-- **Next B-8:** working owner and account administration tools from the approved design; split substantial risk areas if needed. Then C.
-- **Owner gates unchanged:** no real activation, spending, production or protected resource default changes.
+- **B-1 through B-7 merged (#17–#23):** guarded write architecture, owner production approval, self-protection, safe errors/output, profiles, and catalog-enforced write-safety CI.
+- **B-8a PR #24 pending CI/merge:** three read-only server tools (connections, recent changes, guided dashboard setting directions), tenant-scoped database queries and token expiry warnings. All offline/test-only.
+- **Next B-8b:** remaining account administration and owner-controlled account changes: default account, token probe, targeted revocation, spend-limit settings. Retain explicit safety approvals. Then C.
+- **Not activated:** no Neon instance initialized, real Vercel token set, or server deployed. Owner inputs IN-07/IN-08 and all live change approvals remain outstanding.
 
 ## What works today (A-1)
 
@@ -31,6 +31,10 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-8a (PR #24 pending CI/merge):** working bounded read-only account/connection metadata and change-log summaries, guided settings map, near-expiry warnings; disposable Postgres tenant-isolation regression. Remaining B-8b owner mutations explicitly deferred.
+
+**2026-10-11 — B-7 verified merged (#23):** guard declarations proven with all five CI checks; main `1f9767c96bcb2e6524178a83612bdcb23e896ee5`.
 
 **2026-10-11 — B-7 write declarations (PR #23 pending CI/merge):** strict catalog-linked write safety checks and violation regression tests; no external actions.
 
