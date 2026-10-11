@@ -97,3 +97,5 @@ purpose (the merge gate must be green at the exact head). The waste was pushing 
 started overlapping full runs. Rule added to SESSION-START §6: never push while your PR's run is in progress; collect all
 failures, fix them together, push once; run checks locally first; "re-run failed jobs" only for infrastructure hiccups.
 CI cancels an obsolete PR run when a newer push arrives.
+
+**2026-10-11 — Preserve the byte-for-byte official Vercel OpenAPI document.** The 11,611,860-byte source at `https://vercel.com/openapi.json` is vendored as a dated immutable snapshot with a SHA-256 recorded in `vendor/vercel-openapi/SOURCE.md` (451 HTTP operations). An upstream example resembles a Vercel resource ID, so the secret scanner permits **only this exact pathname with this exact pinned SHA-256**; all other files and altered snapshots remain subject to the normal secret scan. The exception is covered by unit tests; changing the upstream snapshot requires explicit hash review. This import unblocks, but does not complete, A-4.

@@ -4,7 +4,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endp
 
 ## Next
 
-- **Next: A-4 — Vercel API client and OpenAPI snapshot.** The card is written, but implementation is blocked until the exact official OpenAPI JSON is supplied; do not reconstruct it from the SDK. A-5/A-6 remain just-in-time.
+- **Next: A-4 — Vercel API client, operation table and OpenAPI index.** The exact official JSON has been vendored at `vendor/vercel-openapi/openapi-2026-10-11.json` with verified source, date, SHA-256 and 451 operations in `SOURCE.md`; the missing-file blocker is resolved. The A-4 client, validation and tests remain to implement. A-5/A-6 remain just-in-time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
@@ -31,6 +31,8 @@ linked in PR #1.
 
 ## Recent merges and implementation checkpoints (newest first)
 
+**2026-10-11 — Official Vercel OpenAPI snapshot (A-4 prerequisite):** imported the original 11,611,860-byte response from `https://vercel.com/openapi.json` without reformatting, at `vendor/vercel-openapi/openapi-2026-10-11.json`. `SOURCE.md` records SHA-256 `af1db6e9c95e446468f0c3974653298afe8079db03ee2872429a65cb60a72544` and 451 HTTP operations. This is **not** completion of A-4; client and validators remain.
+
 **2026-10-11 — A-3b endpoint implementation (PR #8, merge pending):** fixed-origin HTTP helpers, client registration, passphrase-gated authorization, PKCE/resource checks, code/refresh-token exchange, well-known metadata, bearer authentication, default-deny read-only dispatch, and the status page are implemented. CI run [38141774150](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38141774150) passed all jobs at head `27db3ef4e2e884133be1805fe3221a86450d0dae`; this commit reconciles the final roadmap/card wording and triggers the final CI confirmation before merge. No real Neon database or Vercel token was used.
 
 
@@ -55,5 +57,4 @@ Appliance Desk project profile, work index with validator, card A-1.
 
 ## Blocked
 
-- **A-4 OpenAPI snapshot:** the full REST API JSON at https://vercel.com/openapi.json could not be retrieved in this workspace (the browser view exceeds its response limit and direct download is unavailable). The alternate openapi.vercel.sh host is not verified as the REST API snapshot; official docs use its /vercel.json path for Vercel configuration schema. Per Batch A A8, do not reconstruct or substitute another schema. Waiting for Chris to upload the exact JSON downloaded from https://vercel.com/openapi.json.
 - Owner inputs open: IN-02 … IN-15 except IN-14 (answered: not needed) (`OWNER-INPUTS.md`); none blocks A-2 or A-3.
