@@ -7,6 +7,12 @@ describe('strict official Vercel request validation', () => {
     expect(validateRequest('user_get', { query: { teamId: 'team_FAKE' } })).toBe(true);
     expect(validateRequest('projects_list', { query: { teamId: 'team_FAKE', limit: 1 } })).toBe(true);
   });
+  it('checks JSON bodies for published write endpoints', () => {
+    expect(validateRequest('projects_create', { body: { name: 'fixture-project' },
+      query: { teamId: 'team_FAKE' } })).toBe(true);
+    expect(() => validateRequest('projects_create', { body: { name: { nested: true } } }))
+      .toThrow(/Invalid Vercel API parameter schema/);
+  });
   it('rejects unknown operations, path and query keys, and bodies on GET', () => {
     expect(() => validateRequest('made_up')).toThrow(/Unknown Vercel operation/);
     expect(() => validateRequest('user_get', { path: { x: 'y' } })).toThrow(/Unknown API path/);

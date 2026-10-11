@@ -87,7 +87,7 @@ describe('A-4 Vercel HTTP client', () => {
     const fail = makeFakeVercel();
     fail.when('POST', '/v11/projects').rejects(503);
     await expect(create(fail, { replayStore: replay() }).request('projects_create', args, options))
-      .rejects.toMatchObject({ status: 503 });
+      .rejects.toMatchObject({ code: 'outcome_unknown', confirmed: null });
     expect(fail.calls).toHaveLength(1);
   });
 

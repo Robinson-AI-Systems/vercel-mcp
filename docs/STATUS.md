@@ -1,10 +1,10 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endpoints (PRs #7 and #8) are implemented; the full CI gate is green.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official OpenAPI transport (PR #12) are implemented, with exact-head CI verification required before PR #12 merges.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
-- **In progress: A-4 — Vercel API client and OpenAPI index.** Branch `ai/gpt6/a-4-vercel-client`; the verified original 451-operation snapshot is pinned, and lookup/diff scripts, an initial operation registry, strict OpenAPI validation, and a fail-closed HTTP client with fake/emulator tests are in draft PR #12. The additive replay table passed CI disposable-Postgres verification, but A-4 PR #12 is still draft; the last run exposed a scoped-emulator fixture setup issue and a client claim-variable bug. A seeded fake team and claim-variable fix are now being checked with CI; A-5/A-6 remain just-in-time.
+- **Next: A-5 — encrypted Vercel token store and setup page, one-time secrets and pending inputs.** A-4's pinned 451-operation OpenAPI client, team scoping, strict shape checks, 25-second timeout, bounded retries, rate-limit handling, pagination and ten-minute atomic replay have been implemented on PR #12; A-5 is the next approved execution card. Real Vercel/Neon deployment awaits IN-02/IN-03 and must not occur automatically.nch `ai/gpt6/a-4-vercel-client`; the verified original 451-operation snapshot is pinned, and lookup/diff scripts, an initial operation registry, strict OpenAPI validation, and a fail-closed HTTP client with fake/emulator tests are in draft PR #12. The additive replay table passed CI disposable-Postgres verification, but A-4 PR #12 is still draft; the last run exposed a scoped-emulator fixture setup issue and a client claim-variable bug. A seeded fake team and claim-variable fix are now being checked with CI; A-5/A-6 remain just-in-time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
@@ -30,6 +30,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — A-4 official API transport (PR #12, prepared for merge):** added `src/vercel/client.js`, `operations.js`, strict JSON/schema request validation, snapshot-find/diff scripts, bounded retries/rate-limit/pagination, an additive 10-minute atomic `request_replay` claim table, fake/emulator tests and disposable-Postgres replay concurrency checks. No real Vercel call or token used. Merge only after latest CI is green at the exact head and documented self-review.
+
 
 **2026-10-11 — Branch reconciliation:** no open PRs or drafts at session start; ten prior AI branches had zero commits ahead of `main`, while `ai/gpt6/a-3b-oauth-endpoints` had only one superseded documentation line in `docs/pr-cards/A-3.md`. That line is already corrected by the merged A-3 record; do not merge the divergent old branch. No historical implementation needs recovery.
 

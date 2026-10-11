@@ -3,7 +3,7 @@
 This file describes what **exists**, and is updated in the same PR that ships it (DRIFT-PROTOCOL checklist B). What the
 system is designed to become is in `docs/designs/`; do not copy design text here before it is built.
 
-As of 2026-10-11: **A-1 foundation built** (PR #1), **A-2 schema merged** (PR #6), and **A-3 OAuth/MCP endpoint implementation complete in PRs #7 and #8**. The schema has been exercised only in isolated throwaway Postgres tests, not against a real Neon database.
+As of 2026-10-11: **A-1 through A-3 implemented** (PRs #1, #6, #7, #8), **A-4 transport, snapshot validation and atomic replay implemented in PR #12** (merge pending exact-head CI). The schema has been exercised only in isolated throwaway Postgres tests, not against a real Neon database.
 
 ## Infrastructure
 
@@ -14,7 +14,7 @@ As of 2026-10-11: **A-1 foundation built** (PR #1), **A-2 schema merged** (PR #6
 | CI (`.github/workflows/ci.yml`) | On every PR and push to `main`; `permissions: contents: read`; no secrets; no `pull_request_target`; Node 24. Jobs: `check` (`npm run check`), `unit` (`npm test`), `db` (`npm run test:db` on a `public.ecr.aws/docker/library/postgres:17` service), `emulate` (`npm run test:emulate`); **`ci`** (`if: always()`) fails unless all four are `success` — the single merge gate |
 | Quick gate `npm run check` | `scripts/check-secrets.mjs` (every tracked file; reports file and kind, never the value) → `check-docs-updated.mjs` (DRIFT-PROTOCOL B) → `docs/pr-cards/validate-index.py` → `eslint .` → `check-catalog.mjs` (TOOL-CATALOG counts, totals, names; registered ⊆ catalog) → `check-writes.mjs` → `check-core-imports.mjs` → `check-budgets.mjs` |
 | Test layers | `tests/unit` (vitest, `test/helpers/fake-vercel.js` HTTP-level fake, `test/helpers/fake-db.js`); `tests/db` (`scripts/local-postgres-test.sh`: CI service or a disposable local cluster, localhost only, isolated schema per run via `test/helpers/pg-neon-adapter.js`); `tests/emulate` (`scripts/emulate.sh`: pinned `emulate` 0.12.1 devDependency on 127.0.0.1:4000, `VERCEL_API_BASE` set, stopped on exit) |
-| Code | `src/core/registry.js` (`mergeNamespaces`); `src/core/oauth.js`, `src/core/http.js`, `src/core/oauth-handlers.js`, `src/core/mcp-auth.js`, and `src/core/mcp-server.js`; `src/vercel/login.js`; `src/oauth/routes.js`; `src/db.js` owns SQL plus OAuth persistence; `api/oauth/*`, `api/well-known/*`, `api/mcp.js`, and `api/index.js` are the A-3b endpoint layer. `src/tools/index.js` remains empty; no Vercel API client yet |
+| Code | `src/core/registry.js` (`mergeNamespaces`); `src/core/oauth.js`, `src/core/http.js`, `src/core/oauth-handlers.js`, `src/core/mcp-auth.js`, and `src/core/mcp-server.js`; `src/vercel/login.js`; `src/oauth/routes.js`; `src/db.js` owns SQL plus OAuth persistence; `api/oauth/*`, `api/well-known/*`, `api/mcp.js`, and `api/index.js` are the A-3b endpoint layer. `src/tools/index.js` remains empty; the A-4 Vercel client exists, but no Vercel management tools are exposed yet |
 | Vercel project | Not created (IN-02) |
 | Neon database | Not created (IN-02) |
 | Vercel tokens | None added |
