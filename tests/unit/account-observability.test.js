@@ -59,6 +59,19 @@ describe('B-8a account-safe reads and dashboard guidance',()=>{
     expect(unknown.found).toBe(false);
     expect(unknown.readBack).toContain('no automated');
   });
+  it('warns about token expiration within two weeks without returning credentials',async()=>{
+    const nearExpiryDb = { listVercelAccounts: async()=> [{
+      id:connection.account, team_slug:'test',label:'Test',scope:'team',
+      production_enabled:false,token_last4:'4321',
+      token_expires_at:new Date(Date.now()+5*86400000).toISOString(),spend_limit_cents:0,
+      token_enc:'MUST_REMAIN_PRIVATE'
+    }], getTodaySpendCents:async()=>0 };
+    const result=await dispatchReadOnlyTool({registry,name:'vercel_whoami',connection,db:nearExpiryDb});
+    const value=JSON.parse(result.content[0].text);
+    expect(value.tokenWarning).toContain('expires within');
+    expect(value.tokenWarning).toContain('5 days');
+    expect(result.content[0].text).not.toContain('MUST_REMAIN_PRIVATE');
+  });
   it('keeps every new tool within read-only profile and rejects unsafe inputs',async()=>{
     const names=registry.tools.filter(t=>[
       'vercel_list_connections','vercel_recent_changes','vercel_where_is_setting'
