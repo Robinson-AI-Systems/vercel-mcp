@@ -7,6 +7,9 @@ import { publicOrigin, send, escapeHtml, paramsOf, only } from './http.js';
 
 const PROFILES = ['read_only', 'everyday', 'full'];
 const LISTINGS = ['catalog', 'compact'];
+const tokenResponse = (access, refresh) => ({
+  access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh
+});
 const bad = (res, status, code, description) => send(res, status, { error: code, error_description: description });
 const str = (value) => typeof value === 'string' ? value : '';
 
@@ -140,5 +143,70 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     return res.status(302).end();
   }
 
-  return { register, authorize };
+  async function token(req, res) {
+    if (!only(res, req, ['POST'])) return;
+    let params;
+    try { params = paramsOf(req); } catch {
+      return bad(res, 400, 'invalid_request', 'Malformed token request');
+    }
+    if (!validateResource(params.resource)) return bad(res, 400, 'invalid_target', 'Token resource must be this MCP');
+    const client = await db.getOAuthClient(str(params.client_id));
+    if (!client || typeof params.client_secret !== 'string' || !params.client_secret ||
+      !secretsMatch(hashToken(params.client_secret), client.client_secret_hash)) {
+      return bad(res, 401, 'invalid_client', 'Client credentials rejected');
+    }
+    if (params.grant_type === 'authorization_code') {
+      if (!params.code || !client.redirect_uris.includes(params.redirect_uri) || !params.code_verifier) {
+        return bad(res, 400, 'invalid_grant', 'Missing or invalid authorization details');
+      }
+      const record = await db.consumeAuthCode(params.code);
+      if (!record || record.client_id !== params.client_id || record.redirect_uri !== params.redirect_uri ||
+        !verifyPkce(params.code_verifier, record.code_challenge, record.code_challenge_method)) {
+        return bad(res, 400, 'invalid_grant', 'Code is expired, used, or failed PKCE');
+      }
+      const accessToken = randomToken(32);
+      const refreshToken = randomToken(32);
+      await db.createAccessToken({
+        accessToken, refreshToken, clientId: params.client_id,
+        vercelAccount: record.vercel_account, mode: record.mode,
+        profile: record.profile, listing: record.listing
+      });
+      return send(res, 200, tokenResponse(accessToken, refreshToken));
+    }
+    if (params.grant_type === 'refresh_token') {
+      if (!str(params.refresh_token)) return bad(res, 400, 'invalid_grant', 'Missing refresh token');
+      const accessToken = randomToken(32);
+      const refreshToken = randomToken(32);
+      const rotated = await db.rotateRefreshToken({
+        refreshToken: params.refresh_token, clientId: params.client_id,
+        accessToken, newRefreshToken: refreshToken
+      });
+      if (!rotated) return bad(res, 400, 'invalid_grant', 'Refresh credential is expired, used, or revoked');
+      return send(res, 200, tokenResponse(accessToken, refreshToken));
+    }
+    return bad(res, 400, 'unsupported_grant_type', 'Supported grants: authorization_code and refresh_token');
+  }
+
+  function metadata(req, res) {
+    if (!only(res, req, ['GET'])) return;
+    const { origin } = urls();
+    return send(res, 200, {
+      issuer: origin,
+      authorization_endpoint: origin + '/api/oauth/authorize',
+      token_endpoint: origin + '/api/oauth/token',
+      registration_endpoint: origin + '/api/oauth/register',
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      code_challenge_methods_supported: ['S256'],
+      token_endpoint_auth_methods_supported: ['client_secret_post']
+    });
+  }
+
+  function resourceMetadata(req, res) {
+    if (!only(res, req, ['GET'])) return;
+    const { origin, resource } = urls();
+    return send(res, 200, { resource, authorization_servers: [origin] });
+  }
+
+  return { register, authorize, token, metadata, resourceMetadata };
 }

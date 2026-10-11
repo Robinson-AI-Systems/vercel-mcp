@@ -169,4 +169,73 @@ describe('OAuth registration and authorization endpoints', () => {
     }));
     expect(forged.statusCode).toBe(400);
   });
+
+  it('publishes fixed OAuth metadata and exact protected-resource metadata', async () => {
+    const { handlers } = createFixture();
+    const metadata = json(await call(handlers.metadata, request('GET', {})));
+    expect(metadata.issuer).toBe(baseEnv.PUBLIC_BASE_URL);
+    expect(metadata.code_challenge_methods_supported).toEqual(['S256']);
+    const resourceMetadata = json(await call(handlers.resourceMetadata, request('GET', {})));
+    expect(resourceMetadata).toEqual({
+      resource,
+      authorization_servers: [baseEnv.PUBLIC_BASE_URL]
+    });
+  });
+
+  it('exchanges a one-time PKCE code and rotates refresh credentials without losing connection settings', async () => {
+    const fixture = createFixture();
+    const client = await register(fixture.handlers);
+    const params = authorizeArgs(client);
+    const authorized = await call(fixture.handlers.authorize, request('POST', {
+      ...params, passphrase: baseEnv.ADMIN_PASSPHRASE
+    }));
+    expect(authorized.statusCode).toBe(302);
+    const code = new URL(authorized.headers.Location).searchParams.get('code');
+
+    const rejectedClient = await call(fixture.handlers.token, request('POST', {
+      grant_type: 'authorization_code', client_id: client.client_id,
+      client_secret: 'wrong-client-secret-fixture', redirect_uri: callback,
+      code, code_verifier: verifier, resource
+    }));
+    expect(rejectedClient.statusCode).toBe(401);
+
+    const granted = await call(fixture.handlers.token, request('POST', {
+      grant_type: 'authorization_code', client_id: client.client_id,
+      client_secret: client.client_secret, redirect_uri: callback,
+      code, code_verifier: verifier, resource
+    }));
+    expect(granted.statusCode).toBe(200);
+    const original = json(granted);
+    expect(original.expires_in).toBe(3600);
+    expect(await fixture.db.getAccessToken(original.access_token)).toMatchObject({
+      client_id: client.client_id, vercel_account: 'team_fixture',
+      mode: 'preview', profile: 'full', listing: 'compact'
+    });
+
+    const replayedCode = await call(fixture.handlers.token, request('POST', {
+      grant_type: 'authorization_code', client_id: client.client_id,
+      client_secret: client.client_secret, redirect_uri: callback,
+      code, code_verifier: verifier, resource
+    }));
+    expect(replayedCode.statusCode).toBe(400);
+
+    fixture.advance(45 * 24 * 60 * 60 * 1000);
+    expect(await fixture.db.getAccessToken(original.access_token)).toBeNull();
+    const refreshed = await call(fixture.handlers.token, request('POST', {
+      grant_type: 'refresh_token', client_id: client.client_id,
+      client_secret: client.client_secret, refresh_token: original.refresh_token, resource
+    }));
+    expect(refreshed.statusCode).toBe(200);
+    const second = json(refreshed);
+    expect(await fixture.db.getAccessToken(second.access_token)).toMatchObject({
+      client_id: client.client_id, vercel_account: 'team_fixture',
+      mode: 'preview', profile: 'full', listing: 'compact'
+    });
+    const replayedRefresh = await call(fixture.handlers.token, request('POST', {
+      grant_type: 'refresh_token', client_id: client.client_id,
+      client_secret: client.client_secret, refresh_token: original.refresh_token, resource
+    }));
+    expect(replayedRefresh.statusCode).toBe(400);
+  });
+
 });
