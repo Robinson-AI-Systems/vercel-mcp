@@ -69,6 +69,36 @@ export function createDb(query) {
       return verified.length === 1 && verified[0].id === id;
     },
 
+    /**
+     * Independently authenticated owner setup only. Atomic account-scoped
+     * spend-limit update and audit; this never authorizes a purchase.
+     */
+    async setOwnerSpendLimit(id, cents) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id) ||
+        !Number.isInteger(cents) || cents < 0 || cents > 2147483647) {
+        throw new TypeError('Invalid account or exact spend limit in cents');
+      }
+      const run = getSql();
+      const rows = await run`WITH changed AS (
+          UPDATE vercel_accounts SET spend_limit_cents = ${cents} WHERE id = ${id}
+          RETURNING id
+        ), audit AS (
+          INSERT INTO change_log
+            (vercel_account, mode, tool, summary, dry_run, production, after)
+          SELECT ${id}, 'production', 'vercel_set_spend_limit',
+            'Owner changed the daily spend limit', FALSE, TRUE,
+            jsonb_build_object('limitCents', ${cents}::integer)
+          FROM changed RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM changed) AS changed_count,
+          (SELECT COUNT(*) FROM audit) AS audit_count`;
+      if (Number(rows[0]?.changed_count) !== 1 || Number(rows[0]?.audit_count) !== 1) {
+        return false;
+      }
+      const verified = await run`SELECT spend_limit_cents FROM vercel_accounts WHERE id = ${id}`;
+      return verified.length === 1 && verified[0].spend_limit_cents === cents;
+    },
+
     /** Safe single-account read for MCP callers: no cross-account enumeration or secrets. */
     async getVercelAccountSafe(id) {
       if (typeof id !== 'string' || !id || id.length > 256) {

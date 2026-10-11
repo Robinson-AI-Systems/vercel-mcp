@@ -194,6 +194,49 @@ describe('A-5 owner-only setup security', () => {
     expect(errored.statusCode).toBe(400);
     expect(errored.body).not.toContain('DO_NOT_ECHO_DATABASE');
   });
+  it('requires independent owner proof for exact dollar spend limits without provider writes', async () => {
+    const h = harness(), write = vi.fn(async () => true);
+    h.db.setOwnerSpendLimit = write;
+    const auth = await signIn(h), prod = {...env, VERCEL_ENV:'production'};
+    const body = {action:'set_spend_limit',account:'team_FAKE',confirm:'yes',
+      csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE,limitDollars:'11.25'};
+    const attempt = (payload, cookie=auth.cookie, extra={env:prod}) =>
+      h.call('POST',payload,cookie,extra);
+    expect((await attempt(body,null)).statusCode).toBe(403);
+    expect((await attempt({...body,csrf:'wrong'})).statusCode).toBe(403);
+    expect((await attempt({...body,account:'team_OTHER'})).statusCode).toBe(403);
+    expect((await attempt({...body,confirm:'no'})).statusCode).toBe(403);
+    // Production and preview are separate server trust boundaries.
+    expect((await h.call('POST',body,auth.cookie)).statusCode).toBe(403);
+    for (const invalid of ['-1','1.234','1e2','21474836.48','01','Infinity','NaN','']) {
+      expect((await attempt({...body,limitDollars:invalid})).statusCode).toBe(403);
+    }
+    expect((await attempt({...body,passphrase:'incorrect'})).statusCode).toBe(401);
+    expect(write).not.toHaveBeenCalled();
+    const yes=await attempt(body);
+    expect(yes.statusCode).toBe(200);
+    expect(yes.body).toContain('$11.25');
+    expect(yes.body).toContain('No spending');
+    expect(write).toHaveBeenCalledWith('team_FAKE',1125);
+    const zero=await attempt({...body,limitDollars:'0.00'});
+    expect(zero.statusCode).toBe(200);
+    expect(write).toHaveBeenLastCalledWith('team_FAKE',0);
+    expect(h.provider).not.toHaveBeenCalled();
+    expect(yes.body).not.toContain(env.ADMIN_PASSPHRASE);
+    expect(yes.body).not.toContain(env.TOKEN_ENCRYPTION_KEY);
+  });
+  it('does not report spend-limit success when verification fails or exceptions occur',async()=>{
+    const h=harness(),auth=await signIn(h),prod={...env,VERCEL_ENV:'production'};
+    const body={action:'set_spend_limit',account:'team_FAKE',confirm:'yes',csrf:auth.csrf,
+      passphrase:env.ADMIN_PASSPHRASE,limitDollars:'1.01'};
+    const no=await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setOwnerSpendLimit:async()=>false}});
+    expect(no.statusCode).toBe(409);
+    const fail=await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setOwnerSpendLimit:async()=>{throw Error('DO_NOT_ECHO_DB');}}});
+    expect(fail.statusCode).toBe(400);
+    expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
+  });
   it('fails closed when owner secrets are missing', async () => {
     const h = harness(), res = await h.call('GET', null, null,
       { env: { ADMIN_PASSPHRASE: env.ADMIN_PASSPHRASE } });
