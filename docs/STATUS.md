@@ -1,13 +1,13 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official OpenAPI transport (PR #12) are implemented, with all five post-merge CI checks green on `main`.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official API transport (PR #12) and A-5 owner setup (PRs #13–#15) are implemented, with all five post-merge CI checks green on `main`.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
-- **A-5a merged:** PR #13 added AES-256-GCM vault and atomic one-use pending inputs; no live credentials stored.
-- **A-5b1 implemented (PR #14, exact-head CI pending):** adds Vercel team/project read probes and encrypted account token persistence; token scope is *not* proven by read visibility alone and remains constrained by the forthcoming safety layer.
-- **A-5b2 next:** password-protected owner setup, protected defaults, and two read-only tools. A-5 remains incomplete until A-5b2 merges.
-- **Owner gates:** IN-02/IN-03/IN-04 for any live activation; no deployment, purchases, or real-team changes.
+- **A-5 built in PRs #13/#14/#15**, subject to #15 exact-head CI and merge: encrypted vault, credentials, authenticated owner setup, protective defaults and two read-only MCP tools.
+- **Next A-6:** owner deployment instructions in `docs/DEPLOY.md`; do not create live resources or configure secrets.
+- **Then B-1:** approved trust/safety layer. There are no public write tools, no live Vercel tokens, no Neon DB and no deployment. IN-02/03/04/07 still require owner action.
+- **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X.
 
 ## What works today (A-1)
 
@@ -31,6 +31,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — A-5 owner setup (PRs #13/#14 merged, #15 merge pending):** AES-GCM encrypted credentials, atomic one-time values and inputs, passphrase-locked setup with encrypted 15-minute cookie and CSRF, conservative protected-project defaults, and safe read-only account tools. All tested offline, no live secrets.
+
 
 **2026-10-11 — A-4 official API transport (PR #12, prepared for merge):** added `src/vercel/client.js`, `operations.js`, strict JSON/schema request validation, snapshot-find/diff scripts, bounded retries/rate-limit/pagination, an additive 10-minute atomic `request_replay` claim table, fake/emulator tests and disposable-Postgres replay concurrency checks. No real Vercel call or token used. Merge only after latest CI is green at the exact head and documented self-review.
 
