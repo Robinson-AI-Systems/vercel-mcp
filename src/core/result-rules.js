@@ -1,6 +1,5 @@
 // C-1 bounded view: redact before projection, storage, audit or presentation.
 import {compact} from './util.js';
-import {summarizeObject} from '../tools/summaries.js';
 const SECRET=/^(?:value|decryptedValue|token|accessToken|refreshToken|secret|secretValue|password|passphrase|privateKey|credential|authorization|connectionString)$/i;
 const MAX_STORAGE=1048576,MAX_PATHS=20;
 function stripSecrets(input,depth=0){
@@ -55,11 +54,11 @@ export function projectFields(value,fields){
   }
   return apply(value);
 }
-export function prepareResult(value,{detail='summary',fields,kind}={}){
+export function prepareResult(value,{detail='summary',fields,kind,summaryMapper}={}){
   if(!['summary','full'].includes(detail))throw new TypeError('Invalid detail; use summary or full');
   // JSON deep copy and credential-like content masking before any projection.
   const safe=compact(stripSecrets(value),MAX_STORAGE);
-  const view=detail==='summary' && kind ? summarizeObject(kind,safe):safe;
+  const view=detail==='summary' && kind && typeof summaryMapper==='function' ? summaryMapper(kind,safe):safe;
   const projected=projectFields(view,fields);
   return {result:compact(projected.result,MAX_STORAGE),unknownFields:projected.unknownFields};
 }

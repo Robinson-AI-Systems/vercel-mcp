@@ -19,7 +19,7 @@ describe('C-1 safe summary and projection rules',()=>{
       value:'not-for-chat',decryptedValue:'vcp_FAKE_NEVER_SHOW',token:'vcp_FAKE_KEY',
       targets:['preview'],updatedAt:1760000000000}));
     for(const detail of ['full','summary']){
-      const view=prepareResult(rows,{kind:'env',detail});
+      const view=prepareResult(rows,{kind:'env',detail,summaryMapper:summarizeObject});
       expect(view.result).toHaveLength(100);
       expect(JSON.stringify(view.result)).not.toContain('not-for-chat');
       expect(JSON.stringify(view.result)).not.toContain('vcp_FAKE_KEY');
