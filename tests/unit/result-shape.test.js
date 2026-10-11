@@ -17,8 +17,8 @@ describe('B-5 fail-closed result presentation', () => {
   });
 
   it('adds Denver time on both sides of daylight-saving change and preserves integer cents', () => {
-    const obj = compact({ beforeAt: Date.parse('2026-11-01T08:30:00Z'),
-      afterAt: Date.parse('2026-11-01T09:30:00Z'), amountCents: 12345,
+    const obj = compact({ beforeAt: Date.parse('2026-11-01T07:30:00Z'),
+      afterAt: Date.parse('2026-11-01T08:30:00Z'), amountCents: 12345,
       spend_limit_cents: -50 });
     expect(obj.beforeAt_local).toContain('MDT');
     expect(obj.afterAt_local).toContain('MST');
