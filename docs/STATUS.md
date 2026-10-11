@@ -31,7 +31,7 @@ linked in PR #1.
 
 ## Recent merges and implementation checkpoints (newest first)
 
-**2026-10-11 — A-3b endpoint slices (PR #8):** fixed-origin HTTP helpers, client registration, passphrase-gated authorization, PKCE/resource checks, code and refresh-token exchange, and well-known metadata are implemented. CI run [38141084990](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38141084990) passed the first OAuth-endpoint slice at head `85f236a09d31b3e20423fa1e8a1a4cf8f9a984b2`. The current slice adds bearer authentication, default-deny dispatch, and the status page; its CI run is pending.
+**2026-10-11 — A-3b endpoint implementation (PR #8, merge pending):** fixed-origin HTTP helpers, client registration, passphrase-gated authorization, PKCE/resource checks, code/refresh-token exchange, well-known metadata, bearer authentication, default-deny read-only dispatch, and the status page are implemented. CI run [38141774150](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38141774150) passed all jobs at head `27db3ef4e2e884133be1805fe3221a86450d0dae`; this commit reconciles the final roadmap/card wording and triggers the final CI confirmation before merge. No real Neon database or Vercel token was used.
 
 
 **2026-10-11 — A-2 database schema (PR #6, merged as `0cd2e1e11154603049e4bb6a514f83df6fc15837`):** nine additive tables and eight indexes; lazy Neon configuration; frozen connection-field contract; fake and throwaway-Postgres schema tests. CI run [38139075567](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38139075567) passed all four jobs and aggregate `ci` at head `330dda3367e80a26b958faf579051ac88cae4fe3`. No real Neon database was created or initialized.
