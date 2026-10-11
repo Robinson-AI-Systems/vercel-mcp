@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import { operation } from './operations.js';
 import { validateRequest } from './openapi-validation.js';
+import { createDb } from '../db.js';
 
 export const VERCEL_API_BASE = 'https://api.vercel.com';
 export const OPENAPI_SNAPSHOT = Object.freeze({
@@ -49,8 +50,11 @@ function parseWaitMs(response, envelope, now) {
     const date = Date.parse(retry);
     if (Number.isFinite(date)) return Math.max(0, date - now());
   }
-  const reset = envelope?.error?.limit?.resetMs ?? envelope?.error?.limit?.reset ??
-    response.headers.get('x-ratelimit-reset');
+  const resetMs = envelope?.error?.limit?.resetMs;
+  if (Number.isFinite(Number(resetMs)) && resetMs != null) {
+    return Math.max(0, Number(resetMs) - now());
+  }
+  const reset = envelope?.error?.limit?.reset ?? response.headers.get('x-ratelimit-reset');
   if (reset == null) return null;
   const n = Number(reset);
   if (!Number.isFinite(n)) return null;
@@ -64,6 +68,27 @@ function asQuery(url, query) {
       for (const item of value) url.searchParams.append(key, String(item));
     } else url.searchParams.set(key, String(value));
   }
+}
+
+function safeReplayResult(value) {
+  const text = JSON.stringify(value);
+  if (!text || Buffer.byteLength(text) > 8192) {
+    throw error('unsafe_write_result', 'Result must be small and safely shaped');
+  }
+  const walk = item => {
+    if (!item || typeof item !== 'object') return;
+    for (const [name, child] of Object.entries(item)) {
+      if (/(token|password|secret|credential|private.?key|auth.?code|env.?value)/i.test(name)) {
+        throw error('unsafe_write_result', 'Result contains a sensitive field');
+      }
+      walk(child);
+    }
+  };
+  walk(value);
+  if (/(?:vcp_|vca_|vci_|vcr_|github_pat_|ghp_|sk_live_|whsec_)[a-zA-Z0-9_-]{12,}/.test(text)) {
+    throw error('unsafe_write_result', 'Result contains credential-shaped content');
+  }
+  return value;
 }
 
 function responseError(response, envelope) {
@@ -81,7 +106,8 @@ function responseError(response, envelope) {
  */
 export function makeVercelClient({
   token, account, fetchImpl = fetch, baseUrl = VERCEL_API_BASE,
-  replayStore, now = () => Date.now(), sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+  replayStore = createDb().requestReplayStore(), now = () => Date.now(),
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 }) {
   if (typeof token !== 'string' || !token || !account?.team_id) {
     throw new TypeError('A server-side token and selected team account are required');
@@ -107,7 +133,7 @@ export function makeVercelClient({
     const url = new URL(pathname, base);
     asQuery(url, query);
     const isWrite = !READS.has(method);
-    let key;
+    let key, claimId;
     if (isWrite) {
       if (!replayStore?.claim || !replayStore?.complete || typeof options.shapeResult !== 'function') {
         throw error('write_guard_unavailable', 'Safe persistent replay and output shaping are required for writes');
@@ -120,6 +146,7 @@ export function makeVercelClient({
       if (claimed?.state !== 'claimed') {
         throw error('request_in_progress', 'Write outcome not yet verified; do not retry blindly', { confirmed: null });
       }
+      claimId = claimed.claimId;
     }
     let response, envelope;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -147,6 +174,9 @@ export function makeVercelClient({
         throw error('rate_limited', 'Vercel rate limit reached', { retryAfterMs: waitMs });
       }
       if (attempt === 0 && RETRYABLE.has(method) && response.status >= 500) continue;
+      if (isWrite && response.status >= 500) {
+        throw error('outcome_unknown', 'Vercel write outcome needs read-back verification', { confirmed: null });
+      }
       throw responseError(response, envelope);
     }
     if (!response?.ok) throw error('vercel_api_error', 'Vercel API request did not succeed');
@@ -154,8 +184,9 @@ export function makeVercelClient({
       // Never persist raw provider output, and do not cache secrets in memory.
       const safe = options.shapeResult(envelope);
       if (safe === undefined) throw error('unsafe_write_result', 'Write result must be safely shaped');
-      await replayStore.complete({ key, result: safe });
-      return safe;
+      const verified = safeReplayResult(safe);
+      await replayStore.complete({ key, claimId: claimed.claimId, result: verified });
+      return verified;
     }
     return envelope;
   }

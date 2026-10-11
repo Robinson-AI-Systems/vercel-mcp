@@ -28,7 +28,7 @@ As of 2026-10-11: **A-1 foundation built** (PR #1), **A-2 schema merged** (PR #6
 
 ## Database tables
 
-Implemented in A-2 PR #6; initialization is additive and idempotent. No real Neon database has been created or initialized.
+Nine original tables implemented in A-2 PR #6; the tenth replay-reservation table is in A-4 draft PR #12. Initialization remains additive and idempotent. No real Neon database has been created or initialized.
 
 - `vercel_accounts`
 - `oauth_clients`
@@ -39,6 +39,7 @@ Implemented in A-2 PR #6; initialization is additive and idempotent. No real Neo
 - `one_time_secrets`
 - `pending_inputs`
 - `protected_resources`
+- `request_replay` (A-4, pending PR #12): atomic ten-minute cross-instance write claims and safely shaped result replay; pending outcomes never silently retried
 
 Indexes: `change_log_request_key`, `oauth_codes_expires_at`, `oauth_tokens_refresh_hash`, `oauth_tokens_expires_at`, `login_attempts_ip_attempted_at`, `change_log_account_at`, `one_time_secrets_expires_at`, `pending_inputs_expires_at`. `protected_resources` uses PostgreSQL 15+ `UNIQUE NULLS NOT DISTINCT` so the NULL-account global defaults cannot be duplicated.
 

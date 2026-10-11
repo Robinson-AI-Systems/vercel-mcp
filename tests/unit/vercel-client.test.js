@@ -91,6 +91,18 @@ describe('A-4 Vercel HTTP client', () => {
     expect(fail.calls).toHaveLength(1);
   });
 
+  it('passes a 25-second abort signal and never retries a timeout', async () => {
+    const seen = [];
+    const fetchImpl = async (url, opts) => {
+      seen.push({ url, signal: opts.signal });
+      throw Object.assign(new Error('timeout'), { name: 'TimeoutError' });
+    };
+    const client = makeVercelClient({ token, account, fetchImpl });
+    await expect(client.request('user_get')).rejects.toMatchObject({ code: 'outcome_unknown', confirmed: null });
+    expect(seen).toHaveLength(1);
+    expect(seen[0].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('caps pagination and rejects repeated cursor loops', async () => {
     const fake = makeFakeVercel();
     fake.when('GET', '/v10/projects').resolves({ projects: [{ id: '1' }, { id: '2' }],

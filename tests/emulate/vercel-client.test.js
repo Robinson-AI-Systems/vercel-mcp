@@ -4,7 +4,7 @@ import { makeVercelClient } from '../../src/vercel/client.js';
 describe('A-4 Vercel emulator integration', () => {
   it('reads user and teams projects through the official client', async () => {
     const client = makeVercelClient({
-      token: 'vcp_FAKEemulate',
+      token: 'vcp_FAKEemulateToken',
       account: { id: 'account_FAKE', team_id: 'team_FAKE' },
       baseUrl: process.env.VERCEL_API_BASE
     });

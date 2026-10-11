@@ -4,7 +4,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endp
 
 ## Next
 
-- **In progress: A-4 — Vercel API client and OpenAPI index.** Branch `ai/gpt6/a-4-vercel-client`; the verified original 451-operation snapshot is pinned, and lookup/diff scripts, an initial operation registry, strict OpenAPI validation, and a fail-closed HTTP client with fake/emulator tests are in draft PR #12. The current CI run and durable replay integration remain pending; A-5/A-6 remain just-in-time.
+- **In progress: A-4 — Vercel API client and OpenAPI index.** Branch `ai/gpt6/a-4-vercel-client`; the verified original 451-operation snapshot is pinned, and lookup/diff scripts, an initial operation registry, strict OpenAPI validation, and a fail-closed HTTP client with fake/emulator tests are in draft PR #12. An additive atomic replay table and its real-Postgres concurrency verification are in progress; latest CI is red due to known emulator-token and rate-limit reset regressions and must be fixed before merge; A-5/A-6 remain just-in-time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
