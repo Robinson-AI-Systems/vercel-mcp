@@ -32,14 +32,17 @@ export async function requestOwnerAccountChange({
       args.dryRun!==undefined && typeof args.dryRun!=='boolean') {
     return denied('Invalid confirmation or preview flag');
   }
+  const configured = await db.listVercelAccounts();
+  if (!configured.some(row => row.id === connection.account)) {
+    return denied('Current account is not configured');
+  }
   let target=null, amount=null;
   if(action==='default') {
     if(!IDS.test(args.targetAccount||'') ||
         args.connectionRef!==undefined || args.limitCents!==undefined) {
       return denied('An existing target account is required');
     }
-    const rows=await db.listVercelAccounts();
-    if(!rows.some(row=>row.id===args.targetAccount)) return denied('Target account is not configured');
+    if(!configured.some(row=>row.id===args.targetAccount)) return denied('Target account is not configured');
     target=args.targetAccount;
   } else if(action==='spend') {
     if(args.targetAccount!==undefined || args.connectionRef!==undefined ||

@@ -8,7 +8,7 @@ function fixture(){
     listVercelAccounts:vi.fn(async()=>[{id:'team_ALPHA'},{id:'team_BETA'}]),
     listAccountConnections:vi.fn(async({account})=>account==='team_ALPHA'?
       [{id:'conn_0123456789abcdef0123',vercel_account:'team_ALPHA',kind:'connector',revoked_at:null}]:[]),
-    insertOneTimeSecret:vi.fn(async row=>stored.set(row.id,row)),
+    insertOneTimeSecret:vi.fn(async row=>stored.set(row.id,{...row,vercel_account:row.account,expires_at:row.expiresAt})),
     consumeOneTimeSecret:vi.fn(async({id,account})=>{
       const row=stored.get(id);
       if(!row || row.vercel_account!==account || row.expires_at.getTime()<Date.now()) return null;
