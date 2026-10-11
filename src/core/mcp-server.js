@@ -58,7 +58,12 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
         delete handlerArgs.fields;delete handlerArgs.detail;
       }
     }
-    const result=await handler(handlerArgs,{connection,db,env,fetchImpl,registry});
+    const dispatchTool=(innerName,innerArgs)=>dispatchReadOnlyTool({
+      registry,name:innerName,args:innerArgs,connection,db,env,fetchImpl,
+      formatError,shapeResult
+    });
+    const result=await handler(handlerArgs,{connection,db,env,fetchImpl,registry,dispatchTool});
+    if(name==='vercel_call' && result?.__delegated===true)return result.response;
     return typeof shapeResult==='function' ? await shapeResult(result,{
       connection,tool:name,args:view,db,readOnly:item.writes===false
     }) : result;
