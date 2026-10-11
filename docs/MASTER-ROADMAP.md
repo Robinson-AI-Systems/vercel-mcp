@@ -4,8 +4,7 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Next:** A-2 — database schema ([card](pr-cards/A-2.md), READY), then A-3 — connector login ([card](pr-cards/A-3.md),
-READY). A-1 (repository, test harness, CI) merged in PR #1.
+**Next:** A-4 — Vercel API client, operation table, and OpenAPI snapshot index (write the card from the approved design at session start). A-1, A-2, and A-3 are implemented in PRs #1, #6, #7, and #8.
 
 ## Order and why
 

@@ -3,7 +3,7 @@
 This file describes what **exists**, and is updated in the same PR that ships it (DRIFT-PROTOCOL checklist B). What the
 system is designed to become is in `docs/designs/`; do not copy design text here before it is built.
 
-As of 2026-10-11: **A-1 foundation built** (PR #1), **A-2 schema merged** (PR #6), and **A-3a OAuth primitives/store merged** (PR #7, merge commit `8ab2895005ab27f5727df64976d0ab14bd05f630`). A-3b endpoints are in progress. The schema has been exercised only in isolated throwaway Postgres tests, not against a real Neon database.
+As of 2026-10-11: **A-1 foundation built** (PR #1), **A-2 schema merged** (PR #6), and **A-3 OAuth/MCP endpoint implementation complete in PRs #7 and #8** (PR #8 merge pending). The schema has been exercised only in isolated throwaway Postgres tests, not against a real Neon database.
 
 ## Infrastructure
 
@@ -44,7 +44,7 @@ Indexes: `change_log_request_key`, `oauth_codes_expires_at`, `oauth_tokens_refre
 
 ## Endpoints
 
-Implemented in A-3b PR #8 (merge pending; MCP bearer/server slice in CI):
+Implemented in A-3 PR #8 (merge pending):
 
 - `POST /api/oauth/register`
 - `GET` and `POST /api/oauth/authorize`

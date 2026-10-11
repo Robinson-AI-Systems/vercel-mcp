@@ -1,10 +1,10 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-2 schema is merged in PR #6; A-3a OAuth primitives/store are complete in PR #7, retargeted to main and awaiting its final CI after documentation reconciliation.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endpoints (PRs #7 and #8) are implemented; PR #8's full CI gate is green and merge is pending.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
-- **Current: A-3b — finish the MCP bearer boundary and default-deny server**, then run the full CI gate. OAuth registration, authorization, token exchange, and metadata are already implemented in PR #8. A-4 follows A-3.
+- **Next: A-4 — Vercel API client, operation table, and OpenAPI snapshot index** (write the approved-design card at session start). A-1 through A-3 are implemented; A-4 is the next ready slice. A-5/A-6 remain just-in-time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
