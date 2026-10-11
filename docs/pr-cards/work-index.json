@@ -374,14 +374,18 @@
         "C-1"
       ],
       "card": "docs/pr-cards/C-2.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 400,
       "units": [
         "C-2"
       ],
       "readiness": "READY",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "pr": [
+        44,
+        45
+      ]
     },
     {
       "id": "D-1",
