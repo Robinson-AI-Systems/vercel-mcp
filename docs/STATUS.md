@@ -55,5 +55,5 @@ Appliance Desk project profile, work index with validator, card A-1.
 
 ## Blocked
 
-Nothing in engineering. Owner inputs open: IN-02 … IN-15 except IN-14 (answered: not needed) (`OWNER-INPUTS.md`); none
-blocks A-2 … A-4.
+- **A-4 OpenAPI snapshot:** the complete JSON at the official Vercel URLs could not be retrieved in this workspace (the browser view exceeds its response limit and direct download is unavailable). Per Batch A A8, do not reconstruct it from the SDK or partial data. Waiting for Chris to upload the exact JSON downloaded from https://vercel.com/openapi.json or https://openapi.vercel.sh/.
+- Owner inputs open: IN-02 … IN-15 except IN-14 (answered: not needed) (`OWNER-INPUTS.md`); none blocks A-2 or A-3.
