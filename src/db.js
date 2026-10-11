@@ -143,7 +143,7 @@ export function createDb(query) {
           throw new TypeError('Audit data contains a sensitive credential');
         }
       }
-      for (const field of fields) assertNoCredentials(field);
+      for (const field of [...fields, entry.summary, entry.moneyLine]) assertNoCredentials(field);
       const before = JSON.stringify({ snapshot: entry.before ?? null, targets: entry.targets ?? [] });
       const after = JSON.stringify(entry.after ?? null);
       const result = JSON.stringify(entry.result ?? null);
