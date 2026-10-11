@@ -173,3 +173,9 @@ once onto final `main`.
 - Vercel refuses something the design assumed (an operation, a parameter, a plan-gated feature): don't improvise. Record
   what Vercel answered (against `emulate` or the reference), propose a dated amendment, continue other work.
 - Docs contradict code: tests are the truth for behavior, AGENTS for rules, PLAN for scope, card and design for how.
+
+## Mandatory five-PR session handoff
+
+After the fifth verified merge, perform `docs/SESSION-START.md` §7 **before any other action**. A pending
+post-merge workflow is reported accurately in the same response with its run URL and recovery instruction; the
+handoff prompt is not contingent on a background wait. Never start the sixth PR to repair a missing handoff.
