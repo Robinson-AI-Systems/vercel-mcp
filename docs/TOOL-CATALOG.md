@@ -63,8 +63,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 **B-4 error presentation (built #20):** Recognized provider failures return plain-language next actions. MCP results never echo raw upstream messages or credential-shaped labels; technical codes are allowlisted and rate-limit windows display in Denver time. This is shared error handling, not a new published tool.
 | `vercel_recent_changes` | What was changed through this server (filter by tool, project, mode, date; previews hidden unless asked) | — | B O Op | R | — | B-8 |
 | `vercel_undo_change` | Undo one change-log entry when it has a clean opposite; says plainly when it does not | C | Op | E | y | X-1 |
-| `vercel_search_tools` | Find tools by plain words; one line each with safety marks (compact mode's front door) | — | B O Op | R | — | C-2 |
-| `vercel_describe_tool` | Full instructions and arguments for one tool | — | B O Op | R | — | C-2 |
+| `vercel_search_tools` | Search only the profile-eligible tools, with one-line safety classification | — | B O Op | R | — | C-2a built #44 |
+| `vercel_describe_tool` | Describe one profile-eligible tool's arguments and safety rules | — | B O Op | R | — | C-2a built #44 |
 | `vercel_call` | Run any tool in the profile by name, through the same guards | as the tool | B O Op | R | — | C-2 |
 | `vercel_batch` | Up to 10 read calls in one round trip | — | B O Op | R | — | C-2 |
 | `vercel_get_result` | Retrieve a 20-row page of the caller's scoped 24-hour sanitized result handle | — | B O Op | R | — | C-1 built #43 |

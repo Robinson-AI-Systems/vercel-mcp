@@ -10,6 +10,10 @@ const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_productio
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection'];
 export const listMcpTools = (registry, connection) =>
   listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS })
+    .filter(tool=>connection?.listing!=='compact' ||
+      ['vercel_whoami','vercel_search_tools','vercel_describe_tool',
+        'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'].includes(tool.name) ||
+      tool.name.startsWith('vercel_workflow_'))
     .map(tool=>{
       const read=tool.writes===undefined ? !LOCAL_OWNER_TOOLS.includes(tool.name) :
         tool.writes===false;
@@ -54,7 +58,7 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
         delete handlerArgs.fields;delete handlerArgs.detail;
       }
     }
-    const result=await handler(handlerArgs,{connection,db,env,fetchImpl});
+    const result=await handler(handlerArgs,{connection,db,env,fetchImpl,registry});
     return typeof shapeResult==='function' ? await shapeResult(result,{
       connection,tool:name,args:view,db,readOnly:item.writes===false
     }) : result;
