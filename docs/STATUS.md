@@ -33,6 +33,9 @@ linked in PR #1.
 
 ## Recent merges (newest first)
 
+**2026-10-10 — CI cadence (docs + CI config PR):** never push while a PR's CI run is in progress (SESSION-START §6,
+PLAYBOOK Step 5); obsolete PR runs are cancelled, runs on `main` never are. Next action unchanged.
+
 **2026-10-10 — A-1 foundation (PR #1, branch `ai/claude/a-1-foundation`):** Node 24 ESM package with committed lockfile
 and exact versions; `scripts/check-secrets.mjs` (tracked files, planted-token test), `check-docs-updated`,
 `check-catalog`, `check-writes`, `check-budgets`, `check-core-imports`; empty registry (`mergeNamespaces`);
