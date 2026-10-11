@@ -19,6 +19,12 @@ As of 2026-10-11: **A-1 through A-3 implemented** (PRs #1, #6, #7, #8), **A-4 tr
 | Neon database | Not created (IN-02) |
 | Vercel tokens | None added |
 
+## Secret storage and account boundary (Batch A-5, in progress)
+
+- PR #13 (merged) added `src/core/secret-box.js`, `one-time-secrets.js`, and `pending-inputs.js`; AES-256-GCM purpose-bound ciphertext is stored in the existing Postgres tables and consumed by atomic DELETE RETURNING.
+- PR #14 (pending) adds `src/vercel/tokens.js`, provider-verified team/project read probes, and `src/db.js` helpers to encrypt account tokens at rest. No bearer token is passed through MCP or exposed by read tools. Visibility probes cannot prove the full token permission scope; no production or write authorization may be inferred from them.
+- The account-owner setup page and first MCP tools do **not** yet exist; A-5b2 owns them.
+
 ## Environment variables
 
 - `DATABASE_URL`: required to initialize the Neon database; no real database has been created/configured yet.

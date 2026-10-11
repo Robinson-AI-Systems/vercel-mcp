@@ -5,8 +5,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 ## Next
 
 - **A-5a merged:** PR #13 added AES-256-GCM vault and atomic one-use pending inputs; no live credentials stored.
-- **A-5b1 active:** PR #14 adds Vercel team/project read probes and encrypted account token persistence; token scope is *not* proven by read visibility alone and remains constrained by the forthcoming safety layer.
-- **A-5b2 next:** password-protected owner setup, protected defaults, and two read-only tools. A-5 remains incomplete until both slices merge.
+- **A-5b1 implemented (PR #14, exact-head CI pending):** adds Vercel team/project read probes and encrypted account token persistence; token scope is *not* proven by read visibility alone and remains constrained by the forthcoming safety layer.
+- **A-5b2 next:** password-protected owner setup, protected defaults, and two read-only tools. A-5 remains incomplete until A-5b2 merges.
 - **Owner gates:** IN-02/IN-03/IN-04 for any live activation; no deployment, purchases, or real-team changes.
 
 ## What works today (A-1)
