@@ -19,7 +19,6 @@ are not yet in their design. A card consuming an entry says so; batch close-out 
 - A-2: `protected_resources` uniqueness needs `UNIQUE NULLS NOT DISTINCT` (Postgres 15+) so "every account" defaults
   (NULL account) cannot be duplicated; A-6's DEPLOY.md must ask for a Neon database on Postgres 15 or newer.
 
-
 **2026-10-11 — A-2 (PR #6), inherited by A-3.**
 - `src/db.js` is the only SQL entry point. `createDb(query?)` accepts a Neon-shaped tagged-template function for tests and resolves `DATABASE_URL` lazily on first schema initialization; import alone never connects.
 - `SCHEMA_TABLES` contains the nine Batch A tables; `CONNECTION_FIELDS` is exactly `vercel_account`, `mode`, `profile`, `listing`; `connectionSettings(row)` copies only those fields for OAuth refresh.

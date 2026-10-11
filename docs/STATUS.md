@@ -31,7 +31,7 @@ linked in PR #1.
 
 ## Recent merges and implementation checkpoints (newest first)
 
-**2026-10-11 — A-2 database schema (PR #6, awaiting merge):** nine additive tables and eight indexes; lazy Neon configuration; frozen connection-field contract; fake and throwaway-Postgres schema tests. Initial CI run: `unit`, `db`, and `emulate` passed; `check` correctly caught missing checklist-B documentation. Documentation is now reconciled in this branch; a fresh full CI run is required before the PR is ready.
+**2026-10-11 — A-2 database schema (PR #6, merge pending):** nine additive tables and eight indexes; lazy Neon configuration; frozen connection-field contract; fake and throwaway-Postgres schema tests. CI run [38138978886](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38138978886) passed all four jobs and the aggregate `ci` gate at head `1a0948ae9dac24aab2ab562dbd3d5be07ad88e60`. The earlier run correctly caught missing checklist-B documentation; that was fixed before the green run. This workspace cannot run the checks locally.
 
 
 **2026-10-10 — CI cadence (docs + CI config PR):** never push while a PR's CI run is in progress (SESSION-START §6,
