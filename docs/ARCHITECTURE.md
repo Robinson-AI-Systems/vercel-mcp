@@ -3,7 +3,7 @@
 This file describes what **exists**, and is updated in the same PR that ships it (DRIFT-PROTOCOL checklist B). What the
 system is designed to become is in `docs/designs/`; do not copy design text here before it is built.
 
-As of 2026-10-11: **A-1 foundation built** (PR #1); **A-2 schema implemented in PR #6 (merge pending)**. No endpoints or Vercel tools exist yet. The schema has been exercised only in isolated throwaway Postgres tests, not against a real Neon database.
+As of 2026-10-11: **A-1 foundation built** (PR #1); **A-2 schema merged** (PR #6, merge commit `0cd2e1e11154603049e4bb6a514f83df6fc15837`). A-3a OAuth primitives/store are implemented in PR #7, pending merge. No OAuth endpoints or Vercel tools exist yet. The schema has been exercised only in isolated throwaway Postgres tests, not against a real Neon database.
 
 ## Infrastructure
 
