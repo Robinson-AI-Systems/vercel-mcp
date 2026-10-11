@@ -1,10 +1,10 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-2 database schema implementation completed in PR #6; merge pending.** The nine-table schema and tests are in the draft PR. No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-11. **A-2 schema is complete in PR #6 (CI green; merge pending). A-3a OAuth primitives are in progress on a stacked branch.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
-- **Next after A-2 merges: A-3 — connector login** ([card](pr-cards/A-3.md), READY, two PRs). A-4 … A-6 are written just in time.
+- **Current: A-3a — OAuth primitives and fake login-attempt store**, stacked on A-2 PR #6. Then A-3a's PostgreSQL store tests, followed by A-3b endpoints after A-3a is complete. A-4 … A-6 are written just in time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
@@ -30,6 +30,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — A-3a first slice:** added portable OAuth primitives and unit coverage on `ai/gpt6/a-3a-oauth-primitives`, stacked on A-2 PR #6. Next: add OAuth persistence methods to `src/db.js`, mirror them in the fake, and add throwaway-Postgres OAuth store tests. PR #7 will be opened as a draft so CI can validate the slice.
+
 
 **2026-10-11 — A-2 database schema (PR #6, merge pending):** nine additive tables and eight indexes; lazy Neon configuration; frozen connection-field contract; fake and throwaway-Postgres schema tests. CI run [38138978886](https://github.com/Robinson-AI-Systems/vercel-mcp/actions/runs/38138978886) passed all four jobs and the aggregate `ci` gate at head `1a0948ae9dac24aab2ab562dbd3d5be07ad88e60`. The earlier run correctly caught missing checklist-B documentation; that was fixed before the green run. This workspace cannot run the checks locally.
 
