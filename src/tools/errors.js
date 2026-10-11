@@ -1,8 +1,16 @@
 // Safe and actionable errors for Vercel MCP tools. Never display upstream
 // error.message or raw response bodies: providers can echo token or env data.
 const CODE = /^[a-z][a-z0-9_-]{0,79}$/;
+const KNOWN_CODES = new Set([
+  'unauthorized', 'invalid_token', 'token_expired', 'expired_token',
+  'forbidden', 'not_found', 'rate_limited', 'price_mismatch', 'not_available',
+  'conflict_aliases', 'custom_domain_needs_upgrade', 'missing_files', 'no_files'
+]);
 const SAFE_LABEL = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/;
-const cleanLabel = value => typeof value === 'string' && SAFE_LABEL.test(value) ? value : 'the selected resource';
+// Scope labels are untrusted and may themselves be credentials.
+const SECRET_LABEL = /(?:vcp_|vci_|vca_|vcr_|sk_live_|sk_test_|rk_|whsec_|ghp_|github_pat_|xox|AKIA|password|passphrase|secret|token)/i;
+const cleanLabel = value => typeof value === 'string' && SAFE_LABEL.test(value) &&
+  !SECRET_LABEL.test(value) ? value : 'the selected resource';
 function denverTime(value) {
   const ms = Number(value);
   if (!Number.isFinite(ms) || ms < 0) return null;
@@ -15,7 +23,11 @@ function denverTime(value) {
 }
 function normalized(raw) {
   const input = raw?.error && typeof raw.error === 'object' ? raw.error : raw;
-  const code = typeof input?.code === 'string' && CODE.test(input.code) ? input.code : 'unknown_error';
+  const candidate = input?.code;
+  // Provider-supplied codes are not safe to echo unless recognized.
+  const code = typeof candidate === 'string' && CODE.test(candidate) &&
+    (KNOWN_CODES.has(candidate) || /^env_[a-z0-9_-]{1,36}$/.test(candidate)) ?
+    candidate : 'unknown_error';
   const status = Number.isSafeInteger(raw?.status) && raw.status >= 100 && raw.status <= 599 ? raw.status :
     Number.isSafeInteger(input?.status) && input.status >= 100 && input.status <= 599 ? input.status : null;
   return { code, status };
@@ -74,8 +86,11 @@ export function explainVercelError(raw, context = {}) {
     why='The requested feature may require a paid tier or team permission.';
     next='Review eligibility without purchasing; any upgrade needs separate owner approval.';
   }
+  const operation = typeof context.operation === 'string' &&
+    /^vercel_[a-z0-9_]{1,70}$/.test(context.operation) ? context.operation : null;
   return { what, why, next,
-    technical: 'Vercel ' + code + (status === null ? '' : ' (HTTP ' + status + ')') };
+    technical: 'Vercel ' + code + (status === null ? '' : ' (HTTP ' + status + ')') +
+      (operation ? ' | operation ' + operation : '') };
 }
 export function vercelErrorResult(raw, context = {}) {
   const e=explainVercelError(raw,context);

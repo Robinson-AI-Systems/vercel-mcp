@@ -40,6 +40,20 @@ describe('B-4 plain-language Vercel provider errors',()=>{
    expect(output).not.toContain('bad-password');
    expect(output).toContain('What to do');
  });
+ it('does not echo untrusted codes or credential-shaped labels',()=>{
+   const raw={error:{code:'vcp_very_long_secret_identifier',message:'private'},status:401};
+   const value=JSON.stringify(vercelErrorResult(raw,{team:'vcp_SECRET'}));
+   expect(value).not.toContain('vcp_very_long_secret_identifier');
+   expect(value).not.toContain('vcp_SECRET');
+   expect(explainVercelError({code:'forbidden',status:403},{projectScoped:true,project:'sk_live_SECRET'}).why)
+     .not.toContain('sk_live_SECRET');
+ });
+ it('shows safe operation context without untrusted input',()=>{
+   expect(explainVercelError({code:'not_found',status:404},{operation:'vercel_project_get'}).technical)
+     .toContain('vercel_project_get');
+   expect(explainVercelError({code:'not_found',status:404},{operation:'secret://credential'}).technical)
+     .not.toContain('credential');
+ });
  it('handles absent body, malformed codes, and not found without exposing raw IDs',()=>{
    expect(explainVercelError(null).technical).toBe('Vercel unknown_error');
    expect(explainVercelError({code:'<?xml secret>'}).technical).toBe('Vercel unknown_error');

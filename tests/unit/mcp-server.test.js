@@ -46,6 +46,8 @@ describe('default-deny MCP tool dispatch', () => {
       connection, db:{}, formatError:vercelErrorResult });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('temporarily limited');
+    expect(result.content[0].text).toContain('operation vercel_project_get');
+    expect(result.content[0].text).toContain('HTTP 429');
     expect(result.content[0].text).not.toContain('vcp_FAKEprovider-secret');
   });
   it('hides handler errors from tool callers', async () => {

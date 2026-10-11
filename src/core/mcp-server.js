@@ -26,7 +26,15 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
     return await handler(args || {}, { connection, db });
   } catch (caught) {
     if (typeof formatError === 'function') {
-      try { return formatError(caught, { team: connection.account }); } catch { /* safe default below */ }
+      try {
+        const retry = caught?.retryAfterMs;
+        return formatError(caught, {
+          team: connection?.account, operation: name,
+          projectScoped: connection?.projectScoped === true,
+          project: connection?.projectName,
+          resetAtMs: Number.isFinite(retry) && retry >= 0 ? Date.now() + retry : undefined
+        });
+      } catch { /* safe default below */ }
     }
     return { isError: true, content: [{ type: 'text', text: 'Could not read account details; check server setup' }] };
   }
