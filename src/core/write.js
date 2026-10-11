@@ -15,7 +15,8 @@ export function writeRequestKey(name, args, connection, now = Date.now()) {
   if (args.requestKey !== undefined) {
     if (typeof args.requestKey !== 'string' ||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)) throw new TypeError('Invalid requestKey');
-    return args.requestKey;
+    const scope = JSON.stringify([connection.account, connection.mode, name, args.requestKey]);
+    return 'rmcp_scoped_' + createHash('sha256').update(scope).digest('hex');
   }
   const payload = JSON.stringify({
     account: connection.account, mode: connection.mode, tool: name, args: canonical(args)
