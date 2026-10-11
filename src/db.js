@@ -163,6 +163,23 @@ export function createDb(query) {
         RETURNING id`;
       return rows[0].id;
     },
+    async setProductionEnabled(accountId, enabled) {
+      if (typeof accountId !== 'string' || !accountId || typeof enabled !== 'boolean') {
+        throw new TypeError('Invalid production setting');
+      }
+      const run = getSql();
+      const rows = await run`UPDATE vercel_accounts SET production_enabled = ${enabled}
+        WHERE id = ${accountId} RETURNING id`;
+      return rows.length === 1;
+    },
+    async revokeProductionTokens(accountId) {
+      if (typeof accountId !== 'string' || !accountId) throw new TypeError('Invalid account');
+      const run = getSql();
+      const rows = await run`UPDATE oauth_tokens SET revoked_at = now()
+        WHERE vercel_account = ${accountId} AND mode = 'production'
+          AND revoked_at IS NULL RETURNING token_hash`;
+      return rows.length;
+    },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
         throw new TypeError('Missing OAuth client registration fields');
