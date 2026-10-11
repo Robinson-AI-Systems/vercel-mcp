@@ -12,6 +12,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 - **C-1b view rules (#42):** explicit safe provider summaries, nested fields projection with unknown-path reporting, full/summary views and secret-key omission even for full env results. Next integrate 8 KB handles/metadata into the MCP door.
 - **C-1 completed (#41–#43):** per-bearer result ownership, bounded sanitized storage, reusable summaries/fields/detail, read-only paged `vercel_get_result`, and centrally advertised read view/annotations. Next C-2 compact/catalog discovery and wrapped meta dispatch; no production activation.
 - **C-2a compact discovery (#44):** profile-authorized catalog/compact listing, `vercel_search_tools` and `vercel_describe_tool` with strict validation and exact schema disclosure only to eligible callers. Next C-2 wrapped `vercel_call`/read-only `vercel_batch` and token budget hardening; C-2 IN_PROGRESS.
+- **C-2b wrapped meta calls (#45):** `vercel_call` delegates only to the existing scoped/guarded dispatcher and `vercel_batch` rejects any mixed/hidden/write input before executing up to ten read calls. C-2 remains IN_PROGRESS until its pinned-tokenizer listing/schema budget enforcement and batch close-out are complete; next C-2c (#46). Production and owner approvals unchanged.
 - **Not activated:** no Neon instance initialized, real Vercel token set, or server deployed. Owner inputs IN-07/IN-08 and all live change approvals remain outstanding.
 
 ## What works today (A-1)

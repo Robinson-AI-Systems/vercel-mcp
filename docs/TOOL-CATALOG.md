@@ -65,8 +65,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_undo_change` | Undo one change-log entry when it has a clean opposite; says plainly when it does not | C | Op | E | y | X-1 |
 | `vercel_search_tools` | Search only the profile-eligible tools, with one-line safety classification | — | B O Op | R | — | C-2a built #44 |
 | `vercel_describe_tool` | Describe one profile-eligible tool's arguments and safety rules | — | B O Op | R | — | C-2a built #44 |
-| `vercel_call` | Run any tool in the profile by name, through the same guards | as the tool | B O Op | R | — | C-2 |
-| `vercel_batch` | Up to 10 read calls in one round trip | — | B O Op | R | — | C-2 |
+| `vercel_call` | Call a profile-eligible tool through the same guarded MCP dispatcher | as the tool | B O Op | R | — | C-2b built #45 |
+| `vercel_batch` | Preflight and dispatch up to 10 authorized reads; refuse mixed writes | — | B O Op | R | — | C-2b built #45 |
 | `vercel_get_result` | Retrieve a 20-row page of the caller's scoped 24-hour sanitized result handle | — | B O Op | R | — | C-1 built #43 |
 | `vercel_create_pass` | Make a short-lived pass for the HTTPS API and Robinson's Toolkit (preview, read-only, 24 h, $0 by default; RTC §2) | C A 1x | O | F | — | R-1 |
 | `vercel_where_is_setting` | Structured steps (link, numbered actions, expected result, read-back check) for any dashboard-only setting | — G | O Op | R | — | B-8, O-5 |
