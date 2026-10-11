@@ -124,6 +124,21 @@ export function createDb(query) {
           AND (${includeRevoked} OR revoked_at IS NULL)
         ORDER BY created_at DESC, token_hash DESC LIMIT ${limit}`;
     },
+    /** Owner setup only; serialized, account-scoped, one-token revocation. */
+    async revokeOwnerConnection({account, connectionId}) {
+      if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
+        typeof connectionId !== 'string' || !/^conn_[a-f0-9]{20}$/.test(connectionId)) {
+        throw new TypeError('Invalid account connector reference');
+      }
+      const run = getSql();
+      const rows = await run`SELECT rmcp_owner_revoke_connector(${account}, ${connectionId}) AS revoked`;
+      if (rows[0]?.revoked !== true) return false;
+      const readback = await run`SELECT revoked_at IS NOT NULL AS revoked FROM oauth_tokens
+        WHERE vercel_account = ${account} AND kind = 'connector'
+          AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
+      return readback.length === 1 && readback[0].revoked === true;
+    },
+
     /** Bounded account audit; never fetch raw before/after or replay data. */
     async listRecentChanges({ account, tool = null, projectId = null, mode = null,
       since = null, includePreviews = false, limit = 20 }) {
@@ -490,6 +505,37 @@ export function createDb(query) {
         connection TEXT, tool TEXT NOT NULL, project_id TEXT, target TEXT, summary TEXT NOT NULL,
         before JSONB, after JSONB, dry_run BOOLEAN NOT NULL DEFAULT FALSE, production BOOLEAN NOT NULL DEFAULT FALSE,
         spend_cents BIGINT, request_key TEXT, result JSONB, inverse JSONB, undone_by BIGINT)`;
+      // PostgreSQL routine uses the team row as a serialization lock. Subsequent
+      // statements under READ COMMITTED get a fresh snapshot after waiting.
+      await run`CREATE OR REPLACE FUNCTION rmcp_owner_revoke_connector(
+          p_account TEXT, p_ref TEXT) RETURNS BOOLEAN LANGUAGE plpgsql
+        AS $rmcp$
+        DECLARE target_hash TEXT; active_count INTEGER;
+        BEGIN
+          PERFORM 1 FROM vercel_accounts WHERE id = p_account FOR UPDATE;
+          IF NOT FOUND THEN RETURN FALSE; END IF;
+          SELECT token_hash INTO target_hash FROM oauth_tokens
+          WHERE vercel_account = p_account AND kind = 'connector'
+            AND revoked_at IS NULL
+            AND (expires_at > now() OR refresh_hash IS NOT NULL)
+            AND 'conn_' || LEFT(md5(token_hash), 20) = p_ref
+          FOR UPDATE;
+          IF NOT FOUND THEN RETURN FALSE; END IF;
+          SELECT COUNT(*) INTO active_count FROM oauth_tokens
+          WHERE vercel_account = p_account AND kind = 'connector'
+            AND revoked_at IS NULL
+            AND (expires_at > now() OR refresh_hash IS NOT NULL);
+          IF active_count < 2 THEN RETURN FALSE; END IF;
+          UPDATE oauth_tokens SET revoked_at = now()
+          WHERE token_hash = target_hash AND revoked_at IS NULL;
+          IF NOT FOUND THEN RETURN FALSE; END IF;
+          INSERT INTO change_log (vercel_account, mode, tool, summary, dry_run, production)
+          VALUES (p_account, 'production', 'vercel_revoke_connection',
+            'Owner revoked one connector for this account', FALSE, TRUE);
+          RETURN TRUE;
+        END;
+        $rmcp$`;
+
       await run`CREATE TABLE IF NOT EXISTS one_time_secrets (
         id TEXT PRIMARY KEY, vercel_account TEXT, kind TEXT NOT NULL, label TEXT, ciphertext TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL, viewed_at TIMESTAMPTZ)`;
