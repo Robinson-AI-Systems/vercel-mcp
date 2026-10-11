@@ -65,13 +65,15 @@ function loginForm(message = '') {
     '<button type="submit">Sign in</button></form>';
 }
 function exactDollarCents(value) {
-  if (typeof value !== 'string' || !/^(?:0|[1-9][0-9]{0,7})(?:\\.[0-9]{1,2})?$/.test(value)) return null;
+  if (typeof value !== 'string' || !/^(?:0|[1-9][0-9]{0,7})(?:\.[0-9]{1,2})?$/.test(value)) return null;
   const [whole, fraction = ''] = value.split('.');
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
   return Number.isSafeInteger(cents) && cents <= 2147483647 ? cents : null;
 }
 function dollars(cents) {
-  return '
+  return '$' + Math.floor(cents / 100) + '.' + String(cents % 100).padStart(2, '0');
+}
+function panel(accounts, csrf, message = '') {
   const options = accounts.map(a => '<option value="' + escapeHtml(a.id) + '">' +
     escapeHtml(a.label) + '</option>').join('');
   const list = accounts.length ? '<ul>' + accounts.map(a => '<li>' +
