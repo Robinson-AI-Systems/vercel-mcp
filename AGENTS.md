@@ -39,6 +39,14 @@ card; read only that recipe. It maps existing code and proposed work without cha
     fix; stop only for a hard limit or an owner decision the current step needs (SESSION-START §6).
 13. **Thin slices, then a recovery point.** Run each slice's tests and lint before writing the next (≤ ~150 lines between
     runs); end every turn right after a push whose resume note names the exact next action.
+14. **GitHub REST testing when no local runner (permanent owner instruction).** In a GitHub-connector-only or
+    terminal-less environment, use the **GitHub REST route** to perform verification on GitHub Actions runners.
+    Commit the tested slice to an `ai/*` branch, open a draft PR, and use REST to inspect the exact-head
+    `check`, `unit`, `db`, `emulate`, and aggregate `ci` results. Retrieve job logs and check-run
+    annotations through REST; fix failures on the branch, let each run finish before a new push, and merge only
+    when the required exact-head checks are green. This is remote CI testing, **not** locally executed tests:
+    never claim otherwise, never skip tests for lack of a shell, and do not require Chris's PC. See
+    `docs/SESSION-START.md` §6 and `docs/PLAYBOOK.md` Step 4b for the REST workflow.
 
 ## What this is
 
