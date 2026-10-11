@@ -314,15 +314,18 @@
         "B-6"
       ],
       "card": "docs/pr-cards/B-8.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 350,
       "units": [
         "B-8"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": [
         "IN-08"
+      ],
+      "pr": [
+        24
       ]
     },
     {

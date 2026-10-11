@@ -36,7 +36,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_whoami` | Which team (or project-scoped account), connection mode (PREVIEW/PRODUCTION), profile, token scope, token last 4 and expiry, daily spend limit and used today | — | B O Op | R | — | A-5 built #15; B-8 |
+| `vercel_whoami` | Which team (or project-scoped account), connection mode (PREVIEW/PRODUCTION), profile, token scope, token last 4 and expiry, daily spend limit and used today | — | B O Op | R | — | A-5 built #15; B-8a built #24; B-8ba built #24; B-8ba built #24; B-8b |
 | `vercel_list_accounts` | Teams and project-scoped accounts this server holds tokens for, with scope, expiry and whether production is enabled | — | O | R | — | A-5 built #15 |
 | `vercel_set_default_account` | Which account new connections pick first | P | O | F | — | B-8 |
 | `vercel_check_token` | Re-probe the stored token: scope, expiry, which tool areas work and which are refused (and why) | — | O | R | — | B-8 |
@@ -47,6 +47,8 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_set_spend_limit` | Change the daily spend limit for a team (default $0: purchases refused until raised) | C | O | F | — | B-8 |
 | `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
 Protected-resource listings now include both global and team-scoped rules; the editor is additive-only under owner sign-in.
+
+**B-8a account observability (built #24):** `vercel_list_connections` and `vercel_recent_changes` show only scoped, bounded metadata/safe audit summaries; `vercel_where_is_setting` gives guided dashboard navigation and clearly distinguishes manual vs future API verification. `vercel_whoami` warns of token expiry within fourteen days. Account changes remain B-8b.
 
 **B-7 static safety gate (built #23):** The check-writes CI step cross-checks this catalog's Safety marks against every registered tool's read/write classification and write-contract flags, including production, targets, spend, access and one-time secrets. Adding an incompletely declared write now fails CI before merge.
 
