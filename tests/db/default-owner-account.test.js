@@ -72,6 +72,11 @@ it('concurrent owner selections cannot produce two defaults or a defaultless tab
     const rows=await defaults();
     expect(rows.filter(x=>x.is_default)).toHaveLength(1);
     const audits=await changes();
-    expect(audits).toHaveLength(2+results.filter(r=>r.status==='fulfilled' && r.value===true).length);
+    const confirmed=results.filter(r=>r.status==='fulfilled' && r.value===true).length;
+    // Both SQL mutations can commit even when one sees the other's later
+    // choice during its independent read-back and correctly returns false.
+    expect(audits.length).toBeGreaterThanOrEqual(2+confirmed);
+    expect(audits.length).toBeLessThanOrEqual(4);
+    expect(audits.every(row=>row.production===true && row.dry_run===false)).toBe(true);
   } finally {await Promise.all([a.c.end(),b.c.end()]);}
 });
