@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 // Contract-generic MCP bearer authentication. Never forwards the bearer to a provider.
 import { publicOrigin, send } from './http.js';
 
@@ -27,11 +28,14 @@ export async function requireMcpToken(req, res, db, env = process.env) {
     const account = accounts.find((item) => item.id === record.vercel_account);
     if (!account || !account.production_enabled) return reject(res, challenge, 'invalid_token');
   }
-  return Object.freeze({
+  const context = {
     clientId: record.client_id,
     account: record.vercel_account,
     mode: record.mode,
     profile: record.profile,
     listing: record.listing
-  });
+  };
+  Object.defineProperty(context,'resultOwner',{value:'resown_'+
+    createHash('sha256').update('rmcp-result-owner-v1:').update(match[1]).digest('hex')});
+  return Object.freeze(context);
 }

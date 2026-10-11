@@ -42,12 +42,22 @@ describe('MCP bearer authentication', () => {
     const accessToken = await addToken(db);
     const { connection, res } = await authenticate(db, accessToken);
     expect(res.statusCode).toBe(200);
+    expect(connection.resultOwner).toMatch(/^resown_[a-f0-9]{64}$/);
+    expect(JSON.stringify(connection)).not.toContain('resown_');
     expect(connection).toEqual({
       clientId: 'client_fixture', account: 'team_fixture',
       mode: 'preview', profile: 'everyday', listing: 'catalog'
     });
   });
 
+  it('isolates two bearer identities sharing client and account',async()=>{
+    const db=createFakeDb(),a=await addToken(db),b=await addToken(db);
+    const x=(await authenticate(db,a)).connection,y=(await authenticate(db,b)).connection;
+    expect(x.clientId).toBe(y.clientId);
+    expect(x.resultOwner).not.toBe(y.resultOwner);
+    expect(x.resultOwner).toBe((await authenticate(db,a)).connection.resultOwner);
+    expect(Object.keys(x)).not.toContain('resultOwner');
+  });
   it('rejects expired and revoked access tokens', async () => {
     const db = createFakeDb();
     const expired = await addToken(db, { ttlSeconds: -1 });

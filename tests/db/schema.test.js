@@ -16,7 +16,7 @@ beforeAll(async () => {
 
 afterAll(async () => { await closeIsolatedSchema(); });
 
-it('creates exactly the ten tables and is idempotent for tables, columns, and indexes', async () => {
+it('creates exactly the eleven tables and is idempotent for tables, columns, and indexes', async () => {
   await db.initSchema();
   const firstTables = await rawQuery(
     'SELECT tablename FROM pg_tables WHERE schemaname = current_schema() ORDER BY tablename'

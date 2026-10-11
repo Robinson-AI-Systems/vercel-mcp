@@ -92,3 +92,7 @@ a single Postgres statement, then independently checks that exactly one selected
 It never alters credentials, OAuth token settings, production-enabled flags or Vercel resources.
 Preview deployments cannot activate the form. The MCP named write is **not registered**;
 B-8 remaining revoke/spend and independent approval still require implementation and owner gates.
+
+## C-1a scoped result persistence (#41)
+- `result_store` includes account, per-authenticated-bearer owner, opaque handle, 24-hour max expiry, sanitized JSONB, and an expiry index. Read path removes at most 100 expired rows; no public tool yet.
+- `requireMcpToken` internally derives a nonenumerable per-bearer result identity. No live Neon database or Vercel token configured.
