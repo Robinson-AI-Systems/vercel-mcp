@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { encryptSecret, decryptSecret } from '../core/secret-box.js';
 import { evaluateLogin, clientIp, secretsMatch } from '../core/oauth.js';
 import { escapeHtml, paramsOf, only, send } from '../core/http.js';
-import { storeToken } from './tokens.js';
+import { storeToken, recheckStoredToken } from './tokens.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
@@ -80,6 +80,12 @@ function panel(accounts, csrf, message = '') {
     '<label>Vercel token<input name="token" type="password" required autocomplete="off"></label>' +
     '<label><input type="checkbox" name="allowFull" value="yes">Allow broader account-visible token (explicit owner choice)</label>' +
     '<button type="submit">Verify and save encrypted token</button></form></section>' +
+    '<section><h2>Recheck stored token read access</h2>' +
+    '<p>Checks access to the stored team/project without replacing credentials, enabling writes or proving expiry.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="recheck_token">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<button type="submit">Recheck read access</button></form></section>' +
     '<section><h2>Provide a one-use input</h2><form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="pending_input">' +
     '<label>Account<select name="account">' + options + '</select></label>' +
@@ -120,7 +126,8 @@ function panel(accounts, csrf, message = '') {
  * validated Vercel reads and the AES-GCM cookie mechanism.
  */
 export async function handleSetup(req, res, {
-  db, env = process.env, now = () => Date.now(), storeTokenFn = storeToken
+  db, env = process.env, now = () => Date.now(), storeTokenFn = storeToken,
+  recheckTokenFn = recheckStoredToken
 }) {
   headers(res);
   if (!only(res, req, ['GET', 'POST'])) return;
@@ -176,6 +183,14 @@ export async function handleSetup(req, res, {
         projectId: params.projectId || null, allowFull: params.allowFull === 'yes', env
       });
       message = 'Token verified and encrypted for ' + result.id;
+    } else if (params.action === 'recheck_token') {
+      if (!accounts.some(a => a.id === params.account)) {
+        return html(res, 403, 'Invalid account', '<p>Choose a connected account.</p>');
+      }
+      // Only an authenticated, CSRF-checked owner page can select a target.
+      // This is a read, not approval to widen scope or spend.
+      await recheckTokenFn({ db, accountId: params.account, env });
+      message = 'Stored token read access was rechecked. Write permissions and expiry remain unverified.';
     } else if (params.action === 'approve_production') {
       if (env.VERCEL_ENV !== 'production') {
         return html(res, 403, 'Unavailable', '<p>Production access cannot be enabled from preview.</p>');

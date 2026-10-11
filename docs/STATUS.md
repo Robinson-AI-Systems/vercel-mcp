@@ -6,7 +6,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 - **B-1 through B-7 merged (#17–#23):** guarded write architecture, owner production approval, self-protection, safe errors/output, profiles, and catalog-enforced write-safety CI.
 - **B-8a verified merged (#24):** main `fad643a011171fee5766be9d05c0e4aa602e9ba9`, all five post-merge CI checks passed. Three read-only server tools (connections, recent changes, guided dashboard directions), scoped queries and token expiry warnings. All offline/test-only.
-- **B-8b first read slice (#26, pending exact-head CI/merge):** recheck the stored token with bounded GETs and strict empty arguments; never rotate credentials or claim complete privileges. Remaining B-8b owner mutations: default account, targeted revocation, spend-limit settings. Before those writes, resolve the approved owner identity and concurrency safety amendment. Then C.
+- **B-8b read slice merged (#26):** safe stored-token GET recheck. **Owner-page integration (#27, pending CI/merge):** CSRF-protected, signed-in account selection to run the same recheck with safe result copy. Remaining B-8b owner mutations: default account, targeted revocation and spend limits; reviewed owner identity/concurrency policy is required. Then C.
 - **Not activated:** no Neon instance initialized, real Vercel token set, or server deployed. Owner inputs IN-07/IN-08 and all live change approvals remain outstanding.
 
 ## What works today (A-1)
@@ -31,6 +31,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-8b authenticated owner panel (#27, pending CI/merge):** recheck current stored token by owner-selected account on existing authenticated setup form, after session and CSRF validation; block unknown targets and sanitize provider failures; no credential replacement, approval, money, profile or database writes. Unit tests of forged session/CSRF/account, safe response and errors. B-8 remains IN_PROGRESS.
+
 
 **2026-10-11 — B-8b token read recheck (#26, pending CI/merge):** encrypted stored credential loaded only inside service; three bounded GETs, stored-team/project binding, fail-closed incomplete pages and wider visibility, no persisted metadata, no write/owner permissions granted. Unit regressions for invalid caller inputs, error cases, tenant isolation, zero mutations. B-8 remains IN_PROGRESS; next mutation requires reviewed owner identity/concurrency policy.
 

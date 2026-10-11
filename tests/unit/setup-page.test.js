@@ -124,6 +124,34 @@ describe('A-5 owner-only setup security', () => {
     expect(signOut.statusCode).toBe(303);
     expect(signOut.headers['set-cookie']).toContain('Max-Age=0');
   });
+  it('rechecks only an owner-selected stored account after login and CSRF without exposing credentials', async () => {
+    const h = harness(), check = vi.fn(async () => ({
+      access:'read_verified', visibleTeamCount:1, scopeVerified:false
+    }));
+    const unsigned = await h.call('POST', { action:'recheck_token', account:'team_FAKE' },
+      null, { recheckTokenFn:check });
+    expect(unsigned.statusCode).toBe(403);
+    const auth = await signIn(h);
+    const wrongCsrf = await h.call('POST', { action:'recheck_token',
+      account:'team_FAKE', csrf:'wrong' }, auth.cookie, { recheckTokenFn:check });
+    expect(wrongCsrf.statusCode).toBe(403);
+    const other = await h.call('POST', { action:'recheck_token',
+      account:'team_OTHER', csrf:auth.csrf }, auth.cookie, { recheckTokenFn:check });
+    expect(other.statusCode).toBe(403);
+    expect(check).not.toHaveBeenCalled();
+    const success = await h.call('POST', { action:'recheck_token', account:'team_FAKE',
+      csrf:auth.csrf }, auth.cookie, { recheckTokenFn:check });
+    expect(success.statusCode).toBe(200);
+    expect(check).toHaveBeenCalledWith({db:h.db,accountId:'team_FAKE',env});
+    expect(success.body).toContain('Write permissions and expiry remain unverified');
+    expect(success.body).not.toContain('read_verified');
+    expect(success.body).not.toContain(env.TOKEN_ENCRYPTION_KEY);
+    expect((await h.call('GET',null,auth.cookie)).body).toContain('Recheck stored token read access');
+    const failed = await h.call('POST', {action:'recheck_token',account:'team_FAKE',
+      csrf:auth.csrf},auth.cookie,{recheckTokenFn:async()=>{throw new Error('DO_NOT_ECHO_PROVIDER');}});
+    expect(failed.statusCode).toBe(400);
+    expect(failed.body).not.toContain('DO_NOT_ECHO_PROVIDER');
+  });
   it('fails closed when owner secrets are missing', async () => {
     const h = harness(), res = await h.call('GET', null, null,
       { env: { ADMIN_PASSPHRASE: env.ADMIN_PASSPHRASE } });
