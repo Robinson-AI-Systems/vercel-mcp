@@ -122,7 +122,11 @@ export function makeVercelClient({
     if (query.teamId !== undefined && query.teamId !== account.team_id) {
       throw error('team_scope_mismatch', 'The operation cannot access a different Vercel team');
     }
-    query.teamId = account.team_id;
+    // Git namespace discovery is token-scoped and its published endpoint does not
+    // accept teamId. Only explicitly declared exceptions may omit the stored team.
+    if (spec.teamScoped === false) {
+      if (query.teamId !== undefined) throw error('team_scope_mismatch', 'This operation does not accept a team override');
+    } else query.teamId = account.team_id;
     validateRequest(id, { path: params.path || {}, query, body: params.body });
     let pathname = spec.path;
     for (const [key, value] of Object.entries(params.path || {})) {

@@ -8,6 +8,25 @@ const SNAPSHOT = new URL('../../vendor/vercel-openapi/openapi-2026-10-11.json', 
 let spec;
 const validators = new Map();
 const HTTP_METHODS = ['get', 'head', 'delete', 'post', 'put', 'patch'];
+// Some pinned OpenAPI 3.0 parameters declare nullable without type. AJV forbids
+// that invalid combination. Remove ONLY the unsupported annotation, never enum,
+// pattern, reference or composition constraints; an ambiguous null fails closed.
+export function normalizeNullableDeclarations(value){
+  if(Array.isArray(value))return value.map(normalizeNullableDeclarations);
+  if(!value || typeof value!=='object')return value;
+  const fixed=Object.fromEntries(Object.entries(value)
+    .filter(([key])=>!(key==='nullable' && !Object.hasOwn(value,'type')))
+    .map(([key,child])=>[key,normalizeNullableDeclarations(child)]));
+  // Exact duplicate oneOf alternatives in the pinned snapshot make every
+  // matching value invalid (Vercel Git namespaceId repeats string/number twice).
+  // Collapse IDENTICAL schemas only, preserving unrelated oneOf exclusions.
+  if(Array.isArray(fixed.oneOf))fixed.oneOf=[...new Map(
+    fixed.oneOf.map(option=>[JSON.stringify(option),option])
+  ).values()];
+  return fixed;
+}
+let normalizedComponents;
+
 
 export function readOpenApi() {
   if (!spec) spec = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
@@ -27,9 +46,18 @@ export function openApiOperation(id) {
 
 function compile(schema, id) {
   if (validators.has(id)) return validators.get(id);
+  // Pinned Git namespaceId declares the union as malformed duplicated oneOf.
+  // Under normal query-string coercion both numeric and string arms match.
+  // This exact API parameter is a union-of-types; do not loosen other oneOf.
+  let normalized=normalizeNullableDeclarations(schema);
+  if(id==='git_repos_search:query:namespaceId' && Array.isArray(normalized.oneOf)){
+    const {oneOf,...rest}=normalized;
+    normalized={...rest,anyOf:oneOf};
+  }
   // Root-wrapper lets component $refs resolve at #/components/schemas/*.
   const root = { type: 'object', required: ['value'],
-    properties: { value: schema }, components: readOpenApi().components || {} };
+    properties: { value: normalized },
+    components: normalizedComponents ??= normalizeNullableDeclarations(readOpenApi().components || {}) };
   const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, coerceTypes: true, allowUnionTypes: true });
   const validator = ajv.compile(root);
   validators.set(id, validator);

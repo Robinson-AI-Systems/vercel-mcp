@@ -88,8 +88,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_project_add_member` | Give a team member a role on one project | A | O | F | — | D-1 |
 | `vercel_project_remove_member` | Remove a member's project role | C | O | F | — | D-1 |
 | `vercel_cron_list` | Cron jobs as deployed to production: path, schedule (UTC and Denver time), enabled, from the production deployment's configuration | — | Op | R | y | D-1 |
-| `vercel_git_list_namespaces` | Git accounts/orgs the team's Git connection can see (GitHub, GitLab, Bitbucket) | — | B | R | — | D-1 |
-| `vercel_git_search_repos` | Repositories in a Git namespace, for creating a project from one | — | B | R | — | D-1 |
+| `vercel_git_list_namespaces` | Git accounts/orgs the team's Git connection can see (GitHub, GitLab, Bitbucket) | — | B | R | — | D-1 (built #49) |
+| `vercel_git_search_repos` | Repositories in a Git namespace, for creating a project from one | — | B | R | — | D-1 (built #49) |
 
 ## Deployments: reads, logs and checks (`vercel_deploy_*`, `vercel_check_*`) — 10
 
