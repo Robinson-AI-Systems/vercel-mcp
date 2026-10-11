@@ -1,0 +1,73 @@
+import {describe,it,expect,vi,beforeEach} from 'vitest';
+import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
+import {registry} from '../../src/tools/index.js';
+import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
+import {loadToken} from '../../src/vercel/tokens.js';
+vi.mock('../../src/vercel/tokens.js',async old=>({...await old(),loadToken:vi.fn()}));
+const connection={account:'acct_FAKE',mode:'preview',profile:'everyday',listing:'catalog'};
+const token={token:'vcp_FAKE_project',account:{id:'acct_FAKE',team_id:'team_FAKE',scope:'team'}};
+function fixture(){
+  const fake=makeFakeVercel(),rows=new Map();
+  const db={
+    getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
+    recordChange:async()=>{},
+    requestReplayStore:()=>({
+      claim:async({key})=>{
+        if(rows.has(key))return rows.get(key);
+        rows.set(key,{state:'pending'});return {state:'claimed',claimId:'FAKE'};
+      },
+      complete:async({key,result})=>rows.set(key,{state:'completed',result})
+    })
+  };
+  const call=(args,c=connection)=>dispatchReadOnlyTool({registry,
+    name:'vercel_project_update_settings',args,db,connection:c,fetchImpl:fake.fetch});
+  return {fake,call,rows};
+}
+const parse=r=>JSON.parse(r.content[0].text);
+const before={id:'prj_FAKE_OLD',name:'old-site',framework:'nextjs',latestProductionDeployments:[]};
+describe('D-1g guarded project settings',()=>{
+  beforeEach(()=>loadToken.mockResolvedValue(token));
+  it('renames a non-live project with exact PATCH and independent GET verification',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
+      .resolves({...before,name:'new-site'});
+    f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({...before,name:'new-site'});
+    const r=parse(await f.call({project:'prj_FAKE_OLD',name:'new-site',confirm:true}));
+    expect(r).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','PATCH','GET']);
+    expect(f.fake.calls[1].body).toEqual({name:'new-site'});
+    expect(f.fake.calls[1].query.teamId).toBe('team_FAKE');
+    expect(f.rows.size).toBe(2);
+    f.fake.verify();
+  });
+  it('requires production mode for a project serving or possibly serving live traffic',async()=>{
+    for(const live of [[{id:'dpl_FAKE'}],undefined]){
+      const f=fixture();
+      f.fake.when('GET','/v9/projects/{idOrName}')
+        .resolves({...before,latestProductionDeployments:live});
+      const r=parse(await f.call({project:'prj_FAKE_OLD',framework:'vite',confirm:true}));
+      expect(r.status).toBe('refused_by_guard');
+      expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+    }
+  });
+  it('refuses mutation for absent confirmation or dry-run and blocks protected rename',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before);
+    expect(parse(await f.call({project:'prj_FAKE_OLD',framework:'vite'})).status).toBe('needs_confirmation');
+    expect(parse(await f.call({project:'prj_FAKE_OLD',framework:'vite',dryRun:true})).status).toBe('preview');
+    expect(parse(await f.call({project:'prj_FAKE_OLD',name:'vercel-mcp',confirm:true})).status)
+      .toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('rejects scope override, unsafe identifiers, empty/no-op change before PATCH',async()=>{
+    const f=fixture();
+    for(const args of [{project:'../evil',name:'demo'}, {project:'prj_FAKE_OLD'},
+      {project:'prj_FAKE_OLD',name:'demo',teamId:'other'}]){
+      const r=await f.call(args);expect(r.isError||parse(r).status==='refused_by_guard').toBe(true);
+    }
+    loadToken.mockResolvedValue({...token,account:{...token.account,scope:'project',project_id:'prj_FAKE_ONLY'}});
+    expect(parse(await f.call({project:'prj_FAKE_OLD',name:'new-site',confirm:true})).status)
+      .toBe('refused_by_guard');
+    expect(f.fake.calls).toHaveLength(0);
+  });
+});

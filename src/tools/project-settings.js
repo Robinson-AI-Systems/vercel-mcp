@@ -1,0 +1,108 @@
+// D-1g: guarded project identity/framework settings, excluding paid build resources.
+import {defineWrite} from '../core/write.js';
+import {compact} from '../core/util.js';
+import {readProvider,writeProvider} from '../vercel/provider.js';
+import {checkProtected} from './self-guard.js';
+import {checkApp} from './app-guard.js';
+const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
+const NAME=/^[a-z0-9][a-z0-9._-]{0,99}$/;
+const FRAMEWORKS=['nextjs','vite','astro','nuxtjs'];
+const props={
+  project:{type:'string',minLength:1,maxLength:128},
+  name:{type:'string',pattern:NAME.source,maxLength:100},
+  framework:{type:'string',enum:FRAMEWORKS},
+  confirm:{type:'boolean'},dryRun:{type:'boolean'},
+  requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}
+};
+const inputSchema={type:'object',properties:props,required:['project'],additionalProperties:false};
+function validate(args){
+  if(!args||typeof args!=='object'||Array.isArray(args)||
+    Object.keys(args).some(k=>!Object.hasOwn(props,k))||
+    typeof args.project!=='string'||!ID.test(args.project)||
+    (args.name===undefined && args.framework===undefined)||
+    (args.name!==undefined&&(typeof args.name!=='string'||!NAME.test(args.name)))||
+    (args.framework!==undefined&&!FRAMEWORKS.includes(args.framework))||
+    (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
+    (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
+    throw new TypeError('Invalid project settings request');
+}
+function context({db,connection,env,fetchImpl}){
+  return {db,connection,env,fetchImpl,shape:compact,
+    audit:x=>db.recordChange(x),replayStore:db.requestReplayStore(),
+    guardProtected:targets=>checkProtected(targets,{db,connection,env}),
+    guardApp:targets=>checkApp(targets,{db,connection,env})};
+}
+const update=defineWrite({
+  name:'vercel_project_update_settings',
+  async before(args,ctx){
+    validate(args);
+    const {client,account}=await readProvider(ctx);
+    if(account.scope==='project'&&args.project!==account.project_id)
+      throw new TypeError('Connection cannot change another project');
+    const row=await client.request('projects_get',{path:{idOrName:args.project}});
+    if(typeof row?.id!=='string'||typeof row?.name!=='string'||
+      (account.scope==='project'&&row.id!==account.project_id))
+      throw new TypeError('Project identity unavailable');
+    // Undefined production metadata is unknown, and is treated as live.
+    const live=!Array.isArray(row.latestProductionDeployments) ||
+      row.latestProductionDeployments.length>0;
+    if((args.name===undefined||args.name===row.name) &&
+      (args.framework===undefined||args.framework===(row.framework??null)))
+      throw new TypeError('No settings change requested');
+    return {id:row.id,name:row.name,framework:row.framework??null,live,
+      newName:args.name??row.name,
+      newFramework:args.framework??row.framework??null,
+      changeName:args.name!==undefined,
+      changeFramework:args.framework!==undefined};
+  },
+  async preview(_args,_ctx,before){
+    return 'Update settings for project '+before.name+' ('+before.id+')'+
+      (before.changeName?'; rename to '+before.newName+
+        ' (project URLs and aliases may be affected)':'')+
+      (before.changeFramework?'; set framework to '+before.newFramework:'')+
+      (before.live?'; this is classified as a PRODUCTION change':'');
+  },
+  async production(_args,_ctx,before){
+    return {production:before.live,why:before.live?
+      'Project has production deployments or live status is unknown':
+      'Project has an explicitly empty production deployment list'};
+  },
+  async targets(_args,before){
+    return [{kind:'project',id:before.id,name:before.name},
+      ...(before.changeName?[{kind:'project',id:before.newName,name:before.newName}]:[])];
+  },
+  async apply(_args,ctx,before,requestKey){
+    const provider=await writeProvider(ctx);
+    return provider.write('projects_update',{
+      path:{idOrName:before.id},body:{
+        ...(before.changeName?{name:before.newName}:{}),
+        ...(before.changeFramework?{framework:before.newFramework}:{})
+      }
+    },{requestKey,tool:'vercel_project_update_settings',shapeResult:row=>{
+      if(typeof row?.id!=='string'||typeof row?.name!=='string')
+        throw new TypeError('Project identity missing in mutation response');
+      return {id:row.id,name:row.name,framework:row.framework??null};
+    }});
+  },
+  async verify(_args,ctx,before,applied){
+    const {client}=await readProvider(ctx);
+    const row=await client.request('projects_get',{path:{idOrName:before.id}});
+    return {confirmed:row?.id===applied?.id && row?.name===before.newName &&
+      (!before.changeFramework || row.framework===before.newFramework),
+      project:before.id};
+  }
+});
+export const projectSettingsTools={
+  tools:[{name:'vercel_project_update_settings',writes:true,guardedWrite:true,
+    profiles:['everyday','full'],area:'projects',
+    description:'Rename or set project framework; live projects require production mode and confirmation.',
+    inputSchema,writeContract:update.writeContract,
+    annotations:{readOnlyHint:false,destructiveHint:false}}],
+  handlers:{
+    async vercel_project_update_settings(args,ctx){
+      const result=await update.run(args,context(ctx));
+      return {isError:['refused_by_guard','outcome_unknown'].includes(result.status),
+        content:[{type:'text',text:JSON.stringify(result)}]};
+    }
+  }
+};
