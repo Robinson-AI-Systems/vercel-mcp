@@ -1,9 +1,8 @@
-// Default-deny boundary: only explicitly read-only handlers may run before guarded writes exist.
+// Default-deny MCP boundary: only explicitly read-only handlers may run before Batch B.
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { requireMcpToken } from './mcp-auth.js';
-import { send } from './http.js';
 
 export async function dispatchReadOnlyTool({ registry, name, args, connection, db }) {
   const item = registry.tools.find((tool) => tool.name === name);
@@ -25,14 +24,11 @@ export function createMcpHandler({ db, registry, env = process.env }) {
   return async function mcp(req, res) {
     const connection = await requireMcpToken(req, res, db, env);
     if (!connection) return;
-
-    const server = new Server({ name: 'robinson-vercel-mcp', version: '0.1.0' }, {
-      capabilities: { tools: {} }
-    });
+    const server = new Server({ name: 'robinson-vercel-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: registry.tools
         .filter((tool) => tool.writes === false && tool.profiles?.includes(connection.profile))
-        .map(({ writes: _writes, profiles: _profiles, ...publicTool }) => publicTool)
+        .map((tool) => Object.fromEntries(Object.entries(tool).filter(([key]) => key !== 'writes' && key !== 'profiles')))
     }));
     server.setRequestHandler(CallToolRequestSchema, async (request) =>
       dispatchReadOnlyTool({
@@ -43,17 +39,13 @@ export function createMcpHandler({ db, registry, env = process.env }) {
         db
       })
     );
-
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on?.('close', () => {
-      void transport.close();
-      void server.close();
-    });
+    res.on?.('close', () => { void transport.close(); void server.close(); });
     try {
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch {
-      if (!res.headersSent) send(res, 500, { error: 'internal_error' });
+      if (!res.headersSent) res.status(500).json({ error: 'internal_error' });
     }
   };
 }
