@@ -23,29 +23,58 @@ export const projectsTools={
   tools:[
     {name:'vercel_project_list',writes:false,profiles:PROFILES,area:'projects',
       description:'List project summaries from the authenticated team, with a bounded page and next cursor.',
-      inputSchema:schema({limit:{type:'integer',minimum:1,maximum:100}}),
+      inputSchema:schema({limit:{type:'integer',minimum:1,maximum:100},until:{type:'integer',minimum:1}}),
       annotations:{readOnlyHint:true}},
     {name:'vercel_project_get',writes:false,profiles:PROFILES,area:'projects',
       description:'Read safe project settings, Git linkage, build commands and production status by ID or name.',
       inputSchema:{...schema({project:{type:'string',minLength:1,maxLength:128}}),required:['project']},
-      annotations:{readOnlyHint:true}}
+      annotations:{readOnlyHint:true}},
+    {name:'vercel_project_list_members',writes:false,profiles:PROFILES,area:'projects',
+      description:'List project members and roles in an authenticated, project-scoped page without secrets.',
+      inputSchema:{...schema({project:{type:'string',minLength:1,maxLength:128},
+        limit:{type:'integer',minimum:1,maximum:100},until:{type:'integer',minimum:1}}),
+        required:['project']},annotations:{readOnlyHint:true}}
   ],
   handlers:{
     async vercel_project_list(args,ctx){
-      checkArgs(args,['limit']);
+      checkArgs(args,['limit','until']);
+      if(args.until!==undefined && (!Number.isSafeInteger(args.until) || args.until<1))
+        throw new TypeError('Invalid project pagination cursor');
       if(args.limit!==undefined && (!Number.isInteger(args.limit)||args.limit<1||args.limit>100))
         throw new TypeError('Invalid project limit');
       const {client,account}=await readProvider(ctx);
       if(account.scope==='project'){
+        if(args.until!==undefined)throw new TypeError('A project-scoped connection has no team cursor');
         const project=await client.request('projects_get',{path:{idOrName:account.project_id}});
         if(project.id!==account.project_id)throw new TypeError('Scoped project did not match');
         return asText({projects:[projectSummary(project)],count:1,next:null});
       }
-      const reply=await client.request('projects_list',{query:{limit:args.limit??20}});
+      const reply=await client.request('projects_list',{query:{limit:args.limit??20,...(args.until?{until:args.until}:{})}});
       if(!Array.isArray(reply?.projects))throw new TypeError('Invalid projects page');
       return asText({projects:reply.projects.map(projectSummary),count:reply.projects.length,
         next:reply.pagination?.next??null,
-        nextStep:reply.pagination?.next!=null?'Request the next team project page using a supported pagination workflow':null});
+        nextStep:reply.pagination?.next!=null?'Call vercel_project_list again with until set to the next numeric cursor':null});
+    },
+    async vercel_project_list_members(args,ctx){
+      checkArgs(args,['project','limit','until']);
+      if(typeof args.project!=='string'||!idPattern.test(args.project)||
+        (args.limit!==undefined && (!Number.isInteger(args.limit)||args.limit<1||args.limit>100))||
+        (args.until!==undefined && (!Number.isSafeInteger(args.until)||args.until<1)))
+        throw new TypeError('Invalid project member query');
+      const {client,account}=await readProvider(ctx);
+      if(account.scope==='project' && args.project!==account.project_id)
+        throw new TypeError('Project members not available to this connection');
+      const reply=await client.request('projects_members_list',{
+        path:{idOrName:args.project},
+        query:{limit:args.limit??20,...(args.until?{until:args.until}:{})}});
+      if(!Array.isArray(reply?.members))throw new TypeError('Invalid project member response');
+      return asText({
+        project:args.project,count:reply.members.length,
+        members:reply.members.map(m=>({
+          id:m.uid??m.userId??m.id??null,email:m.email??null,
+          name:m.name??null,role:m.role??null,createdAt:m.createdAt??null
+        })),next:reply.pagination?.next??null
+      });
     },
     async vercel_project_get(args,ctx){
       checkArgs(args,['project']);
