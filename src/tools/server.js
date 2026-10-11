@@ -26,9 +26,16 @@ export const serverTools = {
         content: [{ type: 'text', text: 'No Vercel account is connected' }] };
       const spent = typeof db.getTodaySpendCents === 'function'
         ? await db.getTodaySpendCents(row.id) : null;
+      const expiry = row.token_expires_at && new Date(row.token_expires_at).getTime();
+      const daysLeft = Number.isFinite(expiry) ? Math.ceil((expiry - Date.now()) / 86400000) : null;
+      const tokenWarning = daysLeft === null ? null : daysLeft <= 0 ?
+        'Vercel token expired; rotate it using the authenticated owner setup page.' :
+        daysLeft <= 14 ? 'Vercel token expires within ' + daysLeft +
+          ' days; verify renewal through owner setup.' : null;
       return asText({ account: safe(row), mode: connection.mode,
         profile: connection.profile, listing: connection.listing,
-        spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent });
+        spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent,
+        tokenWarning });
     },
     async vercel_list_accounts(_args, { db }) {
       const accounts = await db.listVercelAccounts();
