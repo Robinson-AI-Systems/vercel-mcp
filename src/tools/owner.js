@@ -26,22 +26,9 @@ export const ownerTools={
     writeContract:spendRequest.writeContract
   },{
     name:'vercel_revoke_connection',writes:true,localAdmin:true,profiles:['full'],
-    description:'Propose revoking one exact current connector; independent owner approval and last-active safety required.',
+    description:'Propose revoking one exact current connector; separate owner approval and last-active protection required.',
     inputSchema:{type:'object',properties:{
-      connectionId:{type:'string',pattern:'^conn_[a-f0-9]{20}
-  handlers:{
-    async vercel_set_default_account(args,{connection,db,env}){
-      return text(await defaultRequest.run(args,ownerWriteContext({connection,db,env})));
-    },
-    async vercel_set_spend_limit(args,{connection,db,env}){
-      return text(await spendRequest.run(args,ownerWriteContext({connection,db,env})));
-    },
-    async vercel_revoke_connection(args,{connection,db,env}){
-      return text(await revokeRequest.run(args,ownerWriteContext({connection,db,env})));
-    }
-  }
-};
-},
+      connectionId:{type:'string',pattern:'^conn_[a-f0-9]{20}$'},
       dryRun:{type:'boolean'},confirm:{type:'boolean'}
     },required:['connectionId'],additionalProperties:false},
     annotations:{readOnlyHint:false,destructiveHint:true},
@@ -53,6 +40,9 @@ export const ownerTools={
     },
     async vercel_set_spend_limit(args,{connection,db,env}){
       return text(await spendRequest.run(args,ownerWriteContext({connection,db,env})));
+    },
+    async vercel_revoke_connection(args,{connection,db,env}){
+      return text(await revokeRequest.run(args,ownerWriteContext({connection,db,env})));
     }
   }
 };
