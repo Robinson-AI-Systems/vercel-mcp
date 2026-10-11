@@ -103,6 +103,14 @@ function panel(accounts, csrf, message = '') {
     '<label>Pending request reference<input name="id" required></label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Approve production access for this team</button></form></section>' +
+    '<section><h2>Add a protected project</h2>' +
+    '<p>Add-only until the owner approves a different baseline. Protected defaults cannot be removed here.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="add_protected">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Project name<input name="projectName" pattern="[a-z0-9-]+" required></label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Protect project</button></form></section>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="logout"><button type="submit">Sign out</button></form>';
 }
@@ -193,6 +201,26 @@ export async function handleSetup(req, res, {
         return html(res, 403, 'Unavailable', '<p>Production approval is invalid or expired.</p>');
       }
       message = 'Production access enabled for ' + approved.account;
+    } else if (params.action === 'add_protected') {
+      if (!accounts.some(a => a.id === params.account)) {
+        return html(res, 403, 'Invalid account', '<p>Choose a connected account.</p>');
+      }
+      const attempt = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (attempt.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many sign-in attempts.</p>');
+      }
+      if (attempt.status !== 'ok') return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      await db.addProtectedResource({ account: params.account, kind: 'project',
+        match: params.projectName, note: 'Owner protected on setup' });
+      await db.recordChange({ account: params.account, mode: 'preview',
+        tool: 'vercel_add_protected_resource',
+        summary: 'Owner added project protection: ' + params.projectName,
+        dryRun: false, production: false });
+      message = 'Project protected: ' + params.projectName;
     } else if (params.action === 'pending_input') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 400, 'Invalid account', '<p>Choose a connected account.</p>');

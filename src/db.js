@@ -180,6 +180,24 @@ export function createDb(query) {
           AND revoked_at IS NULL RETURNING token_hash`;
       return rows.length;
     },
+    async listProtectedResources(account) {
+      if (typeof account !== 'string' || !account) throw new TypeError('Account required');
+      const run = getSql();
+      return run`SELECT kind, match, note, source FROM protected_resources
+        WHERE vercel_account IS NULL OR vercel_account = ${account}
+        ORDER BY kind, match`;
+    },
+    async addProtectedResource({ account, kind = 'project', match, note = 'Owner protected' }) {
+      if (typeof account !== 'string' || !account || kind !== 'project' ||
+        typeof match !== 'string' || !/^[a-z0-9][a-z0-9-]{1,100}$/.test(match) ||
+        typeof note !== 'string' || note.length > 120) {
+        throw new TypeError('Invalid protected resource');
+      }
+      const run = getSql();
+      await run`INSERT INTO protected_resources (vercel_account, kind, match, note, source)
+        VALUES (${account}, ${kind}, ${match}, ${note}, 'setup_page')
+        ON CONFLICT DO NOTHING`;
+    },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
         throw new TypeError('Missing OAuth client registration fields');

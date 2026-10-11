@@ -45,7 +45,8 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_enable_production` | Request a ten-minute team production approval; only owner passphrase reentry on setup can enable it | C | O | F | — | B-2 |
 | `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | P | O | F | — | B-2 |
 | `vercel_set_spend_limit` | Change the daily spend limit for a team (default $0: purchases refused until raised) | C | O | F | — | B-8 |
-| `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 |
+| `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
+Protected-resource listings now include both global and team-scoped rules; the editor is additive-only under owner sign-in.
 | `vercel_recent_changes` | What was changed through this server (filter by tool, project, mode, date; previews hidden unless asked) | — | B O Op | R | — | B-8 |
 | `vercel_undo_change` | Undo one change-log entry when it has a clean opposite; says plainly when it does not | C | Op | E | y | X-1 |
 | `vercel_search_tools` | Find tools by plain words; one line each with safety marks (compact mode's front door) | — | B O Op | R | — | C-2 |
