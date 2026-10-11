@@ -100,6 +100,24 @@ export function createDb(query) {
         FROM vercel_accounts WHERE id = ${id}`;
       return rows[0] || null;
     },
+    async seedProtectedProjects(names) {
+      if (!Array.isArray(names) || !names.length || names.some(x => typeof x !== 'string' ||
+        !/^[a-z0-9][a-z0-9-]{1,100}$/.test(x))) throw new TypeError('Invalid protected project list');
+      const run = getSql();
+      for (const name of names) {
+        await run`INSERT INTO protected_resources (vercel_account, kind, match, note, source)
+          VALUES (NULL, 'project', ${name}, 'Robinson MCP baseline protection', 'default')
+          ON CONFLICT DO NOTHING`;
+      }
+    },
+    async getTodaySpendCents(accountId) {
+      const run = getSql();
+      const rows = await run`SELECT COALESCE(SUM(spend_cents),0)::bigint AS cents FROM change_log
+        WHERE vercel_account = ${accountId} AND spend_cents IS NOT NULL
+          AND at >= (date_trunc('day', now() AT TIME ZONE 'America/Denver')
+            AT TIME ZONE 'America/Denver')`;
+      return Number(rows[0]?.cents || 0);
+    },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
         throw new TypeError('Missing OAuth client registration fields');
