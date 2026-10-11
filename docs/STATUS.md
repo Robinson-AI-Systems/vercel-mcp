@@ -4,7 +4,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endp
 
 ## Next
 
-- **Next: A-4 — Vercel API client, operation table, and OpenAPI snapshot index** (write the approved-design card at session start). A-1 through A-3 are implemented; A-4 is the next ready slice. A-5/A-6 remain just-in-time.
+- **Next: A-4 — Vercel API client and OpenAPI snapshot.** The card is written, but implementation is blocked until the exact official OpenAPI JSON is supplied; do not reconstruct it from the SDK. A-5/A-6 remain just-in-time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
