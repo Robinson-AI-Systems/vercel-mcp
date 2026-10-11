@@ -8,6 +8,18 @@ const SNAPSHOT = new URL('../../vendor/vercel-openapi/openapi-2026-10-11.json', 
 let spec;
 const validators = new Map();
 const HTTP_METHODS = ['get', 'head', 'delete', 'post', 'put', 'patch'];
+// Some pinned OpenAPI 3.0 parameters declare nullable without type. AJV forbids
+// that invalid combination. Remove ONLY the unsupported annotation, never enum,
+// pattern, reference or composition constraints; an ambiguous null fails closed.
+export function normalizeNullableDeclarations(value){
+  if(Array.isArray(value))return value.map(normalizeNullableDeclarations);
+  if(!value || typeof value!=='object')return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key])=>!(key==='nullable' && !Object.hasOwn(value,'type')))
+    .map(([key,child])=>[key,normalizeNullableDeclarations(child)]));
+}
+let normalizedComponents;
+
 
 export function readOpenApi() {
   if (!spec) spec = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
@@ -29,7 +41,8 @@ function compile(schema, id) {
   if (validators.has(id)) return validators.get(id);
   // Root-wrapper lets component $refs resolve at #/components/schemas/*.
   const root = { type: 'object', required: ['value'],
-    properties: { value: schema }, components: readOpenApi().components || {} };
+    properties: { value: normalizeNullableDeclarations(schema) },
+    components: normalizedComponents ??= normalizeNullableDeclarations(readOpenApi().components || {}) };
   const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, coerceTypes: true, allowUnionTypes: true });
   const validator = ajv.compile(root);
   validators.set(id, validator);

@@ -5,7 +5,7 @@ import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
 import {mergeNamespaces} from '../../src/core/registry.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 import {makeVercelClient} from '../../src/vercel/client.js';
-import {validateRequest} from '../../src/vercel/openapi-validation.js';
+import {validateRequest,normalizeNullableDeclarations} from '../../src/vercel/openapi-validation.js';
 vi.mock('../../src/vercel/tokens.js',async original=>({...await original(),loadToken:vi.fn()}));
 const conn={account:'acct_TEAM',profile:'read_only',listing:'catalog',mode:'preview'};
 const db={getAccountCredential:async()=>({})};
@@ -59,6 +59,11 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
       team_id:'team_FAKE',scope:'project',project_id:'prj_ONLY'}});
     expect((await call('vercel_git_list_namespaces',{provider:'github'},fake)).isError).toBe(true);
     expect(fake.calls).toHaveLength(0);
+  });
+  it('normalizes broken untyped nullable metadata without dropping schema constraints',()=>{
+    expect(normalizeNullableDeclarations({properties:{id:{nullable:true,enum:['safe']},
+      typed:{type:'string',nullable:true,maxLength:4}}})).toEqual({properties:{
+      id:{enum:['safe']},typed:{type:'string',nullable:true,maxLength:4}}});
   });
   it('allows only allowlisted token-scoped operation to omit the team selector',async()=>{
     expect(validateRequest('git_namespaces',{query:{provider:'github'}})).toBe(true);
