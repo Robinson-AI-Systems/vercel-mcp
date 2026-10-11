@@ -4,8 +4,8 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Next:** B-8b — finish independently approved, fully guarded MCP owner-account write contracts and all enabled doors. Owner-only setup controls and approval/review infrastructure merged through PR #35. Then C-1/C-2.
-A-1 through A-6 and B-1 through B-7 are merged. The official OpenAPI remains pinned to 2026-10-11.
+**Next:** C-1 — small results, summaries, safe field/detail projection, scoped 24-hour handles and annotations. B-8 owner read/setup/approval-only MCP tools are complete through PR #40; then implement C-2 (compact listings and guarded meta dispatch).
+A-1 through A-6 and B-1 through B-8 are merged (B-8 completed #40). The official OpenAPI remains pinned to 2026-10-11.
 Use [implementation guidance](implementation-guidance/README.md) for current helper paths, recipes and the B-8b worked
 example when writing the JIT card. No live database, token or deployment is configured; owner gates remain unchanged.
 

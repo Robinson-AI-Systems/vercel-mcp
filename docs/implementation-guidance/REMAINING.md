@@ -1,6 +1,6 @@
 # Remaining-work map — recipes, not distant execution cards
 
-Baseline and existing paths: [README](README.md). Sequence: B-8b → C → D → E → V → N → F → M → O → P → W → U → R → X.
+Baseline and existing paths: [README](README.md). Sequence: C → D → E → V → N → F → M → O → P → W → U → R → X.
 Use work-index and MASTER-ROADMAP for eligibility; design §0 checks dependencies at each batch boundary.
 All paths marked **proposed** below are absent at the inspected baseline. Tests/operations are selected JIT from the
 actual predecessor, catalog and snapshot; this map does not pin unverified future API versions or add scope.
@@ -9,7 +9,7 @@ actual predecessor, catalog and snapshot; this map does not pin unverified futur
 
 | Unit / design | Existing anchors → proposed integration | Concrete fixture / completion / inheritance |
 |---|---|---|
-| B-8b, BATCH-B B8/§4 | server/setup/db/profile helpers → worked example B-8b | Four local account controls, owner proof and concurrent invariants; B-8 acceptance closes before C |
+| B-8b, BATCH-B B8/§4 | **Completed #40**: owner setup, encrypted approval requests, real write guards and three MCP proposal tools | Real owner authorization and tenant/concurrency invariants are established; C-2/R-2 must not invent a bypass |
 | C-1, BATCH-C C3–C5 | `compact`, `shapeVercelResult`, `shapeMcpResult`, `createDb`, registry → **proposed** `src/tools/summaries.js`, `src/core/result-rules.js`, result_store SQL, get-result tool | 100 deployments incl nested fake secrets; >8 KB produces handle/count/summary; env full detail still omits value; owner A handle unreadable by B; expired/consumed cases. Successor inherits central fields/detail injection and 24h scoped retrieval |
 | C-2, BATCH-C C1/C2/C6 | profile predicate/MCP/budget script → **proposed** `src/core/meta.js`, guarded dispatch/listing, pinned tokenizer | catalog vs compact same connection; compact <5000, everyday <20000, schemas <1500; planted 161-char failure; ≤10 read-only batch rejects a write; vercel_call same guards by name. Successor inherits real provider ctx and door tests, not just metadata |
 

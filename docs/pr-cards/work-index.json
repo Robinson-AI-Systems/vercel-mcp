@@ -314,13 +314,13 @@
         "B-6"
       ],
       "card": "docs/pr-cards/B-8.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "none",
       "budget": 350,
       "units": [
         "B-8"
       ],
-      "readiness": "READY",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-08"
       ],
@@ -335,7 +335,11 @@
         32,
         33,
         34,
-        35
+        35,
+        37,
+        38,
+        39,
+        40
       ]
     },
     {
@@ -353,7 +357,7 @@
       "units": [
         "C-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": []
     },
     {
