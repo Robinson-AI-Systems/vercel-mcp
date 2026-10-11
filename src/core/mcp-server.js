@@ -14,7 +14,7 @@ export const profileToolCounts = registry =>
 function mayUse(tool, connection) {
   return visibleToProfile(tool, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS });
 }
-export async function dispatchReadOnlyTool({ registry, name, args, connection, db, formatError, shapeResult }) {
+export async function dispatchReadOnlyTool({ registry, name, args, connection, db, env, fetchImpl, formatError, shapeResult }) {
   const item = registry.tools.find((tool) => tool.name === name);
   if (!mayUse(item, connection)) {
     return { isError: true, content: [{ type: 'text', text: 'Tool unavailable for this connection' }] };
@@ -24,7 +24,7 @@ export async function dispatchReadOnlyTool({ registry, name, args, connection, d
     return { isError: true, content: [{ type: 'text', text: 'Tool unavailable' }] };
   }
   try {
-    const result = await handler(args || {}, { connection, db });
+    const result = await handler(args || {}, { connection, db, env, fetchImpl });
     return typeof shapeResult === 'function' ? shapeResult(result, { connection, tool: name }) : result;
   } catch (caught) {
     if (typeof formatError === 'function') {
@@ -56,7 +56,7 @@ export function createMcpHandler({ db, registry, env = process.env, formatError,
         name: request.params?.name,
         args: request.params?.arguments,
         connection,
-        db, formatError, shapeResult
+        db, env, formatError, shapeResult
       })
     );
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
