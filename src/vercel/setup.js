@@ -80,6 +80,15 @@ function panel(accounts, csrf, message = '') {
     '<label>Vercel token<input name="token" type="password" required autocomplete="off"></label>' +
     '<label><input type="checkbox" name="allowFull" value="yes">Allow broader account-visible token (explicit owner choice)</label>' +
     '<button type="submit">Verify and save encrypted token</button></form></section>' +
+    '<section><h2>Default account for new connections (owner only)</h2>' +
+    '<p>This account appears first for new connections. Existing connections keep their team, profile and mode. ' +
+    'This setting changes the server database, not any real Vercel resource. Disabled on preview deployments.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="set_default_account">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm the account-wide selection</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Set default account</button></form></section>' +
     '<section><h2>Recheck stored token read access</h2>' +
     '<p>Checks access to the stored team/project without replacing credentials, enabling writes or proving expiry.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -183,6 +192,31 @@ export async function handleSetup(req, res, {
         projectId: params.projectId || null, allowFull: params.allowFull === 'yes', env
       });
       message = 'Token verified and encrypted for ' + result.id;
+    } else if (params.action === 'set_default_account') {
+      // No MCP/profile argument can stand in for this owner session, CSRF,
+      // explicit confirmation and independent passphrase reentry.
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Default-account changes require the production server.</p>');
+      }
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes') {
+        return html(res, 403, 'Permission denied', '<p>Select a connected account and confirm the change.</p>');
+      }
+      const approval = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (approval.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (approval.status !== 'ok') {
+        return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      }
+      if (typeof db.setDefaultOwnerAccount !== 'function' ||
+          !(await db.setDefaultOwnerAccount(params.account))) {
+        return html(res, 409, 'Unavailable', '<p>Account selection could not be verified.</p>');
+      }
+      message = 'Default account updated for new connections; existing connections remain unchanged.';
     } else if (params.action === 'recheck_token') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 403, 'Invalid account', '<p>Choose a connected account.</p>');

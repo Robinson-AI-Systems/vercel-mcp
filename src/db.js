@@ -36,6 +36,39 @@ export function createDb(query) {
         production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
 
+    /**
+     * Owner-setup-only global default selection. One SQL statement atomically
+     * updates every default flag AND records the safe audit row. A competing
+     * selection may win before read-back; in that case never claim success.
+     * Never call from an OAuth tool (owner setup authenticates independently).
+     */
+    async setDefaultOwnerAccount(id) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id)) {
+        throw new TypeError('Invalid default Vercel account');
+      }
+      const run = getSql();
+      const rows = await run`WITH target AS (
+          SELECT id FROM vercel_accounts WHERE id = ${id}
+        ), changed AS (
+          UPDATE vercel_accounts SET is_default = (id = ${id})
+          WHERE EXISTS (SELECT 1 FROM target)
+          RETURNING id, is_default
+        ), audit AS (
+          INSERT INTO change_log (vercel_account, mode, tool, summary, dry_run, production)
+          SELECT ${id}, 'production', 'vercel_set_default_account',
+            'Owner selected default Vercel account', FALSE, TRUE
+          WHERE (SELECT COUNT(*) FROM changed WHERE is_default = TRUE) = 1
+          RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM changed WHERE is_default = TRUE) AS selected_count,
+          (SELECT COUNT(*) FROM audit) AS audit_count`;
+      if (Number(rows[0]?.selected_count) !== 1 || Number(rows[0]?.audit_count) !== 1) {
+        return false;
+      }
+      const verified = await run`SELECT id FROM vercel_accounts WHERE is_default = TRUE`;
+      return verified.length === 1 && verified[0].id === id;
+    },
+
     /** Safe single-account read for MCP callers: no cross-account enumeration or secrets. */
     async getVercelAccountSafe(id) {
       if (typeof id !== 'string' || !id || id.length > 256) {

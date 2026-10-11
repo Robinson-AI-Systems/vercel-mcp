@@ -6,7 +6,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 - **B-1 through B-7 merged (#17–#23):** guarded write architecture, owner production approval, self-protection, safe errors/output, profiles, and catalog-enforced write-safety CI.
 - **B-8a verified merged (#24):** main `fad643a011171fee5766be9d05c0e4aa602e9ba9`, all five post-merge CI checks passed. Three read-only server tools (connections, recent changes, guided dashboard directions), scoped queries and token expiry warnings. All offline/test-only.
-- **B-8b safe reads/isolation merged (#26–#28).** **Owner authorization contract (#29, pending CI/merge):** conservative setup-only owner proof and atomic default-account specification. Next implement only the separately authenticated default-account owner form; leave MCP account changes, revocation and spend disabled until all contracts/owner inputs are satisfied. Then C.
+- **B-8b safe reads/isolation and owner contract merged (#26–#29).** **Owner default selection (#30, pending CI/merge):** authenticated production-server setup form with fresh passphrase, CSRF, confirmation, atomic database update/audit and concurrency tests. Remaining B-8b: MCP owner approvals, targeted connection revoke and spend limits; IN-07/IN-08 still pending. Then C.
 - **Not activated:** no Neon instance initialized, real Vercel token set, or server deployed. Owner inputs IN-07/IN-08 and all live change approvals remain outstanding.
 
 ## What works today (A-1)
@@ -31,6 +31,9 @@ linked in PR #1.
   until A-5 is tried for real.
 
 ## Recent merges and implementation checkpoints (newest first)
+
+**2026-10-11 — B-8b local owner default-account setting (#30, pending exact-head CI/merge):** production-server-only owner setup form, signed session + CSRF + fresh passphrase + explicit confirmation. A single SQL statement changes the global default and writes safe audit; read-back required to claim success. Unit tests for owner security and disposable-Postgres tests for missing target, concurrent selections, one default, unchanged credentials/connector settings. No MCP owner write or provider mutation, B-8 remains IN_PROGRESS.
+
 
 **2026-10-11 — B-8b owner boundary design (#29, pending CI/merge):** reviewed trust boundary for locally authenticated owner-only default selection, future targeted revocation/spend and concurrency/audit requirements. No code/DB mutation, no MCP write exposure or live resources. Next safe slice: implement default selection in the existing owner setup form with offline DB/unit evidence.
 
