@@ -28,6 +28,8 @@ function reads(fake,after){
   fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
   fake.when('GET','/v1/projects/{idOrName}/members')
     .resolves({members:[],pagination:{next:null}})
+    .resolves({members:[],pagination:{next:null}})
+    .resolves({members:[],pagination:{next:null}})
     .resolves(after??{members:[{uid,role}],pagination:{next:null}});
 }
 describe('D-1h project access grants',()=>{
