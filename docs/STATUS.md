@@ -1,6 +1,6 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endpoints (PRs #7 and #8) are implemented; PR #8's full CI gate is green and merge is pending.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endpoints (PRs #7 and #8) are implemented; the full CI gate is green.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
 
