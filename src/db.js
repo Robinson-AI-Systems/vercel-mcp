@@ -2,11 +2,12 @@
 // Additive by design: schema initialization never drops or rewrites existing data.
 import { neon } from '@neondatabase/serverless';
 import { hashToken } from './core/oauth.js';
+import { compact } from './core/util.js';
 import { randomUUID } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -491,6 +492,34 @@ export function createDb(query) {
         }
       };
     },
+    async putResult({account,owner,body,summary='',ttlMs=86400000}) {
+      if (typeof account!=='string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
+        typeof owner!=='string' || !/^resown_[a-f0-9]{64}$/.test(owner) ||
+        typeof summary!=='string' || summary.length>160 ||
+        !Number.isSafeInteger(ttlMs) || ttlMs<1000 || ttlMs>86400000)
+        throw new TypeError('Invalid result scope or lifetime');
+      const safe=compact(body,1048576);
+      const data=JSON.stringify(safe);
+      const handle='res_'+randomUUID().replace(/-/g,'');
+      const expiresAt=new Date(Date.now()+ttlMs);
+      const run=getSql();
+      await run`INSERT INTO result_store(handle,connection,vercel_account,expires_at,summary,body)
+        VALUES(${handle},${owner},${account},${expiresAt},${summary},${data}::jsonb)`;
+      return {handle,expiresAt:expiresAt.toISOString()};
+    },
+    async getResult({account,owner,handle}) {
+      if (typeof account!=='string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
+        typeof owner!=='string' || !/^resown_[a-f0-9]{64}$/.test(owner) ||
+        typeof handle!=='string' || !/^res_[a-f0-9]{32}$/.test(handle)) return null;
+      const run=getSql();
+      await run`WITH expired AS (SELECT handle FROM result_store WHERE expires_at<=now()
+        ORDER BY expires_at LIMIT 100) DELETE FROM result_store
+        USING expired WHERE result_store.handle=expired.handle`;
+      const rows=await run`SELECT handle,summary,body,expires_at FROM result_store
+        WHERE handle=${handle} AND vercel_account=${account} AND connection=${owner}
+        AND expires_at>now() LIMIT 1`;
+      return rows[0]||null;
+    },
     async initSchema() {
       const run = getSql();
       await run`CREATE TABLE IF NOT EXISTS vercel_accounts (
@@ -563,6 +592,11 @@ export function createDb(query) {
         source TEXT NOT NULL DEFAULT 'default', added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE NULLS NOT DISTINCT (vercel_account, kind, match))`;
 
+      await run`CREATE TABLE IF NOT EXISTS result_store (
+        handle TEXT PRIMARY KEY, connection TEXT NOT NULL, vercel_account TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL,
+        summary TEXT, body JSONB NOT NULL)`;
+      await run`CREATE INDEX IF NOT EXISTS result_store_expires ON result_store(expires_at)`;
       await run`CREATE TABLE IF NOT EXISTS request_replay (
         request_key TEXT PRIMARY KEY, vercel_account TEXT NOT NULL, mode TEXT NOT NULL,
         tool TEXT NOT NULL, claim_id UUID NOT NULL, status TEXT NOT NULL DEFAULT 'pending',

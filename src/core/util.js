@@ -31,7 +31,9 @@ const usd = cents => new Intl.NumberFormat('en-US', {
  * currency presentation while preserving the original integer-cents values.
  * Throws for cycles, excessive depth or oversized output (C-1 adds result handles).
  */
-export function compact(input) {
+export function compact(input, maxBytes = MAX_RESULT_BYTES) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 1048576)
+    throw new TypeError('Invalid output size limit');
   const seen = new WeakSet();
   function walk(value, depth) {
     if (depth > MAX_DEPTH) throw new TypeError('Result too deeply nested');
@@ -59,7 +61,7 @@ export function compact(input) {
   }
   const result = walk(input, 0);
   const serialized = JSON.stringify(result);
-  if (!serialized || Buffer.byteLength(serialized, 'utf8') > MAX_RESULT_BYTES) {
+  if (!serialized || Buffer.byteLength(serialized, 'utf8') > maxBytes) {
     throw new RangeError('Result exceeds safe response limit; request a smaller view');
   }
   return result;
