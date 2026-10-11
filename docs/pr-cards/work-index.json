@@ -91,13 +91,13 @@
         "A-3"
       ],
       "card": "docs/pr-cards/A-4.md",
-      "status": "APPROVED",
+      "status": "BLOCKED",
       "migration": "none",
       "budget": 400,
       "units": [
         "A-4"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": []
     },
     {

@@ -4,7 +4,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), and A-3 OAuth/MCP endp
 
 ## Next
 
-- **Next: A-4 — Vercel API client, operation table, and OpenAPI snapshot index** (write the approved-design card at session start). A-1 through A-3 are implemented; A-4 is the next ready slice. A-5/A-6 remain just-in-time.
+- **Next: A-4 — Vercel API client and OpenAPI snapshot.** The card is written, but implementation is blocked until the exact official OpenAPI JSON is supplied; do not reconstruct it from the SDK. A-5/A-6 remain just-in-time.
 - **Answered 2026-10-10 (Chris):** IN-00 — plan approved ("I approve the plans"); IN-01 — **no automated review** ("I don't want the automated review at this time"); the repository stays public as Chris created it; the implementer self-reviews every diff.
 - **Queue:** A → B → C → D → E → V → N → F → M → O → P → W → U → R → X (`MASTER-ROADMAP.md`).
 
@@ -55,5 +55,5 @@ Appliance Desk project profile, work index with validator, card A-1.
 
 ## Blocked
 
-Nothing in engineering. Owner inputs open: IN-02 … IN-15 except IN-14 (answered: not needed) (`OWNER-INPUTS.md`); none
-blocks A-2 … A-4.
+- **A-4 OpenAPI snapshot:** the full REST API JSON at https://vercel.com/openapi.json could not be retrieved in this workspace (the browser view exceeds its response limit and direct download is unavailable). The alternate openapi.vercel.sh host is not verified as the REST API snapshot; official docs use its /vercel.json path for Vercel configuration schema. Per Batch A A8, do not reconstruct or substitute another schema. Waiting for Chris to upload the exact JSON downloaded from https://vercel.com/openapi.json.
+- Owner inputs open: IN-02 … IN-15 except IN-14 (answered: not needed) (`OWNER-INPUTS.md`); none blocks A-2 or A-3.
