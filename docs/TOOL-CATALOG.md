@@ -67,7 +67,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_describe_tool` | Full instructions and arguments for one tool | — | B O Op | R | — | C-2 |
 | `vercel_call` | Run any tool in the profile by name, through the same guards | as the tool | B O Op | R | — | C-2 |
 | `vercel_batch` | Up to 10 read calls in one round trip | — | B O Op | R | — | C-2 |
-| `vercel_get_result` | Page through a big result kept on the server behind a handle | — | B O Op | R | — | C-1 |
+| `vercel_get_result` | Retrieve a 20-row page of the caller's scoped 24-hour sanitized result handle | — | B O Op | R | — | C-1 built #43 |
 | `vercel_create_pass` | Make a short-lived pass for the HTTPS API and Robinson's Toolkit (preview, read-only, 24 h, $0 by default; RTC §2) | C A 1x | O | F | — | R-1 |
 | `vercel_where_is_setting` | Structured steps (link, numbered actions, expected result, read-back check) for any dashboard-only setting | — G | O Op | R | — | B-8, O-5 |
 
@@ -506,3 +506,5 @@ O 29 · P 5 · W 12 · U 4 · R 1 · X 1 (= 236). By lowest profile: `read_only`
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.
 
 **C-1b common result summaries (#42):** Reusable summary/field projection utilities now available to future provider tool cards. Secret-value keys are omitted even at full detail and unknown selectors are reported. No new MCP tool was registered in this slice; the result handle and default dispatcher integration belong to C-1c.
+
+**C-1 safe result layer (#41–#43):** Read tools get centrally advertised `fields/detail` options and read-only/idempotent annotations. Over-8KB outputs produce a one-bearer scoped, 24-hour, 20-row paged handle instead of silent truncation; secret values cannot be recovered at full detail. Future workflows own their structured output schemas.
