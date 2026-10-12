@@ -269,17 +269,24 @@ export const deploymentReadTools={
         if(row.deploymentId!=null && row.deploymentId!==args.deployment ||
           row.projectId!=null && row.projectId!==project)
           throw new TypeError('Provider log entry belongs to a different resource');
-        const stamp=row.timestampInMs;
+        // Provider wire responses may use either field naming family.
+        // Conflicting simultaneous aliases must never satisfy a filter.
+        if(row.timestampInMs!=null&&row.timestamp!=null&&row.timestampInMs!==row.timestamp||
+          row.responseStatusCode!=null&&row.statusCode!=null&&row.responseStatusCode!==row.statusCode||
+          row.requestPath!=null&&row.path!=null&&row.requestPath!==row.path)
+          throw new TypeError('Contradictory provider runtime log metadata');
+        const stamp=row.timestampInMs??row.timestamp;
         if(!Number.isSafeInteger(stamp)||stamp<1)throw new TypeError('Runtime log has no verifiable timestamp');
         if(stamp<since||stamp>until)continue;
         inWindow++;
+        const status=row.responseStatusCode??row.statusCode;
+        const requestPath=row.requestPath??row.path;
         if(args.level!==undefined&&row.level!==args.level)continue;
-        if(args.status!==undefined&&row.responseStatusCode!==args.status)continue;
-        if(args.path!==undefined&&row.requestPath!==args.path)continue;
+        if(args.status!==undefined&&status!==args.status)continue;
+        if(args.path!==undefined&&requestPath!==args.path)continue;
         matched++;
         const level=['error','warning','info','fatal','debug'].includes(row.level)?row.level:'other';
         levels[level]++;
-        const status=row.responseStatusCode;
         if(Number.isSafeInteger(status)&&status>=100&&status<=599)
           statuses[status]=(statuses[status]||0)+1;
         // Do not expose raw messages, paths, hostnames, IDs or metadata.

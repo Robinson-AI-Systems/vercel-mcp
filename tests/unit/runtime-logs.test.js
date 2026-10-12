@@ -70,6 +70,41 @@ describe('D-2 project-verified bounded runtime logs',()=>{
    ])expect((await call(args,f.fetch)).isError).toBe(true);
    expect(f.calls).toHaveLength(0);
  });
+ it('supports provider log wire aliases and rejects contradictory alias values',async()=>{
+   const f=makeFetch([{
+     timestamp:at-120000,level:'error',statusCode:503,path:'/api/health',
+     message:'vcp_FAKE_NEVER_SHOW_any_sensitive_message'
+   }]);
+   const got=obj(await call({deployment,sinceMs:at-1800000,untilMs:at,
+     status:503,path:'/api/health'},f.fetch));
+   expect(got).toMatchObject({matched:1,statuses:{503:1}});
+   expect(JSON.stringify(got)).not.toContain('/api/health');
+   for(const conflict of [
+     {timestampInMs:at-1,timestamp:at-2},
+     {responseStatusCode:500,statusCode:503},
+     {requestPath:'/api/health',path:'/api/other'}
+   ]){
+     const bad=makeFetch([log(conflict)]);
+     expect((await call({deployment},bad.fetch)).isError).toBe(true);
+   }
+ });
+ it('distinguishes complete JSON arrays from genuinely truncated frames',async()=>{
+   const f=makeFetch([]);
+   const stream=length=>async(url,init)=>new URL(url).pathname.includes('/runtime-logs')?
+     new Response(JSON.stringify(Array.from({length},()=>log()))):f.fetch(url,init);
+   const got=obj(await call({deployment},stream(30)));
+   expect(got).toMatchObject({scanned:30,transport:{cutoff:'stream_end',complete:false}});
+   const capped=obj(await call({deployment},stream(51)));
+   expect(capped).toMatchObject({scanned:50,transport:{cutoff:'row_limit'}});
+ });
+ it('does not reflect malformed upstream stream contents in errors',async()=>{
+   const f=makeFetch([]);
+   const fetch=async(url,init)=>new URL(url).pathname.includes('/runtime-logs')?
+     new Response('{"message":"vcp_FAKE_NEVER_SHOW'):f.fetch(url,init);
+   const result=await call({deployment},fetch);
+   expect(result.isError).toBe(true);
+   expect(JSON.stringify(result)).not.toContain('vcp_FAKE_NEVER_SHOW');
+ });
  it('caps a large provider stream and never exceeds the safe response budget',async()=>{
    const f=makeFetch(Array.from({length:70},()=>log()));
    const got=obj(await call({deployment},f.fetch));
