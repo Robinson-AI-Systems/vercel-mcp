@@ -547,3 +547,5 @@ D-1bd (#103): project/Git read metadata and the shared compact result shaper now
 D-1be (#104): `vercel_project_create` now refuses stale name-availability proofs by rechecking the proposed project name with its bound write credential immediately before creation.
 
 D-1bf (#105): project member grants/removals now reject conflicting pagination count and continuation flags during complete project/team inventory before access changes.
+
+D-1bg (#106): the eighth percent decode is screened for generic high-entropy secrets in compact/project/Git responses; metered Git imports revalidate the owner spend setting after the last project-name read.
