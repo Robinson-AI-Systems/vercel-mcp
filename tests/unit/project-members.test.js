@@ -35,6 +35,7 @@ function reads(fake,after){
     .resolves({members:[],pagination:{next:null}})
     .resolves({members:[],pagination:{next:null}})
     .resolves({members:[],pagination:{next:null}})
+    .resolves({members:[],pagination:{next:null}})
     .resolves(after??{members:[{uid,role}],pagination:{next:null}});
 }
 describe('D-1h project access grants',()=>{
@@ -87,6 +88,7 @@ describe('D-1h project access grants',()=>{
     f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
     f.fake.when('GET','/v1/projects/{idOrName}/members')
       .resolves({members:[{uid:'user_FAKE_OTHER',role:'PROJECT_VIEWER'}],pagination:{next:1700000000000}})
+      .resolves({members:[],pagination:{next:null}})
       .resolves({members:[],pagination:{next:null}})
       .resolves({members:[{uid,role}],pagination:{next:null}});
     f.fake.when('GET','/v3/teams/{teamId}/members')
@@ -141,6 +143,37 @@ describe('D-1h project access grants',()=>{
     expect(result.status).toBe('refused_by_guard');
     expect(result.confirmed).toBe(false);
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+  });
+  it.each(['ADMIN','PROJECT_DEVELOPER','PROJECT_VIEWER'])(
+    'refuses a concurrently assigned %s role before granting without POST',async concurrentRole=>{
+      const f=fixture();
+      f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+      f.fake.when('GET','/v1/projects/{idOrName}/members')
+        .resolves({members:[],pagination:{next:null}})
+        .resolves({members:[{uid,role:concurrentRole}],pagination:{next:null}});
+      f.fake.when('GET','/v3/teams/{teamId}/members').resolves({
+        members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}
+      });
+      const result=parse(await f.call({project:name,uid,role,confirm:true,
+        requestKey:'racedProjectGrantFAKE01'}));
+      expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+      expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+      expect(f.rows.size).toBe(0);
+      f.fake.verify();
+    });
+  it('refuses incomplete execution-time project membership pages',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[],pagination:{next:null}})
+      .resolves({members:[],pagination:{hasNext:true,next:null}});
+    f.fake.when('GET','/v3/teams/{teamId}/members').resolves({
+      members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}
+    });
+    expect(parse(await f.call({project:name,uid,role,confirm:true,
+      requestKey:'incompleteGrantFAKE01'}))).toMatchObject({status:'refused_by_guard'});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    f.fake.verify();
   });
   it('fails closed when the project identity changes before granting',async()=>{
     const f=fixture();

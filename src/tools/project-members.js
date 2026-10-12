@@ -83,6 +83,12 @@ const grant=defineWrite({
     if(fresh?.id!==before.project||fresh?.name!==before.name)
       throw new TypeError('Project identity changed before role grant');
     await verifyEligibleTeamMember(client,account.team_id,before.uid);
+    // Team eligibility alone does not prove project role absence: another
+    // administrator may grant a role after preview. Do not overwrite an
+    // elevated or concurrently assigned project role with a stale POST.
+    const current=await members(client,before.project);
+    if(current.some(row=>(row.uid??row.userId??row.id)===before.uid))
+      throw new TypeError('Project membership changed before role grant');
     });
     return provider.write('projects_members_add',{
       path:{idOrName:before.project},body:{uid:before.uid,role:before.role}
