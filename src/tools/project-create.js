@@ -1,5 +1,5 @@
 // D-1r: empty unlinked projects and guarded metered Git-linked imports; no secrets.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {accountSpendGuard} from '../vercel/spend.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -98,17 +98,16 @@ const create=defineWrite({
     {cents:0,recurring:false,description:'Empty unlinked project creation'};},
   async targets(_args,before){return [{kind:'project',id:before.name,name:before.name}];},
   async apply(_args,ctx,before,requestKey){
+    const provider=await writeProvider(ctx);
     if(before.git){
+      await requirePreDispatch(async()=>{
       // A metered Git import may occur long after preview and approval. Repeat
       // identity and independently owned spend-policy checks before the POST.
-      const {client,account}=await readProvider(ctx);
+      const {account}=provider;
+      const client={request:(id,params)=>provider.read(id,params)};
       if(!['team','full'].includes(account.scope)||
         ctx.connection?.profile!=='full'||ctx.connection?.mode!=='production')
         throw new TypeError('Git import authority changed before execution');
-      const spending=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
-        {cents:null,recurring:true,description:'Git import may incur metered build usage'},true);
-      if(!spending.allowed)
-        throw new TypeError('Owner-approved daily spending limit no longer permits this Git import');
       const namespaces=await client.request('git_namespaces',{query:{provider:before.git.type}});
       verifyGitNamespace(namespaces,before.git.type,before.git.namespaceId);
       const search=await client.request('git_repos_search',{query:{
@@ -116,8 +115,13 @@ const create=defineWrite({
         query:before.git.repo.split('/')[1]
       }});
       verifyExactGitRepository(search,before.git);
+      // Last-moment owner spending decision follows BOTH potentially slow GETs.
+      const spending=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
+        {cents:null,recurring:true,description:'Git import may incur metered build usage'},true);
+      if(!spending.allowed)
+        throw new TypeError('Owner-approved daily spending limit no longer permits this Git import');
+      });
     }
-    const provider=await writeProvider(ctx);
     return provider.write('projects_create',{body:{
       name:before.name,...(before.framework?{framework:before.framework}:{}),...providerConfigBody(_args),
       ...(before.git?{gitRepository:{type:before.git.type,repo:before.git.repo}}:{})

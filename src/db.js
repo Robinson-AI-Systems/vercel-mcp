@@ -481,6 +481,16 @@ export function createDb(query) {
           if (existing[0]?.status === 'completed') return { state: 'completed', result: existing[0].result };
           return { state: 'pending' };
         },
+        async release({ key, claimId }) {
+          if (typeof key !== 'string' || !/^[a-zA-Z0-9_-]{8,160}$/.test(key) ||
+            typeof claimId !== 'string' || !claimId)
+            throw new TypeError('A verified replay claimant is required');
+          const run = getSql();
+          const rows = await run`DELETE FROM request_replay
+            WHERE request_key = ${key} AND claim_id = ${claimId} AND status = 'pending'
+            RETURNING request_key`;
+          if (rows.length !== 1) throw new Error('Replay claim ownership changed; verify before retry');
+        },
         async complete({ key, claimId, result }) {
           if (!claimId || result === undefined) throw new TypeError('Missing replay claim or shaped result');
           const serialized = JSON.stringify(result);
