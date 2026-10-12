@@ -178,7 +178,7 @@ describe('D-1m destructive empty-project deletion',()=>{
       .resolves({deployments:[],pagination:{next:null}})
       .resolves({deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null}});
     const result=parse(await f.call());
-    expect(result.status).toBe('outcome_unknown');
+    expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
   });
   it('rejects hidden page cursors and unknown env response',async()=>{
@@ -216,7 +216,7 @@ describe('D-1m destructive empty-project deletion',()=>{
     f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
     f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
     const result=parse(await f.call());
-    expect(result.status).toBe('outcome_unknown');
+    expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
   });
   it('fails confirmation if the project remains present after provider accepted DELETE',async()=>{
