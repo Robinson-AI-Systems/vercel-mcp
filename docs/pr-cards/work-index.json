@@ -525,15 +525,16 @@
         132,
         134,
         135,
-        136
+        136,
+        137
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "Scoped deployment list/detail, build summary/tree, Checks V2 and bounded status waiting implemented in offline tests; runtime logs, file-content transport and connected acceptance remain unverified.",
-        "nextAction": "Investigate pinned runtime-log stream framing and strict byte/time limits; implement next safe read slice and independently verify external owner/Hub gates.",
-        "checkpoint": "After #136 review and at each next development session, or immediately on deployed/credential evidence",
-        "evidenceNeeded": "Bounded NDJSON runtime-log read and capped file bytes transport against exact pinned OpenAPI; separate real deployed HTTPS/custom MCP/Hub D-4 owner TEST evidence.",
+        "reason": "D-2 core reads, bounded deployment waiting and bounded runtime stream summary implemented/CI-tested; file content remains unsupported pending strict contract and bytes safety, and external acceptance unverified.",
+        "nextAction": "Verify pinned deployment file-content response fields and enforce small bounded transport; implement only if binary/base64 shape is provable, otherwise record precise missing provider evidence.",
+        "checkpoint": "At #137 merge and every next development session; on new owner/hosted evidence recheck Hub D-4",
+        "evidenceNeeded": "Exact REST file-content response bytes/base64 field layout and cap, plus owner-authenticated deployed custom MCP and Hub TEST direct/relay/Sandbox/revocation runs.",
         "eligibilityCondition": "Local provider GET/status-safe read slices eligible after correct OpenAPI/transport evidence; real provider acceptance eligible only after owner-authorized deployed custom HTTPS origin, encrypted scoped token and revocation procedure.",
         "dependencies": [
           "D-1"

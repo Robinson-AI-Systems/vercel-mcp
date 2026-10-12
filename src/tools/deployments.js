@@ -175,6 +175,15 @@ export const deploymentReadTools={
       inputSchema:schema({project:{type:'string',maxLength:128},
         deployment:{type:'string',minLength:7,maxLength:128}},['deployment']),
       annotations:{readOnlyHint:true}},
+    {name:'vercel_deploy_get_runtime_logs',writes:false,profiles:PROFILES,area:'deployments',
+      description:'Summarize a bounded slice of streamed runtime events for an exact deployment and time window, without raw log messages.',
+      inputSchema:schema({project:{type:'string',maxLength:128},
+        deployment:{type:'string',minLength:7,maxLength:128},
+        sinceMs:{type:'integer',minimum:1},untilMs:{type:'integer',minimum:1},
+        level:{type:'string',enum:['error','warning','info','fatal','debug']},
+        status:{type:'integer',minimum:100,maximum:599},
+        path:{type:'string',maxLength:150}},['deployment']),
+      annotations:{readOnlyHint:true}},
     {name:'vercel_deploy_wait',writes:false,profiles:PROFILES,area:'deployments',
       description:'Boundedly poll a project-verified deployment status; return terminal state or instructions to call again.',
       inputSchema:schema({project:{type:'string',maxLength:128},
@@ -188,6 +197,50 @@ export const deploymentReadTools={
       annotations:{readOnlyHint:true}}
   ],
   handlers:{
+    async vercel_deploy_get_runtime_logs(args,ctx){
+      validateArgs(args,['project','deployment','sinceMs','untilMs','level','status','path']);
+      const until=args.untilMs??Date.now(),since=args.sinceMs??until-1800000;
+      if(!Number.isSafeInteger(until)||!Number.isSafeInteger(since)||since<1||
+         until> Date.now()+1000||since>=until||until-since>86400000)
+        throw new TypeError('Select a valid runtime log window of at most 24 hours');
+      if(args.level!==undefined && !['error','warning','info','fatal','debug'].includes(args.level))
+        throw new TypeError('Invalid runtime log level');
+      if(args.status!==undefined && (!Number.isInteger(args.status)||args.status<100||args.status>599))
+        throw new TypeError('Invalid response status');
+      if(args.path!==undefined && (typeof args.path!=='string'||
+        !/^\/[A-Za-z0-9/_-]{0,149}$/.test(args.path)||credentialLike(args.path)))
+        throw new TypeError('Invalid runtime path filter');
+      const {client,project}=await scopedDeployment(args,ctx,{timeoutMs:4000});
+      const received=await client.request('runtime_logs_get',{
+        path:{projectId:project,deploymentId:args.deployment}
+      },{streamLogs:true,timeoutMs:6000});
+      let matched=0,inWindow=0;
+      const levels={error:0,warning:0,info:0,fatal:0,debug:0,other:0};
+      const statuses={};
+      for(const row of received.records){
+        if(row.deploymentId!=null && row.deploymentId!==args.deployment ||
+          row.projectId!=null && row.projectId!==project)
+          throw new TypeError('Provider log entry belongs to a different resource');
+        const stamp=row.timestampInMs;
+        if(!Number.isSafeInteger(stamp)||stamp<1)throw new TypeError('Runtime log has no verifiable timestamp');
+        if(stamp<since||stamp>until)continue;
+        inWindow++;
+        if(args.level!==undefined&&row.level!==args.level)continue;
+        if(args.status!==undefined&&row.responseStatusCode!==args.status)continue;
+        if(args.path!==undefined&&row.requestPath!==args.path)continue;
+        matched++;
+        const level=['error','warning','info','fatal','debug'].includes(row.level)?row.level:'other';
+        levels[level]++;
+        const status=row.responseStatusCode;
+        if(Number.isSafeInteger(status)&&status>=100&&status<=599)
+          statuses[status]=(statuses[status]||0)+1;
+        // Do not expose raw messages, paths, hostnames, IDs or metadata.
+      }
+      return asText({project,deployment:args.deployment,sinceMs:since,untilMs:until,
+        scanned:received.records.length,inWindow,matched,levels,statuses,
+        transport:received.stream,containsRawLogText:false,
+        note:'Streamed sample only. Zero matches does not certify no logs in this window'});
+    },
     async vercel_deploy_wait(args,ctx){
       validateArgs(args,['project','deployment','waitSeconds']);
       const seconds=args.waitSeconds??4;
