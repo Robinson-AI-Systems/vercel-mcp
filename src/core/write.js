@@ -71,7 +71,7 @@ export function defineWrite(spec) {
   async function run(args = {}, ctx = {}) {
     const checked = await writePreflight(spec, args, ctx);
     if (checked.refused) return checked.refused;
-    const { before, production, targets, summary, moneyLine, spendCents, mode, purchase } = checked;
+    const { before, production, targets, summary, moneyLine, spendCents, mode, purchase, spendDeclaration } = checked;
     const requestKey = writeRequestKey(spec.name, args, ctx.connection,
       typeof ctx.now === 'function' ? ctx.now() : Date.now());
     const auditBase = {
@@ -156,6 +156,20 @@ export function defineWrite(spec) {
     let providerResult;
     try {
       let executionContext=ctx;
+      if(spendDeclaration){
+        // A fresh declaration is required immediately before dispatch,
+        // including for originally $0 writes. If pricing, recurrence or the
+        // provider quote description drifted, no provider mutation is safe.
+        // For chargeable writes this occurs BEFORE consuming the owner grant.
+        await requirePreDispatch(async()=>{
+          const fresh=await spec.spend(args,ctx,before);
+          if(!fresh||fresh.cents!==spendDeclaration.cents||
+            fresh.recurring!==spendDeclaration.recurring||
+            typeof fresh.description!=='string'||
+            fresh.description.trim()!==spendDeclaration.description)
+            throw new Error('Price changed after independent confirmation');
+        });
+      }
       if(charge){
         // Atomic consume + audit is mandatory BEFORE any chargeable apply.
         // The transaction can never be spent again, regardless of transport.

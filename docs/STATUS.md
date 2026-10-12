@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **IN-08 last-moment pricing #119:** every spend-classified write (including $0) re-reads its server-owned price/recurrence/description after replay claim and before provider dispatch; a changed price or now-recurring cost refuses. For approved fixed one-time charges the check occurs before consumption of the one-use owner purchase grant. No new charge authority or live provider acceptance.
+
 - **RTC discovery pagination #118:** authenticated HTTPS tool listing now accepts bounded `cursor` offset and returns a usable `next`, with scope/write filtering applied before pagination. Reject malformed selectors; OpenAPI names documented filters. Offline fake catalog tests cover all pages and no hidden tools. No new authority or live acceptance.
 
 - **RTC pass batch quota #117:** POST `_batch` reserves its actual read-tool count in one PostgreSQL atomic counter update before any provider calls. Unauthenticated/invalid batches never dispatch; the default 60/minute pass budget cannot be multiplied by batching. Tests cover shared two-connection contention. No live service D-4 proof or production/spending permission.
