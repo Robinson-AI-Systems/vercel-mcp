@@ -300,6 +300,22 @@ describe('D-1f guarded project creation',()=>{
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
   });
+  it('refuses a metered POST if owner revokes permission during final project lookup',async()=>{
+    const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    let policyReads=0;
+    f.db.getVercelAccountSafe=async id=>({id,spend_limit_cents:++policyReads<3?20000:0});
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const res=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
+      requestKey:'lateBudgetRaceFAKE01'}, {...connection,mode:'production',profile:'full'}));
+    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(policyReads).toBe(3);
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
   it('binds Git proof and POST to one execution-time credential',async()=>{
     const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'org_123',provider:'github'}]);

@@ -137,6 +137,17 @@ const create=defineWrite({
       }
       throw new TypeError('Project name was claimed after confirmation');
     });
+    // The final authenticated name lookup can be slow. An owner may revoke
+    // spending permission while it is pending; never dispatch a metered POST
+    // against the earlier policy snapshot.
+    if(before.git){
+      await requirePreDispatch(async()=>{
+        const spending=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
+          {cents:null,recurring:true,description:'Git import may incur metered build usage'},true);
+        if(!spending.allowed)
+          throw new TypeError('Owner spending authorization changed during final name lookup');
+      });
+    }
     return provider.write('projects_create',{body:{
       name:before.name,...(before.framework?{framework:before.framework}:{}),...providerConfigBody(_args),
       ...(before.git?{gitRepository:{type:before.git.type,repo:before.git.repo}}:{})
