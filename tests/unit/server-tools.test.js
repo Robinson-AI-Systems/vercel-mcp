@@ -15,6 +15,15 @@ describe('A-5 account read tools', () => {
     expect(JSON.parse(result.content[0].text).spentTodayCents).toBe(235);
     expect(result.content[0].text).not.toContain('DO_NOT_EXPOSE_CIPHERTEXT');
   });
+  it('TEST whoami never loads account records or provider resources',async()=>{
+    const noAccounts={listVercelAccounts:async()=>{throw new Error('must not query');}};
+    const result=await dispatchReadOnlyTool({registry,name:'vercel_whoami',
+      args:{},connection:{...conn,mode:'test'},db:noAccounts});
+    expect(result.isError).not.toBe(true);
+    expect(JSON.parse(result.content[0].text)).toMatchObject({
+      rtc:1,mode:'test',scope:'service_only',providerAccess:false});
+    expect(result.content[0].text).not.toContain('team_FAKE');
+  });
   it('does not enumerate other account names, tokens or settings through an OAuth connection',async()=>{
     const extra = {id:'team_OTHER',team_slug:'other-private',label:'DO_NOT_LEAK_OTHER_ACCOUNT',
       scope:'full',token_enc:'DO_NOT_LEAK_CIPHERTEXT',spend_limit_cents:999999};
