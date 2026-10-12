@@ -70,6 +70,24 @@ describe('D-1q billed project resource configuration',()=>{
     expect(f.spendCalls).toEqual(['acct_FAKE','acct_FAKE']);
     f.fake.verify();
   });
+  it('refuses metered PATCH when selected resource options change after confirmation',async()=>{
+    for(const [changes,concurrent] of [
+      [{fluid:true},{fluid:true}],
+      [{functionDefaultTimeout:60},{functionDefaultTimeout:90}],
+      [{buildQueueConfiguration:'SKIP_NAMESPACE_QUEUE'},
+        {buildQueue:{configuration:'SKIP_NAMESPACE_QUEUE'}}]
+    ]){
+      const f=fixture();
+      const current={...project,resourceConfig:{...project.resourceConfig,...concurrent}};
+      f.fake.when('GET','/v9/projects/{idOrName}').resolves(project).resolves(current);
+      const result=parse(await f.call({project:project.id,expectedName:project.name,
+        ...changes,confirm:true,requestKey:'resourceConflictFAKE01'}));
+      expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+      expect(f.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+      expect(f.ledger.size).toBe(0);
+      f.fake.verify();
+    }
+  });
   it('stops a paid PATCH when the owner lowers the daily budget after confirmation',async()=>{
     const f=fixture(),args={project:project.id,expectedName:project.name,
       fluid:true,confirm:true,requestKey:'resourceSpendRaceFAKE01'};
