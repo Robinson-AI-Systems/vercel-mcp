@@ -57,7 +57,7 @@ export async function writePreflight(spec, args, ctx) {
       return {refused:refusal('A declared provider price is required')};
     try {
       const spend=await spec.spend(args,ctx,before);
-      if(!spend||!Number.isSafeInteger(spend.cents??0)||spend.cents<0||
+      if(!spend||spend.cents===undefined||!Number.isSafeInteger(spend.cents??0)||spend.cents<0||
         typeof spend.description!=='string'||!spend.description.trim()||
         typeof spend.recurring!=='boolean')
         return {refused:refusal('Provider pricing is invalid or unavailable')};
