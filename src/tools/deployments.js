@@ -194,6 +194,12 @@ export const deploymentReadTools={
         deployment:{type:'string',minLength:7,maxLength:128},
         waitSeconds:{type:'integer',minimum:0,maximum:8}},['deployment']),
       annotations:{readOnlyHint:true}},
+    {name:'vercel_deploy_get_file',writes:false,profiles:PROFILES,area:'deployments',
+      description:'Read a bounded verified text file from a deployment, refusing secrets and unknown response shapes.',
+      inputSchema:schema({project:{type:'string',maxLength:128},
+        deployment:{type:'string',minLength:7,maxLength:128},
+        fileId:{type:'string',minLength:32,maxLength:128}},['deployment','fileId']),
+      annotations:{readOnlyHint:true}},
     {name:'vercel_deploy_list_files',writes:false,profiles:PROFILES,area:'deployments',
       description:'Read up to 20 safe deployment file-tree paths from an independently verified project/deployment.',
       inputSchema:schema({project:{type:'string',maxLength:128},
@@ -201,6 +207,44 @@ export const deploymentReadTools={
       annotations:{readOnlyHint:true}}
   ],
   handlers:{
+    async vercel_deploy_get_file(args,ctx){
+      validateArgs(args,['project','deployment','fileId']);
+      if(typeof args.fileId!=='string'||!/^[a-fA-F0-9]{32,128}$/.test(args.fileId))
+        throw new TypeError('Select a valid file identifier from deployment file listing');
+      const {client,project}=await scopedDeployment(args,ctx,{timeoutMs:4000});
+      // A file ID alone must not grant a different or unlisted resource.
+      const listed=await client.request('deployments_files_list',{path:{id:args.deployment}});
+      const files=safeFileTree(listed);
+      const selected=files.files.find(row=>row.type==='file'&&row.fileId===args.fileId);
+      if(!selected)throw new TypeError('File was not independently verified in the bounded deployment tree');
+      if(/(^|\/)(?:\.env(?:\..*)?|\.npmrc|\.netrc|id_rsa|credentials?|secrets?)(?:$|\/|\.)/i.test(selected.path))
+        throw new TypeError('Sensitive file paths are not readable through MCP');
+      const payload=await client.request('deployments_file_get',{
+        path:{id:args.deployment,fileId:args.fileId},
+        query:{path:selected.path}
+      },{fileContent:true,timeoutMs:6000});
+      if(!payload||typeof payload!=='object'||Array.isArray(payload)||
+        typeof payload.content!=='string'||
+        payload.encoding!==undefined&&payload.encoding!=='base64'||
+        payload.fileId!==undefined&&payload.fileId!==args.fileId||
+        payload.deploymentId!==undefined&&payload.deploymentId!==args.deployment||
+        payload.path!==undefined&&payload.path!==selected.path)
+        throw new TypeError('Unrecognized or mismatched Vercel file response');
+      const encoded=payload.content;
+      if(encoded.length>4096||!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded))
+        throw new TypeError('Deployment file is not safely sized canonical base64');
+      const raw=Buffer.from(encoded,'base64');
+      if(raw.length>2048||raw.toString('base64')!==encoded)
+        throw new TypeError('Deployment file exceeds safe text read limit');
+      let content;
+      try{content=new TextDecoder('utf-8',{fatal:true}).decode(raw);}
+      catch{throw new TypeError('Binary deployment files cannot be returned');}
+      if(credentialLike(content)||/((?:password|secret|api[_-]?key|authorization|private[_-]?key)\s*[:=]\s*\S+)/i.test(content))
+        throw new TypeError('Deployment source contains potentially sensitive content');
+      return asText({project,deployment:args.deployment,fileId:args.fileId,
+        path:selected.path,content,bytes:raw.length,
+        note:'Small verified UTF-8 file only; raw or secret-bearing files are deliberately unavailable'});
+    },
     async vercel_deploy_get_runtime_logs(args,ctx){
       validateArgs(args,['project','deployment','sinceMs','untilMs','level','status','path']);
       const until=args.untilMs??Date.now(),since=args.sinceMs??until-1800000;

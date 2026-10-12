@@ -527,15 +527,16 @@
         135,
         136,
         137,
-        138
+        138,
+        139
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "D-2 reads including deployment triage, Checks V2, bounded runtime/build logs and status waiting are implemented with fake-provider/CI tests; file-content provider shape and live external acceptance remain unverified.",
-        "nextAction": "Reconcile finite D-2 catalog; obtain exact pinned provider file-content response structure and safe byte bounds before any content-return tool. Independently check newly eligible D-1 and Hub external acceptance evidence.",
-        "checkpoint": "After PR #138 exact-head CI and at next session start, or immediately when API response/owner-hosted evidence becomes available",
-        "evidenceNeeded": "Verified file-content JSON/base64 shape and capped response transport; separately deployed owner-authorized HTTPS/custom MCP/Hub TEST direct, relay, Sandbox and revocation.",
+        "reason": "All ten D-2 read names have guarded code and fake HTTP/CI tests, but successful real file-content response shape remains unverified; deployed/provider and Hub D-4 acceptance are separate.",
+        "nextAction": "Independently verify the actual deployment file-content payload against an approved disposable nonproduction provider account; if incompatible, correct parser instead of pretending success. Resume eligible D-1 finite code acceptance immediately.",
+        "checkpoint": "After #139 CI; each PR/session start and whenever owner-configured HTTPS or disposable provider evidence appears",
+        "evidenceNeeded": "Provider response field/encoding and connected owner-scoped custom MCP, authenticated Hub TEST direct, relay, Sandbox, revocation proof.",
         "eligibilityCondition": "Local provider GET/status-safe read slices eligible after correct OpenAPI/transport evidence; real provider acceptance eligible only after owner-authorized deployed custom HTTPS origin, encrypted scoped token and revocation procedure.",
         "dependencies": [
           "D-1"

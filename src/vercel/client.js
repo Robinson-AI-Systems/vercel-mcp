@@ -1,6 +1,7 @@
 // Only API transport boundary. Tokens never appear in errors, logs or persisted results.
 import { createHash } from 'node:crypto';
 import { operation } from './operations.js';
+import { readBoundedJson } from './bounded-json.js';
 import {readBoundedRuntimeLogs} from './runtime-log-stream.js';
 import { validateRequest } from './openapi-validation.js';
 import { createDb } from '../db.js';
@@ -119,6 +120,8 @@ export function makeVercelClient({
   async function request(id, params = {}, options = {}) {
     const spec = operation(id);
     const method = spec.method;
+    if(options.fileContent===true && (id!=='deployments_file_get'||method!=='GET'))
+      throw new TypeError('Bounded file reads apply only to the pinned deployment file endpoint');
     if(options.streamLogs===true && (id!=='runtime_logs_get'||method!=='GET'))
       throw new TypeError('Streaming is only available for runtime log reads');
     // Short read-only status polling must not inherit a 25s network stall.
@@ -178,6 +181,8 @@ export function makeVercelClient({
       }
       if(response.ok && options.streamLogs===true)
         return readBoundedRuntimeLogs(response,signal);
+      if(response.ok && options.fileContent===true)
+        return readBoundedJson(response,signal,8192);
       try { envelope = response.status === 204 ? null : await response.json(); } catch { envelope = null; }
       if (response.ok) break;
       if (response.status === 429) {
