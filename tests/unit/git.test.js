@@ -117,16 +117,64 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
       fake.when('GET','/v1/integrations/git-namespaces')
         .resolves([{id:'ns_FAKE',provider}]);
       fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
-        {id:1,url:'https://'+expectedHost+'/acme/site'},
-        {id:2,url:'https://'+expectedHost+'.attacker.test/acme/site'},
-        {id:3,url:'https://example.test/acme/site'},
-        {id:4,url:'https://'+expectedHost+'@attacker.test/acme/site'}
+        {id:1,fullName:'acme/site',url:'https://'+expectedHost+'/acme/site'},
+        {id:2,fullName:'acme/site',url:'https://'+expectedHost+'.attacker.test/acme/site'},
+        {id:3,fullName:'acme/site',url:'https://example.test/acme/site'},
+        {id:4,fullName:'acme/site',url:'https://'+expectedHost+'@attacker.test/acme/site'}
       ]});
       const result=parse(await call('vercel_git_search_repos',{
         provider,namespaceId:'ns_FAKE',query:'site'},fake));
       expect(result.repositories.map(x=>x.url)).toEqual([
         'https://'+expectedHost+'/acme/site',null,null,null]);
       expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
+      fake.verify();
+    }
+  });
+  it('only exposes repository URLs with canonical provider and repository paths',async()=>{
+    for(const provider of ['github','gitlab','bitbucket']){
+      const hostname={github:'github.com',gitlab:'gitlab.com',
+        bitbucket:'bitbucket.org'}[provider];
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/integrations/git-namespaces')
+        .resolves([{id:'ns_FAKE',provider}]);
+      fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
+        {id:1,fullName:'acme/site',url:'https://'+hostname+'/acme/site'},
+        {id:2,fullName:'acme/site',url:'https://'+hostname+'/other/site'},
+        {id:3,fullName:'acme/site',url:'https://'+hostname+'/acme/other'},
+        {id:4,fullName:'acme/site',url:'https://'+hostname+'/acme/site/tree/main'},
+        {id:5,fullName:'acme/site',url:'https://'+hostname+'/acme/%73ite'},
+        {id:6,fullName:'acme/site',url:'https://'+hostname+':8443/acme/site'},
+        {id:7,slug:'site',url:'https://'+hostname+'/acme/site'},
+        {id:8,fullName:'acme/site',slug:'another/site',
+          url:'https://'+hostname+'/another/site'},
+        {id:9,fullName:'group/subgroup/site',
+          url:'https://'+hostname+'/group/subgroup/site'},
+        {id:10,fullName:'acme/site',url:'https://'+hostname+'/acme/site/'}
+      ]});
+      const result=parse(await call('vercel_git_search_repos',{
+        provider,namespaceId:'ns_FAKE',query:'site'},fake));
+      expect(result.repositories.map(row=>row.url)).toEqual([
+        'https://'+hostname+'/acme/site',null,null,null,null,null,null,null,
+        'https://'+hostname+'/group/subgroup/site','https://'+hostname+'/acme/site/'
+      ]);
+      expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
+      fake.verify();
+    }
+  });
+  it('refuses conflicting repository provider or namespace within an authorized search',async()=>{
+    for(const poison of [
+      {fullName:'acme/site',provider:'gitlab'},
+      {fullName:'acme/site',namespaceId:'other_FAKE'}
+    ]){
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/integrations/git-namespaces')
+        .resolves([{id:'ns_FAKE',provider:'github'}]);
+      fake.when('GET','/v1/integrations/search-repo')
+        .resolves({repos:[poison]});
+      const result=await call('vercel_git_search_repos',{
+        provider:'github',namespaceId:'ns_FAKE',query:'site'},fake);
+      expect(result.isError).toBe(true);
+      expect(fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
       fake.verify();
     }
   });
