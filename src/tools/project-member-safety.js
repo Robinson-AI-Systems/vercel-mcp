@@ -24,8 +24,16 @@ export async function completeMembers(client,operationId,path){
       path,query:{limit:100,...(until===undefined?{}:{until})}
     });
     if(!Array.isArray(reply?.members)||reply.members.length>100||
-       !reply.pagination||reply.pagination.hasMore===true)
+       !reply.pagination||typeof reply.pagination!=='object'||
+       reply.pagination.hasMore===true||reply.hasMore===true)
       throw new TypeError('Cannot prove complete member inventory');
+    // The provider's page-count field is not a substitute for real rows.
+    // Refuse conflicting metadata instead of making membership/access
+    // decisions on an incomplete or deceptively small page.
+    if(reply.pagination.count!==undefined&&
+      (!Number.isSafeInteger(reply.pagination.count)||
+        reply.pagination.count!==reply.members.length))
+      throw new TypeError('Contradictory member page count');
     for(const item of reply.members){
       const uid=verifiedUserUid(item);
       if(identities.has(uid))
@@ -34,12 +42,14 @@ export async function completeMembers(client,operationId,path){
     }
     const next=reply.pagination.next;
     if(next===null){
-      if(reply.pagination.hasNext===true)
+      if(reply.pagination.hasNext===true||reply.pagination.hasMore===true||
+        reply.hasMore===true)
         throw new TypeError('Conflicting member pagination flags');
       return members;
     }
     if(!Number.isSafeInteger(next)||next<1||
-       reply.pagination.hasNext===false||cursors.has(next))
+       reply.pagination.hasNext===false||reply.pagination.hasMore===false||
+       reply.hasMore===false||cursors.has(next))
       throw new TypeError('Invalid or repeated member cursor');
     cursors.add(next);until=next;
   }
