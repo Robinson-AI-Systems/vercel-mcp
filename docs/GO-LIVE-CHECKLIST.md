@@ -56,3 +56,10 @@ authority for the app's launch.
 | Done | Item | Where / how | Today | How you know it worked |
 |---|---|---|---|---|
 | [ ] | Choose the default connected Vercel account for *new* connectors only | Owner: production-server setup page, authenticated session, CSRF, explicit confirmation, reenter passphrase | No server or account is live; no change made | After the owner selects an existing team, owner setup lists it first; existing connections keep their account and mode. Does **not** permit agent-initiated default changes or spending |
+
+## Daily deployment cost controls (2026-10-12)
+
+- [ ] Before linking or activating this server, verify that GitHub has both main and live; initialize live from main only if absent and verify both SHA references.
+- [ ] In each linked Vercel project's Production environment, set Branch Tracking to live and read it back. Disable automatic Preview deployments and verify that setting. No Vercel project setting is implied by vercel.json.
+- [ ] Confirm exact-head existing application CI and release-policy pass; development PRs never require a paid Vercel preview. Apply live-only Git rules to any nested Vercel root configuration.
+- [ ] Verify the first scheduled daily promotion and its live-promotion date tag; validate the resulting production deployment from live. Keep all existing access, spending and activation gates.
