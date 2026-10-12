@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1ab PR #75 — shared Git import proof:** one fail-closed authenticated namespace verifier now protects both Git discovery and production-classified, potentially metered Git-linked project creation. New exact repository proof rejects duplicate matches, conflicting provider/namespace metadata and restricted/reauth repositories before POST. All previous owner-stored spending, production/full-profile confirmation, immutable read-back, app/protected and replay gates remain unchanged. D-1 remains partial pending separately reviewed privileged membership and nonempty deletion designs. Proceed to D-2 only when dependency authority permits.
+
+
 - **D-1aa PR #74 — callable, bounded read pagination:** authenticated project and member page tools require explicit valid continuation metadata, reject oversized or inconsistent pages, normalize safe numeric-string cursors to callable integer `until`, and return `complete`/`nextStep` accurately. Member metadata is explicitly bounded. No team scope override or write surface changed.
 
 

@@ -1,5 +1,6 @@
 // D-1c: bounded Git integration discovery via stored credentials only.
 import {readProvider} from '../vercel/provider.js';
+import {verifyGitNamespace} from './git-identity.js';
 const PROFILES=['read_only','everyday','full'];
 const PROVIDERS=['github','gitlab','bitbucket'];
 const safeText=x=>({content:[{type:'text',text:JSON.stringify(x)}]});
@@ -23,14 +24,9 @@ function safeRepoUrl(value){
 }
 async function verifyNamespace(client,provider,namespaceId){
   const namespaces=await client.request('git_namespaces',{query:{provider}});
-  if(!Array.isArray(namespaces)||namespaces.length>500)
-    throw new TypeError('Cannot verify Git namespace identity');
-  const matches=namespaces.filter(row=>String(row?.id)===namespaceId&&row.provider===provider);
-  if(matches.length!==1||matches[0].isAccessRestricted===true||
-    matches[0].isAccessRestricted==='true'||
-    matches[0].requireReauth===true||matches[0].requireReauth==='true')
-    throw new TypeError('Git namespace is not available through this credential');
+  verifyGitNamespace(namespaces,provider,namespaceId);
 }
+
 function namespaceSummary(row){
   if(!row||typeof row!=='object'||Array.isArray(row))throw new TypeError('Malformed Git namespace');
   return {id:row.id??null,name:safeLabel(row.name),slug:safeLabel(row.slug),

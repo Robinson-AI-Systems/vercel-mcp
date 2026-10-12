@@ -6,6 +6,7 @@ import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
+import {verifyGitNamespace,verifyExactGitRepository} from './git-identity.js';
 import {CONFIG_SETTINGS,createConfigFields,invalidProjectConfiguration,providerConfigBody} from './project-config-fields.js';
 
 const NAME=/^[a-z0-9][a-z0-9-]{0,99}$/;
@@ -66,19 +67,11 @@ const create=defineWrite({
     if(account.scope==='project')throw new TypeError('Project-only keys cannot create team projects');
     if(git){
       const namespaces=await client.request('git_namespaces',{query:{provider:git.type}});
-      if(!Array.isArray(namespaces)||!namespaces.some(row=>
-        String(row?.id)===git.namespaceId&&row?.provider===git.type&&
-        row?.isAccessRestricted!==true&&row?.requireReauth!==true))
-        throw new TypeError('Git namespace is not verified accessible by this credential');
+      verifyGitNamespace(namespaces,git.type,git.namespaceId);
       const search=await client.request('git_repos_search',{query:{
         provider:git.type,namespaceId:git.namespaceId,query:git.repo.split('/')[1]
       }});
-      const repos=Array.isArray(search)?search:
-        Array.isArray(search?.repos)?search.repos:
-        Array.isArray(search?.repositories)?search.repositories:null;
-      if(!Array.isArray(repos)||!repos.some(row=>
-        row?.fullName===git.repo||row?.slug===git.repo))
-        throw new TypeError('Exact repository not found in bound Git integration');
+      verifyExactGitRepository(search,{repo:git.repo,provider:git.type,namespaceId:git.namespaceId});
     }
     try{
       await client.request('projects_get',{path:{idOrName:args.name}});
