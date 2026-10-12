@@ -1,6 +1,6 @@
 // D-1q: grouped, usage-billed project resource settings under owner spend cap.
 // No owner settings or user-supplied price; all writes require production mode.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {accountSpendGuard} from '../vercel/spend.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -118,6 +118,20 @@ const change=defineWrite({
   },
   async apply(_args,ctx,before,requestKey){
     const provider=await writeProvider(ctx);
+    await requirePreDispatch(async()=>{
+      if(!['team','full'].includes(provider.account.scope))
+        throw new TypeError('Metered resource write requires team authority');
+      const fresh=await provider.read('projects_get',{path:{idOrName:before.id}});
+      if(fresh?.id!==before.id||fresh?.name!==before.name||
+        !fresh.resourceConfig||typeof fresh.resourceConfig!=='object'||
+        Array.isArray(fresh.resourceConfig))
+        throw new TypeError('Project identity or resource state changed before a metered update');
+      // Recheck after the potentially slow provider read; an owner can reduce
+      // the spend limit or revoke remaining daily headroom after confirmation.
+      const spend=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
+        {cents:null,recurring:true,description:'Usage-based build/function resources'},true);
+      if(!spend.allowed)throw new TypeError('Owner daily spending permission was withdrawn');
+    });
     return provider.write('projects_update',{
       path:{idOrName:before.id},body:{resourceConfig:patch(before.changes)}
     },{requestKey,tool:'vercel_project_set_build_resources',shapeResult:row=>{

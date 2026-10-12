@@ -75,6 +75,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 
 **D-1 destructive execution binding (#82):** The final empty-project proof uses the same write-capable stored credential as its DELETE; rotated project-only credentials refuse before the mutation, and provider deployment metadata retains its conservative nonempty veto. No nonempty deletion permitted.
 
+**D-1 metered resource execution recheck (#83):** Billable resource PATCH checks final project identity and independently approved remaining account spending under one writable credential immediately before dispatch. Rotated/narrowed scope and owner limit reductions refuse without PATCH. Unknown usage still denied by default $0.
+
 ## Projects, crons and Git (`vercel_project_*`, `vercel_cron_*`, `vercel_git_*`) — 15
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |

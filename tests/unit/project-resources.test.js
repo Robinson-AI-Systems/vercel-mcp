@@ -24,7 +24,8 @@ function fixture({limit=10000,protectedName=null,scope='team'}={}){
     requestReplayStore:()=>({
       claim:async({key})=>ledger.has(key)?{state:'completed',result:ledger.get(key)}:
         {state:'claimed',claimId:key},
-      complete:async({key,result})=>ledger.set(key,result)
+      complete:async({key,result})=>ledger.set(key,result),
+      release:async()=>{}
     })
   };
   loadToken.mockResolvedValue({...token,account:{...token.account,scope}});
@@ -54,19 +55,55 @@ describe('D-1q billed project resource configuration',()=>{
       functionDefaultRegions:['sfo1'],
       buildQueue:{configuration:'SKIP_NAMESPACE_QUEUE'}};
     f.fake.when('GET','/v9/projects/{idOrName}').resolves(project)
+      .resolves(project)
       .resolves({...project,resourceConfig:{...project.resourceConfig,...resourceConfig}});
     f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({id:project.id});
     const result=parse(await f.call({project:project.id,expectedName:project.name,
       ...changes,confirm:true}));
     expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','PATCH','GET']);
-    expect(f.fake.calls[1].query.teamId).toBe('team_FAKE');
-    expect(f.fake.calls[1].body).toEqual({resourceConfig});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','PATCH','GET']);
+    expect(f.fake.calls[2].query.teamId).toBe('team_FAKE');
+    expect(f.fake.calls[2].body).toEqual({resourceConfig});
     expect(f.audits).toHaveLength(1);
     expect(f.audits[0].spendCents).toBeNull();
     expect(f.ledger.size).toBe(2);
-    expect(f.spendCalls).toEqual(['acct_FAKE']);
+    expect(f.spendCalls).toEqual(['acct_FAKE','acct_FAKE']);
     f.fake.verify();
+  });
+  it('stops a paid PATCH when the owner lowers the daily budget after confirmation',async()=>{
+    const f=fixture(),args={project:project.id,expectedName:project.name,
+      fluid:true,confirm:true,requestKey:'resourceSpendRaceFAKE01'};
+    let policyReads=0;
+    f.db.getVercelAccountSafe=async id=>{
+      f.spendCalls.push(id);
+      return {id,spend_limit_cents:++policyReads===1?10000:0};
+    };
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
+    const result=parse(await f.call(args));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(policyReads).toBe(2);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
+    expect(f.fake.calls.every(c=>c.method==='GET')).toBe(true);
+  });
+  it('blocks metered changes if the writable token narrows to project scope',async()=>{
+    const f=fixture();
+    loadToken.mockResolvedValueOnce(token).mockResolvedValueOnce({
+      ...token,account:{...token.account,scope:'project',project_id:project.id}
+    });
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
+    const result=parse(await f.call({project:project.id,expectedName:project.name,
+      fluid:true,confirm:true,requestKey:'resourcesTokenRace01'}));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.filter(c=>c.method==='PATCH')).toHaveLength(0);
+  });
+  it('refuses a renamed or missing resource project before any chargeable PATCH',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(project)
+      .resolves({...project,name:'renamed-site'});
+    const result=parse(await f.call({project:project.id,expectedName:project.name,
+      fluid:true,confirm:true,requestKey:'resourcesNameRace01'}));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.filter(c=>c.method==='PATCH')).toHaveLength(0);
   });
   it('blocks default zero budget, missing confirmation, preview-mode and read-only',async()=>{
     for(const scenario of ['zero','noConfirm','preview','readOnly']){
