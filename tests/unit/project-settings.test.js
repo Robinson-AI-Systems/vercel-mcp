@@ -81,6 +81,24 @@ describe('D-1g guarded project settings',()=>{
       .toBe('refused_by_guard');
     f.fake.verify();
   });
+  it('rejects stale settings without overwriting concurrent edits or exposing commands',async()=>{
+    for(const [changes,original,concurrent] of [
+      [{buildCommand:'npm run build:new'},
+        {...before,buildCommand:'npm run build:old'},
+        {...before,buildCommand:'npm run build:someone-else'}],
+      [{framework:'vite'},before,{...before,framework:'sveltekit'}]
+    ]){
+      const f=fixture();
+      f.fake.when('GET','/v9/projects/{idOrName}').resolves(original).resolves(concurrent);
+      const result=parse(await f.call({project:before.id,...changes,confirm:true,
+        requestKey:'settingsConcurrentEditFAKE01'}));
+      expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+      expect(f.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+      expect(f.rows.size).toBe(0);
+      expect(JSON.stringify(result)).not.toContain('someone-else');
+      f.fake.verify();
+    }
+  });
   it('refuses a setting update when the project becomes live after preview',async()=>{
     const f=fixture();
     f.fake.when('GET','/v9/projects/{idOrName}')
