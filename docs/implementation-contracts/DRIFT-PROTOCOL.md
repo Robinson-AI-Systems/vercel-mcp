@@ -17,11 +17,16 @@ the Stripe MCP or the Google Workspace MCP** (A-1 records the source commit).
 | Snapshot move | a newer OpenAPI snapshot is needed | its own card: `scripts/openapi-diff.mjs` old new, review every changed operation the server uses, update `operations.js` and tests |
 | Semantic (ours) | different production rule, spend rule, secret handling, token handling, pass permissions | dated amendment, reviewed in the current PR before coding that slice |
 | Owner-only | production enabling, buying, a default that changes spend limits or protected resources | keep the gate and its `IN-xx`; never pretend it is done |
+| Resolved blocker, unfinished code | IN-07/IN-08 answered while D-1 remains IN_PROGRESS | retain the card, record the resolution and the next actionable checkpoint in work-index; do not silently leave it blocked or equate approval with acceptance |
 
 ## A. Start of every PR (one bounded pass, ~10 minutes)
 
 1. Record: current `main` SHA, the predecessor's merged SHA, the card's "Baseline inspected" SHA.
 2. Read the predecessor PR's description (dispositions, carried findings) and the resume note if present.
+   **Revisit sweep:** compare non-merged `work-index.json` revisit entries
+   to OWNER-INPUTS and dependency/CI state; perform due actions before unrelated
+   features. If still gated, update exact reason, evidence, owner and next checkpoint.
+   A completed owner answer may still leave code or real acceptance unfinished.
 3. `git diff --name-status <card-baseline>..origin/main -- <card's paths> | head -50`; read each changed function the
    card relies on (≤150 lines).
 4. For each Vercel operation the card uses: confirm it exists in the vendored snapshot
@@ -44,7 +49,10 @@ unless the PR description says "Docs-update: not needed — <reason>".
 3. Living docs: TOOL-CATALOG (Card column gains `built #n`), ARCHITECTURE (tables, env vars, endpoints, snapshot),
    GO-LIVE-CHECKLIST (new switch), OWNER-INPUTS (new question or applied answer), OWNER-GUIDE (something Chris can now
    ask for), APP-NEEDS-APPLIANCE-DESK (a row now covered).
-4. Queue: STATUS says this merged and names the next card; `work-index.json` status updated; delete the resume note.
+4. Queue: STATUS says this merged and names the next card; `work-index.json`
+   status updated; delete the resume note. For every unfinished/blocked successor
+   keep a validated revisit trigger/checkpoint; distinguish answered decision from
+   implementation, external acceptance and intentionally unsupported operations.
 
 ## C. End of every batch (one small docs PR)
 
@@ -55,6 +63,9 @@ unless the PR description says "Docs-update: not needed — <reason>".
 4. Run the next batch design's "0. Verify before starting" table against today's code and the snapshot; amend or record
    "no drift" in STATUS; write the next batch's first card.
 5. MASTER-ROADMAP, `work-index.json`, STATUS, one DECISIONS entry; tell Chris in plain English.
+   At every batch boundary revisit all still-open cards, reconcile any newly
+   answered owner inputs, and enforce permitted read-only dependency exceptions.
+   Never drop a postponed card from the queue.
 
 ## Planning while a card is being built
 

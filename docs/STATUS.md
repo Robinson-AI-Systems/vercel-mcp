@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **Roadmap return-to-work rule (#131):** Owner decisions IN-07/IN-08 were already answered, but D-1 had no checkpoint requiring agents to return and reconcile its actual remaining work. New mandatory work-index `revisit` record plus CI validator/test require reason, owner, trigger, next action and checkpoint for every unfinished card; stale owner-blocked statuses fail. D-1's finite completion matrix is the next named action, not an excuse for indefinite security hardening. D-2's PR #66 read-only exception is now machine-recorded, without allowing writes or declaring D-1 done. No external Vercel connection, owner pass, deployment, production or spend acceptance was performed.
+
+
 - **RTC #130 — hostile nested request arguments:** both single and batch HTTPS pass calls now recursively refuse prototype-pollution keys, secret-shaped input (including nested percent encoding) and overly deep objects before read handlers. Existing safe nested filters and result projections remain supported. Offline adversarial test coverage added, with no new owner, provider, spend or production authority. Five-PR batch #126–#130 reaches its boundary after exact-head merge verification. Real hosted D-4, daily live promotion evidence and production remain unverified.
 
 

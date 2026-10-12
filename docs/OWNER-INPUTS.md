@@ -2,6 +2,10 @@
 
 Decisions only Chris can make, with stable IDs. Agents check here first and ask only for what the current card needs.
 An answer is "applied" only once the setting and its behavior are verified. Plain English throughout.
+**Workflow:** each answered IN-xx affecting an unfinished/blocked card must trigger
+a recorded next-PR revisit in `work-index.json`. Mark policy ANSWERED even
+when implementation or real service acceptance remains unverified; do not ask
+for the same decision again, and do not silently abandon the blocked card.
 
 | ID | Status | Question | Blocks | Recommended / safe default |
 |---|---|---|---|---|

@@ -8,7 +8,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "check": "node scripts/check-secrets.mjs && node scripts/check-docs-updated.mjs && python3 docs/pr-cards/validate-index.py && npm run lint && node scripts/check-catalog.mjs && node scripts/check-writes.mjs && node scripts/check-core-imports.mjs && node scripts/check-budgets.mjs",
+    "check": "node scripts/check-secrets.mjs && node scripts/check-docs-updated.mjs && python3 docs/pr-cards/validate-index.py && node scripts/validate-work-queue.mjs && npm run lint && node scripts/check-catalog.mjs && node scripts/check-writes.mjs && node scripts/check-core-imports.mjs && node scripts/check-budgets.mjs",
     "lint": "eslint .",
     "test": "vitest run --config vitest.config.js",
     "test:db": "bash scripts/local-postgres-test.sh",
