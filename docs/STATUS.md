@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC #130 — hostile nested request arguments:** both single and batch HTTPS pass calls now recursively refuse prototype-pollution keys, secret-shaped input (including nested percent encoding) and overly deep objects before read handlers. Existing safe nested filters and result projections remain supported. Offline adversarial test coverage added, with no new owner, provider, spend or production authority. Five-PR batch #126–#130 reaches its boundary after exact-head merge verification. Real hosted D-4, daily live promotion evidence and production remain unverified.
+
+
 - **RTC #129 — pre-auth database-cost gate:** malformed bearer headers, invalid HTTP methods and unsupported internal RTC routes now fail before database construction or schema initialization, limiting unauthenticated wakeups. Authorization requires a literal header string; arrays/objects are not coerced. Real passes still require database expiry, revocation and shared quota checks. New HTTP and DB-initialization tests; no production, spending or provider authority change.
 
 
