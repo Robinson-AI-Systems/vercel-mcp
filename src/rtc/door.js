@@ -14,6 +14,8 @@ const PASS=/^Bearer (rtc_pass_[A-Za-z0-9_-]{43})$/;
 const ACCOUNT=/^[a-zA-Z0-9_/-]{3,256}$/;
 const PASS_ID=/^pass_[a-f0-9]{20}$/;
 const AREA=/^[a-z][a-z0-9_]{0,47}$/;
+// Distinct RTC TEST identity may not access any provider or account read.
+const TEST_TOOLS=new Set(['vercel_whoami']);
 const BLOCKED=new Set(['vercel_call','vercel_batch','vercel_search_tools',
   'vercel_describe_tool']);
 const MESSAGES={
@@ -104,7 +106,8 @@ function listing(req,pass,registry){
     String(requested.audience??'').length>48)
     throw new TypeError('Invalid search selector');
   const safe=catalog.filter(t=>t.writes===false&&!BLOCKED.has(t.name)&&
-    pass.areas.includes(t.area));
+    pass.areas.includes(t.area)&&
+    (pass.mode!=='test'||TEST_TOOLS.has(t.name)));
   const matching=safe.filter(t=>(!q||(t.name+' '+t.description).toLowerCase().includes(q))&&
     (!requested.area||t.area===requested.area)&&
     (!requested.audience||t.audience.includes(requested.audience)));
@@ -131,7 +134,8 @@ function named(req,registry,pass){
   // A direct lookup must not depend on fitting some earlier unrelated
   // catalog page into the discovery envelope.
   return rtcCatalog(registry,{...pass,listing:'catalog'}).find(t=>
-    t.name===name&&!t.writes&&!BLOCKED.has(t.name)&&pass.areas.includes(t.area))||null;
+    t.name===name&&!t.writes&&!BLOCKED.has(t.name)&&pass.areas.includes(t.area)&&
+    (pass.mode!=='test'||TEST_TOOLS.has(t.name)))||null;
 }
 async function invoke(name,args,ctx){
   const response=await dispatchReadOnlyTool({registry:ctx.registry,name,args,
@@ -147,10 +151,11 @@ async function invoke(name,args,ctx){
 }
 function validPassRecord(record){
   return Boolean(record&&ACCOUNT.test(record.account||'')&&PASS_ID.test(record.id||'')&&
-    record.mode==='preview'&&record.profile==='read_only'&&
+    ['preview','test'].includes(record.mode)&&record.profile==='read_only'&&
     Array.isArray(record.areas)&&record.areas.length>0&&record.areas.length<=12&&
     new Set(record.areas).size===record.areas.length&&
     record.areas.every(area=>typeof area==='string'&&AREA.test(area))&&
+    (record.mode!=='test'||record.areas.length===1&&record.areas[0]==='server')&&
     ['compact','catalog'].includes(record.listing));
 }
 function samePassScope(before,after){
@@ -200,7 +205,7 @@ async function requirePass(req,db,res,route,registry){
   if(!validPassRecord(record)||(peek&&!samePassScope(peek,record))){
     fail(res,'permission');return null;
   }
-  const connection={account:record.account,profile:'read_only',mode:'preview',
+  const connection={account:record.account,profile:'read_only',mode:record.mode,
     listing:record.listing,clientId:record.id};
   Object.defineProperty(connection,'resultOwner',{value:'resown_'+
     createHash('sha256').update('rmcp-result-owner-v1:').update(m[1]).digest('hex')});
@@ -218,7 +223,7 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       if(route==='whoami'){
         if(req.method!=='GET')return fail(res,'invalid_args');
         return send(res,200,{ok:true,result:{
-          profile:'read_only',mode:'preview',listing:pass.listing,areas:pass.areas}});
+          profile:'read_only',mode:pass.mode,listing:pass.listing,areas:pass.areas}});
       }
       if(route==='list'){
         if(req.method!=='GET')return fail(res,'invalid_args');

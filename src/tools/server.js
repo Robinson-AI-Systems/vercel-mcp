@@ -59,6 +59,11 @@ export const serverTools = {
       return asText(payload);
     },
     async vercel_whoami(_args, { connection, db }) {
+      // The TEST pass reports real service identity without account metadata,
+      // Vercel credentials, production assets or provider API access.
+      if(connection?.mode==='test')
+        return asText({rtc:1,service:'robinson-vercel-mcp',mode:'test',
+          scope:'service_only',providerAccess:false});
       const accounts = await db.listVercelAccounts();
       const row = accounts.find(account => account.id === connection.account);
       if (!row) return { isError: true,

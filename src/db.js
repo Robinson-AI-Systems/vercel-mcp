@@ -11,6 +11,9 @@ export const SCHEMA_TABLES = Object.freeze([
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
+// TEST probes this service only, never Vercel provider/account resources.
+const rtcModeSafe=(mode,areas)=>mode==='preview'||(mode==='test'&&
+  Array.isArray(areas)&&areas.length===1&&areas[0]==='server');
 
 export function connectionSettings(row) {
   if (!row || typeof row !== 'object') throw new TypeError('A connection row is required');
@@ -34,26 +37,27 @@ export function createDb(query) {
 
     // RTC 1: only owner setup calls this. A pass never allows writes,
     // production mode or financial outflow. Store only SHA-256, not bearer.
-    async issueReadOnlyRtcPass({account,hours=24,areas=['server']}) {
+    async issueReadOnlyRtcPass({account,hours=24,areas=['server'],mode='preview'}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
         !Number.isInteger(hours)||hours<1||hours>720||
         !Array.isArray(areas)||areas.length<1||areas.length>12||
         new Set(areas).size!==areas.length||
-        areas.some(x=>typeof x!=='string'||!/^[a-z][a-z0-9_]{0,47}$/.test(x)))
+        areas.some(x=>typeof x!=='string'||!/^[a-z][a-z0-9_]{0,47}$/.test(x))||
+        !rtcModeSafe(mode,areas))
         throw new TypeError('Invalid RTC pass scope');
       const token='rtc_pass_'+randomBytes(32).toString('base64url');
       const digest=hashToken(token),id='pass_'+digest.slice(0,20);
       const run=getSql();
       const rows=await run`INSERT INTO rtc_passes
-        (pass_id,token_hash,vercel_account,areas,expires_at)
-        SELECT ${id},${digest},id,${JSON.stringify(areas)}::jsonb,
+        (pass_id,token_hash,vercel_account,mode,areas,expires_at)
+        SELECT ${id},${digest},id,${mode},${JSON.stringify(areas)}::jsonb,
           now()+${hours} * interval '1 hour'
         FROM vercel_accounts WHERE id=${account}
         RETURNING pass_id,expires_at`;
       if(rows.length!==1) return null;
       await run`INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
-        VALUES (${account},'preview','vercel_owner_issue_read_only_pass',
-          'Owner issued preview-only read-only RTC pass',FALSE,FALSE)`;
+        VALUES (${account},${mode},'vercel_owner_issue_read_only_pass',
+          'Owner issued scoped read-only RTC pass',FALSE,FALSE)`;
       return {token,id,expiresAt:rows[0].expires_at};
     },
     // Single atomic DB update enforces a shared per-pass rolling minute limit.
@@ -70,7 +74,7 @@ export function createDb(query) {
       const row=rows[0];
       if(row.revoked_at)return {status:'pass_revoked'};
       if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
-      if(row.mode!=='preview'||row.profile!=='read_only')return {status:'permission'};
+      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only')return {status:'permission'};
       return {status:'ok',id:row.pass_id,account:row.vercel_account,
         profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas};
     },
@@ -87,30 +91,31 @@ export function createDb(query) {
         window_started=CASE WHEN window_started<=now()-interval '1 minute'
           THEN now() ELSE window_started END
         WHERE token_hash=${digest} AND revoked_at IS NULL
-          AND expires_at>now() AND mode='preview' AND profile='read_only'
+          AND expires_at>now() AND profile='read_only'
+          AND (mode='preview' OR (mode='test' AND areas='["server"]'::jsonb))
           AND (window_started<=now()-interval '1 minute' OR window_count+${units}<=60)
         RETURNING pass_id,vercel_account,profile,mode,listing,areas`;
       if(rows.length===1){
         const row=rows[0];
-        if(!Array.isArray(row.areas)||row.areas.length<1)
-          return {status:'permission'};
+        if(!Array.isArray(row.areas)||row.areas.length<1||
+          !rtcModeSafe(row.mode,row.areas))return {status:'permission'};
         return {status:'ok',id:row.pass_id,account:row.vercel_account,
           profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas};
       }
-      const reason=await run`SELECT expires_at,revoked_at,mode,profile,window_count,window_started
+      const reason=await run`SELECT expires_at,revoked_at,mode,profile,areas,window_count,window_started
         FROM rtc_passes WHERE token_hash=${digest}`;
       if(reason.length!==1)return {status:'permission'};
       const row=reason[0];
       if(row.revoked_at)return {status:'pass_revoked'};
       if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
-      if(row.mode!=='preview'||row.profile!=='read_only')return {status:'permission'};
+      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only')return {status:'permission'};
       return {status:'rate_limited'};
     },
     async listRtcPasses(account) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||''))
         throw new TypeError('Invalid RTC account');
       const run=getSql();
-      return run`SELECT pass_id,areas,expires_at,revoked_at,created_at
+      return run`SELECT pass_id,mode,areas,expires_at,revoked_at,created_at
         FROM rtc_passes WHERE vercel_account=${account}
         ORDER BY created_at DESC LIMIT 20`;
     },
@@ -121,10 +126,10 @@ export function createDb(query) {
       const rows=await run`WITH revoked AS (
         UPDATE rtc_passes SET revoked_at=now()
         WHERE pass_id=${id} AND vercel_account=${account}
-          AND revoked_at IS NULL RETURNING pass_id
+          AND revoked_at IS NULL RETURNING pass_id,mode
       ),audit AS (
         INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
-        SELECT ${account},'preview','vercel_owner_revoke_read_only_pass',
+        SELECT ${account},mode,'vercel_owner_revoke_read_only_pass',
           'Owner revoked a scoped RTC pass',FALSE,FALSE
         FROM revoked RETURNING id
       ) SELECT (SELECT COUNT(*) FROM revoked)::int AS n,
