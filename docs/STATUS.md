@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1m guarded empty-only deletion (#60):** separate destructive review, verified scope and resource inventory from project, domains and env GET, explicit typed-name and production confirmation, conservative refuse-on-unknown and independent 404 read-back. Broad delete/transfer/spend remain outstanding. Production inactive; IN-07/08 pending.
+
 - **D-1l grouped project creation (#59):** same six pinned build settings supported on unlinked project creation, shared input validation with project updates and independent full-configuration read-back. Next independently review destructive project deletion; no production activation.
 
 - **D-1k grouped project traffic lifecycle (#58):** production-confirmed pause/unpause with scoped before/after Boolean paused status and no-op replay protection. Full-profile access conservative for resuming metered service. Next independently gated delete/transfer and build-resource spend; IN-07/08 pending, production inactive.
