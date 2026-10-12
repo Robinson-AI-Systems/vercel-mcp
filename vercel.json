@@ -16,5 +16,11 @@
       "source": "/",
       "destination": "/api/index"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "live": true
+    }
+  }
 }
