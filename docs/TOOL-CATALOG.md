@@ -361,7 +361,7 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 | `vercel_team_get` | Selected team ID verified with provider; allowlisted profile/plan/security flags, no secret values | — | O | R | — | O-1 (read built #144) |
 | `vercel_team_update_profile` | Guarded full-profile production update for name, slug, description and preview suffix; strict team preflight, race check and GET readback | C | O | F | — | O-1 (guarded write #145) |
 | `vercel_team_update_security` | SAML enforced, IP addresses hidden in logs, verified commits required, separate production secret values, strict protection settings, email-domain auto-join | C A | O | F | — | O-1 (guarded privacy/secret/strict controls #146; SAML and auto-join pending) |
-| `vercel_team_set_default_protection` | Default deployment protection for new projects | C A | O | F | — | O-1 |
+| `vercel_team_set_default_protection` | Default deployment protection for new projects | C A | O | F | — | O-1 (guarded standard authentication #147) |
 | `vercel_team_set_deployment_retention` | How long deployments are kept, per target (shortening deletes old deployments) | C D | O | F | y | O-1 |
 | `vercel_team_set_directory_role_mappings` | Directory-sync (SAML) group → role mappings (Enterprise) | C A | O | F | — | O-1 |
 

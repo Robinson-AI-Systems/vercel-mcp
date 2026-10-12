@@ -954,14 +954,15 @@
       "pr": [
         144,
         145,
-        146
+        146,
+        147
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next O-1 Vercel MCP implementer",
-        "reason": "Two project-safe team reads and guarded owner team profile update implemented; security/default protection, retention, directory mappings and hosted acceptance remain.",
-        "nextAction": "Implement O-1 team security/default protection guarded change only after validating access-widening, owner SAML, provider request schema, and owner-side readback; continue independent approved roadmap where appropriate.",
-        "checkpoint": "After #145 merge, next session start and any owner-hosted acceptance change",
+        "reason": "Guarded profile/security and standard default authentication implemented; SAML/auto-join, advanced paid/password protection, retention and directory mappings plus hosted acceptance remain.",
+        "nextAction": "Recheck SAML owner configuration/access proof, destructive retention inventory and storage billing ceilings, directory mapping last-owner proofs. Continue independent U-1 discovery/read contracts on merged C-2.",
+        "checkpoint": "After #147 and every PR boundary/session start",
         "evidenceNeeded": "Guarded-write contract, true REST body mapping and adversarial tests; actual owner-hosted scoped provider evidence separately.",
         "eligibilityCondition": "O-1 read and code-level guarded previews independently eligible; real owner activation and connected verification require authenticated owner deployment.",
         "dependencies": [
