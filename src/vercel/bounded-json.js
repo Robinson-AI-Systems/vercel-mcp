@@ -8,6 +8,11 @@ export async function readBoundedJson(response, signal, maxBytes = 8192) {
   if (!/^application\/(?:json|[a-z0-9.+-]+\+json)\b/.test(mime)) {
     throw new TypeError('Provider file response was not JSON');
   }
+  // Reject an explicitly over-budget provider response before reading any body.
+  const declared=response.headers?.get('content-length');
+  if(declared!=null && (!/^(0|[1-9][0-9]*)$/.test(declared) ||
+    !Number.isSafeInteger(Number(declared)) || Number(declared)>maxBytes))
+    throw new TypeError('Provider file response declared an unsafe byte length');
   const reader = response.body?.getReader?.();
   if (!reader) throw new TypeError('Provider file response is unreadable');
   const decoder = new TextDecoder('utf-8', {fatal:true});
@@ -28,7 +33,10 @@ export async function readBoundedJson(response, signal, maxBytes = 8192) {
       text += decoder.decode(value, {stream:true});
     }
     text += decoder.decode();
-    return JSON.parse(text);
+    // SyntaxError messages from JSON.parse may quote the upstream source.
+    // Do not reflect any provider-controlled payload fragments into errors.
+    try{return JSON.parse(text);}
+    catch{throw new TypeError('Invalid provider file JSON');}
   } finally {
     if (abort) signal?.removeEventListener('abort', abort);
     // A malicious or long-lived response must not keep the invocation open.

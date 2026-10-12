@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-2 strict source-content transport (#142 candidate):** reject malformed provider JSON without echoing upstream fragments, refuse declared over-budget HTTP file replies and binary control bytes even when UTF-8 decoding succeeds. Existing canonical-base64/tree/project/secret guards remain. Offline fake provider/transport tests only; real JSON field shape is not certified.
+
 - **D-2 runtime log wire reconciliation (#141 candidate):** validate alternate published log field names with strict conflict refusal, fix complete-vs-capped JSON array accounting, and suppress raw parser-error text. Fake HTTP regression coverage; no connected provider acceptance yet.
 
 - **D-1 finite code acceptance (#140):** the 15 approved D-1 project/Git/cron/member handlers are now mapped against their real registry, required guarded-write provenance, documented catalog and existing CI test files by `scripts/check-d1-acceptance.mjs` (mandatory `npm run check`) plus adversarial tests. This is a **code-evidence milestone**, not actual provider certification: keep D-1 IN_PROGRESS with explicit EXTERNAL_ACCEPTANCE_PENDING while nonproduction owner HTTPS/Neon/scoped Vercel token and Hub direct/relay/Sandbox/revocation proof are unavailable. IN-07/IN-08 decisions are answered and not blocking engineering. Next available independent work remains eligible and must be pursued even if live D-1/D-2 provider acceptance is gated.

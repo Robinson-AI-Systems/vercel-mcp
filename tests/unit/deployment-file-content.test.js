@@ -4,6 +4,7 @@ import {deploymentReadTools} from '../../src/tools/deployments.js';
 import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
 import {mergeNamespaces} from '../../src/core/registry.js';
 import {loadToken} from '../../src/vercel/tokens.js';
+import {readBoundedJson} from '../../src/vercel/bounded-json.js';
 
 vi.mock('../../src/vercel/tokens.js',async m=>({...await m(),loadToken:vi.fn()}));
 const registry=mergeNamespaces([deploymentReadTools]);
@@ -73,6 +74,24 @@ describe('D-2 bounded project-verified file reads',()=>{
       expect((await invoke({deployment,fileId},f.fetch)).isError).toBe(true);
       f.verify();
     }
+  });
+  it('refuses valid UTF-8 containing binary control bytes, even for verified files',async()=>{
+    for(const content of ['public\u0000tail','first\u0001second','line\u007fbreak']){
+      const f=provider({response:{content:encode(content),encoding:'base64'}});
+      expect((await invoke({deployment,fileId},f.fetch)).isError).toBe(true);
+      f.verify();
+    }
+  });
+  it('rejects oversized declared HTTP JSON length and conceals invalid upstream JSON',async()=>{
+    const signal=AbortSignal.timeout(1000);
+    const response=(body,headers={})=>new Response(body,{
+      headers:{'content-type':'application/json',...headers}});
+    await expect(readBoundedJson(response('{}',{'content-length':'9000'}),signal))
+      .rejects.toThrow('unsafe byte length');
+    await expect(readBoundedJson(response('{"content":"vcp_FAKE_SAMPLE"'),signal))
+      .rejects.toThrow('Invalid provider file JSON');
+    try{await readBoundedJson(response('{"content":"vcp_FAKE_SAMPLE"'),signal);}
+    catch(error){expect(error.message).not.toContain('vcp_FAKE_SAMPLE');}
   });
   it('caps the original HTTP JSON response and decoded file bytes without silent truncation',async()=>{
     for(const response of [
