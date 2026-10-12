@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1bg PR #106 — P1 security race corrections:** inspect credentials through the eighth percent-decode including entropy; repeat independently owned spending-policy verification after the final authenticated name GET and before metered Git project creation POST. Adversarial fixture tests; no Vercel production writes or newly authorized paid operations. D-1 remains IN_PROGRESS.
+
+
 - **D-1bf PR #105 — membership pagination integrity:** complete team/project member inventories now reject contradictory root continuation flags, incomplete next-page signals and declared page counts that differ from observed records. Existing safe role grants/removals refuse before POST/DELETE on contradictory provider inventories. Fake-provider regression coverage; owner-gated admin and nonempty deletion still disabled. D-1 IN_PROGRESS; production inactive.
 
 - **D-1be PR #104 — name-collision race protection:** creation rechecks exact project name availability with the same bound credential that would POST, after any slow Git proof and owner spend checks; a concurrently claimed name or unverified GET refuses all creation. Fake-provider tests cover both empty and paid Git imports. D-1 IN_PROGRESS; no live resources or changed owner gates.
