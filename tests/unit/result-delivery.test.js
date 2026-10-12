@@ -72,7 +72,7 @@ describe('C-1c read handles and discovery metadata',()=>{
         content:[{type:'text',text:'unstructured '+credential+' data'}]},{
         connection:conn,db,readOnly:true,tool:'vercel_fixture_read'});
       expect(JSON.stringify(shaped)).not.toContain(credential);
-      expect(parse(shaped)).toBe('[hidden]');
+      expect(shaped.content[0].text).toBe('[hidden]');
     }
     expect(db.putResult).not.toHaveBeenCalled();
   });

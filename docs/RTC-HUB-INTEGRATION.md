@@ -16,7 +16,7 @@ Batch execution uses one canonical request snapshot from preflight through the f
 
 The read-only HTTPS batch response is also bounded to 8 KiB. A valid batch of up to 10 individually sanitized reads whose aggregate exceeds the envelope budget is stored for 24 hours under the same account and pass-derived result owner, and a handle is returned for the paged result endpoint. Unknown storage outcomes fail closed; no write pass is introduced.
 
-Read-only MCP/RTC output presentation treats **every** text part as untrusted data, including non-JSON plaintext. Unsupported image, binary, resource and malformed content parts are rejected before presentation or storage; no raw part may bypass the same credential masking used for structured JSON responses. Registry handlers which need non-text content require separately reviewed, safe explicit support.
+Read-only MCP/RTC output presentation treats **every** text part as untrusted data, including non-JSON plaintext; the HTTPS adapter can return its sanitized text as a scalar RTC result. Unsupported image, binary, resource and malformed content parts are rejected before presentation or storage; no raw part may bypass the same credential masking used for structured JSON responses. Registry handlers which need non-text content require separately reviewed, safe explicit support.
 
 Both OAuth MCP and RTC HTTPS refuse a tool falsely declaring itself read-only if it also carries writeContract, guardedWrite, localAdmin, secretIn/secretOut, destructiveHint:true or readOnlyHint:false. These contradictory declarations are not exposed on tool lists, and direct/batched invocation never calls their handlers.
 
