@@ -139,7 +139,7 @@ describe('D-1h project access grants',()=>{
       .resolves({members:[{uid,role:'OWNER',confirmed:true}],pagination:{next:null}});
     const result=parse(await f.call({project:name,uid,role,confirm:true,requestKey:'raceGrantFAKE01'}));
     expect(result.status).toBe('refused_by_guard');
-    expect(result.confirmed).toBeNull();
+    expect(result.confirmed).toBe(false);
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
   });
   it('fails closed when the project identity changes before granting',async()=>{
