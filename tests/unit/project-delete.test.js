@@ -25,7 +25,7 @@ function fixture(){
     name:'vercel_project_delete',args,db,connection:c,fetchImpl:fake.fetch});
   const projectRule=fake.when('GET','/v9/projects/{idOrName}');
   const domainRule=fake.when('GET','/v9/projects/{idOrName}/domains');
-  const envRule=fake.when('GET','/v9/projects/{idOrName}/env');
+  const envRule=fake.when('GET','/v10/projects/{idOrName}/env');
   const deleteRule=fake.when('DELETE','/v9/projects/{idOrName}');
   const empty=()=>{projectRule.resolves(project);
     domainRule.resolves({domains:[],pagination:{next:null}});
