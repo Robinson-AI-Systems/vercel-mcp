@@ -1,12 +1,21 @@
 // D-1d: view existing Vercel project cron definitions only; never invoke URLs.
 import {readProvider} from '../vercel/provider.js';
+import {credentialLike} from '../core/util.js';
 const PROFILES=['read_only','everyday','full'];
 const idPattern=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const json=x=>({content:[{type:'text',text:JSON.stringify(x)}]});
+const unsafe=value=>/[\x00-\x1f\x7f\\]/.test(value)||credentialLike(value);
 const barePath=value=>{
-  if(typeof value!=='string'||!value.startsWith('/')||value.startsWith('//')||value.length>2048)return null;
-  try {return new URL(value,'https://invalid.example').pathname.slice(0,500);}
-  catch {return null;}
+  if(typeof value!=='string'||!value.startsWith('/')||value.startsWith('//')||
+    value.length>2048||/[\x00-\x1f\x7f\\]/.test(value))return null;
+  try{
+    // Strip query and fragment before filtering; private cron URL arguments
+    // must not poison an otherwise legitimate path. Also inspect decoding:
+    // escaped provider token shapes must not appear in MCP output as paths.
+    const pathname=new URL(value,'https://invalid.example').pathname;
+    if(unsafe(pathname)||unsafe(decodeURIComponent(pathname)))return null;
+    return pathname.slice(0,500);
+  }catch{return null;}
 };
 const sourceName=value=>typeof value==='string'&&/^[a-z][a-z_-]{0,30}$/.test(value)?value:null;
 function dateView(utc){
@@ -44,7 +53,8 @@ function enabledState(crons){
 function definition(row){
   if(!row||typeof row!=='object'||Array.isArray(row))
     throw new TypeError('Invalid cron definition');
-  const schedule=typeof row.schedule==='string'&&row.schedule.length<=160?
+  const schedule=typeof row.schedule==='string'&&row.schedule.length<=160&&
+    !unsafe(row.schedule)?
     row.schedule:null;
   return {path:barePath(row.path),scheduleUtc:schedule,source:sourceName(row.source),
     denverExample:denverCronPreview(schedule)};
@@ -67,7 +77,8 @@ export const cronsTools={
       if(account.scope==='project'&&args.project!==account.project_id)
         throw new TypeError('Project-scoped credential cannot read another project');
       const project=await client.request('projects_get',{path:{idOrName:args.project}});
-      if(!project||typeof project.id!=='string'||
+      if(!project||typeof project.id!=='string'||!idPattern.test(project.id)||
+        credentialLike(project.id)||
         (account.scope==='project'&&project.id!==account.project_id))
         throw new TypeError('Cron project scope not confirmed');
       const configured=project.crons;
