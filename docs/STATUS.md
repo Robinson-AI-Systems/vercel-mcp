@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1h guarded project member grant (#54):** POST /v1/projects/{idOrName}/members for an existing team UID only, no seat invites or paid operations, production/full connection required, access-widening declaration, preflight member existence and bounded page, independent member-role GET read-back, safe audit and replay. Next guarded member removal; production inactive and IN-07/08 outstanding.
+
 - **D-1g guarded project rename/framework (#53):** PATCH /v9/projects/{idOrName} with authenticated scope, true before/after project GET, production classification on live or unknown deployments, protection for old/new project identity, replay, confirmation and safe shaping. Build/install/dev commands and remaining settings are still pending D-1, not claimed complete.
 
 - **D-1f guarded empty-project creation (#52):** signed server-scope stored credential, pre-create existence check, explicit preview confirmation, parent project target self/app guards, double-scope durable replay, real POST /v11/projects, and independent GET read-back. Does not attach Git, env variables, deployments or spend. Next D-1 settings mutation and member roles; no live activation.
