@@ -3,7 +3,7 @@
 import { neon } from '@neondatabase/serverless';
 import { hashToken } from './core/oauth.js';
 import { compact } from './core/util.js';
-import { randomUUID } from 'node:crypto';
+import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
@@ -31,6 +31,87 @@ export function createDb(query) {
   }
 
   return {
+
+    // RTC 1: only owner setup calls this. A pass never allows writes,
+    // production mode or financial outflow. Store only SHA-256, not bearer.
+    async issueReadOnlyRtcPass({account,hours=24,areas=['server']}) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
+        !Number.isInteger(hours)||hours<1||hours>720||
+        !Array.isArray(areas)||areas.length<1||areas.length>12||
+        new Set(areas).size!==areas.length||
+        areas.some(x=>typeof x!=='string'||!/^[a-z][a-z0-9_]{0,47}$/.test(x)))
+        throw new TypeError('Invalid RTC pass scope');
+      const token='rtc_pass_'+randomBytes(32).toString('base64url');
+      const digest=hashToken(token),id='pass_'+digest.slice(0,20);
+      const run=getSql();
+      const rows=await run`INSERT INTO rtc_passes
+        (pass_id,token_hash,vercel_account,areas,expires_at)
+        SELECT ${id},${digest},id,${JSON.stringify(areas)}::jsonb,
+          now()+${hours} * interval '1 hour'
+        FROM vercel_accounts WHERE id=${account}
+        RETURNING pass_id,expires_at`;
+      if(rows.length!==1) return null;
+      await run`INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
+        VALUES (${account},'preview','vercel_owner_issue_read_only_pass',
+          'Owner issued preview-only read-only RTC pass',FALSE,FALSE)`;
+      return {token,id,expiresAt:rows[0].expires_at};
+    },
+    // Single atomic DB update enforces a shared per-pass rolling minute limit.
+    // Return only normalized scope and neutral status; never the bearer/hash.
+    async authorizeRtcPass(token) {
+      if(typeof token!=='string'||!/^rtc_pass_[A-Za-z0-9_-]{43}$/.test(token))
+        return {status:'permission'};
+      const digest=hashToken(token),run=getSql();
+      const rows=await run`UPDATE rtc_passes SET
+        window_count=CASE WHEN window_started<=now()-interval '1 minute'
+          THEN 1 ELSE window_count+1 END,
+        window_started=CASE WHEN window_started<=now()-interval '1 minute'
+          THEN now() ELSE window_started END
+        WHERE token_hash=${digest} AND revoked_at IS NULL
+          AND expires_at>now() AND mode='preview' AND profile='read_only'
+          AND (window_started<=now()-interval '1 minute' OR window_count<60)
+        RETURNING pass_id,vercel_account,profile,mode,listing,areas`;
+      if(rows.length===1){
+        const row=rows[0];
+        if(!Array.isArray(row.areas)||row.areas.length<1)
+          return {status:'permission'};
+        return {status:'ok',id:row.pass_id,account:row.vercel_account,
+          profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas};
+      }
+      const reason=await run`SELECT expires_at,revoked_at,mode,profile,window_count,window_started
+        FROM rtc_passes WHERE token_hash=${digest}`;
+      if(reason.length!==1)return {status:'permission'};
+      const row=reason[0];
+      if(row.revoked_at)return {status:'pass_revoked'};
+      if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
+      if(row.mode!=='preview'||row.profile!=='read_only')return {status:'permission'};
+      return {status:'rate_limited'};
+    },
+    async listRtcPasses(account) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||''))
+        throw new TypeError('Invalid RTC account');
+      const run=getSql();
+      return run`SELECT pass_id,areas,expires_at,revoked_at,created_at
+        FROM rtc_passes WHERE vercel_account=${account}
+        ORDER BY created_at DESC LIMIT 20`;
+    },
+    async revokeRtcPass({account,id}) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
+        !/^pass_[a-f0-9]{20}$/.test(id||''))return false;
+      const run=getSql();
+      const rows=await run`WITH revoked AS (
+        UPDATE rtc_passes SET revoked_at=now()
+        WHERE pass_id=${id} AND vercel_account=${account}
+          AND revoked_at IS NULL RETURNING pass_id
+      ),audit AS (
+        INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
+        SELECT ${account},'preview','vercel_owner_revoke_read_only_pass',
+          'Owner revoked a scoped RTC pass',FALSE,FALSE
+        FROM revoked RETURNING id
+      ) SELECT (SELECT COUNT(*) FROM revoked)::int AS n,
+          (SELECT COUNT(*) FROM audit)::int AS audits`;
+      return rows[0]?.n===1&&rows[0]?.audits===1;
+    },
     async listVercelAccounts() {
       const run = getSql();
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
@@ -684,6 +765,16 @@ export function createDb(query) {
         listing TEXT NOT NULL DEFAULT 'catalog', kind TEXT NOT NULL DEFAULT 'connector',
         expires_at TIMESTAMPTZ, last_used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+      await run`CREATE TABLE IF NOT EXISTS rtc_passes (
+        pass_id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,
+        vercel_account TEXT NOT NULL,profile TEXT NOT NULL DEFAULT 'read_only',
+        mode TEXT NOT NULL DEFAULT 'preview',listing TEXT NOT NULL DEFAULT 'compact',
+        areas JSONB NOT NULL,expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),revoked_at TIMESTAMPTZ,
+        window_started TIMESTAMPTZ NOT NULL DEFAULT now(),
+        window_count INTEGER NOT NULL DEFAULT 0)`;
+      await run`CREATE INDEX IF NOT EXISTS rtc_passes_owner
+        ON rtc_passes(vercel_account,created_at DESC)`;
       await run`CREATE TABLE IF NOT EXISTS login_attempts (
         id BIGSERIAL PRIMARY KEY, ip TEXT NOT NULL, attempted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         success BOOLEAN NOT NULL)`;

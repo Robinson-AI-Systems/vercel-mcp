@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC #113 — independently owner-issued read-only passes:** authenticated production setup plus session CSRF/fresh passphrase can issue 1–720 hour passes scoped to preview and explicit areas, with SHA-256 bearer hashes in additive `rtc_passes`. Shared atomic database rate counter (60/min), targeted audited revocation and one-time encrypted secret display. No pass can authorize production, money or mutation; HTTPS consumption remains to be added in #114. No actual pass issued/live use.
+
 - **RTC 1 #112 — public contract and metadata:** read-only `GET /api/contract` and `GET /api/openapi.json` advertise correct operation names, safety flags, counts and modes without requiring credentials; metadata derives from actual guarded MCP registry. Delegated `vercel_call` is classified as write-capable. No HTTP pass access is enabled by a manifest alone. Follow-up: owner-issued read-only pass and authenticated HTTPS door. Production inactive; D-1 remains IN_PROGRESS.
 
 - **D-1bh PR #111 — replay payload isolation:** explicit MCP request keys now use the canonical meaningful payload as well as account, mode and tool; a completed write cannot falsely satisfy changed arguments. Replay-claim transport errors fail closed before provider dispatch. Unit regressions for old-result collisions, database outage and consumed owner purchase approval. IN-08 metered operations remain disabled, production inactive.

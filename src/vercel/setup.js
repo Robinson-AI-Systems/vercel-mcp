@@ -8,6 +8,7 @@ import { storeToken, recheckStoredToken } from './tokens.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
+import {registry} from '../tools/index.js';
 import { inspectOwnerAccountChange, consumeOwnerAccountChange,
   applyApprovedOwnerAccountChange } from './owner-approvals.js';
 
@@ -129,6 +130,26 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this account limit</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Update daily spend limit</button></form></section>' +
+    '<section><h2>Temporary read-only RTC passes (Toolkit Hub)</h2>' +
+    '<p>Owner-created passes are limited to preview, read-only access, zero spending, ' +
+    '24 hours by default (maximum 720). Save the secret through the one-time reveal page; ' +
+    'no pass value appears in this form or in MCP. Other permissions remain unchanged.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="issue_rtc_pass">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Allowed areas, comma-separated (e.g. server,projects)' +
+    '<input name="areas" value="server" required></label>' +
+    '<label>Lifetime in hours (1–720)<input name="hours" value="24" required></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Issue one preview-only read-only pass</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
+    '<button type="submit">Issue read-only pass</button></form>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="revoke_rtc_pass">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Exact pass reference<input name="id" pattern="pass_[a-f0-9]{20}" required></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Revoke the selected pass</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
+    '<button type="submit">Revoke read-only pass</button></form></section>' +
     '<section><h2>Revoke one OAuth connector (owner only)</h2>' +
     '<p>Current account-scoped references (may change on refresh). The last active connector ' +
     'and server credential cannot be revoked. A stale reference is refused.</p>' +
@@ -263,7 +284,42 @@ export async function handleSetup(req, res, {
   const accounts = await db.listVercelAccounts();
   try {
     let message;
-    if (params.action === 'add_token') {
+    if (params.action === 'issue_rtc_pass' || params.action === 'revoke_rtc_pass') {
+      if(env.VERCEL_ENV!=='production'||params.confirm!=='yes'||
+        !accounts.some(x=>x.id===params.account))
+        return html(res,403,'Permission denied','<p>Owner production setup session and confirmation required.</p>');
+      const proof=await evaluateLogin({ip:clientIp(req),
+        supplied:String(params.passphrase||''),expected:env.ADMIN_PASSPHRASE,store:db});
+      if(proof.status==='locked'){
+        res.setHeader('Retry-After','900');
+        return html(res,429,'Permission denied','<p>Too many attempts.</p>');
+      }
+      if(proof.status!=='ok')
+        return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
+      if(params.action==='issue_rtc_pass'){
+        const hours=Number(params.hours);
+        const areas=typeof params.areas==='string'?params.areas.split(',').map(x=>x.trim()):[];
+        const validAreas=new Set(['server',...registry.tools.map(x=>x.area).filter(Boolean)]);
+        if(!Number.isInteger(hours)||hours<1||hours>720||!areas.length||
+          areas.length>12||new Set(areas).size!==areas.length||
+          areas.some(x=>!validAreas.has(x)))
+          return html(res,400,'Invalid pass','<p>Choose known areas and a short lifetime.</p>');
+        const issued=await db.issueReadOnlyRtcPass({account:params.account,hours,areas});
+        if(!issued)return html(res,409,'Unavailable','<p>Pass was not issued.</p>');
+        const once=await oneTimeSecrets({db,env,now}).issue({
+          account:params.account,kind:'rtc_pass',label:'Read-only RTC pass',
+          value:issued.token,ttlMs:600000
+        });
+        message='Read-only preview pass issued. Reference '+issued.id+
+          '. Reveal the secret once using reference '+once.id+
+          ' with the selected account; it is not shown in any tool result.';
+      }else{
+        if(typeof params.id!=='string'||!/^pass_[a-f0-9]{20}$/.test(params.id)||
+          !await db.revokeRtcPass({account:params.account,id:params.id}))
+          return html(res,409,'Unavailable','<p>Pass missing, already revoked or belongs to another account.</p>');
+        message='The selected RTC pass was revoked.';
+      }
+    } else if (params.action === 'add_token') {
       const result = await storeTokenFn({
         db, token: params.token, teamId: params.teamId,
         projectId: params.projectId || null, allowFull: params.allowFull === 'yes', env
