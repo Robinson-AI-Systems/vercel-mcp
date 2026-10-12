@@ -1,4 +1,5 @@
 // D-1g: guarded project identity/framework settings, excluding paid build resources.
+import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -31,6 +32,13 @@ function validate(args){
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
     throw new TypeError('Invalid project settings request');
+}
+// Store only an opaque fingerprint in audit/replay state; commands themselves
+// may contain private build details and must not appear in previews or logs.
+function configurationFingerprint(row,keys,includeFramework){
+  const fields=keys.map(key=>[key,row[key]??null]);
+  if(includeFramework)fields.push(['framework',row.framework??null]);
+  return createHash('sha256').update(JSON.stringify(fields)).digest('hex');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -69,7 +77,8 @@ const update=defineWrite({
       newFramework:args.framework!==undefined?args.framework:row.framework??null,
       changeName:args.name!==undefined,
       changeFramework:args.framework!==undefined,
-      configChanges};
+      configChanges,
+      configFingerprint:configurationFingerprint(row,configChanges,args.framework!==undefined)};
   },
   async preview(_args,_ctx,before){
     return 'Update settings for project '+before.name+' ('+before.id+')'+
@@ -101,6 +110,8 @@ const update=defineWrite({
       // Never let an old preview authorization silently cover production.
       if((row.hasDeployments!==false)!==before.live)
         throw new TypeError('Project production classification changed since confirmation');
+      if(configurationFingerprint(row,before.configChanges,before.changeFramework)!==before.configFingerprint)
+        throw new TypeError('Project settings changed since the confirmed preview');
     });
     return provider.write('projects_update',{
       path:{idOrName:before.id},body:{
