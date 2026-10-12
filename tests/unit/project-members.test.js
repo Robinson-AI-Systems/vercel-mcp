@@ -50,6 +50,7 @@ describe('D-1h project access grants',()=>{
     const f=fixture();reads(f.fake);
     expect(parse(await f.call({project:name,uid,role,dryRun:true})).status).toBe('preview');
     expect(parse(await f.call({project:name,uid,role})).status).toBe('needs_confirmation');
+    f.fake.when('POST','/v1/projects/{idOrName}/members').resolves({id:name});
     const r=parse(await f.call({project:name,uid,role,confirm:true,requestKey:'roleGrantFAKE01'}));
     expect(r).toMatchObject({status:'applied',confirmed:true,mode:'PRODUCTION'});
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
