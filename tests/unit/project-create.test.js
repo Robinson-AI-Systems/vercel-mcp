@@ -157,4 +157,32 @@ describe('D-1f guarded project creation',()=>{
     expect(tool.guardedWrite).toBe(true);
   });
 
+  it('advertises nonnullable 256-character configuration on project creation',()=>{
+    const props=registry.tools.find(x=>x.name==='vercel_project_create').inputSchema.properties;
+    for(const key of ['buildCommand','installCommand','devCommand',
+      'commandForIgnoringBuildStep','rootDirectory','outputDirectory']){
+      expect(props[key]).toEqual({type:'string',minLength:1,maxLength:256});
+    }
+  });
+  it('rejects reset null and 257 characters without I/O, accepts 256 with verified creation',async()=>{
+    for(const key of ['buildCommand','installCommand','devCommand',
+      'commandForIgnoringBuildStep','rootDirectory','outputDirectory']){
+      const f=fixture();
+      for(const value of [null,'a'.repeat(257)]){
+        const res=await f.call({name:'demo-site',[key]:value,confirm:true});
+        expect(res.isError||parse(res).status==='refused_by_guard').toBe(true);
+      }
+      expect(f.fake.calls).toHaveLength(0);
+      const value='a'.repeat(256);
+      f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+        .resolves({id:'prj_FAKE_NEW',name:'demo-site',[key]:value});
+      f.fake.when('POST','/v11/projects')
+        .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+      const result=parse(await f.call({name:'demo-site',[key]:value,confirm:true}));
+      expect(result).toMatchObject({status:'applied',confirmed:true});
+      expect(f.fake.calls[1].body).toEqual({name:'demo-site',[key]:value});
+      f.fake.verify();
+    }
+  });
+
 });
