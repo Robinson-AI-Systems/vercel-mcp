@@ -1,5 +1,6 @@
 // D-1q: grouped, usage-billed project resource settings under owner spend cap.
 // No owner settings or user-supplied price; all writes require production mode.
+import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {accountSpendGuard} from '../vercel/spend.js';
@@ -68,6 +69,12 @@ function equivalent(a,b){
 function observed(config,key){
   return key==='buildQueueConfiguration'?config?.buildQueue?.configuration:config?.[key];
 }
+// Preserve only a digest of the selected pre-confirmation fields. Never
+// overwrite another agent's metered resource changes with a stale PATCH.
+function resourceFingerprint(config,keys){
+  return createHash('sha256').update(JSON.stringify(keys.map(key=>
+    [key,observed(config,key)??null]))).digest('hex');
+}
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:x=>db.recordChange(x),replayStore:db.requestReplayStore(),
@@ -98,7 +105,8 @@ const change=defineWrite({
       .filter(([key,value])=>!equivalent(value,observed(row.resourceConfig,key))));
     if(!Object.keys(selected).length)
       throw new TypeError('No resource changes required');
-    return {id:row.id,name:row.name,changes:selected};
+    return {id:row.id,name:row.name,changes:selected,
+      resourceFingerprint:resourceFingerprint(row.resourceConfig,Object.keys(selected))};
   },
   async preview(_args,_ctx,before){
     return 'Change billed build/function resource settings for '+before.name+
@@ -126,6 +134,8 @@ const change=defineWrite({
         !fresh.resourceConfig||typeof fresh.resourceConfig!=='object'||
         Array.isArray(fresh.resourceConfig))
         throw new TypeError('Project identity or resource state changed before a metered update');
+      if(resourceFingerprint(fresh.resourceConfig,Object.keys(before.changes))!==before.resourceFingerprint)
+        throw new TypeError('Metered resource configuration changed since confirmation');
       // Recheck after the potentially slow provider read; an owner can reduce
       // the spend limit or revoke remaining daily headroom after confirmation.
       const spend=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
