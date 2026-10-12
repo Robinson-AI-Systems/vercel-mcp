@@ -17,7 +17,8 @@ function fixture(){
     description:'Read hidden fixture',inputSchema:{type:'object',properties:{}}}
  ],handlers:{vercel_fixture_read:read,vercel_fixture_write:mutate,
    vercel_hidden_read:vi.fn(async()=>out({private:true}))}};
- const db={authorizeRtcPass:vi.fn(async()=>({...a,status:'ok'})),
+ const db={inspectRtcPass:vi.fn(async()=>({...a,status:'ok'})),
+   authorizeRtcPass:vi.fn(async()=>({...a,status:'ok'})),
    putResult:vi.fn(),getResult:vi.fn(async()=>null)};
  const handler=rtcDoor({db,registry});
  const call=async(route,method='GET',query={},body,auth='Bearer '+pass)=>{
@@ -159,6 +160,30 @@ describe('RTC 1 read-only HTTPS door',()=>{
   const invalid=await f.call('batch','POST',{}, {calls:Array.from({length:11},()=>({name:'vercel_fixture_read'}))});
   expect(invalid.code).toBe(400);
   expect(f.db.authorizeRtcPass).toHaveBeenCalledTimes(2);
+ });
+ it('denies invalid and forbidden batches without debiting the shared quota',async()=>{
+  const f=fixture();
+  const cases=[
+    [{args:{}}],
+    [{name:'vercel_fixture_write',args:{}}],
+    [{name:'vercel_hidden_read',args:{}}],
+    [{name:'vercel_fixture_read',args:{fields:[2]}}]
+  ];
+  for(const calls of cases){
+    const response=await f.call('batch','POST',{}, {calls});
+    expect([400,403]).toContain(response.code);
+  }
+  expect(f.db.inspectRtcPass).toHaveBeenCalledTimes(cases.length);
+  expect(f.db.authorizeRtcPass).not.toHaveBeenCalled();
+  expect(f.read).not.toHaveBeenCalled();
+ });
+ it('refuses malformed repeated limit selectors before numeric coercion',async()=>{
+  const f=fixture();
+  for(const limit of [['4'],['4','4'],{first:'4'}]){
+    const response=await f.call('list','GET',{limit});
+    expect(response.code).toBe(400);
+    expect(response.body.error.code).toBe('invalid_args');
+  }
  });
  it('preflights every batch member before any read can run',async()=>{
   const f=fixture();

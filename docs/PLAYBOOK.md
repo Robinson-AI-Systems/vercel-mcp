@@ -148,7 +148,7 @@ counts shown match the PR. Never point a preview of this server at a real team's
 
 ## Step 9 — Merge (authorized when all are true)
 
-`ci` green at the exact head; acceptance met with evidence; self-review written. Merge with the expected-head SHA (merge
+`ci` and `release-policy` green at the exact head; acceptance met with evidence; self-review written. Merge with the expected-head SHA (merge
 commits): `GH_PAGER=cat gh api -X PUT repos/Robinson-AI-Systems/vercel-mcp/pulls/<n>/merge -f sha=<head-sha>
 -f merge_method=merge`. Then check once that the push-to-`main` run is green (Step 10 command with the merge SHA). Stacks merge bottom-up, retargeting each PR to `main` first. After the lower PR merges, sync the successor
 once onto final `main`.

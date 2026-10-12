@@ -58,6 +58,22 @@ export function createDb(query) {
     },
     // Single atomic DB update enforces a shared per-pass rolling minute limit.
     // Return only normalized scope and neutral status; never the bearer/hash.
+    // Unmetered, non-executable pass inspection. A final atomic
+    // authorizeRtcPass still checks expiry/revocation and debits reads.
+    async inspectRtcPass(token) {
+      if(typeof token!=='string'||!/^rtc_pass_[A-Za-z0-9_-]{43}$/.test(token))
+        return {status:'permission'};
+      const run=getSql(),digest=hashToken(token);
+      const rows=await run`SELECT pass_id,vercel_account,profile,mode,listing,
+          areas,expires_at,revoked_at FROM rtc_passes WHERE token_hash=${digest}`;
+      if(rows.length!==1)return {status:'permission'};
+      const row=rows[0];
+      if(row.revoked_at)return {status:'pass_revoked'};
+      if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
+      if(row.mode!=='preview'||row.profile!=='read_only')return {status:'permission'};
+      return {status:'ok',id:row.pass_id,account:row.vercel_account,
+        profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas};
+    },
     async authorizeRtcPass(token,units=1) {
       // Each batch tool consumes one unit. Validate before touching SQL.
       if(!Number.isInteger(units)||units<1||units>10)

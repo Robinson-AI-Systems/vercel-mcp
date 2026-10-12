@@ -42,7 +42,7 @@ describe('B-1 contract hardening', () => {
       const args={confirm:true,requestKey:'recurringCostFAKE01'};
       const preview=await f.tool.run({dryRun:true},f.ctx);
       expect(preview.status).toBe('preview');
-      expect(preview.moneyLine).toContain('variable usage');
+      expect(preview.moneyLine).toContain(cents===0?'$0.00 USD per billing period':'$12.50 USD per billing period');
       attachFakeOwnerPurchase(f.ctx);
       const result=await f.tool.run(args,f.ctx);
       expect(result.status).toBe('refused_by_guard');
@@ -51,6 +51,19 @@ describe('B-1 contract hardening', () => {
       expect(f.audits).toHaveLength(1);
       expect(f.rows.size).toBe(0);
     }
+  });
+  it('cannot approve a cached provider quote after its authoritative state changes',async()=>{
+    const f=sampleWrite({spend:true,cents:475});
+    let reads=0;
+    f.spec.before=async()=>({providerPrice:++reads===1?475:999});
+    f.spec.spend=async(_args,_ctx,fresh)=>({
+      cents:fresh.providerPrice,recurring:false,description:'Fixture operation'});
+    const owner=attachFakeOwnerPurchase(f.ctx);
+    const result=await f.tool.run({confirm:true,requestKey:'freshPriceFAKE01'},f.ctx);
+    expect(result.status).toBe('refused_by_guard');
+    expect(owner.status).toBe('approved');
+    expect(f.provider).toHaveLength(0);
+    expect(reads).toBe(2);
   });
   it('refuses a quote that changes after approval but before the provider write',async()=>{
     for(const changed of [

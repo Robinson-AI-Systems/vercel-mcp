@@ -44,7 +44,7 @@ card; read only that recipe. It maps existing code and proposed work without cha
     Commit the tested slice to an `ai/*` branch, open a draft PR, and use REST to inspect the exact-head
     `check`, `unit`, `db`, `emulate`, and aggregate `ci` results. Retrieve job logs and check-run
     annotations through REST; fix failures on the branch, let each run finish before a new push, and merge only
-    when the required exact-head checks are green. This is remote CI testing, **not** locally executed tests:
+    when both required exact-head `ci` and `release-policy` checks are green. This is remote CI testing, **not** locally executed tests:
     never claim otherwise, never skip tests for lack of a shell, and do not require Chris's PC. See
     `docs/SESSION-START.md` §6 and `docs/PLAYBOOK.md` Step 4b for the REST workflow.
 
@@ -148,14 +148,14 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
 - **Before pushing:** `npm run check` and the card's targeted tests. Never `--no-verify`.
 - **One push per CI cycle.** After a red run, read all failures, reproduce locally, fix them all, push once. "Flake" is
   not a cause; never skip, weaken or quarantine a test.
-- **The `ci` check is the single merge gate**, green at the exact head.
+- **Both `ci` and `release-policy` are merge gates**, green at the exact PR head.
 - **Review:** read `docs/AI-PR-READ-FIRST.md` for anything touching production, spend, tokens, secrets, guards, auth or
   passes, and record how each applicable constraint is honored. **This repo has no automated review** (IN-01, Chris, 2026-10-10): never wait for or request one. Before merging, inspect the whole
   diff yourself against AI-PR-READ-FIRST and write "Self-review: <findings and dispositions>" in the PR; fix blocking
   findings (security, production, spend, data integrity, contract, acceptance) in one patch. If an organization-wide
   automated reviewer posts anyway, fix or answer each of its threads and resolve them; never wait for one. Never claim a
   review that didn't run.
-- **Merging (authorized by Chris):** `ci` green at the exact head, acceptance met with evidence,
+- **Merging (authorized by Chris):** `ci` and `release-policy` green at the exact head, acceptance met with evidence,
   self-review written → merge with the expected-head SHA. Stacks merge bottom-up, retargeting each PR to `main` first.
   Merging never covers a hard limit.
 - **Security, production or spend hole already on `main`:** fix it immediately in its own PR.
@@ -245,3 +245,7 @@ In REST-only sessions, open a draft PR after the first cohesive tested slice and
 ## Daily release and build-cost policy (owner, 2026-10-12)
 
 PRs target `main`. Follow [the daily release policy](.github/RELEASE-POLICY.md): only the daily scheduled job updates `live`; Vercel builds only `live`. Do not request or wait for a Vercel preview deployment, manually deploy production, or promote at a development batch boundary. Keep all existing local/Actions tests mandatory; this policy introduces no new application build/browser requirement where none existed. This newer owner instruction supersedes older batch/weekly release guidance.
+
+## Verified hosting and main protections — October 12, 2026
+
+Follow [the verified hosting-cost operating policy](docs/HOSTING-COST-POLICY.md). Saved exact-main protection requires GitHub Actions `ci` **and** `release-policy`; preserve existing review/agent merge flow, daily checked `main` → `live`, disabled automatic previews, low compute caps and all owner gates. Do not wait for Vercel preview checks or manually deploy at a batch boundary. Record this infrastructure checkpoint in the next substantive PR's status ledger; no documentation-only PR.

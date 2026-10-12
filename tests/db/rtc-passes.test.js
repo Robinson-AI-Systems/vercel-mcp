@@ -27,6 +27,15 @@ describe('RTC database-scoped credential lifecycle',()=>{
   expect((await db.authorizeRtcPass(a.token)).status).toBe('pass_revoked');
   expect(await db.revokeRtcPass({account:'team_FAKE',id:a.id})).toBe(false);
  });
+ it('inspects valid pass scope without debit, and refuses revoked inspection',async()=>{
+   const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',hours:1,areas:['server']});
+   expect(await db.inspectRtcPass(pass.token)).toMatchObject({
+     status:'ok',account:'team_FAKE',areas:['server']});
+   const rows=await rawQuery('SELECT window_count FROM rtc_passes WHERE pass_id=$1',[pass.id]);
+   expect(rows[0].window_count).toBe(0);
+   await db.revokeRtcPass({account:'team_FAKE',id:pass.id});
+   expect((await db.inspectRtcPass(pass.token)).status).toBe('pass_revoked');
+ });
  it('expires, caps, and limits passes across calls with no memory counter',async()=>{
   const a=await db.issueReadOnlyRtcPass({account:'team_FAKE',hours:1,areas:['server']});
   for(let i=0;i<60;i++)expect((await db.authorizeRtcPass(a.token)).status).toBe('ok');

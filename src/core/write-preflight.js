@@ -83,8 +83,9 @@ export async function writePreflight(spec, args, ctx) {
         purchase={cents:spend.recurring?null:spend.cents,recurring:spend.recurring,
           description:spend.description.trim()};
         moneyLine=spend.description.trim()+': '+
-          (spend.cents===null||spend.recurring?'variable usage or ongoing recurring charges; a provider-enforceable total ceiling is required':
-            '$'+(spend.cents/100).toFixed(2)+' USD')+
+          (spend.cents===null?'variable usage; a provider-enforceable total ceiling is required':
+            String.fromCharCode(36)+(spend.cents/100).toFixed(2)+' USD'+
+            (spend.recurring?' per billing period; provider-enforceable total ceiling required':''))+
           '. Separately authenticated approval for this transaction is mandatory.';
       }
     }catch{
