@@ -23,6 +23,12 @@ describe('B-3 protected-resource guard',()=>{
     expect(block([{kind:'token',id:'new_token',isServerToken:true}]).blocked).toBe(true);
     expect(block([{kind:'project',id:'prj_X',name:'robinsons-toolkit-hub'}]).blocked).toBe(false);
   });
+  it('allows every MCP project name without an owner exclusion, without unlocking the server token',()=>{
+    for(const name of ['vercel-mcp','stripe-mcp','neon-mcp','github-mcp','robinsons-toolkit-hub']){
+      expect(checkTargets([{kind:'project',id:'prj_FAKE',name}],[],ctx).blocked).toBe(false);
+    }
+    expect(checkTargets([{kind:'token',id:'tok_THIS_SERVER'}],[],ctx).blocked).toBe(true);
+  });
   it('fails closed when project ownership, target list or DB is unknown',async()=>{
     expect(block([{kind:'domain',id:'dom_unknown'}]).blocked).toBe(true);
     expect(block([]).blocked).toBe(true);
