@@ -123,6 +123,20 @@ const create=defineWrite({
         throw new TypeError('Owner-approved daily spending limit no longer permits this Git import');
       });
     }
+    // Confirmation may lag the initial 404. A different administrator can
+    // claim the name meanwhile; the exact credential that would POST must
+    // recheck it after all Git and spending proofs have completed.
+    await requirePreDispatch(async()=>{
+      if(!['team','full'].includes(provider.account.scope))
+        throw new TypeError('Project creation authority changed');
+      try{
+        await provider.read('projects_get',{path:{idOrName:before.name}});
+      }catch(error){
+        if(error?.status===404)return;
+        throw error;
+      }
+      throw new TypeError('Project name was claimed after confirmation');
+    });
     return provider.write('projects_create',{body:{
       name:before.name,...(before.framework?{framework:before.framework}:{}),...providerConfigBody(_args),
       ...(before.git?{gitRepository:{type:before.git.type,repo:before.git.repo}}:{})
