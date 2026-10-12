@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1aa PR #74 — callable, bounded read pagination:** authenticated project and member page tools require explicit valid continuation metadata, reject oversized or inconsistent pages, normalize safe numeric-string cursors to callable integer `until`, and return `complete`/`nextStep` accurately. Member metadata is explicitly bounded. No team scope override or write surface changed.
+
+
 - **D-1z PR #73 — fail-closed destructive inventory proof:** empty-only deletion now requires explicit Git link state and fully enumerated domains/env collections with terminal pagination, at most 100 entries and no contradictory continuation flags. Missing link, partial or oversized resources refuse before DELETE. No nonempty deletion enabled; full owner and production gates remain intact.
 
 

@@ -20,11 +20,12 @@ describe('D-1a server-selected scoped project reads',()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v10/projects').resolves({
       projects:[{id:'prj_A',name:'demo',framework:'nextjs',token:'should-not-expose'}],
-      pagination:{next:'cursor_FAKE'}});
+      pagination:{next:'1700000000000'}});
     const result=parse(await call('vercel_project_list',{limit:5},db,fake.fetch));
     expect(result.projects).toEqual([{id:'prj_A',name:'demo',framework:'nextjs',
       productionUrl:null,gitRepo:null,productionBranch:null,paused:false,nodeVersion:null}]);
-    expect(result.next).toBe('cursor_FAKE');
+    expect(result.next).toBe(1700000000000);
+    expect(result.complete).toBe(false);
     expect(JSON.stringify(result)).not.toContain('should-not-expose');
     expect(fake.calls[0].query).toMatchObject({teamId:'team_ALPHA',limit:'5'});
     expect(fake.calls[0].headers.authorization).toBe('Bearer [hidden]');
@@ -51,6 +52,32 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(JSON.stringify(data)).not.toContain('sensitive-never-display');
     expect(fake.calls[0].query).toMatchObject({teamId:'team_ALPHA',limit:'10'});
     expect(fake.calls[0].params.idOrName).toBe('prj_DEMO');
+  });
+  it('normalizes callable member continuation and returns a useful follow-up',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/projects/{idOrName}/members').resolves({members:[
+      {uid:'user_A',email:'a@example.test',role:'ADMIN',createdAt:1700000000000}],
+      pagination:{next:'1700000001000'}});
+    const data=parse(await call('vercel_project_list_members',{project:'prj_DEMO',limit:3},db,fake.fetch));
+    expect(data).toMatchObject({next:1700000001000,complete:false});
+    expect(data.nextStep).toContain('until=1700000001000');
+    expect(data.members[0].createdAt).toBe(1700000000000);
+  });
+  it('refuses invalid, missing or oversized provider list pages',async()=>{
+    for(const page of [
+      {projects:[]},
+      {projects:[],pagination:{next:'cursor_NOT_A_NUMBER'}},
+      {projects:[],pagination:{next:null,hasNext:true}},
+      {projects:Array.from({length:4},(_,i)=>({id:'prj_'+i,name:'p'+i})),pagination:{next:null}}
+    ]){
+      const fake=makeFakeVercel();fake.when('GET','/v10/projects').resolves(page);
+      expect((await call('vercel_project_list',{limit:3},db,fake.fetch)).isError).toBe(true);
+    }
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/projects/{idOrName}/members').resolves({
+      members:[{uid:'user_A'},{uid:'user_B'}],pagination:{next:null}});
+    expect((await call('vercel_project_list_members',{
+      project:'prj_DEMO',limit:1},db,fake.fetch)).isError).toBe(true);
   });
   it('denies project-member traversal, caller token and forged scope before network',async()=>{
     const fake=makeFakeVercel();

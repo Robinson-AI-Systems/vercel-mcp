@@ -9,6 +9,26 @@ function checkArgs(args,allowed){
     Object.keys(args).some(key=>!allowed.includes(key)))
     throw new TypeError('Invalid project read arguments');
 }
+// A returned cursor must be callable with the public integer input schema.
+// Never silently claim end-of-list when the provider's cursor is malformed.
+function pageCursor(reply,rows,limit){
+  if(!Array.isArray(rows)||rows.length>limit||!reply?.pagination)
+    throw new TypeError('Project list page is incomplete or oversized');
+  const next=reply.pagination.next;
+  if(next===null){
+    if(reply.pagination.hasNext===true||reply.pagination.hasMore===true)
+      throw new TypeError('Conflicting list pagination flags');
+    return null;
+  }
+  if(reply.pagination.hasNext===false||reply.pagination.hasMore===false)
+    throw new TypeError('Conflicting list continuation');
+  const numeric=typeof next==='string'&&/^[1-9][0-9]{0,15}$/.test(next)?Number(next):next;
+  if(!Number.isSafeInteger(numeric)||numeric<1)
+    throw new TypeError('Provider returned an unusable pagination cursor');
+  return numeric;
+}
+const safeMemberText=(value,max=320)=>typeof value==='string'&&value.length<=max&&
+  !/[\x00-\x1f\x7f]/.test(value)?value:null;
 export function projectSummary(row){
   if(!row || typeof row!=='object' || Array.isArray(row))throw new TypeError('Invalid project response');
   return {
@@ -76,10 +96,10 @@ export const projectsTools={
         return asText({projects:[projectSummary(project)],count:1,next:null});
       }
       const reply=await client.request('projects_list',{query:{limit:args.limit??20,...(args.until?{until:args.until}:{})}});
-      if(!Array.isArray(reply?.projects))throw new TypeError('Invalid projects page');
+      const next=pageCursor(reply,reply?.projects,args.limit??20);
       return asText({projects:reply.projects.map(projectSummary),count:reply.projects.length,
-        next:reply.pagination?.next??null,
-        nextStep:reply.pagination?.next!=null?'Call vercel_project_list again with until set to the next numeric cursor':null});
+        next,complete:next===null,
+        nextStep:next!==null?'Call vercel_project_list with until='+next+' to continue':null});
     },
     async vercel_project_list_members(args,ctx){
       checkArgs(args,['project','limit','until']);
@@ -93,13 +113,18 @@ export const projectsTools={
       const reply=await client.request('projects_members_list',{
         path:{idOrName:args.project},
         query:{limit:args.limit??20,...(args.until?{until:args.until}:{})}});
-      if(!Array.isArray(reply?.members))throw new TypeError('Invalid project member response');
+      const next=pageCursor(reply,reply?.members,args.limit??20);
+      if(reply.members.some(m=>!m||typeof m!=='object'||Array.isArray(m)))
+        throw new TypeError('Malformed member record');
       return asText({
         project:args.project,count:reply.members.length,
         members:reply.members.map(m=>({
-          id:m.uid??m.userId??m.id??null,email:m.email??null,
-          name:m.name??null,role:m.role??null,createdAt:m.createdAt??null
-        })),next:reply.pagination?.next??null
+          id:safeMemberText(m.uid??m.userId??m.id,128),
+          email:safeMemberText(m.email),
+          name:safeMemberText(m.name,256),role:safeMemberText(m.role,64),
+          createdAt:Number.isSafeInteger(m.createdAt)?m.createdAt:null
+        })),next,complete:next===null,
+        nextStep:next!==null?'Call vercel_project_list_members with this project and until='+next:null
       });
     },
     async vercel_project_get(args,ctx){

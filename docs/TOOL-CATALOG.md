@@ -75,7 +75,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_project_list` | Projects in the team: name, framework, production URL, last production deploy, paused or not | — | B O Op | R | — | D-1 (built #47) |
+| `vercel_project_list` | Projects in the team: name, framework, production URL, last production deploy, paused or not | — | B O Op | R | — | D-1 (built #47; pagination #74) |
 | `vercel_project_get` | One project: framework, commands, root directory, Node version, Git repo and production branch, protection summary, domains count, crons | — | B O Op | R | y | D-1 (built #47; diagnostics #71) |
 | `vercel_project_create` | Create empty unlinked projects at $0, or Git-linked imports after exact Vercel integration lookup, owner positive spend limit and production confirmation | $ Cp P | B O | E F | — | D-1 (built #65) |
 | `vercel_project_update_settings` | Rename/framework plus grouped build/directory overrides (max 256 chars, null resets to defaults), guarded and independently verified; paid resources separate | Cp | B O | E | y | D-1 (partial #53) |
@@ -84,7 +84,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_project_pause` | Guarded pause of project production traffic; authenticated project state before and after, confirmation, production connection | PR | O Op | F | y | D-1 (built #58) |
 | `vercel_project_unpause` | Guarded production resumption; authenticated state, full-profile production confirmation, metered usage warning | PR | O Op | F | y | D-1 (built #58) |
 | `vercel_project_transfer` | Issue an owner-only encrypted one-time transfer claim code; never auto-completes ownership transfer | A D PR 1x | O | F | y | D-1 (partial #62) |
-| `vercel_project_list_members` | Project-level members and their project roles | — | O | R | — | D-1 (built #48) |
+| `vercel_project_list_members` | Project-level members and their project roles | — | O | R | — | D-1 (built #48; pagination #74) |
 | `vercel_project_add_member` | Give an existing team user a project role by UID (no new seat or team invite) | A | O | F | — | D-1 (built #54; ADMIN gated #66; contributor #67; paged #70) |
 | `vercel_project_remove_member` | Remove viewer/developer project role by UID; admin/owner/final member removal remains blocked | C | O | F | — | D-1 (partial #55; team identity #68; paged #70) |
 | `vercel_cron_list` | Cron jobs as deployed to production: path, schedule (UTC and Denver time), enabled, from the production deployment's configuration | — | Op | R | y | D-1 (built #50) |
