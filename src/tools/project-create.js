@@ -114,7 +114,8 @@ const create=defineWrite({
         provider:before.git.type,namespaceId:before.git.namespaceId,
         query:before.git.repo.split('/')[1]
       }});
-      verifyExactGitRepository(search,before.git);
+      verifyExactGitRepository(search,{repo:before.git.repo,
+        provider:before.git.type,namespaceId:before.git.namespaceId});
       // Last-moment owner spending decision follows BOTH potentially slow GETs.
       const spending=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
         {cents:null,recurring:true,description:'Git import may incur metered build usage'},true);
