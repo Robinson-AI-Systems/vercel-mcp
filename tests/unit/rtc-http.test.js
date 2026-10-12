@@ -192,6 +192,40 @@ describe('RTC 1 read-only HTTPS door',()=>{
   expect((await f.call('list','GET',{q:'vercel_fixture_read'})).code).toBe(200);
   expect(f.read).not.toHaveBeenCalled();
  });
+ it('rejects prototype-bearing, credential-like and over-deep nested RTC arguments',async()=>{
+  const f=fixture();
+  const malicious=[];
+  for(const key of ['__proto__','constructor','prototype'])
+    malicious.push(JSON.parse('{"nested":{"'+key+'":{"owner":true}}}'));
+  malicious.push({nested:{input:'vcp_FAKE_sensitive_credential'}});
+  malicious.push({nested:{input:'%2576cp_FAKE_credential'}});
+  let tooDeep={value:'safe'};
+  for(let i=0;i<24;i++)tooDeep={child:tooDeep};
+  malicious.push(tooDeep);
+  for(const args of malicious){
+    const direct=await f.call('invoke','POST',{name:'vercel_fixture_read'},args);
+    expect(direct.code).toBe(400);
+    expect(direct.body.error.code).toBe('invalid_args');
+    const batch=await f.call('batch','POST',{},
+      {calls:[{name:'vercel_fixture_read',args}]});
+    expect(batch.code).toBe(400);
+    expect(batch.body.error.code).toBe('invalid_args');
+  }
+  expect(f.read).not.toHaveBeenCalled();
+  expect(f.db.authorizeRtcPass).toHaveBeenCalledTimes(malicious.length);
+  // Direct requests debit one validated pass unit; invalid batches never do.
+  expect(f.db.inspectRtcPass).toHaveBeenCalledTimes(malicious.length);
+ });
+ it('preserves legitimate nested read inputs after recursive inspection',async()=>{
+  const f=fixture();
+  const args={filter:{project:'prj_FAKE',tags:['testing','safe']},
+    fields:'label',detail:'full'};
+  const reply=await f.call('invoke','POST',{name:'vercel_fixture_read'},args);
+  expect(reply.code).toBe(200);
+  expect(reply.body.result).toEqual({label:'safe'});
+  expect(f.read).toHaveBeenCalledWith(
+    {filter:{project:'prj_FAKE',tags:['testing','safe']}},expect.any(Object));
+ });
  it('rejects malformed HTTPS arguments as invalid_args without invoking any tool',async()=>{
   const f=fixture();
   const badInvoke=await f.call('invoke','POST',{name:'vercel_fixture_read'},

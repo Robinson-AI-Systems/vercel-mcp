@@ -7,6 +7,7 @@ import {dispatchReadOnlyTool} from '../core/mcp-server.js';
 import {shapeStoredMcpResult} from '../vercel/result-delivery.js';
 import {vercelErrorResult} from '../tools/errors.js';
 import {prepareResult} from '../core/result-rules.js';
+import {credentialLike} from '../core/util.js';
 const NAME=/^vercel_[a-z0-9_]{1,96}$/;
 const HANDLE=/^res_[a-f0-9]{32}$/;
 const PASS=/^Bearer (rtc_pass_[A-Za-z0-9_-]{43})$/;
@@ -48,9 +49,26 @@ function getBody(req){
     throw new TypeError('Invalid request body');
   return body;
 }
+// The HTTP boundary rejects deeply nested and prototype-bearing arguments,
+// plus credentials masquerading as search terms or nested input values.
+// Never rely on an individual read handler to sanitize its request object.
+function inspectArguments(value,depth=0){
+  if(depth>20)throw new TypeError('RTC arguments too deeply nested');
+  if(typeof value==='string'){
+    if(credentialLike(value))throw new TypeError('Credential-shaped argument refused');
+    return;
+  }
+  if(value===null||typeof value!=='object')return;
+  for(const [key,child] of Object.entries(value)){
+    if(['__proto__','constructor','prototype'].includes(key))
+      throw new TypeError('Unsafe RTC argument property');
+    inspectArguments(child,depth+1);
+  }
+}
 function argumentsFor(input){
   if(!input||typeof input!=='object'||Array.isArray(input))
     throw new TypeError('Invalid tool arguments');
+  inspectArguments(input);
   const body={...input};
   if(Array.isArray(body.fields)){
     if(body.fields.length>20||body.fields.some(x=>typeof x!=='string'))
