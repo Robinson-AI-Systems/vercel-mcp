@@ -140,6 +140,49 @@ describe('RTC 1 read-only HTTPS door',()=>{
   const scoped=await f.call('list','GET',{area:'secretarea'});
   expect(scoped.body.result).toMatchObject({count:0,next:null,tools:[]});
  });
+ it('streams a large catalog through byte-safe pages without lost tools or duplicates',async()=>{
+  const f=fixture();
+  for(let i=0;i<55;i++){
+    const name='vercel_bounded_page_'+i;
+    f.registry.tools.push({name,writes:false,profiles:['read_only'],
+      area:'server',description:'Tool with a valid large descriptor '+String(i).padEnd(120,'x'),
+      inputSchema:{type:'object',properties:{filter:{type:'string',
+        description:'Optional metadata '+String(i).padEnd(160,'y')}}}});
+    f.registry.handlers[name]=f.read;
+  }
+  const seen=[],count=56;let cursor=0,pages=0;
+  while(true){
+    const response=await f.call('list','GET',{limit:'100',cursor:String(cursor)});
+    expect(response.code).toBe(200);
+    expect(Buffer.byteLength(JSON.stringify(response.body),'utf8')).toBeLessThanOrEqual(8192);
+    const page=response.body.result;
+    expect(page.count).toBe(count);
+    expect(page.tools.length).toBeGreaterThan(0);
+    seen.push(...page.tools.map(t=>t.name));
+    pages++;
+    if(page.next===null)break;
+    expect(page.next).toBe(cursor+page.tools.length);
+    cursor=page.next;
+    expect(pages).toBeLessThan(20);
+  }
+  expect(pages).toBeGreaterThan(1);
+  expect(seen.length).toBe(count);
+  expect(new Set(seen).size).toBe(count);
+  expect((await f.call('describe','GET',{name:'vercel_bounded_page_54'})).code).toBe(200);
+  expect(f.read).not.toHaveBeenCalled();
+ });
+ it('refuses a single oversized descriptor rather than bypassing the 8KiB limit',async()=>{
+  const f=fixture(),name='vercel_oversize_schema';
+  f.registry.tools.push({name,writes:false,profiles:['read_only'],area:'server',
+    inputSchema:{type:'object',properties:Object.fromEntries(
+      Array.from({length:150},(_,i)=>['field_'+i,{type:'string',
+        description:'Safe metadata description '.repeat(4)}]))}});
+  f.registry.handlers[name]=f.read;
+  expect((await f.call('list','GET',{q:name})).code).toBe(400);
+  expect((await f.call('describe','GET',{name})).code).toBe(400);
+  expect((await f.call('list','GET',{q:'vercel_fixture_read'})).code).toBe(200);
+  expect(f.read).not.toHaveBeenCalled();
+ });
  it('rejects malformed HTTPS arguments as invalid_args without invoking any tool',async()=>{
   const f=fixture();
   const badInvoke=await f.call('invoke','POST',{name:'vercel_fixture_read'},
