@@ -109,7 +109,7 @@ burned by overclaiming. A passing typecheck, a screenshot or a plan is not evide
 - Changing anything outside this project: the Appliance Desk repo or its Vercel/Neon projects, the Stripe MCP, the
   Google Workspace MCP, Robinson's Toolkit, other Vercel/Neon projects. Reading them for reference is fine.
 - Changing resources a profiled app owns (Appliance Desk today), outside a test fixture.
-- Widening what a token, connection or pass may do by default, or editing the protected-resources defaults.
+- Widening what a token, connection or pass may do by default. IN-07 separately authorizes owner-authenticated removal of project exclusions; never weaken token integrity or high-risk operation approvals.
 - Making this server depend on Robinson's Toolkit (the hub). It must stay **fully usable on its own** — connector,
   HTTPS API and passes — whether or not the hub ever exists.
 - Committing directly to `main`.

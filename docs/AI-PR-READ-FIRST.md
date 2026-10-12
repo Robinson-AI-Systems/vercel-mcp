@@ -30,8 +30,9 @@ applicable item in the PR description saying how it is honored.
 9. No write bypasses `defineWrite`, the production guard, self-protection, the profile guard, the spend limit or the
    profile filter — through any door (MCP, `vercel_call`, HTTPS). The write-contract helper runs through every door that
    exists.
-10. Protected resources (this server's project, the other Robinson servers' projects, the token this server runs on) are
-    refused whatever the mode, profile or `confirm`; the list is edited only on the setup page.
+10. IN-07: no project identity is permanently excluded. The authenticated owner can remove existing project-exclusion
+    rules on setup; server credential and last-owner protections, production, app, destructive and spend gates remain.
+    A project is never rejected solely because it belongs to an MCP service.
 11. Resources a profiled app owns are refused without `outsideApp: true` (emergency rollback excepted and labelled).
 12. Access-widening changes (members, roles, tokens, passes, bypass secrets, shareable links, protection loosening)
     always need `confirm`; nobody can be locked out (last Owner, the server's own token).

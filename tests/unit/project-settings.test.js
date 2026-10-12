@@ -22,7 +22,7 @@ function fixture(){
   };
   const call=(args,c=connection)=>dispatchReadOnlyTool({registry,
     name:'vercel_project_update_settings',args,db,connection:c,fetchImpl:fake.fetch});
-  return {fake,call,rows};
+  return {fake,call,rows,db};
 }
 const parse=r=>JSON.parse(r.content[0].text);
 const before={id:'prj_FAKE_OLD',name:'old-site',framework:'nextjs',hasDeployments:false};
@@ -150,6 +150,7 @@ describe('D-1g guarded project settings',()=>{
     f.fake.when('GET','/v9/projects/{idOrName}').resolves(before);
     expect(parse(await f.call({project:'prj_FAKE_OLD',framework:'vite'})).status).toBe('needs_confirmation');
     expect(parse(await f.call({project:'prj_FAKE_OLD',framework:'vite',dryRun:true})).status).toBe('preview');
+    f.db.listProtectedResources=async()=>[{kind:'project',match:'vercel-mcp',note:'Owner protected'}];
     expect(parse(await f.call({project:'prj_FAKE_OLD',name:'vercel-mcp',confirm:true})).status)
       .toBe('refused_by_guard');
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
