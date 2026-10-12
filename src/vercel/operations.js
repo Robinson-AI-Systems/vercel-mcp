@@ -11,7 +11,9 @@ export const OPS = Object.freeze({
   git_namespaces: Object.freeze({ method: 'GET', path: '/v1/integrations/git-namespaces', teamScoped: false }),
   git_repos_search: Object.freeze({ method: 'GET', path: '/v1/integrations/search-repo' }),
   projects_create: Object.freeze({ method: 'POST', path: '/v11/projects' }),
-  projects_update: Object.freeze({ method: 'PATCH', path: '/v9/projects/{idOrName}' })
+  projects_update: Object.freeze({ method: 'PATCH', path: '/v9/projects/{idOrName}' }),
+  projects_pause: Object.freeze({ method: 'POST', path: '/v1/projects/{projectId}/pause' }),
+  projects_unpause: Object.freeze({ method: 'POST', path: '/v1/projects/{projectId}/unpause' })
 });
 
 export function operation(id) {
