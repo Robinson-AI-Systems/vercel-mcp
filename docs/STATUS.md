@@ -4,6 +4,10 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **O-1 compatibility correction (#144 candidate):** preserve existing account token-probe bound-team `teams_list` requests; route new owner reads through distinct query-free `teams_list_unscoped` GET and avoid scope regression.
+
+- **O-1 read-only team identity and security overview (#144 candidate):** independently provider-verified selected team GET and selected-only list; explicit allowlist of safe profile/plan/security flags with no other team names, SAML certificates or invitation material. Team/project credential scope binding, no caller team override and safe error behavior. Code + fake HTTP tests, not connected provider acceptance. Owner security writes remain separately gated.
+
 - **D-2 finite ten-read code acceptance (#143 candidate):** a new mandatory `npm run check` gate reconciles all approved D-2 catalog rows, registered handlers, read-only metadata, diagnostic area and existing test evidence. Adversarial tests reject missing/added tools, fake read classification and vanished tests. Real provider file-response contract and hosted RTC integration remain EXTERNAL_ACCEPTANCE_PENDING; do not close D-2 from CI alone.
 
 - **D-2 strict source-content transport (#142 candidate):** reject malformed provider JSON without echoing upstream fragments, refuse declared over-budget HTTP file replies and binary control bytes even when UTF-8 decoding succeeds. Existing canonical-base64/tree/project/secret guards remain. Offline fake provider/transport tests only; real JSON field shape is not certified.

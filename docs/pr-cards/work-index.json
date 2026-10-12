@@ -943,14 +943,29 @@
         "C-2"
       ],
       "card": "docs/pr-cards/O-1.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 400,
       "units": [
         "O-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "READY",
+      "ownerInputs": [],
+      "pr": [
+        144
+      ],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next O-1 Vercel MCP implementer",
+        "reason": "Two selected-team safe GETs built; five owner-guarded team mutations unimplemented and real provider/hosted evidence remains separate.",
+        "nextAction": "Implement the next approved O-1 owner-guarded mutation with complete production/access protections and independent readback; alternatively continue highest-priority eligible independent code when an external gate remains.",
+        "checkpoint": "After #144 and at each PR/session boundary",
+        "evidenceNeeded": "Guarded-write contract, true REST body mapping and adversarial tests; actual owner-hosted scoped provider evidence separately.",
+        "eligibilityCondition": "O-1 read and code-level guarded previews independently eligible; real owner activation and connected verification require authenticated owner deployment.",
+        "dependencies": [
+          "C-2"
+        ]
+      }
     },
     {
       "id": "O-2",
