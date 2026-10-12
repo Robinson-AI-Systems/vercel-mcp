@@ -17,11 +17,13 @@ function pageCursor(reply,rows,limit){
     throw new TypeError('Project list page is incomplete or oversized');
   const next=reply.pagination.next;
   if(next===null){
-    if(reply.pagination.hasNext===true||reply.pagination.hasMore===true)
+    if(reply.pagination.hasNext===true||reply.pagination.hasMore===true||
+      reply.hasMore===true)
       throw new TypeError('Conflicting list pagination flags');
     return null;
   }
-  if(reply.pagination.hasNext===false||reply.pagination.hasMore===false)
+  if(reply.pagination.hasNext===false||reply.pagination.hasMore===false||
+    reply.hasMore===false)
     throw new TypeError('Conflicting list continuation');
   const numeric=typeof next==='string'&&/^[1-9][0-9]{0,15}$/.test(next)?Number(next):next;
   if(!Number.isSafeInteger(numeric)||numeric<1)
@@ -30,6 +32,13 @@ function pageCursor(reply,rows,limit){
 }
 const safeMemberText=(value,max=320)=>typeof value==='string'&&value.length<=max&&
   !/[\x00-\x1f\x7f]/.test(value)&&!credentialLike(value)?value:null;
+// A membership row id is not necessarily a user UID. Never offer an
+// unproved row id as a target for a later access-changing operation.
+function verifiedMemberId(row){
+  if(row.uid!=null&&row.userId!=null&&row.uid!==row.userId)
+    throw new TypeError('Conflicting project member user identities');
+  return safeMemberText(row.uid??row.userId,128);
+}
 // Project list fields share the same strict projection as detailed reads.
 // Provider-returned aliases may be arbitrary URLs; never reflect credentials,
 // query strings, fragments or control characters in a read result.
@@ -139,14 +148,20 @@ export const projectsTools={
       const next=pageCursor(reply,reply?.members,args.limit??20);
       if(reply.members.some(m=>!m||typeof m!=='object'||Array.isArray(m)))
         throw new TypeError('Malformed member record');
+      const seen=new Set();
+      const members=reply.members.map(m=>{
+        const id=verifiedMemberId(m);
+        if(id!==null){
+          if(seen.has(id))throw new TypeError('Duplicate project member user identity');
+          seen.add(id);
+        }
+        return {id,email:safeMemberText(m.email),
+          name:safeMemberText(m.name,256),role:safeMemberText(m.role,64),
+          createdAt:Number.isSafeInteger(m.createdAt)?m.createdAt:null};
+      });
       return asText({
         project:args.project,count:reply.members.length,
-        members:reply.members.map(m=>({
-          id:safeMemberText(m.uid??m.userId??m.id,128),
-          email:safeMemberText(m.email),
-          name:safeMemberText(m.name,256),role:safeMemberText(m.role,64),
-          createdAt:Number.isSafeInteger(m.createdAt)?m.createdAt:null
-        })),next,complete:next===null,
+        members,next,complete:next===null,
         nextStep:next!==null?'Call vercel_project_list_members with this project and until='+next:null
       });
     },
