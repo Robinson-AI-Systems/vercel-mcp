@@ -198,33 +198,25 @@ describe('D-1f guarded project creation',()=>{
     }
   });
 
-  it('guards Git creation with exact namespace/repository discovery and independent Git-link readback',async()=>{
+  it('verifies Git namespace and repository identity but refuses an unbounded metered import',async()=>{
     const f=fixture(20000);
     const linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
-    f.fake.when('GET','/v1/integrations/git-namespaces').resolves([
-      {id:'org_123',provider:'github',name:'Acme'}]);
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github',name:'Acme'}]);
     f.fake.when('GET','/v1/integrations/search-repo')
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{id:42,fullName:'acme/site',private:true}]});
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
-      .resolves({id:'prj_FAKE_NEW',name:'demo-site',link:{type:'github',repo:'acme/site'}});
-    f.fake.when('POST','/v11/projects')
-      .resolves({id:'prj_FAKE_NEW',name:'demo-site',token:'never-log'});
-    const args={name:'demo-site',gitRepository:linked,confirm:true,
-      requestKey:'gitCreationFAKE01'};
-    const result=parse(await f.call(args,{...connection,mode:'production',profile:'full'}));
-    expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET','GET','GET','POST','GET']);
-    expect(f.fake.calls[0].query).toEqual({provider:'github'});
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
+        repos:[{id:42,fullName:'acme/site',private:true}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const result=parse(await f.call({name:'demo-site',gitRepository:linked,
+      confirm:true,requestKey:'gitCreationFAKE01'},
+      {...connection,mode:'production',profile:'full'}));
+    expect(result.status).toBe('refused_by_guard');
+    expect(result.reason).toMatch(/provider-enforceable/i);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
     expect(f.fake.calls[1].query).toEqual({provider:'github',namespaceId:'org_123',
       query:'site',teamId:'team_FAKE'});
-    expect(f.fake.calls[3].query).toEqual({provider:'github'});
-    expect(f.fake.calls[4].query).toMatchObject({provider:'github',namespaceId:'org_123',
-      query:'site',teamId:'team_FAKE'});
-    expect(f.fake.calls[6].body).toEqual({name:'demo-site',gitRepository:{
-      type:'github',repo:'acme/site'}});
-    expect(JSON.stringify(result)).not.toContain('never-log');
-    expect(f.audit).toHaveLength(1);
-    expect(f.audit[0].spendCents).toBeNull();
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.audit).toHaveLength(0);
     f.fake.verify();
   });
   it('refuses Git creation under $0 owner limit and without production/full authority',async()=>{
@@ -239,7 +231,7 @@ describe('D-1f guarded project creation',()=>{
         mode:scenario==='preview'?'preview':'production'};
       const res=parse(await f.call({name:'demo-site',gitRepository:{
         type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},c));
-      expect(res.status).toBe(scenario==='zeroBudget'?'awaiting_owner_approval':'refused_by_guard');
+      expect(res.status).toBe('refused_by_guard');
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     }
   });
@@ -332,22 +324,24 @@ describe('D-1f guarded project creation',()=>{
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const pending=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
       requestKey:'positiveBudgetNoOwner'}, {...connection,mode:'production',profile:'full'}));
-    expect(pending.status).toBe('awaiting_owner_approval');
+    expect(pending.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
     expect(f.approval.status).toBe('pending');
   });
-  it('binds Git proof and POST to one execution-time credential',async()=>{
+  it('does not advance to an execution-time credential without bounded cost evidence',async()=>{
     const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
-    f.fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'org_123',provider:'github'}]);
-    f.fake.when('GET','/v1/integrations/search-repo').resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
-      .resolves({id:'prj_FAKE_NEW',name:'demo-site',link:{type:'github',repo:'acme/site'}});
-    f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:'demo-site'});
-    const result=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
-      requestKey:'bindOnceGitFAKE01'},{...connection,mode:'production',profile:'full'}));
-    expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(loadToken).toHaveBeenCalledTimes(3);
-    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
+        repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const result=parse(await f.call({name:'demo-site',gitRepository,
+      confirm:true,requestKey:'bindOnceGitFAKE01'},
+      {...connection,mode:'production',profile:'full'}));
+    expect(result.status).toBe('refused_by_guard');
+    expect(loadToken).toHaveBeenCalledTimes(1);
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
   });
   it('refuses a concurrently claimed name using the POST credential',async()=>{
     const f=fixture();
@@ -429,7 +423,7 @@ describe('D-1f guarded project creation',()=>{
       {...connection,mode:'production',profile:'full'}));
     expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
-    expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/search-repo')).toHaveLength(2);
+    expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/search-repo')).toHaveLength(1);
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
   });
   it('refuses Git import if its namespace becomes restricted before execution',async()=>{
@@ -445,14 +439,24 @@ describe('D-1f guarded project creation',()=>{
       {...connection,mode:'production',profile:'full'}));
     expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
-    expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/git-namespaces')).toHaveLength(2);
+    expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/git-namespaces')).toHaveLength(1);
   });
-  it('does not mistake unverified Git link for completed provider import',async()=>{
+  it('does not describe an unbounded Git import as completed provider work',async()=>{
     const f=fixture(20000);
     f.fake.when('GET','/v1/integrations/git-namespaces')
       .resolves([{id:'org_123',provider:'github'}]);
     f.fake.when('GET','/v1/integrations/search-repo')
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
+        repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const res=parse(await f.call({name:'demo-site',gitRepository:{
+      type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},
+      {...connection,mode:'production',profile:'full'}));
+    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    f.fake.verify();
+  });
+});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
       .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
     f.fake.when('POST','/v11/projects')
