@@ -70,6 +70,13 @@ function exactDollarCents(value) {
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
   return Number.isSafeInteger(cents) && cents <= 2147483647 ? cents : null;
 }
+// A separate technical JavaScript-safe bound, not a discretionary owner limit.
+function purchaseDollarCents(value) {
+  if(typeof value!=='string' || !/^(?:0|[1-9][0-9]{0,14})(?:\.[0-9]{1,2})?$/.test(value)) return null;
+  const [whole,fraction='']=value.split('.');
+  const amount=BigInt(whole)*100n+BigInt(fraction.padEnd(2,'0'));
+  return amount>0n && amount<=BigInt(Number.MAX_SAFE_INTEGER)?Number(amount):null;
+}
 function dollars(cents) {
   return '$' + Math.floor(cents / 100) + '.' + String(cents % 100).padStart(2, '0');
 }
@@ -135,6 +142,13 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm targeted revocation</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Revoke selected connector</button></form></section>' +
+    '<section><h2>Approve one exact purchase (owner only)</h2>' +
+    '<p>AI agents cannot approve charges. Enter the purchase reference first to inspect the operation, quoted price or usage class. Approval requires your current passphrase and a separately chosen maximum; no provider charge is made during approval.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="review_purchase">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Exact purchase reference<input name="reference" required autocomplete="off"></label>' +
+    '<button type="submit">Review proposed purchase</button></form></section>' +
     '<section><h2>Review a pending owner change</h2>' +
     '<p>Review the exact action and target before separately approving. Review never applies or consumes a request.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -328,6 +342,70 @@ export async function handleSetup(req, res, {
         return html(res, 409, 'Unavailable', '<p>Connector missing, stale or the last active one.</p>');
       }
       message = 'The selected connector was revoked and independently verified.';
+    } else if (params.action === 'review_purchase') {
+      if(env.VERCEL_ENV!=='production')
+        return html(res,403,'Unavailable','<p>Purchase approval requires the production server.</p>');
+      if(!accounts.some(a=>a.id===params.account) ||
+        typeof params.reference!=='string'||!/^[0-9a-f-]{36}$/.test(params.reference))
+        return html(res,403,'Permission denied','<p>Invalid account or purchase reference.</p>');
+      if(typeof db.getPurchaseIntent!=='function')
+        return html(res,503,'Unavailable','<p>Purchase approval database is unavailable.</p>');
+      const pending=await db.getPurchaseIntent({account:params.account,reference:params.reference});
+      const cents=pending?.price_cents===null?null:Number(pending?.price_cents);
+      if(!pending||pending.status!=='pending' ||
+        new Date(pending.expires_at).getTime()<=now() ||
+        (cents!==null&&(!Number.isSafeInteger(cents)||cents<=0)))
+        return html(res,409,'Unavailable','<p>Purchase intent is missing, expired, or already processed.</p>');
+      return html(res,200,'Review exact purchase',
+        '<p>Read-only review. No Vercel charge has been authorized or made.</p>' +
+        '<p>Account: '+escapeHtml(params.account)+'</p>' +
+        '<p>Operation: '+escapeHtml(pending.operation)+'</p>' +
+        '<p>Pricing evidence: '+escapeHtml(pending.pricing_source)+'</p>' +
+        '<p>'+escapeHtml(cents===null?'Metered usage: no fixed provider total available':
+          'Quoted total: '+dollars(cents))+'</p>' +
+        '<p>Expires: '+escapeHtml(new Date(pending.expires_at).toISOString())+'</p>' +
+        '<form method="post">'+csrfInput(session.csrf)+
+        '<input type="hidden" name="action" value="approve_purchase">' +
+        '<input type="hidden" name="account" value="'+escapeHtml(params.account)+'">' +
+        '<input type="hidden" name="reference" value="'+escapeHtml(params.reference)+'">' +
+        '<label>Maximum amount approved, USD'+
+          '<input name="ceilingDollars" inputmode="decimal" required value="'+
+          escapeHtml(cents===null?'':(cents/100).toFixed(2))+'"></label>' +
+        '<label><input type="checkbox" name="confirm" value="yes" required>Authorize only this transaction and quoted price or stated maximum</label>' +
+        '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+        '<button type="submit">Approve this exact purchase only</button></form>');
+    } else if (params.action === 'approve_purchase') {
+      if(env.VERCEL_ENV!=='production')
+        return html(res,403,'Unavailable','<p>Purchase approval requires the production server.</p>');
+      const ceiling=purchaseDollarCents(params.ceilingDollars);
+      if(!accounts.some(a=>a.id===params.account)||params.confirm!=='yes'||
+        typeof params.reference!=='string'||!/^[0-9a-f-]{36}$/.test(params.reference)||
+        ceiling===null)
+        return html(res,403,'Permission denied','<p>Exact account, reference, cost and confirmation required.</p>');
+      const auth=await evaluateLogin({ip:clientIp(req),supplied:String(params.passphrase||''),
+        expected:env.ADMIN_PASSPHRASE,store:db});
+      if(auth.status==='locked'){
+        res.setHeader('Retry-After','900');
+        return html(res,429,'Permission denied','<p>Too many sign-in attempts.</p>');
+      }
+      if(auth.status!=='ok')
+        return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
+      if(typeof db.getPurchaseIntent!=='function'||typeof db.approvePurchaseIntent!=='function')
+        return html(res,503,'Unavailable','<p>Purchase approval database is unavailable.</p>');
+      const pending=await db.getPurchaseIntent({account:params.account,reference:params.reference});
+      const quoted=pending?.price_cents===null?null:Number(pending?.price_cents);
+      if(!pending||pending.status!=='pending'||new Date(pending.expires_at).getTime()<=now()||
+        (quoted!==null&&(!Number.isSafeInteger(quoted)||quoted<=0||ceiling!==quoted)))
+        return html(res,409,'Unavailable','<p>Purchase quote changed, expired, or already processed.</p>');
+      const ok=await db.approvePurchaseIntent({account:params.account,
+        reference:params.reference,ceilingCents:ceiling});
+      if(ok!==true)
+        return html(res,409,'Unavailable','<p>Could not commit one-use owner approval.</p>');
+      const verified=await db.getPurchaseIntent({account:params.account,reference:params.reference});
+      if(verified?.status!=='approved'||Number(verified.ceiling_cents)!==ceiling)
+        return html(res,409,'Unverified','<p>Approval read-back was not proven.</p>');
+      message='Owner approved one transaction for '+escapeHtml(params.account)+
+        ' with ceiling '+dollars(ceiling)+'. No charge or production activation was performed.';
     } else if (params.action === 'review_owner_request') {
       if(env.VERCEL_ENV!=='production')
         return html(res,403,'Unavailable','<p>Review requires the production server.</p>');

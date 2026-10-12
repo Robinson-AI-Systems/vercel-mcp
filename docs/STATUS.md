@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **IN-08 #109 — authenticated per-purchase owner setup:** owner may review the exact account, tool, quote/usage class, and expiring purchase intent, then separately approve a precisely chosen USD ceiling using fresh passphrase, CSRF, session and one-use database read-back. No agent-provided confirm or spend-limit setting substitutes for this owner action. Metered dispatch remains fail-closed pending #110. IN-08 ANSWERED but dispatch still NOT APPLIED; no live Vercel purchases.
+
+
 - **IN-08 #108 — transaction-bound purchase ledger foundation:** additive owner-approval intent table with exact account, operation, request key, immutable argument fingerprint and immutable provider/published/variable pricing classification. Proposal is not permission; separate owner approval records the specified maximum (without discretionary daily cap), one-use consumption is atomic and independently readable. NOT YET CONNECTED TO PAID DISPATCH; IN-08 ANSWERED, implementation still IN_PROGRESS, no live purchases.
 
 
