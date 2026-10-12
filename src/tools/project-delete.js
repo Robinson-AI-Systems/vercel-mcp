@@ -34,8 +34,11 @@ function context({db,connection,env,fetchImpl}){
 }
 function countComplete(reply,key){
   const rows=reply?.[key];
-  if(!Array.isArray(rows)||reply?.pagination?.next!=null||
-    reply?.pagination?.hasMore===true || reply?.hasMore===true)
+  // Missing pagination metadata is NOT proof that the provider returned its
+  // entire resource collection. This gate protects irreversible deletion.
+  if(!Array.isArray(rows)||rows.length>100||!reply.pagination||
+    reply.pagination.next!==null||reply.pagination.hasNext===true||
+    reply.pagination.hasMore===true||reply.hasMore===true)
     throw new TypeError('Cannot prove complete '+key+' inventory');
   return rows.length;
 }
@@ -54,7 +57,8 @@ async function inspect(ctx,selector){
     Array.isArray(row.stores)?row.stores:null;
   const cron=row.crons?.definitions;
   if(!Array.isArray(storage)||!Array.isArray(cron)||
-    typeof row.hasDeployments!=='boolean')
+    typeof row.hasDeployments!=='boolean'||
+    !Object.hasOwn(row,'link')||row.link===undefined)
     throw new TypeError('Cannot establish complete project resource inventory');
   const domains=await client.request('projects_domains_list',{
     path:{idOrName:row.id},query:{limit:100}});
@@ -70,6 +74,7 @@ async function inspect(ctx,selector){
   if(!Array.isArray(deploymentPage?.deployments)||
     !deploymentPage.pagination||deploymentPage.pagination.next!==null||
     deploymentPage.pagination.hasNext===true||
+    deploymentPage.pagination.hasMore===true||deploymentPage.hasMore===true||
     deploymentPage.deployments.length>100||
     deploymentPage.deployments.some(item=>!item||item.projectId!==row.id))
     throw new TypeError('Cannot prove complete project deployment inventory');
