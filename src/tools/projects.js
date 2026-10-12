@@ -29,22 +29,32 @@ function pageCursor(reply,rows,limit){
 }
 const safeMemberText=(value,max=320)=>typeof value==='string'&&value.length<=max&&
   !/[\x00-\x1f\x7f]/.test(value)?value:null;
+// Project list fields share the same strict projection as detailed reads.
+// Provider-returned aliases may be arbitrary URLs; never reflect credentials,
+// query strings, fragments or control characters in a read result.
+const safeProjectText=(value,max=256)=>typeof value==='string'&&value.length<=max&&
+  !/[\x00-\x1f\x7f]/.test(value)&&
+  !/(?:vcp_|vca_|vci_|vcr_|github_pat_|ghp_|sk_live_|whsec_)[a-zA-Z0-9_-]{12,}/.test(value)?value:null;
+function safeHostname(value){
+  if(typeof value!=='string'||value.length>253||/[/?#@:\s\\]/.test(value)||
+    !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(value))return null;
+  return value;
+}
 export function projectSummary(row){
   if(!row || typeof row!=='object' || Array.isArray(row))throw new TypeError('Invalid project response');
+  const alias=row.productionUrl??row.alias?.[0]?.alias??row.alias?.[0];
   return {
-    id:row.id,name:row.name,framework:row.framework??null,
-    productionUrl:typeof row.productionUrl==='string'?row.productionUrl:
-      typeof row.alias?.[0]==='string'?row.alias[0]:
-      typeof row.alias?.[0]?.alias==='string'?row.alias[0].alias:null,
-    gitRepo:row.link?.repo??null,productionBranch:row.link?.productionBranch??null,
-    paused:row.pauseStatus?.status==='PAUSED' || row.paused===true,
-    nodeVersion:row.nodeVersion??null
+    id:safeProjectText(row.id,128),name:safeProjectText(row.name,128),
+    framework:safeProjectText(row.framework,100),productionUrl:safeHostname(alias),
+    gitRepo:safeProjectText(row.link?.repo,201),
+    productionBranch:safeProjectText(row.link?.productionBranch,128),
+    paused:row.pauseStatus?.status==='PAUSED'||row.paused===true,
+    nodeVersion:safeProjectText(row.nodeVersion,32)
   };
 }
 // Full project detail exposes only explicitly selected, bounded metadata. Do not
 // reflect arbitrary provider objects or URLs that can contain a credential.
-const textField=(value,max=256)=>typeof value==='string'&&value.length<=max&&
-  !/[\x00-\x1f\x7f]/.test(value)?value:null;
+const textField=safeProjectText;
 const projectVersion=row=>({
   id:textField(row?.id,128),state:textField(row?.readyState??row?.state,40),
   createdAt:Number.isSafeInteger(row?.createdAt)?row.createdAt:null,
@@ -139,10 +149,11 @@ export const projectsTools={
         (account.scope==='project' && row.id!==account.project_id))
         throw new TypeError('Requested project not available in this connection');
       return asText({...projectSummary(row),
-        buildCommand:row.buildCommand??null,installCommand:row.installCommand??null,
-        devCommand:row.devCommand??null,outputDirectory:row.outputDirectory??null,
-        rootDirectory:row.rootDirectory??null,
-        lastProductionAt:row.latestProductionDeployments?.[0]?.createdAt??null,
+        buildCommand:textField(row.buildCommand),installCommand:textField(row.installCommand),
+        devCommand:textField(row.devCommand),outputDirectory:textField(row.outputDirectory),
+        rootDirectory:textField(row.rootDirectory),
+        lastProductionAt:Number.isSafeInteger(row.latestProductionDeployments?.[0]?.createdAt)?
+          row.latestProductionDeployments[0].createdAt:null,
         domainsCount:Array.isArray(row.domains)?row.domains.length:null,
         cronsCount:Array.isArray(row.crons?.definitions)?row.crons.definitions.length:null,
         ignoreBuildStep:textField(row.commandForIgnoringBuildStep),

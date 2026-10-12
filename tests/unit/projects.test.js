@@ -89,6 +89,29 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect((await call('vercel_project_list_members',{project:'prj_OTHER'},db,fake.fetch)).isError).toBe(true);
     expect(fake.calls).toHaveLength(0);
   });
+  it('never reflects credential-shaped or unbounded project summary and settings fields',async()=>{
+    const fake=makeFakeVercel();
+    const poison='vcp_'+'a'.repeat(24);
+    fake.when('GET','/v10/projects').resolves({projects:[{
+      id:'prj_A',name:'demo',framework:'nextjs',
+      productionUrl:'https://user:password@example.test?token='+poison,
+      link:{repo:poison,productionBranch:'main'},nodeVersion:'22.x'
+    }],pagination:{next:null}});
+    fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:'prj_A',name:'demo',productionUrl:'example.test?token='+poison,
+      buildCommand:poison,installCommand:'npm ci',devCommand:'x'.repeat(400),
+      rootDirectory:'src',latestProductionDeployments:[{createdAt:poison}]
+    });
+    const listed=parse(await call('vercel_project_list',{},db,fake.fetch));
+    expect(listed.projects[0]).toMatchObject({
+      id:'prj_A',name:'demo',productionUrl:null,gitRepo:null,nodeVersion:'22.x'
+    });
+    const detail=parse(await call('vercel_project_get',{project:'prj_A'},db,fake.fetch));
+    expect(detail).toMatchObject({productionUrl:null,buildCommand:null,
+      installCommand:'npm ci',devCommand:null,rootDirectory:'src',lastProductionAt:null});
+    expect(JSON.stringify({listed,detail})).not.toContain(poison);
+    expect(fake.calls).toHaveLength(2);
+  });
   it('gets safe build and Git fields by a validated project identifier',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v9/projects/{idOrName}').resolves({

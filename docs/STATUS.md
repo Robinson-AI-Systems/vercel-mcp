@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1ac PR #76 — safe project metadata projection:** project list and detail whitelists now reject credential-shaped, unbounded or control-bearing scalar fields and suspicious production alias URLs. Project settings/createdAt are bounded; no provider writes or owner gate changes. D-1 remains IN_PROGRESS.
+
 - **D-1ab PR #75 — shared Git import proof:** one fail-closed authenticated namespace verifier now protects both Git discovery and production-classified, potentially metered Git-linked project creation. New exact repository proof rejects duplicate matches, conflicting provider/namespace metadata and restricted/reauth repositories before POST. All previous owner-stored spending, production/full-profile confirmation, immutable read-back, app/protected and replay gates remain unchanged. D-1 remains partial pending separately reviewed privileged membership and nonempty deletion designs. Proceed to D-2 only when dependency authority permits.
 
 
