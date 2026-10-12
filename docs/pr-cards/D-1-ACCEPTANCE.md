@@ -6,11 +6,11 @@ is a **code/evidence classification**, not a live-account certification.
 IN-07 (project eligibility) and IN-08 (per-transaction authenticated spending)
 have been **answered**. No new owner answer is required to audit D-1.
 
-**Finite engineering disposition (PR #140 candidate):**
+**Finite engineering disposition (PR #140, code acceptance):**
 All 15 approved D-1 catalog operations have registered handlers, correct
 read/write declarations, existing operation tests, and guarded-write provenance
 for the nine mutations. This is now a **mandatory machine-checked CI contract**
-in \`scripts/check-d1-acceptance.mjs\` and its adversarial unit suite.
+in `scripts/check-d1-acceptance.mjs` and its adversarial unit suite.
 Mark the **approved guarded CODE surface COMPLETE** once exact-head CI passes;
 do not treat intentionally forbidden actions as missing implementations.
 D-1 remains **IN_PROGRESS — EXTERNAL_ACCEPTANCE_PENDING** in the work index
