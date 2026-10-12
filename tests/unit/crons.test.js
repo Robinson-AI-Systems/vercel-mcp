@@ -34,6 +34,31 @@ describe('D-1d safe Vercel cron schedule reads',()=>{
     expect(fake.calls[0]).toMatchObject({method:'GET',path:'/v9/projects/prj_APP',
       query:{teamId:'team_C'}});
   });
+  it('hides credential-bearing decoded paths, malformed paths and provider schedules',async()=>{
+    const fake=makeFakeVercel();
+    const secret='vcp_FAKE_sensitive_cron';
+    fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:'prj_APP',crons:{definitions:[
+        {path:'/api/'+secret,schedule:secret,source:'api'},
+        {path:'/api/%76cp_FAKE_sensitive_cron',schedule:'*/5 * * * *'},
+        {path:'/api/safe?token='+secret,schedule:'0 0 * * *'},
+        {path:'/api/invalid\\\\segment',schedule:'0 0 * * *'},
+        {path:'/api/line\nsecret',schedule:'0 0 * * *'}
+      ]}});
+    const result=parse(await call({project:'prj_APP'},fake));
+    expect(result.jobs.map(x=>x.path)).toEqual([null,null,'/api/safe',null,null]);
+    expect(result.jobs[0].scheduleUtc).toBeNull();
+    expect(JSON.stringify(result)).not.toContain(secret);
+    expect(fake.calls.map(x=>x.method)).toEqual(['GET']);
+  });
+  it('rejects an untrusted credential-shaped project identifier in cron output',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:'vcp_FAKE_sensitive_project',crons:{definitions:[]}});
+    const result=await call({project:'prj_APP'},fake);
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('vcp_FAKE_sensitive_project');
+  });
   it('distinguishes unavailable cron metadata from an explicitly empty schedule',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_A'})
