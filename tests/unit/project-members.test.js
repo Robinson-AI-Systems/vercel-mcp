@@ -77,6 +77,25 @@ describe('D-1h project access grants',()=>{
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     }
   });
+  it('keeps project administrator grants behind independent owner authorization',async()=>{
+    const f=fixture();
+    const tool=registry.tools.find(x=>x.name==='vercel_project_add_member');
+    expect(tool.inputSchema.properties.role.enum).toEqual(['PROJECT_DEVELOPER','PROJECT_VIEWER']);
+    const result=await f.call({project:name,uid,role:'ADMIN',confirm:true});
+    expect(parse(result).status).toBe('refused_by_guard');
+    expect(f.fake.calls).toHaveLength(0);
+    expect(f.audits).toHaveLength(0);
+  });
+  it('fails closed if membership enumeration has no proven final cursor',async()=>{
+    for(const page of [{members:[]},{members:[],pagination:{hasMore:true,next:null}}]){
+      const f=fixture();
+      f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+      f.fake.when('GET','/v1/projects/{idOrName}/members').resolves(page);
+      const result=parse(await f.call({project:name,uid,role,confirm:true}));
+      expect(result.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    }
+  });
   it('denies account/project override and project-only tokens without mutating',async()=>{
     const f=fixture();
     for(const args of [{project:name,uid,role,teamId:'forged',confirm:true},

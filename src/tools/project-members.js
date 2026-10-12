@@ -6,7 +6,9 @@ import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
 
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
-const ROLES=['ADMIN','PROJECT_DEVELOPER','PROJECT_VIEWER'];
+// Administrative project access is held for a separately authenticated owner
+// action; an MCP confirmation is not independent owner authorization.
+const ROLES=['PROJECT_DEVELOPER','PROJECT_VIEWER'];
 const properties={
   project:{type:'string',minLength:1,maxLength:128},
   uid:{type:'string',minLength:1,maxLength:128},
@@ -36,7 +38,8 @@ const scope=async(ctx,project)=>{
 };
 const members=async(client,project)=>{
   const page=await client.request('projects_members_list',{path:{idOrName:project},query:{limit:100}});
-  if(!Array.isArray(page?.members)||page.pagination?.next!=null)
+  if(!Array.isArray(page?.members)||page.members.length>100||
+    !page.pagination||page.pagination.next!==null||page.pagination.hasMore===true)
     throw new TypeError('Member list is incomplete or unavailable; refuse mutation');
   return page.members;
 };
