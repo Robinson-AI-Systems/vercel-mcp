@@ -1,4 +1,6 @@
 // Copied from Robinson-AI-Systems/stripe-mcp src/core/registry.js @ e2f90e8 (unchanged).
+import { isGuardedWrite } from './write.js';
+
 /** Contract-generic registry: no service-specific imports. */
 export function mergeNamespaces(modules) {
   const tools = [];
@@ -11,6 +13,10 @@ export function mergeNamespaces(modules) {
       }
       if (typeof mod.handlers?.[tool.name] !== 'function') {
         throw new Error(`Missing handler for registered tool: ${tool.name}`);
+      }
+      if (tool.writes === true && tool.localAdmin !== true &&
+          !isGuardedWrite(tool, mod.handlers[tool.name])) {
+        throw new Error(`Untrusted guarded-write handler registered: ${tool.name}`);
       }
       seen.add(tool.name);
       tools.push(tool);

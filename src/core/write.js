@@ -3,6 +3,10 @@
 import { createHash } from 'node:crypto';
 import { refusal, safeShape, writePreflight } from './write-preflight.js';
 
+// Private provenance: forged tool metadata cannot authorize a guarded mutation.
+const contracts = new WeakMap();
+const handlers = new WeakMap();
+
 const PRESENTATION = new Set(['dryRun','confirm','fields','detail','requestKey']);
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -117,5 +121,27 @@ export function defineWrite(spec) {
       claimId: claim.claimId, result });
     return result;
   }
+  const identity = Object.freeze({ name: spec.name, run, writeContract });
+  contracts.set(writeContract, identity);
   return { run, writeContract };
+}
+
+// Only this factory produces registry-authenticated guarded handlers. The
+// adapter translates provider context/output; it never replaces defineWrite.run.
+export function bindGuardedWrite(write, context, output) {
+  const identity = contracts.get(write?.writeContract);
+  if (!identity || identity.run !== write?.run ||
+    typeof context !== 'function' || typeof output !== 'function') {
+    throw new TypeError('Only defineWrite can bind guarded provider handlers');
+  }
+  const handler = async (args, ctx) => output(await identity.run(args, context(ctx)));
+  handlers.set(handler, identity);
+  return handler;
+}
+
+export function isGuardedWrite(tool, handler) {
+  const identity = contracts.get(tool?.writeContract);
+  return Boolean(tool?.guardedWrite === true && tool?.writes === true &&
+    identity?.name === tool?.name &&
+    (handler === undefined || handlers.get(handler) === identity));
 }

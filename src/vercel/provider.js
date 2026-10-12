@@ -29,10 +29,19 @@ export async function readProvider(ctx){
 }
 // Separate transport and logical write keys: each has an independent durable
 // claim, so the nested provider call never collides with defineWrite's claim.
-export function transportReplayKey(logicalKey){
+export function transportReplayKey(logicalKey, operationId = 'unspecified', params = {}, mutationId) {
   if(typeof logicalKey!=='string' || !/^[a-zA-Z0-9_-]{8,128}$/.test(logicalKey))
     throw new TypeError('Invalid logical replay key');
-  return 'transport_' + createHash('sha256').update(logicalKey).digest('hex');
+  if(typeof operationId !== 'string' || !/^[a-zA-Z0-9_:-]{1,100}$/.test(operationId) ||
+    (mutationId !== undefined && (typeof mutationId !== 'string' ||
+      !/^[a-zA-Z0-9_:-]{1,100}$/.test(mutationId))))
+    throw new TypeError('Invalid transport mutation identity');
+  const canonical = value => Array.isArray(value) ? value.map(canonical) :
+    value && typeof value === 'object' ? Object.fromEntries(Object.entries(value)
+      .filter(([,v])=>v!==undefined).sort(([a],[b])=>a.localeCompare(b))
+      .map(([k,v])=>[k,canonical(v)])) : value;
+  const identity = JSON.stringify([logicalKey,operationId,canonical(params),mutationId??null]);
+  return 'transport_' + createHash('sha256').update(identity).digest('hex');
 }
 export async function writeProvider(ctx){
   const {client,account}=await bind(ctx,true);
@@ -43,13 +52,13 @@ export async function writeProvider(ctx){
         throw new TypeError('Read-back cannot mutate resources');
       return client.request(id,params);
     },
-    write(id,params,{requestKey,tool,shapeResult}={}){
+    write(id,params,{requestKey,tool,shapeResult,mutationId}={}){
       if(['GET','HEAD'].includes(operation(id).method) ||
         typeof tool!=='string' || !/^vercel_[a-z0-9_]+$/.test(tool) ||
         typeof shapeResult!=='function')
         throw new TypeError('Guarded mutation must declare tool and safe shape');
       return client.request(id,params,{
-        requestKey:transportReplayKey(requestKey),tool,mode:ctx.connection.mode,
+        requestKey:transportReplayKey(requestKey,id,params,mutationId),tool,mode:ctx.connection.mode,
         shapeResult
       });
     }

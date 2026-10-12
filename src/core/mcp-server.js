@@ -15,8 +15,8 @@ export const listMcpTools = (registry, connection) =>
         'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'].includes(tool.name) ||
       tool.name.startsWith('vercel_workflow_'))
     .map(tool=>{
-      const read=tool.writes===undefined ? !LOCAL_OWNER_TOOLS.includes(tool.name) :
-        tool.writes===false;
+      // Public descriptors have writes stripped; use authenticated metadata.
+      const read=registry.tools.find(item=>item.name===tool.name)?.writes===false;
       const annotations={
         readOnlyHint:read,destructiveHint:false,idempotentHint:read,
         openWorldHint:true,...tool.annotations
