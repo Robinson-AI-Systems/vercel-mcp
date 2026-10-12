@@ -1,5 +1,6 @@
 // D-1a: small, explicitly selected project metadata only; no provider writes.
 import {readProvider} from '../vercel/provider.js';
+import {credentialLike} from '../core/util.js';
 const PROFILES=['read_only','everyday','full'];
 const schema=properties=>({type:'object',properties,additionalProperties:false});
 const asText=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
@@ -34,9 +35,9 @@ const safeMemberText=(value,max=320)=>typeof value==='string'&&value.length<=max
 // query strings, fragments or control characters in a read result.
 const safeProjectText=(value,max=256)=>typeof value==='string'&&value.length<=max&&
   !/[\x00-\x1f\x7f]/.test(value)&&
-  !/(?:vcp_|vca_|vci_|vcr_|github_pat_|ghp_|sk_live_|whsec_)[a-zA-Z0-9_-]{12,}/.test(value)?value:null;
+  !credentialLike(value)?value:null;
 function safeHostname(value){
-  if(typeof value!=='string'||value.length>253||/[/?#@:\s\\]/.test(value)||
+  if(typeof value!=='string'||credentialLike(value)||value.length>253||/[/?#@:\s\\]/.test(value)||
     !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(value))return null;
   return value;
 }

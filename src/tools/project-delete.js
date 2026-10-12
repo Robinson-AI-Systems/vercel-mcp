@@ -79,12 +79,12 @@ async function inspect(ctx,selector){
     deploymentPage.deployments.some(item=>!item||item.projectId!==row.id))
     throw new TypeError('Cannot prove complete project deployment inventory');
   const inventory={
-    deployments:row.hasDeployments?'present':deploymentPage.deployments.length,
+    deployments:deploymentPage.deployments.length,
     git:row.link!=null?1:0,crons:cron.length,storageConnections:storage.length,
     domains:countDomains,envVariables:countEnvs
   };
   return {id:row.id,name:row.name,inventory,
-    empty:Object.values(inventory).every(n=>n===0)};
+    empty:!row.hasDeployments&&Object.values(inventory).every(n=>n===0)};
 }
 const deletion=defineWrite({
   name:'vercel_project_delete',

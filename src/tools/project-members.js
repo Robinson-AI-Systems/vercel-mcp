@@ -1,5 +1,5 @@
 // D-1h: add an existing team member by stable user ID. No email invites or seats.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -73,14 +73,17 @@ const grant=defineWrite({
     if(before.alreadyAssigned)return {accepted:false,unchanged:true};
     // The preview and confirmation may be separated in time. Do not grant a
     // role after its team contributor status or project identity changed.
-    const {client,account}=await readProvider(ctx);
-    if(!['team','full'].includes(account.scope))
+    const provider=await writeProvider(ctx);
+    await requirePreDispatch(async()=>{
+      const {account}=provider;
+      const client={request:(id,params)=>provider.read(id,params)};
+      if(!['team','full'].includes(account.scope))
       throw new TypeError('Team authority changed before project role grant');
     const fresh=await client.request('projects_get',{path:{idOrName:before.project}});
     if(fresh?.id!==before.project||fresh?.name!==before.name)
       throw new TypeError('Project identity changed before role grant');
     await verifyEligibleTeamMember(client,account.team_id,before.uid);
-    const provider=await writeProvider(ctx);
+    });
     return provider.write('projects_members_add',{
       path:{idOrName:before.project},body:{uid:before.uid,role:before.role}
     },{requestKey,tool:'vercel_project_add_member',

@@ -112,6 +112,21 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(JSON.stringify({listed,detail})).not.toContain(poison);
     expect(fake.calls).toHaveLength(2);
   });
+  it('returns null for canonical token shapes in project fields and hostnames',async()=>{
+    const fake=makeFakeVercel();
+    const secrets=['sk_test_'+'a'.repeat(24),'rk_live_'+'b'.repeat(24),
+      'vercel_blob_rw_'+'c'.repeat(24),'xoxb-'+'d'.repeat(24),
+      'AKIA'+'A'.repeat(20)];
+    fake.when('GET','/v10/projects').resolves({projects:secrets.map((secret,i)=>({
+      id:'prj_'+i,name:'demo',framework:secret,productionUrl:secret+'.example.test',
+      link:{repo:secret,productionBranch:secret}
+    })),pagination:{next:null}});
+    const result=parse(await call('vercel_project_list',{},db,fake.fetch));
+    expect(result.projects).toHaveLength(secrets.length);
+    for(const row of result.projects)
+      expect(row).toMatchObject({framework:null,productionUrl:null,gitRepo:null,productionBranch:null});
+    expect(JSON.stringify(result)).not.toContain('sk_test_');
+  });
   it('gets safe build and Git fields by a validated project identifier',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v9/projects/{idOrName}').resolves({

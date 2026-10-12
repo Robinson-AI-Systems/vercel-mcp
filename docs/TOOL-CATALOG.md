@@ -71,6 +71,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_create_pass` | Make a short-lived pass for the HTTPS API and Robinson's Toolkit (preview, read-only, 24 h, $0 by default; RTC §2) | C A 1x | O | F | — | R-1 |
 | `vercel_where_is_setting` | Structured steps (link, numbered actions, expected result, read-back check) for any dashboard-only setting | — G | O Op | R | — | B-8, O-5 |
 
+**D-1 execution safety review (#81):** Project/member execution proofs and paid Git imports use one final write-capable token binding; owner spending is rechecked after Git lookups. Definite pre-dispatch denial releases only its owned logical replay reservation for retry, while provider-write uncertainty remains pending. Project scalar and hostname safety use canonical credential detection. Deletion previews report complete deployment counts without disregarding the conservative `hasDeployments` signal. No new owner-granted operations or production activation.
+
 ## Projects, crons and Git (`vercel_project_*`, `vercel_cron_*`, `vercel_git_*`) — 15
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |

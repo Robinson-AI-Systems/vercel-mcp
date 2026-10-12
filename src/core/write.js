@@ -3,6 +3,13 @@
 import { createHash } from 'node:crypto';
 import { refusal, safeShape, writePreflight } from './write-preflight.js';
 
+// A definite pre-dispatch safety refusal is never a provider-write failure.
+export class PreDispatchRefusal extends Error {}
+export async function requirePreDispatch(check){
+  try { return await check(); }
+  catch { throw new PreDispatchRefusal('Execution-time authorization recheck refused'); }
+}
+
 // Private provenance: forged tool metadata cannot authorize a guarded mutation.
 const contracts = new WeakMap();
 const handlers = new WeakMap();
@@ -86,8 +93,14 @@ export function defineWrite(spec) {
     let providerResult;
     try {
       providerResult = await spec.apply(args, ctx, before, requestKey);
-    } catch {
-      // The request may have reached Vercel. Never auto-retry.
+    } catch (error) {
+      if (error instanceof PreDispatchRefusal && typeof ctx.replayStore.release === 'function') {
+        try {
+          // CAS delete the definite non-dispatched claim, never a pending write.
+          await ctx.replayStore.release({key:requestKey,claimId:claim.claimId});
+          return refusal('Execution-time authorization or resource checks refused the change');
+        } catch { /* changed claim ownership: fail closed as unknown */ }
+      }
       return { status: 'outcome_unknown', mode, confirmed: null, requestKey,
         reason: 'Write result is unknown; run a read-back before retrying' };
     }

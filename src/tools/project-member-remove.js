@@ -1,5 +1,5 @@
 // D-1i: guarded removal of viewer/developer project-only permission.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -80,8 +80,11 @@ const revoke=defineWrite({
     // The role, team authority and acting principal can change after preview.
     // Re-evaluate every lockout guard against the same authenticated account
     // immediately before DELETE; never trust the earlier inventory alone.
-    const {client,account}=await readProvider(ctx);
-    if(!['team','full'].includes(account.scope))
+    const provider=await writeProvider(ctx);
+    await requirePreDispatch(async()=>{
+      const {account}=provider;
+      const client={request:(id,params)=>provider.read(id,params)};
+      if(!['team','full'].includes(account.scope))
       throw new TypeError('Team authority changed before project role removal');
     const identity=await client.request('user_get');
     const selfUid=identity?.user?.id;
@@ -96,7 +99,7 @@ const revoke=defineWrite({
       !['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role))
       throw new TypeError('Project role or last-member status changed before removal');
     await verifyEligibleTeamMember(client,account.team_id,before.uid);
-    const provider=await writeProvider(ctx);
+    });
     return provider.write('projects_members_remove',{
       path:{idOrName:before.project,uid:before.uid}
     },{requestKey,tool:'vercel_project_remove_member',
