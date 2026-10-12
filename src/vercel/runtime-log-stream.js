@@ -16,10 +16,13 @@ export async function readBoundedRuntimeLogs(response,signal){
   };
   const parseLine=text=>{
     if(!text.trim())return;
-    const item=JSON.parse(text);
+    let item;
+    try{item=JSON.parse(text);}
+    catch{throw new TypeError('Invalid provider runtime log framing');}
     if(Array.isArray(item)){
-      for(const row of item.slice(0,MAX_ROWS-records.length))add(row);
-      if(item.length>MAX_ROWS-records.length)cutoff='row_limit';
+      const remaining=MAX_ROWS-records.length;
+      if(item.length>remaining)cutoff='row_limit';
+      for(const row of item.slice(0,remaining))add(row);
     }else add(item);
   };
   const flushLines=()=>{
