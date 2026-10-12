@@ -239,6 +239,10 @@ export const deploymentReadTools={
       let content;
       try{content=new TextDecoder('utf-8',{fatal:true}).decode(raw);}
       catch{throw new TypeError('Binary deployment files cannot be returned');}
+      // Valid UTF-8 does not imply a text file: NUL and other C0 binary
+      // controls can survive decoding and must not escape as source text.
+      if(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(content))
+        throw new TypeError('Binary deployment files cannot be returned');
       if(credentialLike(content)||/((?:password|secret|api[_-]?key|authorization|private[_-]?key)\s*[:=]\s*\S+)/i.test(content))
         throw new TypeError('Deployment source contains potentially sensitive content');
       return asText({project,deployment:args.deployment,fileId:args.fileId,
