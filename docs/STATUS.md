@@ -4,7 +4,7 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **D-1an PR #87 — reject stale project setting overrides:** project command, directory and framework writes now fingerprint their original selected values and recheck those exact values using the PATCH credential. Concurrent edits refuse before mutation, with no raw build-command values in audit/previews. No new production authority; D-1 remains IN_PROGRESS.
+- **D-1an PR #87 — reject stale project setting overrides:** project command, directory and framework writes fingerprint their original selected values and recheck them using the PATCH credential. Concurrent edits refuse before mutation, with no raw build-command values in audit/previews. No new production authority; D-1 remains IN_PROGRESS.
 
 - **D-1am PR #86 — last-moment project role collision check:** the guarded grant re-enumerates the complete project membership using the very credential that would POST, refusing any concurrently assigned viewer, developer or administrator role instead of accidentally overwriting it. Race/partial-page tests included. Project ADMIN grant remains gated; D-1 IN_PROGRESS and production inactive.
 
