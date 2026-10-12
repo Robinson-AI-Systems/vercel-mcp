@@ -2,7 +2,8 @@
 // the exact method and path in vendor/vercel-openapi/openapi-2026-10-11.json.
 export const OPS = Object.freeze({
   user_get: Object.freeze({ method: 'GET', path: '/v2/user' }),
-  teams_list: Object.freeze({ method: 'GET', path: '/v2/teams' }),
+  teams_list: Object.freeze({ method: 'GET', path: '/v2/teams', teamScoped: false }),
+  teams_get: Object.freeze({ method: 'GET', path: '/v2/teams/{teamId}', teamScoped: false }),
   // Exact team ID comes only from the stored account, not the caller. This
   // endpoint takes teamId in the path, not as a redundant query parameter.
   teams_members_list: Object.freeze({ method: 'GET', path: '/v3/teams/{teamId}/members', teamScoped: false }),

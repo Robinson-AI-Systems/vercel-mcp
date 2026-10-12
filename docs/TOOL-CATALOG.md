@@ -357,8 +357,8 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_team_list` | Teams the token can see | — | O | R | — | O-1 |
-| `vercel_team_get` | Team profile, plan name, security settings, default protection, retention, remote caching | — | O | R | — | O-1 |
+| `vercel_team_list` | One strictly stored-account selected team from the provider list, with projected metadata; never other teams or credentials | — | O | R | — | O-1 (read built #144) |
+| `vercel_team_get` | Selected team ID verified with provider; allowlisted profile/plan/security flags, no secret values | — | O | R | — | O-1 (read built #144) |
 | `vercel_team_update_profile` | Name, slug (6 changes a week; changes URLs), description, preview deployment suffix | C | O | F | — | O-1 |
 | `vercel_team_update_security` | SAML enforced, IP addresses hidden in logs, verified commits required, separate production secret values, strict protection settings, email-domain auto-join | C (A when loosening) | O | F | — | O-1 |
 | `vercel_team_set_default_protection` | Default deployment protection for new projects | C (A when loosening) | O | F | — | O-1 |
