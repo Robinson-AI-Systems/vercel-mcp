@@ -85,6 +85,79 @@ function cursorFor(reply,items,limit){
     throw new TypeError('Unsafe deployment pagination cursor');
   return n;
 }
+
+// A deployment ID is checked against its account-scoped project before either
+// ancillary GET. File names and log text may contain secrets: do not return raw.
+async function scopedDeployment(args,ctx){
+  if(typeof args.deployment!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(args.deployment))
+    throw new TypeError('Select a valid deployment ID');
+  const {client,account}=await readProvider(ctx);
+  const project=projectFor(args,account);
+  const row=await client.request('deployments_get',{path:{idOrUrl:args.deployment}});
+  const verified=summary(row,project);
+  if(verified.id!==args.deployment)throw new TypeError('Deployment identity changed');
+  return {client,project};
+}
+function buildEventSummary(events){
+  if(!Array.isArray(events))throw new TypeError('Invalid deployment events response');
+  const tally={error:0,warning:0,command:0,other:0};
+  let firstError=null,scanned=0;
+  for(const event of events.slice(0,5000)){
+    if(!event||typeof event!=='object'||Array.isArray(event))
+      throw new TypeError('Malformed deployment event');
+    scanned++;
+    // No payload.text or arbitrary metadata ever leaves this process.
+    const kind=typeof event.type==='string'?event.type.toLowerCase():'';
+    const level=typeof event.payload?.level==='string'?event.payload.level.toLowerCase():'';
+    const category=kind==='error'||level==='error'?'error':
+      kind==='warning'||level==='warn'||level==='warning'?'warning':
+      kind==='command'?'command':'other';
+    tally[category]++;
+    if(category==='error'&&!firstError){
+      const step=event.payload?.info?.step;
+      firstError={eventIndex:scanned-1,
+        step:typeof step==='string'&&/^[A-Za-z0-9 _.-]{1,64}$/.test(step)&&
+        !credentialLike(step)?step:null,
+        note:'Build error present; inspect the deployment in Vercel for unredacted details'};
+    }
+  }
+  return {scanned,tally,firstError,returnedByProvider:events.length,
+    boundedScan:events.length>5000,
+    complete:false,reason:'Build-event pagination or availability cannot be proven by one bounded GET',
+    containsRawLogText:false};
+}
+function safeFileTree(tree){
+  if(!Array.isArray(tree))throw new TypeError('Invalid deployment file tree');
+  const stack=tree.map(n=>({n,path:'',depth:0})).reverse(), files=[];
+  let scanned=0;
+  while(stack.length&&scanned<1000){
+    const {n,path,depth}=stack.pop();
+    if(!n||typeof n!=='object'||Array.isArray(n)||depth>8)
+      throw new TypeError('Malformed or overdeep deployment file tree');
+    const part=n.name;
+    if(typeof part!=='string'||part.length<1||part.length>100||
+      !/^[A-Za-z0-9._-]+$/.test(part)||part==='.'||part==='..'||
+      credentialLike(part))throw new TypeError('Unsafe deployment file path');
+    const full=path?path+'/'+part:part;
+    if(full.length>500)throw new TypeError('File path too deep');
+    const type=n.type;
+    if(type!=='file'&&type!=='directory')
+      throw new TypeError('Unknown deployment file type');
+    scanned++;
+    if(files.length<20)files.push({path:full,type,
+      fileId:type==='file'&&typeof n.uid==='string'&&/^[a-fA-F0-9]{32,128}$/.test(n.uid)?n.uid:null});
+    if(n.children!==undefined){
+      if(type!=='directory'||!Array.isArray(n.children))
+        throw new TypeError('Invalid file tree children');
+      for(const child of [...n.children].reverse())stack.push({n:child,path:full,depth:depth+1});
+    }
+  }
+  return {files,scanned,more:stack.length>0||scanned>20,
+    complete:stack.length===0&&scanned<=20,
+    availability:tree.length===0?'unknown':'file_tree',
+    note:tree.length===0?'Provider returned no file tree; this does not prove deployment has no files':null};
+}
+
 export const deploymentReadTools={
   tools:[
     {name:'vercel_deploy_list',writes:false,profiles:PROFILES,area:'deployments',
@@ -96,9 +169,34 @@ export const deploymentReadTools={
       description:'Read one deployment by ID or HTTPS hostname, independently verifying the project.',
       inputSchema:schema({project:{type:'string',maxLength:128},
         deployment:{type:'string',minLength:3,maxLength:253}},['deployment']),
+      annotations:{readOnlyHint:true}},
+    {name:'vercel_deploy_get_build_logs',writes:false,profiles:PROFILES,area:'deployments',
+      description:'Summarize up to 5000 build events for a verified deployment without returning raw potentially secret text.',
+      inputSchema:schema({project:{type:'string',maxLength:128},
+        deployment:{type:'string',minLength:7,maxLength:128}},['deployment']),
+      annotations:{readOnlyHint:true}},
+    {name:'vercel_deploy_list_files',writes:false,profiles:PROFILES,area:'deployments',
+      description:'Read up to 20 safe deployment file-tree paths from an independently verified project/deployment.',
+      inputSchema:schema({project:{type:'string',maxLength:128},
+        deployment:{type:'string',minLength:7,maxLength:128}},['deployment']),
       annotations:{readOnlyHint:true}}
   ],
   handlers:{
+    async vercel_deploy_get_build_logs(args,ctx){
+      validateArgs(args,['project','deployment']);
+      const {client,project}=await scopedDeployment(args,ctx);
+      const events=await client.request('deployments_events',{
+        path:{idOrUrl:args.deployment},
+        query:{limit:100,follow:0,direction:'backward'}});
+      return asText({project,deployment:args.deployment,
+        ...buildEventSummary(events)});
+    },
+    async vercel_deploy_list_files(args,ctx){
+      validateArgs(args,['project','deployment']);
+      const {client,project}=await scopedDeployment(args,ctx);
+      const files=await client.request('deployments_files_list',{path:{id:args.deployment}});
+      return asText({project,deployment:args.deployment,...safeFileTree(files)});
+    },
     async vercel_deploy_list(args,ctx){
       validateArgs(args,['project','limit','until']);
       const limit=args.limit??20;

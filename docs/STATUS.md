@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-2b #134 — deployment diagnostics:** verified-project build-log event summary and source-file tree via pinned Vercel read-only GETs. Returns bounded event counts and safe first-error step without raw text; bounded file list without contents. Independent deployment/project readback guards against cross-project access. Malformed/overdeep trees and provider identity mismatches fail closed. Unit/CI fake-provider evidence only, no deployed Vercel provider acceptance. Next D-2c: file contents and runtime/check reads after verifying stream/response bounds; no manual deploy or paid changes.
+
+
 - **Outcome-first permanent workflow update (alongside RTC #133):**
   Agent workflow now selects the highest-priority eligible capability,
   not an arbitrary five-PR volume target; records the exact evidence and
