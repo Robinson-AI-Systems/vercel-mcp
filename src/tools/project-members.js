@@ -53,18 +53,25 @@ const grant=defineWrite({
     validate(args);
     const project=await scope(ctx,args.project);
     const rows=await members(project.client,project.id);
-    if(rows.some(row=>(row.uid??row.userId??row.id)===args.uid))
-      throw new TypeError('Member is already assigned to project; use deliberate role administration');
-    return {project:project.id,name:project.name,uid:args.uid,role:args.role};
+    const current=rows.find(row=>(row.uid??row.userId??row.id)===args.uid);
+    if(current && current.role!==args.role)
+      throw new TypeError('Member already has another project role; role changes need separate review');
+    // A completed replay must be reachable even after the first grant succeeded.
+    // A new key with the same role becomes a verified idempotent no-op.
+    return {project:project.id,name:project.name,uid:args.uid,role:args.role,
+      alreadyAssigned:Boolean(current)};
   },
   async preview(_args,_ctx,before){
     return 'Grant '+before.role+' project access to existing team user '+before.uid+
-      ' on project '+before.name+' ('+before.project+'); no team invitation or paid seat';
+      ' on project '+before.name+' ('+before.project+')'+
+      (before.alreadyAssigned?'; role already assigned (no mutation)':
+        '; no team invitation or paid seat');
   },
   async production(){return {production:true,why:'Project access may reach production data and resources'};},
   async targets(_args,before){return [{kind:'project',id:before.project,name:before.name}];},
   async access(_args,before){return {widens:true,who:before.uid,what:before.role+' on '+before.project};},
   async apply(_args,ctx,before,requestKey){
+    if(before.alreadyAssigned)return {accepted:false,unchanged:true};
     const provider=await writeProvider(ctx);
     return provider.write('projects_members_add',{
       path:{idOrName:before.project},body:{uid:before.uid,role:before.role}
