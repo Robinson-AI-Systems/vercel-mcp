@@ -12,6 +12,8 @@ Tool metadata for a read-only pass must be explicitly registered read-only with 
 
 Read-only discovery supports bounded cursor pagination: the numeric `next` offset can be supplied as `cursor` to retrieve the following page with the same query and pass scope. Hidden/write-capable tools are filtered before pagination, never counted or leaked to a read-only pass. Invalid cursor/filter types are refused. The OpenAPI query parameters describe this interface.
 
+Batch execution uses one canonical request snapshot from preflight through the final atomic quota check; changes to a request object after an await cannot redirect a previously approved call. Before each additional batch read, an unmetered SQL inspection checks revocation, expiration and unchanged account/area scope. If validation fails, remaining reads stop and no partial HTTP result is returned. These checks do not create new pass authority.
+
 The read-only HTTPS batch response is also bounded to 8 KiB. A valid batch of up to 10 individually sanitized reads whose aggregate exceeds the envelope budget is stored for 24 hours under the same account and pass-derived result owner, and a handle is returned for the paged result endpoint. Unknown storage outcomes fail closed; no write pass is introduced.
 
 Both OAuth MCP and RTC HTTPS refuse a tool falsely declaring itself read-only if it also carries writeContract, guardedWrite, localAdmin, secretIn/secretOut, destructiveHint:true or readOnlyHint:false. These contradictory declarations are not exposed on tool lists, and direct/batched invocation never calls their handlers.

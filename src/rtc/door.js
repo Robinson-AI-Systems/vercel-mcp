@@ -41,7 +41,9 @@ function getBody(req){
   const raw=typeof req.body==='string'?req.body:JSON.stringify(req.body);
   if(typeof raw!=='string'||Buffer.byteLength(raw)>16384)
     throw new TypeError('Invalid request size');
-  const body=typeof req.body==='string'?JSON.parse(raw):req.body;
+  // Canonical immutable snapshot: later serverless awaits must not observe a
+  // caller/framework changing nested request objects after batch preflight.
+  const body=JSON.parse(raw);
   if(!body||typeof body!=='object'||Array.isArray(body))
     throw new TypeError('Invalid request body');
   return body;
@@ -131,10 +133,16 @@ function validPassRecord(record){
     record.areas.every(area=>typeof area==='string'&&AREA.test(area))&&
     ['compact','catalog'].includes(record.listing));
 }
+function samePassScope(before,after){
+  return validPassRecord(after)&&before.id===after.id&&
+    before.account===after.account&&before.profile===after.profile&&
+    before.mode===after.mode&&before.listing===after.listing&&
+    JSON.stringify(before.areas)===JSON.stringify(after.areas);
+}
 async function requirePass(req,db,res,route,registry){
   const m=PASS.exec(String(req.headers?.authorization||''));
   if(!m){fail(res,'permission');return null;}
-  let units=1,peek=null;
+  let units=1,peek=null,approvedCalls=null;
   if(route==='batch' && req.method==='POST'){
     // Reserve every read atomically before the first provider call; never
     // multiply a 60/minute pass into 600/minute via ten-item batches.
@@ -152,14 +160,15 @@ async function requirePass(req,db,res,route,registry){
       fail(res,peek?.status in MESSAGES?peek.status:'permission');return null;
     }
     if(!validPassRecord(peek)){fail(res,'permission');return null;}
+    approvedCalls=[];
     for(const call of body.calls){
       if(!call||typeof call!=='object'||Array.isArray(call)||
         Object.keys(call).some(k=>!['name','args'].includes(k))||
         typeof call.name!=='string'){fail(res,'invalid_args');return null;}
-      if(!named({query:{name:call.name}},registry,peek)){
-        fail(res,'refused_by_guard');return null;
-      }
-      try{argumentsFor(call.args??{});}catch{fail(res,'invalid_args');return null;}
+      const tool=named({query:{name:call.name}},registry,peek);
+      if(!tool){fail(res,'refused_by_guard');return null;}
+      try{approvedCalls.push({name:tool.name,args:argumentsFor(call.args??{})});}
+      catch{fail(res,'invalid_args');return null;}
     }
     units=body.calls.length;
   }
@@ -167,23 +176,23 @@ async function requirePass(req,db,res,route,registry){
   if(record?.status!=='ok'){fail(res,record?.status in MESSAGES?record.status:'permission');return null;}
   // A malformed database authorization record is never a valid scoped pass.
   // Scope/account/identity must be independently well formed before dispatch.
-  if(!validPassRecord(record)||
-    (peek&&(peek.id!==record.id||peek.account!==record.account||
-      peek.listing!==record.listing||JSON.stringify(peek.areas)!==JSON.stringify(record.areas)))){
+  if(!validPassRecord(record)||(peek&&!samePassScope(peek,record))){
     fail(res,'permission');return null;
   }
   const connection={account:record.account,profile:'read_only',mode:'preview',
     listing:record.listing,clientId:record.id};
   Object.defineProperty(connection,'resultOwner',{value:'resown_'+
     createHash('sha256').update('rmcp-result-owner-v1:').update(m[1]).digest('hex')});
-  return {pass:record,connection:Object.freeze(connection)};
+  // The bearer stays inside the door closure, never in handler context/output.
+  return {pass:record,connection:Object.freeze(connection),approvedCalls,
+    checkStillValid:()=>db.inspectRtcPass(m[1])};
 }
 export function rtcDoor({db,registry,env=process.env,fetchImpl}){
   return async function handler(req,res,route){
     try{
       const auth=await requirePass(req,db,res,route,registry);
       if(!auth)return;
-      const {pass,connection}=auth;
+      const {pass,connection,approvedCalls,checkStillValid}=auth;
       const ctx={db,registry,env,fetchImpl,connection};
       if(route==='whoami'){
         if(req.method!=='GET')return fail(res,'invalid_args');
@@ -225,25 +234,21 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       }
       if(route==='batch'){
         if(req.method!=='POST')return fail(res,'invalid_args');
-        let body;
-        try{body=getBody(req);}
-        catch{return fail(res,'invalid_args');}
-        if(Object.keys(body).some(k=>k!=='calls')||!Array.isArray(body.calls)||
-          body.calls.length<1||body.calls.length>10)return fail(res,'invalid_args');
-        const approved=[];
-        for(const call of body.calls){
-          if(!call||typeof call!=='object'||Array.isArray(call)||
-            Object.keys(call).some(k=>!['name','args'].includes(k))||
-            typeof call.name!=='string')return fail(res,'invalid_args');
-          const def=named({query:{name:call.name}},registry,pass);
-          if(!def)return fail(res,'refused_by_guard');
-          let args;
-          try{args=argumentsFor(call.args||{});}
-          catch{return fail(res,'invalid_args');}
-          approved.push({name:def.name,args});
-        }
+        // Consume the exact reviewed snapshot. Re-reading req.body after an
+        // async quota reservation would permit a different batch to execute.
+        if(!Array.isArray(approvedCalls)||approvedCalls.length<1||
+          approvedCalls.length>10)return fail(res,'service_error');
         const results=[];
-        for(const call of approved){
+        for(let i=0;i<approvedCalls.length;i++){
+          // A revoked/expired pass must not keep making provider reads merely
+          // because the first item reserved all quota units earlier.
+          if(i>0){
+            const current=await checkStillValid();
+            if(current?.status!=='ok')return fail(res,
+              current?.status in MESSAGES?current.status:'permission');
+            if(!samePassScope(pass,current))return fail(res,'permission');
+          }
+          const call=approvedCalls[i];
           const result=await invoke(call.name,call.args,ctx);
           if(result===null)return fail(res,'service_error');
           results.push(result);

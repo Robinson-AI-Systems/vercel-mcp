@@ -247,6 +247,47 @@ describe('RTC 1 read-only HTTPS door',()=>{
     expect(response.body.error.code).toBe('invalid_args');
   }
  });
+ it('refuses remaining batch reads after an owner revokes the pass',async()=>{
+  const f=fixture();
+  f.read.mockImplementation(async()=>{
+    f.db.inspectRtcPass.mockResolvedValue({status:'pass_revoked'});
+    return out({label:'first-only'});
+  });
+  const response=await f.call('batch','POST',{}, {calls:[
+    {name:'vercel_fixture_read',args:{}},{name:'vercel_fixture_read',args:{}},
+    {name:'vercel_fixture_read',args:{}}]});
+  expect(response.code).toBe(401);
+  expect(response.body.error.code).toBe('pass_revoked');
+  expect(f.db.authorizeRtcPass).toHaveBeenCalledOnce();
+  expect(f.read).toHaveBeenCalledTimes(1);
+  expect(f.db.putResult).not.toHaveBeenCalled();
+ });
+ it('refuses a mutated or expired pass scope between batch items',async()=>{
+  for(const final of [{status:'pass_expired'}, {...a,status:'ok',areas:['other']}]){
+    const f=fixture();
+    f.read.mockImplementation(async()=>{
+      f.db.inspectRtcPass.mockResolvedValue(final);
+      return out({label:'first-only'});
+    });
+    const response=await f.call('batch','POST',{}, {calls:[
+      {name:'vercel_fixture_read',args:{}},{name:'vercel_fixture_read',args:{}}]});
+    expect(response.code).toBe(401);
+    expect(f.read).toHaveBeenCalledTimes(1);
+  }
+ });
+ it('executes only the preflighted immutable batch, not later request-object mutations',async()=>{
+  const f=fixture(),body={calls:[{name:'vercel_fixture_read',args:{tag:'original'}}]};
+  f.db.authorizeRtcPass.mockImplementationOnce(async()=>{
+    body.calls[0].name='vercel_fixture_write';
+    body.calls[0].args={confirm:true};
+    return {...a,status:'ok'};
+  });
+  const response=await f.call('batch','POST',{},body);
+  expect(response.code).toBe(200);
+  expect(response.body.result.results).toEqual([{label:'safe'}]);
+  expect(f.read).toHaveBeenCalledWith({tag:'original'},expect.any(Object));
+  expect(f.mutate).not.toHaveBeenCalled();
+ });
  it('stores a combined batch exceeding 8KB under the calling pass, then pages it',async()=>{
   const f=fixture(),handle='res_'+'f'.repeat(32);
   f.read.mockResolvedValue(out({label:'x'.repeat(1000)}));
