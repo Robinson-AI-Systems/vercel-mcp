@@ -457,15 +457,3 @@ describe('D-1f guarded project creation',()=>{
     f.fake.verify();
   });
 });
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
-      .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
-    f.fake.when('POST','/v11/projects')
-      .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
-    const res=parse(await f.call({name:'demo-site',gitRepository:{
-      type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},
-      {...connection,mode:'production',profile:'full'}));
-    expect(res).toMatchObject({status:'applied',confirmed:false});
-    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
-    f.fake.verify();
-  });
-});
