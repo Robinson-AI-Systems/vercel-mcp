@@ -1,6 +1,6 @@
 // D-1o: transfer initiation only. The claim code is encrypted into an owner-only
 // one-time vault; never return it through an MCP result or a replay/audit record.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -48,7 +48,8 @@ const transfer=defineWrite({
     if(typeof row?.id!=='string'||!ID.test(row.id)||
       typeof row?.name!=='string'||row.name!==args.expectedName)
       throw new TypeError('Project name must match independent provider identity');
-    return {id:row.id,name:row.name};
+    return {id:row.id,name:row.name,accountId:account.id,
+      teamId:account.team_id};
   },
   async preview(_args,_ctx,before){
     return 'Issue a 24-hour claim code for project '+before.name+' ('+before.id+
@@ -69,6 +70,17 @@ const transfer=defineWrite({
   async apply(_args,ctx,before,requestKey){
     const vault=oneTimeSecrets({db:ctx.db,env:ctx.env});
     const provider=await writeProvider(ctx);
+    await requirePreDispatch(async()=>{
+      // A transfer claim can hand off a project. Re-prove the exact target with
+      // the credential/team that will issue the claim, not a preview-time token.
+      if(!['team','full'].includes(provider.account.scope)||
+        provider.account.id!==before.accountId||
+        provider.account.team_id!==before.teamId)
+        throw new TypeError('Transfer issuer authority changed after confirmation');
+      const fresh=await provider.read('projects_get',{path:{idOrName:before.id}});
+      if(fresh?.id!==before.id||fresh?.name!==before.name)
+        throw new TypeError('Transfer project identity changed after confirmation');
+    });
     return provider.write('projects_transfer_request',{
       path:{idOrName:before.id},body:{}
     },{requestKey,tool:'vercel_project_transfer',
