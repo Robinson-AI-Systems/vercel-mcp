@@ -952,14 +952,15 @@
       "readiness": "READY",
       "ownerInputs": [],
       "pr": [
-        144
+        144,
+        145
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next O-1 Vercel MCP implementer",
-        "reason": "Two selected-team safe GETs built; five owner-guarded team mutations unimplemented and real provider/hosted evidence remains separate.",
-        "nextAction": "Implement the next approved O-1 owner-guarded mutation with complete production/access protections and independent readback; alternatively continue highest-priority eligible independent code when an external gate remains.",
-        "checkpoint": "After #144 and at each PR/session boundary",
+        "reason": "Two project-safe team reads and guarded owner team profile update implemented; security/default protection, retention, directory mappings and hosted acceptance remain.",
+        "nextAction": "Implement O-1 team security/default protection guarded change only after validating access-widening, owner SAML, provider request schema, and owner-side readback; continue independent approved roadmap where appropriate.",
+        "checkpoint": "After #145 merge, next session start and any owner-hosted acceptance change",
         "evidenceNeeded": "Guarded-write contract, true REST body mapping and adversarial tests; actual owner-hosted scoped provider evidence separately.",
         "eligibilityCondition": "O-1 read and code-level guarded previews independently eligible; real owner activation and connected verification require authenticated owner deployment.",
         "dependencies": [

@@ -93,7 +93,7 @@ describe('B-2 two-step production permission', () => {
     expect(registry.tools.filter(x=>x.writes && x.localAdmin).map(x=>x.name))
       .toEqual(['vercel_enable_production','vercel_disable_production','vercel_set_default_account','vercel_set_spend_limit','vercel_revoke_connection']);
     expect(registry.tools.filter(x=>x.writes && x.guardedWrite).map(x=>x.name))
-      .toEqual(['vercel_project_create','vercel_project_update_settings','vercel_project_add_member','vercel_project_remove_member','vercel_project_pause','vercel_project_unpause','vercel_project_delete','vercel_project_transfer','vercel_project_set_build_resources']);
+      .toEqual(['vercel_project_create','vercel_project_update_settings','vercel_project_add_member','vercel_project_remove_member','vercel_project_pause','vercel_project_unpause','vercel_project_delete','vercel_project_transfer','vercel_project_set_build_resources','vercel_team_update_profile']);
     expect((await dispatchReadOnlyTool({registry,name:'vercel_enable_production',connection:{...conn,profile:'read_only'},db})).isError).toBe(true);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
     // The test runner is not a production Vercel deployment, so the
