@@ -11,7 +11,7 @@ const project={id:'prj_FAKE_EMPTY',name:'empty-site',hasDeployments:false,
 const request={project:project.id,expectedName:project.name,outsideApp:true,
   confirm:true,requestKey:'FAKE_empty_delete_key'};
 const parse=r=>JSON.parse(r.content[0].text);
-function fixture(){
+function fixture({deploymentResponse={deployments:[],pagination:{next:null}}}={}){
   const fake=makeFakeVercel(),replay=new Map(),audits=[];
   const db={getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
     recordChange:async row=>audits.push(row),
@@ -28,7 +28,7 @@ function fixture(){
   const domainRule=fake.when('GET','/v9/projects/{idOrName}/domains');
   const envRule=fake.when('GET','/v10/projects/{idOrName}/env');
   const deploymentRule=fake.when('GET','/v7/deployments')
-    .resolves({deployments:[],pagination:{next:null}});
+    .resolves(deploymentResponse);
   const deleteRule=fake.when('DELETE','/v9/projects/{idOrName}');
   const empty=()=>{projectRule.resolves(project);
     domainRule.resolves({domains:[],pagination:{next:null}});
@@ -157,14 +157,15 @@ describe('D-1m destructive empty-project deletion',()=>{
     for(const field of ['domains','envs','deployments']){
       for(const total of [1,'1','not-a-count',-1]){
         for(const location of ['root','pagination']){
-          const f=fixture();f.empty();
-          const key=field==='deployments'?'deployments':field;
+          const key=field;
           const forged={[key]:[],pagination:{next:null}};
           if(location==='root')forged.total=total;
           else forged.pagination.total=total;
-          if(field==='domains')f.domainRule.resolves(forged);
-          if(field==='envs')f.envRule.resolves(forged);
-          if(field==='deployments')f.fake.when('GET','/v7/deployments').resolves(forged);
+          const f=fixture({deploymentResponse:field==='deployments'?
+            forged:{deployments:[],pagination:{next:null}}});
+          f.projectRule.resolves(project);
+          f.domainRule.resolves(field==='domains'?forged:{domains:[],pagination:{next:null}});
+          f.envRule.resolves(field==='envs'?forged:{envs:[],pagination:{next:null}});
           const result=parse(await f.call());
           expect(result.status).toBe('refused_by_guard');
           expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
