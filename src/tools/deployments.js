@@ -164,7 +164,11 @@ export const deploymentReadTools={
       description:'List up to 20 safe deployment summaries for an exact project with a continuation cursor.',
       inputSchema:schema({project:{type:'string',maxLength:128},
         limit:{type:'integer',minimum:1,maximum:20},
-        until:{type:'integer',minimum:1}}),annotations:{readOnlyHint:true}},
+        until:{type:'integer',minimum:1},since:{type:'integer',minimum:1},
+        target:{type:'string',enum:['production','preview']},
+        state:{type:'string',enum:['BUILDING','ERROR','INITIALIZING','QUEUED','READY','CANCELED','BLOCKED']},
+        branch:{type:'string',minLength:1,maxLength:100},
+        sha:{type:'string',minLength:7,maxLength:64}}),annotations:{readOnlyHint:true}},
     {name:'vercel_deploy_get',writes:false,profiles:PROFILES,area:'deployments',
       description:'Read one deployment by ID or HTTPS hostname, independently verifying the project.',
       inputSchema:schema({project:{type:'string',maxLength:128},
@@ -283,15 +287,32 @@ export const deploymentReadTools={
       return asText({project,deployment:args.deployment,...safeFileTree(files)});
     },
     async vercel_deploy_list(args,ctx){
-      validateArgs(args,['project','limit','until']);
+      validateArgs(args,['project','limit','until','since','target','state','branch','sha']);
       const limit=args.limit??20;
       if(!Number.isInteger(limit)||limit<1||limit>20||
-        args.until!==undefined&&(!Number.isSafeInteger(args.until)||args.until<=0))
+        args.until!==undefined&&(!Number.isSafeInteger(args.until)||args.until<=0)||
+        args.since!==undefined&&(!Number.isSafeInteger(args.since)||args.since<=0)||
+        args.since!==undefined&&args.until!==undefined&&args.since>=args.until)
         throw new TypeError('Invalid deployment page');
+      if(args.state!==undefined&&!['BUILDING','ERROR','INITIALIZING','QUEUED','READY','CANCELED','BLOCKED'].includes(args.state))
+        throw new TypeError('Invalid deployment state filter');
+      if(args.target!==undefined&&!['production','preview'].includes(args.target))
+        throw new TypeError('Invalid deployment environment filter');
+      if(args.branch!==undefined&&(typeof args.branch!=='string'||
+        !/^[A-Za-z0-9._/-]{1,100}$/.test(args.branch)||
+        args.branch.includes('..')||credentialLike(args.branch)))
+        throw new TypeError('Invalid Git branch filter');
+      if(args.sha!==undefined&&(typeof args.sha!=='string'||!/^[0-9a-fA-F]{7,64}$/.test(args.sha)))
+        throw new TypeError('Invalid commit SHA filter');
       const {client,account}=await readProvider(ctx);
       const project=projectFor(args,account);
       const reply=await client.request('deployments_list',{
-        query:{projectId:project,limit,...(args.until?{until:args.until}:{})}});
+        query:{projectId:project,limit,...(args.until?{until:args.until}:{}),
+          ...(args.since?{since:args.since}:{}),
+          ...(args.target?{target:args.target}:{}),
+          ...(args.state?{state:args.state}:{}),
+          ...(args.branch?{branch:args.branch}:{}),
+          ...(args.sha?{sha:args.sha}:{})}});
       if(!Array.isArray(reply?.deployments))
         throw new TypeError('Provider did not return deployment inventory');
       const next=cursorFor(reply,reply.deployments,limit);
@@ -300,11 +321,24 @@ export const deploymentReadTools={
         const safe=summary(row,project);
         if(seen.has(safe.id))throw new TypeError('Duplicate deployment identity');
         seen.add(safe.id);
+        if(args.state && safe.state!==args.state)
+          throw new TypeError('Provider returned a deployment outside the state filter');
+        if(args.target==='production' && safe.target!=='production')
+          throw new TypeError('Provider returned a deployment outside the production filter');
+        if(args.target==='preview' && ![null,'preview'].includes(safe.target))
+          throw new TypeError('Provider returned a deployment outside the preview filter');
+        if(args.branch && safe.branch!==args.branch)
+          throw new TypeError('Provider returned a deployment outside the branch filter');
+        if(args.sha && safe.commit!==args.sha)
+          throw new TypeError('Provider returned a deployment outside the commit filter');
         return safe;
       });
-      return asText({project,deployments,count:deployments.length,
+      const filters=Object.fromEntries(['state','target','branch','sha','since']
+        .filter(k=>args[k]!==undefined).map(k=>[k,args[k]]));
+      return asText({project,deployments,count:deployments.length,filters,
         next,complete:next===null,
-        nextStep:next===null?null:'Call vercel_deploy_list with this project and until='+next});
+        nextStep:next===null:
+          'Call vercel_deploy_list with this project, the same filters, and until='+next});
     },
     async vercel_deploy_get(args,ctx){
       validateArgs(args,['project','deployment']);
