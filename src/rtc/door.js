@@ -93,10 +93,22 @@ async function invoke(name,args,ctx){
   try{return JSON.parse(response.content[0].text);}
   catch{return null;}
 }
-async function requirePass(req,db,res){
+async function requirePass(req,db,res,route){
   const m=PASS.exec(String(req.headers?.authorization||''));
   if(!m){fail(res,'permission');return null;}
-  const record=await db.authorizeRtcPass(m[1]);
+  let units=1;
+  if(route==='batch' && req.method==='POST'){
+    // Reserve every read atomically before the first provider call; never
+    // multiply a 60/minute pass into 600/minute via ten-item batches.
+    let body;
+    try{body=getBody(req);}catch{fail(res,'invalid_args');return null;}
+    if(Object.keys(body).some(k=>k!=='calls')||!Array.isArray(body.calls)||
+      body.calls.length<1||body.calls.length>10){
+      fail(res,'invalid_args');return null;
+    }
+    units=body.calls.length;
+  }
+  const record=await db.authorizeRtcPass(m[1],units);
   if(record?.status!=='ok'){fail(res,record?.status in MESSAGES?record.status:'permission');return null;}
   if(record.mode!=='preview'||record.profile!=='read_only'||
     !Array.isArray(record.areas)||record.areas.length===0 ||
@@ -112,7 +124,7 @@ async function requirePass(req,db,res){
 export function rtcDoor({db,registry,env=process.env,fetchImpl}){
   return async function handler(req,res,route){
     try{
-      const auth=await requirePass(req,db,res);
+      const auth=await requirePass(req,db,res,route);
       if(!auth)return;
       const {pass,connection}=auth;
       const ctx={db,registry,env,fetchImpl,connection};
