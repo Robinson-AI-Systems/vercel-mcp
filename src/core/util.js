@@ -22,7 +22,8 @@ export function credentialLike(value) {
       (_match, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
   }
   // An attacker can encode '%' indefinitely; refuse unresolved nesting.
-  return /%[0-9a-f]{2}/i.test(inspected) || SECRET_STRING.test(inspected);
+  return /%[0-9a-f]{2}/i.test(inspected) || SECRET_STRING.test(inspected) ||
+    (HIGH_ENTROPY.test(inspected) && /[0-9]/.test(inspected) && /[A-Za-z]/.test(inspected));
 }
 function denver(milliseconds) {
   if (!Number.isSafeInteger(milliseconds) || milliseconds < 1e11 || milliseconds > 4102444800000) {
