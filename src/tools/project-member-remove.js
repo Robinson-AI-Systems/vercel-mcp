@@ -1,5 +1,5 @@
 // D-1i: guarded removal of viewer/developer project-only permission.
-import {defineWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -100,10 +100,9 @@ export const projectRemoveTools={
     annotations:{readOnlyHint:false,destructiveHint:true},
     writeContract:revoke.writeContract}],
   handlers:{
-    async vercel_project_remove_member(args,ctx){
-      const result=await revoke.run(args,context(ctx));
-      return {isError:['refused_by_guard','outcome_unknown'].includes(result.status),
-        content:[{type:'text',text:JSON.stringify(result)}]};
-    }
+    vercel_project_remove_member:bindGuardedWrite(revoke,context,result=>({
+      isError:['refused_by_guard','outcome_unknown'].includes(result.status),
+      content:[{type:'text',text:JSON.stringify(result)}]
+    }))
   }
 };

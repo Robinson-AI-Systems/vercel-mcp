@@ -11,6 +11,12 @@ describe('tool registry', () => {
     expect(registry.tools.filter(x=>x.writes===true && x.guardedWrite===true).map(x=>x.name))
       .toEqual(['vercel_project_create', 'vercel_project_update_settings', 'vercel_project_add_member', 'vercel_project_remove_member']);
   });
+  it('refuses fabricated routine-write contracts and unbound handlers', () => {
+    const tool={name:'vercel_fake_mutation',writes:true,guardedWrite:true,
+      writeContract:{production:true,targets:true}};
+    expect(()=>mergeNamespaces([{tools:[tool],handlers:{[tool.name]:async()=>null}}]))
+      .toThrow(/Untrusted guarded-write/);
+  });
   it('merges namespaces and keeps each handler', () => {
     const merged = mergeNamespaces([make('vercel_a'), make('vercel_b')]);
     expect(merged.tools.map((t) => t.name)).toEqual(['vercel_a', 'vercel_b']);

@@ -1,5 +1,5 @@
 // D-1h: add an existing team member by stable user ID. No email invites or seats.
-import {defineWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -96,6 +96,6 @@ export const projectMemberTools={
     annotations:{readOnlyHint:false,destructiveHint:false},
     risk:{access:true},writeContract:grant.writeContract}],
   handlers:{
-    async vercel_project_add_member(args,ctx){return output(await grant.run(args,context(ctx)));}
+    vercel_project_add_member:bindGuardedWrite(grant,context,output)
   }
 };

@@ -1,5 +1,5 @@
 // D-1f: new empty project only. Never attaches a Git repo, secrets or resources.
-import {defineWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -78,6 +78,6 @@ export const projectCreateTools={
     inputSchema:schema,annotations:{readOnlyHint:false,destructiveHint:false},
     writeContract:create.writeContract}],
   handlers:{
-    async vercel_project_create(args,ctx){return out(await create.run(args,context(ctx)));}
+    vercel_project_create:bindGuardedWrite(create,context,out)
   }
 };
