@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1t PR #67 — independently verified existing team identity:** ordinary project member grants require an independently fetched, complete team page containing exactly one confirmed CONTRIBUTOR matching the supplied UID. The team identifier comes only from the stored account, and no team invitation is issued. Owner/admin project access remains blocked. Fake Vercel and exact-head CI only; no live provider resources.
+
+
 - **D-1s PR #66 — access-role and pagination safety:** MCP project role grants are restricted to project developer/viewer until an independently authenticated owner design is approved for ADMIN; grant and removal refuse incomplete member inventories (missing terminal cursor, further pages, oversized page). Offline CI only. Remaining D-1 privileged role and nonempty deletion work stays gated; D-2 read tools can proceed independently.
 
 
