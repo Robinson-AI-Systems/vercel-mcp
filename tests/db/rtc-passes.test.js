@@ -32,6 +32,6 @@ describe('RTC database-scoped credential lifecycle',()=>{
   expect((await db.authorizeRtcPass(a.token)).status).toBe('rate_limited');
   await rawQuery('UPDATE rtc_passes SET expires_at=now()-interval \'1 second\' WHERE pass_id=$1',[a.id]);
   expect((await db.authorizeRtcPass(a.token)).status).toBe('pass_expired');
-  expect(await db.issueReadOnlyRtcPass({account:'team_FAKE',hours:721})).rejects.toThrow();
+  await expect(db.issueReadOnlyRtcPass({account:'team_FAKE',hours:721})).rejects.toThrow();
  });
 });
