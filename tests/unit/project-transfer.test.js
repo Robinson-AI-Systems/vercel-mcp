@@ -18,7 +18,8 @@ function fixture(){
     requestReplayStore:()=>({
       claim:async({key})=>replay.has(key)?{state:'completed',result:replay.get(key)}:
         {state:'claimed',claimId:key},
-      complete:async({key,result})=>{replay.set(key,result);}
+      complete:async({key,result})=>{replay.set(key,result);},
+      release:async({key,claimId})=>{if(key===claimId)replay.delete(key);}
     })
   };
   oneTimeSecrets.mockReturnValue({issue:async args=>{
