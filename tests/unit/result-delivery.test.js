@@ -64,6 +64,39 @@ describe('C-1c read handles and discovery metadata',()=>{
     expect(listMcpTools(registry,{...conn,profile:'full'}).find(x=>x.name==='vercel_revoke_connection')
       .annotations.readOnlyHint).toBe(false);
   });
+  it('redacts credential-bearing plain text that is not valid JSON',async()=>{
+    const {db}=fixture();
+    for(const credential of ['vcp_FAKE_credential',
+      '%2576cp_FAKE_credential','rtc_pass_FAKE_readonly'] ){
+      const shaped=await shapeStoredMcpResult({
+        content:[{type:'text',text:'unstructured '+credential+' data'}]},{
+        connection:conn,db,readOnly:true,tool:'vercel_fixture_read'});
+      expect(JSON.stringify(shaped)).not.toContain(credential);
+      expect(parse(shaped)).toBe('[hidden]');
+    }
+    expect(db.putResult).not.toHaveBeenCalled();
+  });
+  it('fails closed for binary, image or malformed read parts on MCP and RTC-compatible dispatch',async()=>{
+    const {db}=fixture();
+    const invalid=[
+      {type:'image',data:'vcp_FAKE_hidden_image',mimeType:'image/png'},
+      {type:'resource',resource:{uri:'file:///vcp_FAKE_hidden'}},
+      {type:'text',text:123},
+      null
+    ];
+    for(const part of invalid){
+      const handler=vi.fn(async()=>({content:[
+        {type:'text',text:JSON.stringify({safe:true})},part]}));
+      const r={tools:[{name:'vercel_broken_read',writes:false,profiles:['read_only'],
+        inputSchema:{type:'object',properties:{}}}],
+        handlers:{vercel_broken_read:handler}};
+      const result=await dispatchReadOnlyTool({registry:r,name:'vercel_broken_read',
+        args:{},connection:conn,db,shapeResult:shapeStoredMcpResult});
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result)).not.toContain('vcp_FAKE');
+      expect(db.putResult).not.toHaveBeenCalled();
+    }
+  });
   it('passes validated view settings only to presentation, not read handler',async()=>{
     const handler=vi.fn(async()=>out({nested:{value:'hidden',keep:'safe'},id:'item'}));
     const r={tools:[{name:'vercel_read',writes:false,profiles:['read_only'],
