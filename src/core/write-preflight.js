@@ -107,26 +107,3 @@ export async function writePreflight(spec, args, ctx) {
   return { before, production, targets, summary, moneyLine, spendCents,
     mode: production.production ? 'PRODUCTION' : 'PREVIEW',purchase,spendDeclaration };
 }
-+(spend.cents/100).toFixed(2)+' USD'+
-            (spend.recurring?' per billing period; provider-enforceable total ceiling required':''))+
-          '. Separately authenticated approval for this transaction is mandatory.';
-      }
-    }catch{
-      return {refused:refusal('Unable to verify pricing before the request')};
-    }
-  }
-  if (spec.risk?.access) {
-    if (typeof spec.access !== 'function') return { refused: refusal('Access guard declaration missing') };
-    try {
-      const access = await spec.access(args, before, ctx);
-      if (typeof access?.widens !== 'boolean' ||
-        (access.widens && (!access.who || !access.what))) {
-        return { refused: refusal('Access widening cannot be verified') };
-      }
-    } catch {
-      return { refused: refusal('Access widening could not be verified') };
-    }
-  }
-  return { before, production, targets, summary, moneyLine, spendCents,
-    mode: production.production ? 'PRODUCTION' : 'PREVIEW',purchase,spendDeclaration };
-}
