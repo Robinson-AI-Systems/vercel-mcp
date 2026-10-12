@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { defineWrite } from '../../src/core/write.js';
-import { sampleWrite, runWriteContract, writeRequestKey } from '../../tests/helpers/write-contract.js';
+import { sampleWrite, runWriteContract, writeRequestKey, attachFakeOwnerPurchase } from '../../tests/helpers/write-contract.js';
 
 runWriteContract('generic B-1 sample');
 
@@ -29,7 +29,8 @@ describe('B-1 contract hardening', () => {
     const preview=await f.tool.run({dryRun:true},f.ctx);
     expect(preview.status).toBe('preview');
     expect(f.audits[0]).toMatchObject({dryRun:true,spendCents:475});
-    const applied=await f.tool.run({confirm:true},f.ctx);
+    attachFakeOwnerPurchase(f.ctx);
+    const applied=await f.tool.run({confirm:true,requestKey:'fixturePaidFAKE01'},f.ctx);
     expect(applied.confirmed).toBe(true);
     expect(f.audits[1]).toMatchObject({dryRun:false,spendCents:475});
     expect(f.provider).toHaveLength(1);
