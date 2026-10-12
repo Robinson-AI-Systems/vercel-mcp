@@ -105,8 +105,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_deploy_list` | Deployments by project, target (production/preview/custom), state, branch, commit, creator, time window | — | B Op | R | — | D-2 |
-| `vercel_deploy_get` | One deployment by ID or URL: state, target, commit, branch, aliases, error in plain words, build time | — | B Op | R | — | D-2 |
+| `vercel_deploy_list` | Authenticated project-only deployments, bounded first page with honest cursor, state, target, Git commit/branch and safe metadata; remaining filters follow in D-2 | — | B Op | R | — | D-2 (read built #132) |
+| `vercel_deploy_get` | Scoped deployment ID/HTTPS URL detail: verified project, state, target, commit, branch and safe aliases (full diagnostics follow) | — | B Op | R | — | D-2 (read built #132) |
 | `vercel_deploy_get_build_logs` | Build log for a deployment: summary by default (steps, warnings, first error), full text behind a handle | — | B Op | R | — | D-2 |
 | `vercel_deploy_get_runtime_logs` | Runtime (function) logs for a deployment, filtered by level, path, status and time | — | B Op | R | — | D-2 |
 | `vercel_deploy_list_files` | Files in a deployment's output | — | B | R | — | D-2 |

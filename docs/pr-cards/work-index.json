@@ -501,13 +501,13 @@
         "D-1"
       ],
       "card": "docs/pr-cards/D-2.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 450,
       "units": [
         "D-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "READY",
       "ownerInputs": [],
       "earlyReadException": {
         "prerequisite": "D-1",
@@ -515,6 +515,16 @@
         "evidence": "D-1 card PR #66 explicitly permits D-2 reads independent of owner-only blocked D-1 operations",
         "nextAction": "Write the D-2 card from approved Batch D and implement scoped deployment list/get reads with real pinned operations and tests",
         "restrictions": "No D-2 writes or production changes; provider authorization and externally connected acceptance remain independent gates"
+      },
+      "pr": [
+        132
+      ],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next D-2 Vercel MCP implementer",
+        "reason": "First approved deployment list/detail read slice is implemented; remaining approved logs, file reads, wait and checks are not.",
+        "nextAction": "Build D-2b bounded build-log summary and file metadata reads with project scope and 8 KiB result handling.",
+        "checkpoint": "next substantive PR after D-2a #132 and each new development session"
       }
     },
     {
