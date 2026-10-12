@@ -31,6 +31,15 @@ function fixture(){
  return {read,mutate,db,registry,call};
 }
 describe('RTC 1 read-only HTTPS door',()=>{
+ it('rejects coerced Authorization headers before SQL quota use',async()=>{
+  const f=fixture();
+  for(const header of [['Bearer '+pass],{toString:()=>('Bearer '+pass)},
+    123,'Bearer '+pass+', Bearer '+pass]){
+    const response=await f.call('whoami','GET',{},undefined,header);
+    expect(response.code).toBe(401);
+  }
+  expect(f.db.authorizeRtcPass).not.toHaveBeenCalled();
+ });
  it('requires pass format, rejects OAuth-looking values and stays account scoped',async()=>{
   const f=fixture();
   expect((await f.call('whoami','GET',{},undefined,'')).code).toBe(401);

@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC #129 — pre-auth database-cost gate:** malformed bearer headers, invalid HTTP methods and unsupported internal RTC routes now fail before database construction or schema initialization, limiting unauthenticated wakeups. Authorization requires a literal header string; arrays/objects are not coerced. Real passes still require database expiry, revocation and shared quota checks. New HTTP and DB-initialization tests; no production, spending or provider authority change.
+
+
 - **Security/RTC #128 — read-result content boundary:** read-only MCP shaping now screens plaintext even when the handler emits non-JSON text; unsupported non-text, image/resource and malformed parts fail closed before returning or storing any part. Regression tests prove credential-shaped text is hidden and no handler can bypass the RTC/MCP projection through an unrecognized content type. No provider traffic, production or spend change. Continue approved D-1/RTC integrity work.
 
 

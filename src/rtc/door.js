@@ -142,7 +142,8 @@ function samePassScope(before,after){
     JSON.stringify(before.areas)===JSON.stringify(after.areas);
 }
 async function requirePass(req,db,res,route,registry){
-  const m=PASS.exec(String(req.headers?.authorization||''));
+  const header=req.headers?.authorization;
+  const m=typeof header==='string'?PASS.exec(header):null;
   if(!m){fail(res,'permission');return null;}
   let units=1,peek=null,approvedCalls=null;
   if(route==='batch' && req.method==='POST'){
