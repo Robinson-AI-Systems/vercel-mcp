@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-2a deployment reads #132:** implemented authenticated, project-bounded `vercel_deploy_list` and `vercel_deploy_get` via pinned GET /v7/deployments and /v13/deployments/{idOrUrl}, with provider project identity verification, pagination, ID/URL normalization and safe field projection. Fake HTTP/OpenAPI regression tests; no real Vercel read, deployment or paid resource. Read-only D-2 progression is explicitly permitted by D-1 #66. Next D-2b logs/files/checks. D-1 remains open with the finite acceptance inventory in `docs/pr-cards/D-1-ACCEPTANCE.md`, and no owner input is pending for IN-07 or IN-08.
+
+
 - **Roadmap return-to-work rule (#131):** Owner decisions IN-07/IN-08 were already answered, but D-1 had no checkpoint requiring agents to return and reconcile its actual remaining work. New mandatory work-index `revisit` record plus CI validator/test require reason, owner, trigger, next action and checkpoint for every unfinished card; stale owner-blocked statuses fail. D-1's finite completion matrix is the next named action, not an excuse for indefinite security hardening. D-2's PR #66 read-only exception is now machine-recorded, without allowing writes or declaring D-1 done. No external Vercel connection, owner pass, deployment, production or spend acceptance was performed.
 
 

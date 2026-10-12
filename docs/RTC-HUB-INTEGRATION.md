@@ -39,3 +39,13 @@ Record each run's reviewed commit, UTC timestamp, runner environment, expected/o
 ## Credential integrity cross-check
 
 The server-side output projector, audit writer and repository secret scanner recognize RTC pass bearer material. The scanner rejects a real-shaped pass even if the text contains FAKE. Tests use generated in-memory test credentials and verify that no bearer is emitted in scanner diagnostics, tool output or audit metadata.
+
+## Identity-mode gap for Hub D-4 (still unresolved)
+
+D-2 implementation does **not** resolve this separate integration gate:
+the server issues scoped `preview` passes while Hub's newly tightened real
+owner-approved verifier requires verified `test` identity. It is not safe
+to relabel a preview account as test without distinct resource isolation
+and tested consumer authorization. No real TEST pass, Hub three-route
+read, or full RTC conformance is claimed. Resolve under a dedicated
+reviewed contract change with Hub-side coordination.
