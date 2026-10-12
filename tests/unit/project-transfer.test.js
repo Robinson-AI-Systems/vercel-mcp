@@ -43,16 +43,16 @@ describe('D-1o guarded transfer request',()=>{
   });
   it('returns opaque owner-vault handle, never provider code, after scoped POST',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(project).resolves(project);
     f.fake.when('POST','/projects/{idOrName}/transfer-request')
       .resolves({code:'claim_FAKE_NEVER_DISPLAY'});
     const args={project:project.id,expectedName:project.name,confirm:true,
       requestKey:'transferFAKE01'};
     const result=parse(await f.call(args));
     expect(result).toMatchObject({status:'applied',confirmed:null});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST']);
-    expect(f.fake.calls[1].query.teamId).toBe('team_FAKE');
-    expect(f.fake.calls[1].body).toEqual({});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','POST']);
+    expect(f.fake.calls[2].query.teamId).toBe('team_FAKE');
+    expect(f.fake.calls[2].body).toEqual({});
     expect(f.vault).toEqual([{account:'acct_FAKE',kind:'project_transfer',
       label:'demo-site',value:'claim_FAKE_NEVER_DISPLAY'}]);
     expect(JSON.stringify(result)).not.toContain('claim_FAKE_NEVER_DISPLAY');
@@ -94,10 +94,41 @@ describe('D-1o guarded transfer request',()=>{
       .status).toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(0);
   });
+  it('refuses late rename or replacement before a transfer claim can be issued',async()=>{
+    for(const late of [{...project,name:'another-site'}, {...project,id:'prj_OTHER'}]){
+      const f=fixture();
+      f.fake.when('GET','/v9/projects/{idOrName}')
+        .resolves(project).resolves(late);
+      const result=parse(await f.call({project:project.id,
+        expectedName:project.name,confirm:true,requestKey:'transferLateFAKE01'}));
+      expect(result.status).toBe('refused_by_guard');
+      expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
+      expect(f.vault).toHaveLength(0);
+      f.fake.verify();
+    }
+  });
+  it('refuses transfer when the stored token loses team scope or moves teams',async()=>{
+    for(const changed of [
+      {...account.account,scope:'project',project_id:project.id},
+      {...account.account,team_id:'team_OTHER'},
+      {...account.account,id:'acct_OTHER'}
+    ]){
+      const f=fixture();
+      f.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
+      loadToken.mockResolvedValueOnce(account).mockResolvedValueOnce({
+        ...account,account:changed});
+      const result=parse(await f.call({project:project.id,
+        expectedName:project.name,confirm:true,requestKey:'transferScopeFAKE01'}));
+      expect(result.status).toBe('refused_by_guard');
+      expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+      expect(f.vault).toHaveLength(0);
+      expect(f.fake.calls.some(x=>x.method==='POST')).toBe(false);
+    }
+  });
   it('never exposes unsealed code if vault fails or Vercel supplies malformed code',async()=>{
     for(const failure of ['vault','code']){
       const f=fixture();
-      f.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
+      f.fake.when('GET','/v9/projects/{idOrName}').resolves(project).resolves(project);
       f.fake.when('POST','/projects/{idOrName}/transfer-request')
         .resolves({code:failure==='code'?null:'claim_FAKE_NO_DISCLOSURE'});
       if(failure==='vault')oneTimeSecrets.mockReturnValue({
