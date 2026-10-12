@@ -1,6 +1,6 @@
 // Provider-neutral, fail-closed output shaping. Never truncate or return an unsafe result.
 const SECRET_FIELD = /^(?:value|decryptedValue|token|accessToken|refreshToken|secret|secretValue|bypass|bypassSecret|authCode|password|passphrase|privateKey|credential|connectionString|authorization)$/i;
-const SECRET_STRING = /(?:vc[pikar]_|vercel_blob_rw_|(?:sk|rk)_(?:live|test)_|whsec_|gh[pousr]_|github_pat_|xox[a-z]?[-_]|AKIA[A-Z0-9]|-----BEGIN\b|postgres(?:ql)?:\/\/[^\s/@:]+:[^\s/@]+@)/i;
+const SECRET_STRING = /(?:rtc_pass_|vc[pikar]_|vercel_blob_rw_|(?:sk|rk)_(?:live|test)_|whsec_|gh[pousr]_|github_pat_|xox[a-z]?[-_]|AKIA[A-Z0-9]|-----BEGIN\b|postgres(?:ql)?:\/\/[^\s/@:]+:[^\s/@]+@)/i;
 const HIGH_ENTROPY = /^(?:[A-Za-z0-9+/]{32,}={0,2}|[a-f0-9]{32,})$/;
 const CURRENCY = /(?:Cents|_cents)$/;
 const DATE_KEY = /(?:At|Timestamp|_ms|Ms|timestamp)$/;

@@ -44,6 +44,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # The upstream RTC suite is pinned to a reviewed public Hub SHA.
+      # No production origin, account token, secret or write pass enters CI.
+      - uses: actions/checkout@v7
+        with:
+          repository: Robinson-AI-Systems/robinsons-toolkit-hub
+          ref: e76b1f8bc76e4658f404263ee47a9edbcbeda625
+          path: rtc-hub
+          persist-credentials: false
+      - run: npm ci --prefix rtc-hub
+      - run: npm run test:conformance --prefix rtc-hub
+      - run: node scripts/rtc-hub-offline-check.mjs
 
   db:
     runs-on: ubuntu-latest

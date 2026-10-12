@@ -12,6 +12,14 @@ describe('P1: complete inspection after exactly eight percent-decodes',()=>{
       projectName:'[hidden]',gitRepo:'[hidden]',items:['[hidden]']
     });
   });
+  it('redacts raw and percent-encoded RTC bearer material, including nested provider fields',()=>{
+    const pass='rtc_pass_'+'A'.repeat(43);
+    const encoded=pass.replace(/^rtc/, '%72tc');
+    expect(credentialLike(pass)).toBe(true);
+    expect(credentialLike(encoded)).toBe(true);
+    expect(compact({metadata:{label:encoded},items:[pass]}))
+      .toEqual({metadata:{label:'[hidden]'},items:['[hidden]']});
+  });
   it('does not censor harmless ordinary metadata',()=>{
     expect(credentialLike('ordinary-project')).toBe(false);
     expect(compact({projectName:'ordinary-project'})).toEqual({projectName:'ordinary-project'});

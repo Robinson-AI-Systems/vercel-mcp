@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -74,6 +75,18 @@ describe('secret scan', () => {
     for (const [value, kind] of cases) expect(scanText(`x ${value} y`), value.slice(0, 6)).toContain(kind);
   });
 
+  it('rejects runtime-created RTC pass bearer values by shape, even when marked FAKE',()=>{
+    const pass='rtc_pass_'+randomBytes(32).toString('base64url');
+    expect(scanText(pass)).toContain('RTC pass');
+    const synthetic='rtc_pass_'+'FAKE'+'A'.repeat(39);
+    expect(scanText(synthetic)).toContain('RTC pass');
+    const dir=tempDir(),path=join(dir,'pass.txt');
+    writeFileSync(path,pass);
+    const result=spawnSync(process.execPath,[SCRIPT,'--file',path],{encoding:'utf8'});
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('RTC pass');
+    expect(result.stderr).not.toContain(pass);
+  });
   it('never exempts live keys or GitHub tokens because they contain FAKE', () => {
     expect(scanText('sk_' + 'live_' + 'FAKE' + 'A'.repeat(24))).toEqual(['Stripe live key']);
     expect(scanText('ghp_' + 'FAKE' + 'A'.repeat(32))).toEqual(['GitHub token']);
