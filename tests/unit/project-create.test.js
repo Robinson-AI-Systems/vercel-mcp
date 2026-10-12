@@ -258,6 +258,27 @@ describe('D-1f guarded project creation',()=>{
     }
     expect(bad.fake.calls).toHaveLength(0);
   });
+  it('refuses ambiguous or foreign-namespace repositories before any paid import POST',async()=>{
+    const linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    const scenarios=[
+      {namespaces:[{id:'org_123',provider:'github'},{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site'}]},
+      {namespaces:[{id:'org_123',provider:'github',requireReauth:'true'}],repos:[{fullName:'acme/site'}]},
+      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site'},{slug:'acme/site'}]},
+      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site',provider:'gitlab'}]},
+      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site',namespaceId:'org_OTHER'}]},
+      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site',isAccessRestricted:true}]}
+    ];
+    for(const item of scenarios){
+      const f=fixture(20000);
+      f.fake.when('GET','/v1/integrations/git-namespaces').resolves(item.namespaces);
+      f.fake.when('GET','/v1/integrations/search-repo').resolves({repos:item.repos});
+      const result=parse(await f.call({name:'demo-site',gitRepository:linked,
+        confirm:true},{...connection,mode:'production',profile:'full'}));
+      expect(result.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+      expect(f.audit).toHaveLength(0);
+    }
+  });
   it('does not mistake unverified Git link for completed provider import',async()=>{
     const f=fixture(20000);
     f.fake.when('GET','/v1/integrations/git-namespaces')

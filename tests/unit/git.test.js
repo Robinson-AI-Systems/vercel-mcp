@@ -60,6 +60,15 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
       expect(fake.calls.map(x=>x.path)).toEqual(['/v1/integrations/git-namespaces']);
     }
   });
+  it('refuses duplicated namespaced identities before repository enumeration',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/integrations/git-namespaces').resolves([
+      {id:'ns_FAKE',provider:'github'},{id:'ns_FAKE',provider:'github'}]);
+    const result=await call('vercel_git_search_repos',{
+      provider:'github',namespaceId:'ns_FAKE',query:'demo'},fake);
+    expect(result.isError).toBe(true);
+    expect(fake.calls).toHaveLength(1);
+  });
   it('returns only bounded public Git metadata and refuses credential-bearing URLs',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v1/integrations/git-namespaces')
