@@ -44,22 +44,32 @@ const revoke=defineWrite({
     const {client,account}=await readProvider(ctx);
     if(account.scope!=='team'&&account.scope!=='full')
       throw new TypeError('Team-level permission is required');
+    // Derive the acting principal from THIS bound credential, not from an
+    // optional environment variable or a caller-supplied UID.
+    const identity=await client.request('user_get');
+    const selfUid=identity?.user?.id;
+    if(typeof selfUid!=='string'||!ID.test(selfUid))
+      throw new TypeError('The current token owner cannot be verified');
+    if(args.uid===selfUid)
+      throw new TypeError('Cannot revoke the credential owner or the server itself');
     const project=await client.request('projects_get',{path:{idOrName:args.project}});
     if(typeof project?.id!=='string'||typeof project?.name!=='string')
       throw new TypeError('Project identity unavailable');
-    if(typeof ctx.env?.VERCEL_USER_ID==='string'&&args.uid===ctx.env.VERCEL_USER_ID)
-      throw new TypeError('Cannot remove runtime owner');
     const rows=await listMembers(client,project.id);
     const user=rows.find(row=>(row.uid??row.userId??row.id)===args.uid);
-    if(!user)throw new TypeError('Member role not present');
-    // Never risk last-owner lockout; defer admin/owner or final member removal.
-    if(!['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role)||rows.length<2)
+    // A successful DELETE makes the target absent. Permit completed-key
+    // replay to reach the atomic store; a new key is a verified no-op.
+    if(user && (!['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role)||rows.length<2))
       throw new TypeError('Admin, owner and final-member changes require separate owner checks');
-    return {project:project.id,name:project.name,uid:args.uid,role:user.role};
+    return {project:project.id,name:project.name,uid:args.uid,role:user?.role??null,
+      alreadyAbsent:!user};
   },
   async preview(_args,_ctx,before){
-    return 'Remove the '+before.role+' project role from user '+before.uid+
-      ' on '+before.name+'; team membership remains unchanged';
+    return before.alreadyAbsent ?
+      'User '+before.uid+' already has no explicit project role on '+before.name+
+        '; verified no-op only' :
+      'Remove the '+before.role+' project role from user '+before.uid+
+        ' on '+before.name+'; team membership remains unchanged';
   },
   async production(){
     return {production:true,why:'Project role removal can interrupt production access'};
@@ -68,6 +78,7 @@ const revoke=defineWrite({
     return [{kind:'project',id:before.project,name:before.name}];
   },
   async apply(_args,ctx,before,requestKey){
+    if(before.alreadyAbsent)return {accepted:false,unchanged:true};
     const provider=await writeProvider(ctx);
     return provider.write('projects_members_remove',{
       path:{idOrName:before.project,uid:before.uid}

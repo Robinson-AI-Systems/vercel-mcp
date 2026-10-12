@@ -27,6 +27,7 @@ function fixture(){
 }
 const parse=r=>JSON.parse(r.content[0].text);
 function reads(f,after=[leader]){
+  f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
   f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
   f.fake.when('GET','/v1/projects/{idOrName}/members')
     .resolves({members:[staff,leader],pagination:{next:null}})
@@ -57,11 +58,15 @@ describe('D-1i guarded project member removal',()=>{
     expect(calls[0].params).toEqual({idOrName:name,uid});
     expect(calls[0].query.teamId).toBe('team_FAKE');
     expect(f.rows.size).toBe(2);
+    const retried=parse(await f.call(payload));
+    expect(retried).toEqual(result);
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
     f.fake.verify();
   });
   it('never removes an admin, owner, final member or the server principal',async()=>{
     for(const members of [[leader,staff],[staff]]){
       const f=fixture();
+      f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
       f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
       f.fake.when('GET','/v1/projects/{idOrName}/members').resolves({members,pagination:{next:null}});
       const r=await f.call({...payload,uid:members[0].uid});
@@ -69,8 +74,13 @@ describe('D-1i guarded project member removal',()=>{
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     }
     const f=fixture();reads(f);
-    expect(parse(await f.call(payload,connection,{VERCEL_USER_ID:uid})).status).toBe('refused_by_guard');
+    f.fake.when('GET','/v2/user').resolves({user:{id:uid}});
+    expect(parse(await f.call(payload)).status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    const u=fixture();reads(u);
+    u.fake.when('GET','/v2/user').resolves({user:{}});
+    expect(parse(await u.call(payload)).status).toBe('refused_by_guard');
+    expect(u.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
   });
   it('reports read-back mismatch, not a fabricated confirmed deletion',async()=>{
     const f=fixture();reads(f,[leader,staff]);
@@ -80,6 +90,7 @@ describe('D-1i guarded project member removal',()=>{
   });
   it('rejects ambiguous paginated membership or forged identity without calling DELETE',async()=>{
     const f=fixture();
+    f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
     f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
     f.fake.when('GET','/v1/projects/{idOrName}/members')
       .resolves({members:[staff,leader],pagination:{next:42}});
