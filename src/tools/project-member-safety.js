@@ -15,6 +15,10 @@ export async function completeMembers(client,operationId,path){
       throw new TypeError('Cannot prove complete member inventory');
     for(const item of reply.members){
       const uid=item?.uid??item?.userId??item?.id;
+      // uid and userId are alternate representations of the Vercel user UID.
+      // A separate item.id may be a membership-row identifier; do not compare it.
+      if(item?.uid!=null&&item?.userId!=null&&item.uid!==item.userId)
+        throw new TypeError('Conflicting project or team member user IDs');
       if(typeof uid!=='string'||!uid||identities.has(uid))
         throw new TypeError('Ambiguous or duplicate member identity');
       identities.add(uid);members.push(item);
