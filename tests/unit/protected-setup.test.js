@@ -11,6 +11,7 @@ function fixture(){
  const db={
   listVercelAccounts:async()=>[{id:'team_FAKE',label:'Fixture',scope:'team'}],
   addProtectedResource:vi.fn(async()=>{}),
+  clearProtectedProjectRules:vi.fn(async()=>true),
   recordChange:vi.fn(async()=>1),
   recordLoginAttempt:async()=>1,
   countRecentFailedLogins:async()=>bad++,
@@ -42,6 +43,24 @@ describe('B-3 protected project setup editor',()=>{
    });
    expect(f.db.recordChange).toHaveBeenCalledOnce();
    expect(response.body).not.toContain(env.ADMIN_PASSPHRASE);
+ });
+ it('removes all project exclusions only with independent fresh owner approval',async()=>{
+   const f=fixture();
+   const request={action:'clear_protected',csrf,account:'team_FAKE',acknowledge:'remove-all'};
+   for(const attempt of [
+     request,{...request,passphrase:'wrong'},
+     {...request,acknowledge:'yes',passphrase:env.ADMIN_PASSPHRASE},
+     {...request,account:'team_OTHER',passphrase:env.ADMIN_PASSPHRASE}
+   ]){
+     expect((await f.send(attempt)).statusCode).not.toBe(200);
+   }
+   expect(f.db.clearProtectedProjectRules).not.toHaveBeenCalled();
+   const approved=await f.send({...request,passphrase:env.ADMIN_PASSPHRASE});
+   expect(approved.statusCode).toBe(200);
+   expect(f.db.clearProtectedProjectRules).toHaveBeenCalledExactlyOnceWith('team_FAKE');
+   expect(approved.body).not.toContain(env.ADMIN_PASSPHRASE);
+   f.db.clearProtectedProjectRules.mockResolvedValue(false);
+   expect((await f.send({...request,passphrase:env.ADMIN_PASSPHRASE})).statusCode).toBe(409);
  });
  it('rejects attempts to protect another unconfigured account',async()=>{
    const f=fixture();

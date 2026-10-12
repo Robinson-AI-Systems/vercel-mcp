@@ -11,10 +11,8 @@ import { approveProductionEnable } from '../tools/production-guard.js';
 import { inspectOwnerAccountChange, consumeOwnerAccountChange,
   applyApprovedOwnerAccountChange } from './owner-approvals.js';
 
-export const PROTECTED_DEFAULTS = Object.freeze([
-  'vercel-mcp', 'stripe-mcp', 'google-workspace-mcp', 'neon-mcp',
-  'github-mcp', 'robinsons-toolkit-hub'
-]);
+// IN-07: existing seeded records persist until the authenticated owner clears them.
+export const PROTECTED_DEFAULTS = Object.freeze([]);
 const COOKIE = 'rmcp_owner';
 const TTL_MS = 15 * 60 * 1000;
 const CONTENT_TYPE = 'text/html; charset=utf-8';
@@ -173,14 +171,20 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label>Pending request reference<input name="id" required></label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Approve production access for this team</button></form></section>' +
-    '<section><h2>Add a protected project</h2>' +
-    '<p>Add-only until the owner approves a different baseline. Protected defaults cannot be removed here.</p>' +
+    '<section><h2>Optional project exclusions</h2>' +
+    '<p>No project name is permanently excluded. A project may still require separate approval for production, destructive, credential or paid actions.</p>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="add_protected">' +
     '<label>Account<select name="account" required>' + options + '</select></label>' +
     '<label>Project name<input name="projectName" pattern="[a-z0-9-]+" required></label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
-    '<button type="submit">Protect project</button></form></section>' +
+    '<button type="submit">Protect project</button></form>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="clear_protected">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label><input type="checkbox" name="acknowledge" value="remove-all" required> Remove old global defaults and all account project exclusions; separate safety approvals still apply</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Remove all project exclusions for this account</button></form></section>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="logout"><button type="submit">Sign out</button></form>';
 }
@@ -225,7 +229,6 @@ export async function handleSetup(req, res, {
     if (verdict.status !== 'ok') {
       return html(res, 401, 'Administrator sign in', loginForm('Incorrect passphrase'));
     }
-    await db.seedProtectedProjects(PROTECTED_DEFAULTS);
     const csrf = randomBytes(32).toString('base64url');
     const cookie = encryptSecret(JSON.stringify({ csrf, exp: now() + TTL_MS }),
       'setup:session', env);
@@ -441,6 +444,22 @@ export async function handleSetup(req, res, {
         summary: 'Owner added project protection: ' + params.projectName,
         dryRun: false, production: false });
       message = 'Project protected: ' + params.projectName;
+    } else if (params.action === 'clear_protected') {
+      if(!accounts.some(a=>a.id===params.account) || params.acknowledge!=='remove-all')
+        return html(res,403,'Permission denied','<p>Explicit account and removal acknowledgment required.</p>');
+      const attempt=await evaluateLogin({
+        ip:clientIp(req),supplied:String(params.passphrase||''),
+        expected:env.ADMIN_PASSPHRASE,store:db
+      });
+      if(attempt.status==='locked'){
+        res.setHeader('Retry-After','900');
+        return html(res,429,'Permission denied','<p>Too many sign-in attempts.</p>');
+      }
+      if(attempt.status!=='ok')
+        return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
+      if(await db.clearProtectedProjectRules(params.account)!==true)
+        return html(res,409,'Unverified','<p>Exclusions could not be independently cleared.</p>');
+      message='Project exclusions removed. All projects are eligible within credential scope, but production, spending, destructive and self-credential safeguards remain.';
     } else if (params.action === 'pending_input') {
       if (!accounts.some(a => a.id === params.account)) {
         return html(res, 400, 'Invalid account', '<p>Choose a connected account.</p>');

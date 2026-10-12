@@ -106,10 +106,6 @@ describe('D-1f guarded project creation',()=>{
     expect(parse(await f.call({name:'demo-site',confirm:true})).status).toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(0);
     loadToken.mockResolvedValue(token);
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
-    expect(parse(await f.call({name:'vercel-mcp',confirm:true})).status).toBe('refused_by_guard');
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
-    f.fake.calls.length=0;
     f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_FAKE_EXISTS',name:'demo-site'});
     expect(parse(await f.call({name:'demo-site',confirm:true})).status).toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(1);

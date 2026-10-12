@@ -346,6 +346,31 @@ export function createDb(query) {
         VALUES (${account}, ${kind}, ${match}, ${note}, 'setup_page')
         ON CONFLICT DO NOTHING`;
     },
+    // IN-07: independently signed-in owner can retire the old global defaults
+    // and account-specific project rules. Never delete token or other rules.
+    // Mutation and immutable audit are one database statement.
+    async clearProtectedProjectRules(account) {
+      if(typeof account!=='string'||!account) throw new TypeError('Account required');
+      const run=getSql();
+      const existing=await run`SELECT id FROM vercel_accounts WHERE id=${account}`;
+      if(existing.length!==1) return false;
+      const rows=await run`
+        WITH removed AS (
+          DELETE FROM protected_resources
+            WHERE kind='project' AND (vercel_account IS NULL OR vercel_account=${account})
+            RETURNING id
+        ), audited AS (
+          INSERT INTO change_log (vercel_account,mode,tool,summary,dry_run,production)
+          SELECT ${account},'preview','vercel_clear_project_protections',
+            'Owner cleared the project exclusion list',FALSE,FALSE
+          WHERE EXISTS (SELECT 1 FROM removed) RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM removed)::integer AS removed,
+               (SELECT COUNT(*) FROM audited)::integer AS audited`;
+      if(rows.length!==1||rows[0].audited!==(rows[0].removed>0?1:0))return false;
+      const after=await this.listProtectedResources(account);
+      return Array.isArray(after)&&after.every(x=>x.kind!=='project');
+    },
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
       if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
         throw new TypeError('Missing OAuth client registration fields');

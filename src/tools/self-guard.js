@@ -1,9 +1,7 @@
-// Prevent changes to the MCP server itself or owner-designated protected projects.
+// Owner-designated project exclusions are removable; project identity alone is not a write ban.
 // Reads are never blocked. Missing ownership metadata fails closed for writes.
 const KINDS = new Set(['account','project','domain','dns_record','env','store','token','deployment','alias','certificate']);
 const CHILDREN = new Set(['domain','dns_record','env','store','deployment','alias','certificate']);
-const SAFE_NAMES = new Set(['vercel-mcp','stripe-mcp','google-workspace-mcp',
-  'neon-mcp','github-mcp','robinsons-toolkit-hub']);
 const DENY = reason => ({ blocked: true, reason });
 function value(v) { return typeof v === 'string' ? v.trim().toLowerCase() : ''; }
 function protectedMatch(resource, target) {
@@ -12,17 +10,11 @@ function protectedMatch(resource, target) {
     target.parentProjectId,target.parentProjectName,target.tokenId].map(value);
   return term && candidates.includes(term);
 }
-export function checkTargets(targets, rules, { selfProjectId = '', selfTokenId = '' } = {}) {
+export function checkTargets(targets, rules, { selfTokenId = '' } = {}) {
   if (!Array.isArray(targets) || !targets.length) return DENY('The write targets were not identified');
   if (!Array.isArray(rules)) return DENY('Protected resource rules are unavailable');
   for (const target of targets) {
     if (!target || !KINDS.has(target.kind)) return DENY('Unrecognized write target');
-    const ids = [target.id,target.name,target.projectId,target.projectName,
-      target.parentProjectId,target.parentProjectName].map(value);
-    if (ids.includes(value(selfProjectId)) && selfProjectId) {
-      return DENY('The Vercel MCP project is protected');
-    }
-    if (ids.some(id => id && SAFE_NAMES.has(id))) return DENY('Robinson service project is protected');
     if (target.kind === 'token' && (target.isServerToken === true ||
       (selfTokenId && value(target.id) === value(selfTokenId)))) {
       return DENY('The credential used by this server is protected');
@@ -44,7 +36,6 @@ export async function checkProtected(targets, { db, connection, env = process.en
   try {
     const rules = await db.listProtectedResources(connection.account);
     return checkTargets(targets,rules,{
-      selfProjectId: env.VERCEL_PROJECT_ID || '',
       selfTokenId: env.VERCEL_TOKEN_ID || ''
     });
   } catch {

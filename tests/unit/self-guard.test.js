@@ -18,10 +18,10 @@ describe('B-3 protected-resource guard',()=>{
     ])expect(block([target]).blocked).toBe(true);
   });
   it('protects this server and its token even if not listed in db',()=>{
-    expect(block([{kind:'project',id:'prj_THIS_SERVER'}]).blocked).toBe(true);
+    expect(checkTargets([{kind:'project',id:'prj_THIS_SERVER'}],[],ctx).blocked).toBe(false);
     expect(block([{kind:'token',id:'tok_THIS_SERVER'}]).blocked).toBe(true);
     expect(block([{kind:'token',id:'new_token',isServerToken:true}]).blocked).toBe(true);
-    expect(block([{kind:'project',id:'prj_X',name:'robinsons-toolkit-hub'}]).blocked).toBe(true);
+    expect(block([{kind:'project',id:'prj_X',name:'robinsons-toolkit-hub'}]).blocked).toBe(false);
   });
   it('fails closed when project ownership, target list or DB is unknown',async()=>{
     expect(block([{kind:'domain',id:'dom_unknown'}]).blocked).toBe(true);

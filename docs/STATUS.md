@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **IN-07 #107 — all project identities eligible:** authenticated owner setup can clear existing global and account-scoped project exclusions, with fresh passphrase, CSRF, account verification, explicit removal acknowledgment, atomic audit and readback. No hard-coded named project (including this server) is unconditionally forbidden; server token, production, destructive, scope and app-profile protections remain independent. No live execution or authorization to activate production.
+
+
 - **D-1bg PR #106 — P1 security race corrections:** inspect credentials through the eighth percent-decode including entropy; repeat independently owned spending-policy verification after the final authenticated name GET and before metered Git project creation POST. Adversarial fixture tests; no Vercel production writes or newly authorized paid operations. D-1 remains IN_PROGRESS.
 
 
