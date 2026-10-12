@@ -77,6 +77,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 
 **D-1 metered resource execution recheck (#83):** Billable resource PATCH checks final project identity and independently approved remaining account spending under one writable credential immediately before dispatch. Rotated/narrowed scope and owner limit reductions refuse without PATCH. Unknown usage still denied by default $0.
 
+**D-1 settings execution revalidation (#84):** Before applying project rename/framework/build-command changes, the exact writable credential re-reads immutable project identity and production deployment classification. A newly-live or renamed project or narrowed credential refuses rather than crossing the original approval boundary.
+
 ## Projects, crons and Git (`vercel_project_*`, `vercel_cron_*`, `vercel_git_*`) — 15
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
