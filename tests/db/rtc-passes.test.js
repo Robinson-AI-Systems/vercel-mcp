@@ -38,14 +38,7 @@ describe('RTC database-scoped credential lifecycle',()=>{
 });
 
 describe('RTC cross-instance rate and revocation safety',()=>{
- it('atomically reserves the full batch cost even across separate SQL connections',async()=>{
-   const second=new pg.Client({connectionString:url});
-   await second.connect();
-   try{
-     await second.query('SET search_path TO "'+schema+'"');
-     const query=async(strings,...values)=>{
-       let statement=strings[0];
-       for(let i=0;i<values.length;i++)statement+='
+ it('atomically reserves the full batch cost across separate SQL connections',async()=>{
    const second=new pg.Client({connectionString:url});
    await second.connect();
    try{
@@ -53,20 +46,6 @@ describe('RTC cross-instance rate and revocation safety',()=>{
      const query=async(strings,...values)=>{
        let statement=strings[0];
        for(let i=0;i<values.length;i++)statement+='$'+(i+1)+strings[i+1];
-       return (await second.query(statement,values)).rows;
-     };
-     const other=createDb(query);
-     const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server']});
-     const outcomes=await Promise.all(Array.from({length:80},(_,i)=>
-       (i%2?db:other).authorizeRtcPass(pass.token)));
-     expect(outcomes.filter(x=>x.status==='ok')).toHaveLength(60);
-     expect(outcomes.filter(x=>x.status==='rate_limited')).toHaveLength(20);
-     expect(await db.revokeRtcPass({account:'team_FAKE',id:pass.id})).toBe(true);
-     expect((await other.authorizeRtcPass(pass.token)).status).toBe('pass_revoked');
-   }finally{await second.end();}
- });
-});
-+(i+1)+strings[i+1];
        return (await second.query(statement,values)).rows;
      };
      const other=createDb(query);
