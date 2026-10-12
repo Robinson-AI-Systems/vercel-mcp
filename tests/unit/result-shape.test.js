@@ -16,6 +16,18 @@ describe('B-5 fail-closed result presentation', () => {
     expect(shaped.settings.safe).toBe('hello');
   });
 
+  it('conceals percent-encoded and nested-encoded credential text', () => {
+    const nested = '%2576cp_FAKE_hidden';
+    const once = '%76cp_FAKE_hidden';
+    const deep = '%252525252525252576cp_FAKE_hidden';
+    expect(credentialLike(once)).toBe(true);
+    expect(credentialLike(nested)).toBe(true);
+    expect(credentialLike(deep)).toBe(true);
+    expect(credentialLike('/team/%20%2Fdocs')).toBe(false);
+    expect(compact({ name: nested, nested: { project: once, note: 'normal' } }))
+      .toEqual({ name: '[hidden]', nested: { project: '[hidden]', note: 'normal' } });
+  });
+
   it('adds Denver time on both sides of daylight-saving change and preserves integer cents', () => {
     const obj = compact({ beforeAt: Date.parse('2026-11-01T07:30:00Z'),
       afterAt: Date.parse('2026-11-01T08:30:00Z'), amountCents: 12345,
