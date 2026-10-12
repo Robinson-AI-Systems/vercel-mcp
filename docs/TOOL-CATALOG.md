@@ -86,7 +86,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_project_transfer` | Issue an owner-only encrypted one-time transfer claim code; never auto-completes ownership transfer | A D PR 1x | O | F | y | D-1 (partial #62) |
 | `vercel_project_list_members` | Project-level members and their project roles | — | O | R | — | D-1 (built #48; pagination #74) |
 | `vercel_project_add_member` | Give an existing team user a project role by UID (no new seat or team invite) | A | O | F | — | D-1 (built #54; ADMIN gated #66; contributor #67; paged #70; apply-time recheck #78) |
-| `vercel_project_remove_member` | Remove viewer/developer project role by UID; admin/owner/final member removal remains blocked | C | O | F | — | D-1 (partial #55; team identity #68; paged #70) |
+| `vercel_project_remove_member` | Remove viewer/developer project role by UID; admin/owner/final member removal remains blocked | C | O | F | — | D-1 (partial #55; team identity #68; paged #70; immediate execution recheck #79) |
 | `vercel_cron_list` | Cron jobs as deployed to production: path, schedule (UTC and Denver time), enabled, from the production deployment's configuration | — | Op | R | y | D-1 (built #50) |
 | `vercel_git_list_namespaces` | Git accounts/orgs the team's Git connection can see (GitHub, GitLab, Bitbucket) | — | B | R | — | D-1 (built #49) |
 | `vercel_git_search_repos` | Repositories in a Git namespace, for creating a project from one | — | B | R | — | D-1 (built #49; namespace proof #72) |

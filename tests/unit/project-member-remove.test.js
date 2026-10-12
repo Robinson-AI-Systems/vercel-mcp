@@ -37,6 +37,7 @@ function reads(f,after=[leader]){
     .resolves({members:[staff,leader],pagination:{next:null}})
     .resolves({members:[staff,leader],pagination:{next:null}})
     .resolves({members:[staff,leader],pagination:{next:null}})
+    .resolves({members:[staff,leader],pagination:{next:null}})
     .resolves({members:after,pagination:{next:null}});
 }
 describe('D-1i guarded project member removal',()=>{
@@ -93,6 +94,7 @@ describe('D-1i guarded project member removal',()=>{
     f.fake.when('GET','/v1/projects/{idOrName}/members')
       .resolves({members:[leader],pagination:{next:1700000000000}})
       .resolves({members:[staff],pagination:{next:null}})
+      .resolves({members:[staff,leader],pagination:{next:null}})
       .resolves({members:[leader],pagination:{next:null}});
     f.fake.when('GET','/v3/teams/{teamId}/members')
       .resolves({members:[{uid:'user_FAKE_OTHER',role:'CONTRIBUTOR',confirmed:true}],pagination:{next:1700000001000}})
@@ -103,6 +105,28 @@ describe('D-1i guarded project member removal',()=>{
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
     expect(f.fake.calls.filter(x=>x.path==='/v3/teams/team_FAKE/members'&&x.query.until==='1700000001000')).toHaveLength(1);
     f.fake.verify();
+  });
+  it('refuses a role elevated to admin after preview, without DELETE',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[staff,leader],pagination:{next:null}})
+      .resolves({members:[{...staff,role:'ADMIN'},leader],pagination:{next:null}});
+    f.fake.when('GET','/v3/teams/{teamId}/members').resolves({
+      members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}
+    });
+    const result=parse(await f.call(payload));
+    expect(result).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('refuses execution if the bound acting principal becomes the target',async()=>{
+    const f=fixture();reads(f);
+    f.fake.when('GET','/v2/user')
+      .resolves({user:{id:'user_FAKE_OWNER'}}).resolves({user:{id:uid}});
+    const result=parse(await f.call(payload));
+    expect(result).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
   });
   it('refuses removing a team owner, unconfirmed or missing contributor before DELETE',async()=>{
     for(const page of [

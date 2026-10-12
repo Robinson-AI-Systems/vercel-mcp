@@ -77,6 +77,25 @@ const revoke=defineWrite({
   },
   async apply(_args,ctx,before,requestKey){
     if(before.alreadyAbsent)return {accepted:false,unchanged:true};
+    // The role, team authority and acting principal can change after preview.
+    // Re-evaluate every lockout guard against the same authenticated account
+    // immediately before DELETE; never trust the earlier inventory alone.
+    const {client,account}=await readProvider(ctx);
+    if(!['team','full'].includes(account.scope))
+      throw new TypeError('Team authority changed before project role removal');
+    const identity=await client.request('user_get');
+    const selfUid=identity?.user?.id;
+    if(typeof selfUid!=='string'||!ID.test(selfUid)||selfUid===before.uid)
+      throw new TypeError('Acting principal cannot safely remove this project role');
+    const project=await client.request('projects_get',{path:{idOrName:before.project}});
+    if(project?.id!==before.project||project?.name!==before.name)
+      throw new TypeError('Project identity changed before role removal');
+    const rows=await listMembers(client,before.project);
+    const user=rows.find(row=>(row.uid??row.userId??row.id)===before.uid);
+    if(rows.length<2||user?.role!==before.role||
+      !['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role))
+      throw new TypeError('Project role or last-member status changed before removal');
+    await verifyEligibleTeamMember(client,account.team_id,before.uid);
     const provider=await writeProvider(ctx);
     return provider.write('projects_members_remove',{
       path:{idOrName:before.project,uid:before.uid}
