@@ -8,10 +8,21 @@ const HIDDEN = '[hidden]';
 const MAX_DEPTH = 20;
 const MAX_RESULT_BYTES = 8192;
 
+// Decode only for inspection: keep the original value if it is ordinary
+// metadata. Multi-encoded credential prefixes must never leak through labels,
+// repository names, result handles or project settings.
 export function credentialLike(value) {
-  return typeof value === 'string' &&
-    (SECRET_STRING.test(value) || (HIGH_ENTROPY.test(value) &&
-      /[0-9]/.test(value) && /[A-Za-z]/.test(value)));
+  if (typeof value !== 'string') return false;
+  let inspected = value;
+  for (let depth = 0; depth < 8; depth++) {
+    if (SECRET_STRING.test(inspected) || (HIGH_ENTROPY.test(inspected) &&
+      /[0-9]/.test(inspected) && /[A-Za-z]/.test(inspected))) return true;
+    if (!/%[0-9a-f]{2}/i.test(inspected)) return false;
+    inspected = inspected.replace(/%([0-9a-f]{2})/gi,
+      (_match, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
+  }
+  // An attacker can encode '%' indefinitely; refuse unresolved nesting.
+  return /%[0-9a-f]{2}/i.test(inspected) || SECRET_STRING.test(inspected);
 }
 function denver(milliseconds) {
   if (!Number.isSafeInteger(milliseconds) || milliseconds < 1e11 || milliseconds > 4102444800000) {
