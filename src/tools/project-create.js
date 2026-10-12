@@ -1,5 +1,6 @@
 // D-1f: new empty project only. Never attaches a Git repo, secrets or resources.
 import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {accountSpendGuard} from '../vercel/spend.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -8,11 +9,19 @@ import {checkApp} from './app-guard.js';
 import {CONFIG_SETTINGS,createConfigFields,invalidProjectConfiguration,providerConfigBody} from './project-config-fields.js';
 
 const NAME=/^[a-z0-9][a-z0-9-]{0,99}$/;
+const REPO=/^[a-zA-Z0-9_.-]{1,100}\/[a-zA-Z0-9_.-]{1,100}$/;
+const NAMESPACE=/^[-_a-zA-Z0-9]{1,128}$/;
+const PROVIDERS=['github','gitlab','bitbucket'];
+const gitSchema={type:'object',properties:{
+  type:{type:'string',enum:PROVIDERS},repo:{type:'string',minLength:3,maxLength:201,pattern:REPO.source},
+  namespaceId:{type:'string',minLength:1,maxLength:128,pattern:NAMESPACE.source}
+},required:['type','repo','namespaceId'],additionalProperties:false};
 // Framework options are validated by the pinned provider schema.
 const schema={type:'object',properties:{
   name:{type:'string',pattern:NAME.source,maxLength:100},
   framework:{type:'string',minLength:1,maxLength:100},
   ...createConfigFields,
+  gitRepository:gitSchema,
   dryRun:{type:'boolean'},confirm:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}
 },required:['name'],additionalProperties:false};
@@ -22,6 +31,13 @@ function assertArgs(args){
     typeof args.name!=='string' || !NAME.test(args.name) ||
     (args.framework!==undefined && (typeof args.framework!=='string'||args.framework.length<1||args.framework.length>100)) ||
     invalidProjectConfiguration(args)||
+    (args.gitRepository!==undefined &&
+      (!args.gitRepository||typeof args.gitRepository!=='object'||Array.isArray(args.gitRepository)||
+       Object.keys(args.gitRepository).some(k=>!Object.hasOwn(gitSchema.properties,k))||
+       !PROVIDERS.includes(args.gitRepository.type)||
+       typeof args.gitRepository.repo!=='string'||!REPO.test(args.gitRepository.repo)||
+       typeof args.gitRepository.namespaceId!=='string'||
+       !NAMESPACE.test(args.gitRepository.namespaceId)))||
     (args.confirm!==undefined && typeof args.confirm!=='boolean') ||
     (args.dryRun!==undefined && typeof args.dryRun!=='boolean'))
     throw new TypeError('Invalid project creation request');
@@ -29,22 +45,45 @@ function assertArgs(args){
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:entry=>db.recordChange(entry),
+    checkSpend:(declaration,confirm)=>declaration.cents===0?
+      {allowed:true,code:'allowed',explanation:'Unlinked empty project: $0 estimated build usage'}:
+      accountSpendGuard({db,account:connection.account})(declaration,confirm),
     replayStore:db.requestReplayStore(),
     guardProtected:targets=>checkProtected(targets,{db,connection,env}),
     guardApp:targets=>checkApp(targets,{db,connection,env})};
 }
 const create=defineWrite({
-  name:'vercel_project_create',
+  name:'vercel_project_create',risk:{spend:true},
   async before(args,ctx){
     assertArgs(args);
+    const git=args.gitRepository??null;
+    if(git && (ctx.connection?.profile!=='full'||ctx.connection?.mode!=='production'))
+      throw new TypeError('Git imports require full production-mode connection');
     validateRequest('projects_create',{query:{teamId:'team_FAKE_validation'},
-      body:{name:args.name,...(args.framework?{framework:args.framework}:{}),...providerConfigBody(args)}});
+      body:{name:args.name,...(args.framework?{framework:args.framework}:{}),
+        ...providerConfigBody(args),...(git?{gitRepository:{type:git.type,repo:git.repo}}:{})}});
     const {client,account}=await readProvider(ctx);
     if(account.scope==='project')throw new TypeError('Project-only keys cannot create team projects');
+    if(git){
+      const namespaces=await client.request('git_namespaces',{query:{provider:git.type}});
+      if(!Array.isArray(namespaces)||!namespaces.some(row=>
+        String(row?.id)===git.namespaceId&&row?.provider===git.type&&
+        row?.isAccessRestricted!==true&&row?.requireReauth!==true))
+        throw new TypeError('Git namespace is not verified accessible by this credential');
+      const search=await client.request('git_repos_search',{query:{
+        provider:git.type,namespaceId:git.namespaceId,query:git.repo.split('/')[1]
+      }});
+      const repos=Array.isArray(search)?search:
+        Array.isArray(search?.repos)?search.repos:
+        Array.isArray(search?.repositories)?search.repositories:null;
+      if(!Array.isArray(repos)||!repos.some(row=>
+        row?.fullName===git.repo||row?.slug===git.repo))
+        throw new TypeError('Exact repository not found in bound Git integration');
+    }
     try{
       await client.request('projects_get',{path:{idOrName:args.name}});
     }catch(err){
-      if(err?.status===404)return {name:args.name,framework:args.framework??null};
+      if(err?.status===404)return {name:args.name,framework:args.framework??null,git};
       throw err;
     }
     throw new TypeError('Project name is already assigned');
@@ -54,14 +93,22 @@ const create=defineWrite({
       (before.framework?' using '+before.framework:' with auto-detected framework')+
       (CONFIG_SETTINGS.some(key=>_args[key]!==undefined)?
         '; config fields: '+CONFIG_SETTINGS.filter(key=>_args[key]!==undefined).join(', '):'')+
-      '; no Git link, deployment, paid resources or secrets';
+      (before.git?'; attach authenticated '+before.git.type+' Git repository '+before.git.repo+
+        '; a build/deployment may start and incur usage; production authorization and pricing review required':
+        '; no Git link, deployment, paid resources or secrets');
   },
-  async production(){return {production:false,why:'New empty project has no live deployment'};},
+  async production(_args,_ctx,before){return {production:Boolean(before.git),why:before.git?
+    'Git import can trigger a deployment and metered usage':
+    'New empty unlinked project has no live deployment'};},
+  async spend(_args,_ctx,before){return before.git?
+    {cents:null,recurring:true,description:'Git project import may trigger usage-based build charges (https://vercel.com/pricing)'}:
+    {cents:0,recurring:false,description:'Empty unlinked project creation'};},
   async targets(_args,before){return [{kind:'project',id:before.name,name:before.name}];},
   async apply(_args,ctx,before,requestKey){
     const provider=await writeProvider(ctx);
     return provider.write('projects_create',{body:{
-      name:before.name,...(before.framework?{framework:before.framework}:{}),...providerConfigBody(_args)
+      name:before.name,...(before.framework?{framework:before.framework}:{}),...providerConfigBody(_args),
+      ...(before.git?{gitRepository:{type:before.git.type,repo:before.git.repo}}:{})
     }},{requestKey,tool:'vercel_project_create',shapeResult:value=>{
       if(typeof value?.id!=='string'||typeof value?.name!=='string')
         throw new TypeError('Vercel did not return project identity');
@@ -75,7 +122,9 @@ const create=defineWrite({
     const row=await client.request('projects_get',{path:{idOrName:result.id}});
     return {confirmed:row?.id===result.id&&row?.name===before.name&&
       (before.framework===null||row.framework===before.framework)&&
-      CONFIG_SETTINGS.every(key=>_args[key]===undefined||row?.[key]===_args[key]),
+      CONFIG_SETTINGS.every(key=>_args[key]===undefined||row?.[key]===_args[key])&&
+      (!before.git || (row?.link?.type===before.git.type&&
+        (row?.link?.repo===before.git.repo||row?.link?.fullName===before.git.repo))),
       project:result.id};
   }
 });
@@ -84,7 +133,7 @@ const out=result=>({isError:['refused_by_guard','outcome_unknown'].includes(resu
 export const projectCreateTools={
   tools:[{name:'vercel_project_create',writes:true,guardedWrite:true,
     profiles:['everyday','full'],area:'projects',
-    description:'Create an unlinked project with framework, build commands and directories; never deploy or attach Git.',
+    description:'Create a guarded empty project or full-profile production-confirmed Git-linked import with owner spending limits.',
     inputSchema:schema,annotations:{readOnlyHint:false,destructiveHint:false},
     writeContract:create.writeContract}],
   handlers:{

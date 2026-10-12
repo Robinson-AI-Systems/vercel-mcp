@@ -12,6 +12,8 @@ function fixture(){
     getAccountCredential:async()=>({}),
     listProtectedResources:async()=>[],
     recordChange:async row=>audit.push(row),
+    getVercelAccountSafe:async id=>({id,spend_limit_cents:0}),
+    getTodaySpendCents:async()=>0,
     requestReplayStore:()=>({
       claim:async({key})=>{
         if(state.has(key))return state.get(key);
@@ -150,10 +152,10 @@ describe('D-1f guarded project creation',()=>{
     expect(result.confirmed).toBeNull();
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
   });
-  it('uses the real tool contract with declared guards and does not declare unrelated spend/access risk',()=>{
+  it('uses the real tool contract with declared guards and declares cost risk for conditional Git import but not access escalation',()=>{
     const tool=registry.tools.find(x=>x.name==='vercel_project_create');
     expect(tool.writeContract).toMatchObject({production:true,targets:true,
-      spend:false,access:false,secretOut:false,secretIn:false});
+      spend:true,access:false,secretOut:false,secretIn:false});
     expect(tool.guardedWrite).toBe(true);
   });
 

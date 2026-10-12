@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1r guarded Git-linked creation (#65):** extend existing project creation with exact repository/namespace lookup through the authenticated Vercel Git connection. Unlinked projects retain preview-mode $0 flow. Git imports require full-profile production connection and explicit confirmation, spend policy with owner-set positive limit, pinned POST schema and independent GET identity/Git-link read-back. No repo credentials, user-supplied monetary quote, provider Git tokens or real Vercel writes. Elevated role removal and broad project delete remain independently blocked; IN-07/08 pending.
+
 - **D-1q grouped build/function resources (#64):** full-profile production-confirmed and protected project resource PATCH, with pinned resourceConfig body, authenticated owner limit/spent checks (unpriced usage blocked at $0), no caller-quoted charges, partial-field-only changes and independent resource read-back. No real Vercel spend or production activation. Continue D-1 Git-linked creation and separately approved elevated membership/broad-delete work.
 
 - **D-1p spend boundary preparation (#63):** shared account-bound spend policy reads only owner-approved limit and already-spent cents from the authenticated account; unknown costs cannot bypass $0 default or an exhausted limit, and user confirmation is still required. Paid writes carry integer-cents evidence into the safe change audit (only after actual apply, never on preview). Enables separately reviewed metered project resource settings; no paid writes or live Vercel actions introduced.
