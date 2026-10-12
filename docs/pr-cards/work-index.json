@@ -526,15 +526,16 @@
         134,
         135,
         136,
-        137
+        137,
+        138
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "D-2 core reads, bounded deployment waiting and bounded runtime stream summary implemented/CI-tested; file content remains unsupported pending strict contract and bytes safety, and external acceptance unverified.",
-        "nextAction": "Verify pinned deployment file-content response fields and enforce small bounded transport; implement only if binary/base64 shape is provable, otherwise record precise missing provider evidence.",
-        "checkpoint": "At #137 merge and every next development session; on new owner/hosted evidence recheck Hub D-4",
-        "evidenceNeeded": "Exact REST file-content response bytes/base64 field layout and cap, plus owner-authenticated deployed custom MCP and Hub TEST direct/relay/Sandbox/revocation runs.",
+        "reason": "D-2 reads including deployment triage, Checks V2, bounded runtime/build logs and status waiting are implemented with fake-provider/CI tests; file-content provider shape and live external acceptance remain unverified.",
+        "nextAction": "Reconcile finite D-2 catalog; obtain exact pinned provider file-content response structure and safe byte bounds before any content-return tool. Independently check newly eligible D-1 and Hub external acceptance evidence.",
+        "checkpoint": "After PR #138 exact-head CI and at next session start, or immediately when API response/owner-hosted evidence becomes available",
+        "evidenceNeeded": "Verified file-content JSON/base64 shape and capped response transport; separately deployed owner-authorized HTTPS/custom MCP/Hub TEST direct, relay, Sandbox and revocation.",
         "eligibilityCondition": "Local provider GET/status-safe read slices eligible after correct OpenAPI/transport evidence; real provider acceptance eligible only after owner-authorized deployed custom HTTPS origin, encrypted scoped token and revocation procedure.",
         "dependencies": [
           "D-1"
