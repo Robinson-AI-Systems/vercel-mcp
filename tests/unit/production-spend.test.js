@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deploymentIsProduction, isLiveProject, envTouchesProduction, domainIsProduction } from '../../src/vercel/production.js';
-import { usd, classifySpend, spendPreflight } from '../../src/vercel/spend.js';
+import { usd, classifySpend, spendPreflight, accountSpendGuard } from '../../src/vercel/spend.js';
 
 describe('B-1 fail-closed Vercel production classifiers', () => {
   it('recognizes live deployment and refuses ambiguous targets', () => {
@@ -45,6 +45,34 @@ describe('B-1 conservative integer-cents spend guard', () => {
   it('does not silently approve unknown-cost operations', () => {
     const declaration = { cents: null, recurring: true, description: 'Usage-based service' };
     expect(spendPreflight({ declaration, spentTodayCents: 0, spendLimitCents: 0 }).code)
-      .toBe('needs_confirmation');
+      .toBe('spend_limit');
   });
+  it('blocks unpriced usage at $0 and an already exhausted positive limit',()=>{
+    const declaration={cents:null,recurring:true,description:'Build resource usage'};
+    expect(spendPreflight({declaration,spentTodayCents:0,spendLimitCents:0,
+      confirm:true}).code).toBe('spend_limit');
+    expect(spendPreflight({declaration,spentTodayCents:2000,spendLimitCents:2000,
+      confirm:true}).code).toBe('spend_limit');
+    expect(spendPreflight({declaration,spentTodayCents:100,spendLimitCents:2000,
+      confirm:true}).allowed).toBe(true);
+  });
+  it('binds spend decisions only to a real account and owner-stored limits',async()=>{
+    const calls=[];
+    const guard=accountSpendGuard({db:{
+      getVercelAccountSafe:async id=>{calls.push(['account',id]);return {
+        id,spend_limit_cents:1000};},
+      getTodaySpendCents:async id=>{calls.push(['spent',id]);return 300;}
+    },account:'acct_FAKE_A'});
+    const result=await guard({cents:500,description:'Provider quoted charge'},true);
+    expect(result.allowed).toBe(true);
+    expect(calls).toEqual([['account','acct_FAKE_A'],['spent','acct_FAKE_A']]);
+    expect((await guard({cents:900,description:'Provider quoted charge'},true)).code)
+      .toBe('spend_limit');
+    const denied=accountSpendGuard({db:{
+      getVercelAccountSafe:async()=>({id:'acct_FAKE_OTHER',spend_limit_cents:1000}),
+      getTodaySpendCents:async()=>0
+    },account:'acct_FAKE_A'});
+    expect((await denied({cents:1,description:'Charge'},true)).allowed).toBe(false);
+  });
+
 });

@@ -79,7 +79,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_project_get` | One project: framework, commands, root directory, Node version, Git repo and production branch, protection summary, domains count, crons | — | B O Op | R | y | D-1 (built #47) |
 | `vercel_project_create` | Create unlinked project with pinned framework and string-only build/directory overrides (max 256 chars); no Git or deployment | P | B | E | — | D-1 (partial #52,#59) |
 | `vercel_project_update_settings` | Rename/framework plus grouped build/directory overrides (max 256 chars, null resets to defaults), guarded and independently verified; paid resources separate | Cp | B O | E | y | D-1 (partial #53) |
-| `vercel_project_set_build_resources` | Build machine type, build concurrency, function default memory/duration/region, fluid compute (each can raise the bill) | $ Cp | O | F | y | D-1 |
+| `vercel_project_set_build_resources` | Build machine, concurrency and function compute options (billable); future guarded API write uses owner-stored account limit, fails at $0 and requires confirmation | $ Cp | O | F | y | D-1 |
 | `vercel_project_delete` | Strict empty-project-only deletion: require full profile, production confirmation, typed name, complete scoped impact inventory and reread before DELETE; nonempty/unknown blocked | D PR | O | F | y | D-1 (partial #60) |
 | `vercel_project_pause` | Guarded pause of project production traffic; authenticated project state before and after, confirmation, production connection | PR | O Op | F | y | D-1 (built #58) |
 | `vercel_project_unpause` | Guarded production resumption; authenticated state, full-profile production confirmation, metered usage warning | PR | O Op | F | y | D-1 (built #58) |

@@ -25,9 +25,34 @@ export function spendPreflight({ declaration, spentTodayCents, spendLimitCents, 
       ' of ' + usd(spendLimitCents) + '.' :
     quote.description + ': usage-based pricing is not known in advance. ' +
       'The owner must confirm the charge and review provider pricing.';
+  // Unknown usage cannot be authorized by the safe $0 default or an exhausted limit.
+  // A positive limit must have been independently approved on the owner setup page.
+  if (!known && (spendLimitCents === 0 || spentTodayCents >= spendLimitCents)) {
+    return {allowed:false,code:'spend_limit',explanation:line +
+      ' No unpriced change is permitted under this daily limit.'};
+  }
   if (known && quote.cents + spentTodayCents > spendLimitCents) {
     return { allowed: false, code: 'spend_limit', explanation: line };
   }
   if (!confirm) return { allowed: false, code: 'needs_confirmation', explanation: line };
   return { allowed: true, code: 'allowed', explanation: line };
+}
+
+// Shared account-bound policy adapter for any paid project write. No cost or
+// account selection is accepted from MCP caller arguments.
+export function accountSpendGuard({db,account}){
+  if(typeof account!=='string'||!account ||
+    typeof db?.getVercelAccountSafe!=='function'||
+    typeof db?.getTodaySpendCents!=='function')
+    throw new TypeError('Account-bound spend policy is unavailable');
+  return async (declaration,confirm)=>{
+    const row=await db.getVercelAccountSafe(account);
+    if(!row||row.id!==account||
+      !Number.isSafeInteger(row.spend_limit_cents)||row.spend_limit_cents<0)
+      return {allowed:false,code:'spend_settings_unavailable',
+        explanation:'Owner-approved account spend limit cannot be verified'};
+    const spent=await db.getTodaySpendCents(account);
+    return spendPreflight({declaration,spentTodayCents:spent,
+      spendLimitCents:row.spend_limit_cents,confirm});
+  };
 }

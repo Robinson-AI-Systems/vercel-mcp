@@ -51,13 +51,13 @@ export function defineWrite(spec) {
   async function run(args = {}, ctx = {}) {
     const checked = await writePreflight(spec, args, ctx);
     if (checked.refused) return checked.refused;
-    const { before, production, targets, summary, moneyLine, mode } = checked;
+    const { before, production, targets, summary, moneyLine, spendCents, mode } = checked;
     const requestKey = writeRequestKey(spec.name, args, ctx.connection,
       typeof ctx.now === 'function' ? ctx.now() : Date.now());
     const auditBase = {
       tool: spec.name, account: ctx.connection.account, mode: ctx.connection.mode,
       requestKey, production: production.production,
-      summary, targets: safeShape(ctx, targets), moneyLine
+      summary, targets: safeShape(ctx, targets), moneyLine, spendCents: spendCents??null
     };
     if (args.dryRun === true) {
       await ctx.audit({ ...auditBase, dryRun: true });

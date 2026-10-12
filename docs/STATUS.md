@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1p spend boundary preparation (#63):** shared account-bound spend policy reads only owner-approved limit and already-spent cents from the authenticated account; unknown costs cannot bypass $0 default or an exhausted limit, and user confirmation is still required. Paid writes carry integer-cents evidence into the safe change audit (only after actual apply, never on preview). Enables separately reviewed metered project resource settings; no paid writes or live Vercel actions introduced.
+
 - **D-1o guarded project transfer code issuance (#62):** full-profile production-confirmed project transfer request using exact typed project name and protected/app guards. The returned code is stored encrypted for owner-only one-time reveal; only opaque reference enters safe transport replay, audit and MCP. This initiates a claim, never completes a transfer; confirmation of actual ownership is unknown. No connected token or real project used. Remaining D-1: Git-linked creation, build-resource spend controls, privileged membership decisions and broad deletion safety.
 
 - **D-1n correctness repairs (#61):** PATCH project configuration accepts explicit nullable override resets (independent read-back accepts null or omitted defaults); MCP schemas, local validation and pinned request validation enforce 256-character limits for all six fields. Project creation keeps nonnullable configuration. Both unresolved #57 reviewer findings addressed with grouped reset and 256/257 boundary regressions. No production activation. Continue approved D-1 work and independent spend/access/destructive reviews.
