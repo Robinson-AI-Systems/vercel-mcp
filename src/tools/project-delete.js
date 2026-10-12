@@ -74,6 +74,8 @@ const deletion=defineWrite({
     const state=await inspect(ctx,args.project);
     if(state.name!==args.expectedName)
       throw new TypeError('Typed project name does not match provider identity');
+    if(!state.empty)
+      throw new TypeError('This delete tool supports only verified empty projects');
     return state;
   },
   async preview(_args,_ctx,before){
