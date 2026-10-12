@@ -99,7 +99,8 @@ describe('D-1m destructive empty-project deletion',()=>{
       {deployments:[{id:'dpl_FAKE',projectId:'prj_OTHER'}],pagination:{next:null}},
       {deployments:[]}
     ]){
-      const f=fixture();f.empty();f.deploymentRule.resolves(response);
+      const f=fixture();f.empty();
+      f.fake.when('GET','/v7/deployments').resolves(response);
       const result=parse(await f.call());
       expect(result.status).toBe('refused_by_guard');
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
@@ -107,7 +108,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   });
   it('refuses a deployment that appears between preview and final inventory recheck',async()=>{
     const f=fixture();f.empty();
-    f.deploymentRule.resolves({deployments:[],pagination:{next:null}})
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null}})
       .resolves({deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null}});
     const result=parse(await f.call());
     expect(result.status).toBe('outcome_unknown');
