@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1x PR #71 — richer safe project inspection:** `vercel_project_get` includes whitelisted Git linkage, ignore-build command, deployment presence, pause status, selected compute configuration and bounded production deployment metadata for operational diagnosis. Unknown is null; nested tokens/credentials and arbitrary provider objects excluded. D-1 owner-gated privileged access and nonempty delete remain disabled.
+
+
 - **D-1w PR #70 — bounded complete membership pagination:** shared authenticated project/team member inventory now follows up to five explicit safe numeric cursors, while refusing duplicate identity, repeated cursor, missing pagination, contradictory flags and excess scope. Large-team viewer/developer grants and removals remain independently owner-safe and production-confirmed; no widened admin rights or real Vercel writes. D-1 still partial; privileged member and nonempty delete require separate approved owner design before D-2 dependency can be declared complete.
 
 
