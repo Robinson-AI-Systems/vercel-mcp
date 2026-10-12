@@ -185,6 +185,38 @@ describe('RTC 1 read-only HTTPS door',()=>{
     expect(response.body.error.code).toBe('invalid_args');
   }
  });
+ it('stores a combined batch exceeding 8KB under the calling pass, then pages it',async()=>{
+  const f=fixture(),handle='res_'+'f'.repeat(32);
+  f.read.mockResolvedValue(out({label:'x'.repeat(1000)}));
+  f.db.putResult.mockResolvedValue({handle,expiresAt:'2026-10-13T12:00:00.000Z'});
+  const calls=Array.from({length:10},()=>({name:'vercel_fixture_read',args:{}}));
+  const response=await f.call('batch','POST',{}, {calls});
+  expect(response.code).toBe(200);
+  expect(response.body.result).toMatchObject({status:'stored',handle,count:10});
+  expect(Buffer.byteLength(JSON.stringify(response.body))).toBeLessThanOrEqual(8192);
+  expect(f.db.putResult).toHaveBeenCalledWith({
+    account:'team_FAKE',owner:expect.stringMatching(/^resown_[a-f0-9]{64}$/),
+    summary:'Read-only RTC batch: 10 result(s)',body:expect.any(Array)});
+  expect(f.db.putResult.mock.calls[0][0].body).toHaveLength(10);
+  f.db.getResult.mockResolvedValue({body:f.db.putResult.mock.calls[0][0].body,
+    summary:'Read-only RTC batch: 10 result(s)'});
+  const page=await f.call('result','GET',{handle,page:'1',limit:'2',fields:'label'});
+  expect(page.code).toBe(200);
+  expect(page.body.result).toMatchObject({page:1,limit:2,count:10,next:2});
+  expect(page.body.result.records).toHaveLength(2);
+  expect(Buffer.byteLength(JSON.stringify(page.body))).toBeLessThanOrEqual(8192);
+ });
+ it('refuses oversize batches when secure storage is absent or returns an invalid handle',async()=>{
+  const f=fixture();
+  f.read.mockResolvedValue(out({label:'y'.repeat(1000)}));
+  const calls=Array.from({length:10},()=>({name:'vercel_fixture_read',args:{}}));
+  f.db.putResult.mockResolvedValueOnce(null);
+  const denied=await f.call('batch','POST',{}, {calls});
+  expect(denied.code).toBe(503);
+  f.db.putResult.mockResolvedValueOnce({handle:'unscoped',expiresAt:'bad'});
+  const malformed=await f.call('batch','POST',{}, {calls});
+  expect(malformed.code).toBe(503);
+ });
  it('preflights every batch member before any read can run',async()=>{
   const f=fixture();
   const denied=await f.call('batch','POST',{},{
