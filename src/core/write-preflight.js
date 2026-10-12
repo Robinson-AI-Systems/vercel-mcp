@@ -51,7 +51,7 @@ export async function writePreflight(spec, args, ctx) {
   } catch {
     return { refused: refusal('A resource safety guard is unavailable') };
   }
-  let moneyLine = null;
+  let moneyLine = null, spendCents = null;
   if (spec.risk?.spend) {
     if (typeof spec.spend !== 'function' || typeof ctx.checkSpend !== 'function') {
       return { refused: refusal('Provider pricing and spend limit cannot be verified') };
@@ -63,6 +63,7 @@ export async function writePreflight(spec, args, ctx) {
         return { refused: refusal('Spend check did not return a decision') };
       }
       moneyLine = check.explanation;
+      spendCents = spend?.cents ?? null;
       if (!check.allowed && check.code !== 'needs_confirmation') {
         return { refused: refusal(check.explanation || 'Spending is not permitted', check.code) };
       }
@@ -82,6 +83,6 @@ export async function writePreflight(spec, args, ctx) {
       return { refused: refusal('Access widening could not be verified') };
     }
   }
-  return { before, production, targets, summary, moneyLine,
+  return { before, production, targets, summary, moneyLine, spendCents,
     mode: production.production ? 'PRODUCTION' : 'PREVIEW' };
 }

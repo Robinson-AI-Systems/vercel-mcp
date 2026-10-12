@@ -296,14 +296,18 @@ export function createDb(query) {
       if (Buffer.byteLength(before + after + result + inverse + summary) > 8192) {
         throw new TypeError('Audit record exceeds safe 8 KB limit');
       }
+      const cents=entry.spendCents;
+      if(cents!==undefined && cents!==null &&
+        (!Number.isSafeInteger(cents)||cents<0))
+        throw new TypeError('Spend audit must be nonnegative integer cents');
       const run = getSql();
       const rows = await run`INSERT INTO change_log
         (vercel_account, mode, tool, summary, before, after, dry_run,
-          production, request_key, result, inverse)
+          production, request_key, result, inverse, spend_cents)
         VALUES (${entry.account}, ${entry.mode || 'preview'}, ${entry.tool}, ${summary},
           ${before}::jsonb, ${after}::jsonb, ${entry.dryRun},
           ${entry.production}, ${entry.requestKey || null},
-          ${result}::jsonb, ${inverse}::jsonb)
+          ${result}::jsonb, ${entry.dryRun?null:(cents??null)})
         RETURNING id`;
       return rows[0].id;
     },
