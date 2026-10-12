@@ -555,3 +555,5 @@ IN-07 (#107): existing optional protected project exclusions can be cleared only
 IN-08 (#108): priced operations will require separately authenticated transaction-bound owner purchase approvals. Ledger is implemented first; it does not grant any new paid tool authority and is not itself a purchase operation. Verified additional Pro developer seat rate: $20/month; free Viewer seats (Vercel Pro pricing).
 
 IN-08 (#109): owner purchase review/approval exists only on authenticated /api/vercel/setup, not in MCP tool registry. UI displays account, operation, expiring reference, pricing source/quote and explicit owner ceiling; never issues Vercel calls.
+
+IN-08 (#110): central guarded-write executor routes charges through separately owner-approved, one-use account/tool/request/argument/price binding; AI confirm and positive daily spend settings cannot authorize charged operations. Unbounded metered Git imports are blocked pending a provider-enforceable owner ceiling. $0 empty-project creation remains free.

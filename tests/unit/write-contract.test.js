@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { defineWrite } from '../../src/core/write.js';
-import { sampleWrite, runWriteContract, writeRequestKey } from '../../tests/helpers/write-contract.js';
+import { defineWrite, purchaseFingerprint } from '../../src/core/write.js';
+import { sampleWrite, runWriteContract, writeRequestKey, attachFakeOwnerPurchase } from '../../tests/helpers/write-contract.js';
 
 runWriteContract('generic B-1 sample');
 
@@ -29,10 +29,25 @@ describe('B-1 contract hardening', () => {
     const preview=await f.tool.run({dryRun:true},f.ctx);
     expect(preview.status).toBe('preview');
     expect(f.audits[0]).toMatchObject({dryRun:true,spendCents:475});
-    const applied=await f.tool.run({confirm:true},f.ctx);
+    attachFakeOwnerPurchase(f.ctx);
+    const applied=await f.tool.run({confirm:true,requestKey:'fixturePaidFAKE01'},f.ctx);
     expect(applied.confirmed).toBe(true);
     expect(f.audits[1]).toMatchObject({dryRun:false,spendCents:475});
     expect(f.provider).toHaveLength(1);
+  });
+  it('binds owner purchase identity to account, meaningful args, description and exact quote',()=>{
+    const a={account:'acct_FAKE',mode:'production',profile:'full'};
+    const quote={cents:2000,recurring:false,description:'Vercel provider quote'};
+    const digest=args=>purchaseFingerprint('vercel_domain_buy',args,a,quote);
+    expect(digest({domain:'example.test',confirm:true,requestKey:'buyRequestABC01'}))
+      .toBe(digest({domain:'example.test',dryRun:true}));
+    expect(digest({domain:'example.test'})).not.toBe(digest({domain:'other.test'}));
+    expect(digest({domain:'example.test'})).not.toBe(
+      purchaseFingerprint('vercel_domain_buy',{domain:'example.test'},
+        {...a,account:'other_FAKE'},quote));
+    expect(digest({domain:'example.test'})).not.toBe(
+      purchaseFingerprint('vercel_domain_buy',{domain:'example.test'},a,
+        {...quote,cents:2100}));
   });
   it('hashes only meaningful args and supports explicit caller keys', () => {
     const ctx = { account: 'fixture', mode: 'preview' };

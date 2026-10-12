@@ -1,9 +1,8 @@
-// D-1q: grouped, usage-billed project resource settings under owner spend cap.
+// D-1q: grouped, usage-billed project resource settings, requiring enforceable owner cost approval.
 // No owner settings or user-supplied price; all writes require production mode.
 import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
-import {accountSpendGuard} from '../vercel/spend.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {checkProtected} from './self-guard.js';
@@ -78,7 +77,8 @@ function resourceFingerprint(config,keys){
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:x=>db.recordChange(x),replayStore:db.requestReplayStore(),
-    checkSpend:accountSpendGuard({db,account:connection.account}),
+    // The central paid-write gate denies unbounded usage; no positive daily limit authorizes it.
+    checkSpend:()=>({allowed:false,code:'owner_required'}),
     guardProtected:targets=>checkProtected(targets,{db,connection,env}),
     guardApp:targets=>checkApp(targets,{db,connection,env})};
 }
@@ -112,7 +112,7 @@ const change=defineWrite({
     return 'Change billed build/function resource settings for '+before.name+
       ' ('+before.id+'): '+Object.keys(before.changes).join(', ')+
       '. Pricing depends on usage; review https://vercel.com/pricing. '+
-      'Explicit production confirmation and owner-configured positive spend cap required.';
+      'Independent owner approval and an enforceable provider cost ceiling are required.';
   },
   async production(){
     return {production:true,why:'Changing build/function resources affects live or future metered usage'};
@@ -136,11 +136,18 @@ const change=defineWrite({
         throw new TypeError('Project identity or resource state changed before a metered update');
       if(resourceFingerprint(fresh.resourceConfig,Object.keys(before.changes))!==before.resourceFingerprint)
         throw new TypeError('Metered resource configuration changed since confirmation');
-      // Recheck after the potentially slow provider read; an owner can reduce
-      // the spend limit or revoke remaining daily headroom after confirmation.
-      const spend=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
-        {cents:null,recurring:true,description:'Usage-based build/function resources'},true);
-      if(!spend.allowed)throw new TypeError('Owner daily spending permission was withdrawn');
+      // Recheck the consumed, independently authorized purchase intent after
+      // any slow provider read. The central executor currently refuses this
+      // unbounded metered operation before apply; this defense is for future
+      // provider-enforceable capped configurations.
+      const ticket=ctx.purchaseApproval;
+      if(ticket?.operation!=='vercel_project_set_build_resources' ||
+        ticket?.requestKey!==requestKey)
+        throw new TypeError('Independent purchase approval is missing');
+      const row=await ctx.db.getPurchaseIntent({
+        account:ctx.connection.account,reference:ticket.reference});
+      if(row?.status!=='consumed'||!row.consumed_at)
+        throw new TypeError('Purchase grant was revoked');
     });
     return provider.write('projects_update',{
       path:{idOrName:before.id},body:{resourceConfig:patch(before.changes)}
@@ -164,7 +171,7 @@ const change=defineWrite({
 export const projectResourcesTools={
   tools:[{name:'vercel_project_set_build_resources',writes:true,guardedWrite:true,
     profiles:['full'],area:'projects',
-    description:'Change metered build and function resource settings under owner spend limits and production confirmation.',
+    description:'Change metered build/function resource settings only with enforceable provider cost ceilings and owner approval.',
     inputSchema:schema,writeContract:change.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{vercel_project_set_build_resources:bindGuardedWrite(change,context,result=>({

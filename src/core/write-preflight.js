@@ -51,24 +51,39 @@ export async function writePreflight(spec, args, ctx) {
   } catch {
     return { refused: refusal('A resource safety guard is unavailable') };
   }
-  let moneyLine = null, spendCents = null;
-  if (spec.risk?.spend) {
-    if (typeof spec.spend !== 'function' || typeof ctx.checkSpend !== 'function') {
-      return { refused: refusal('Provider pricing and spend limit cannot be verified') };
-    }
+  let moneyLine=null,spendCents=null,purchase=null;
+  if(spec.risk?.spend){
+    if(typeof spec.spend!=='function')
+      return {refused:refusal('A declared provider price is required')};
     try {
-      const spend = await spec.spend(args, ctx, before);
-      const check = await ctx.checkSpend(spend, Boolean(args.confirm));
-      if (!check || typeof check.allowed !== 'boolean') {
-        return { refused: refusal('Spend check did not return a decision') };
+      const spend=await spec.spend(args,ctx,before);
+      if(!spend||spend.cents===undefined||!Number.isSafeInteger(spend.cents??0)||spend.cents<0||
+        typeof spend.description!=='string'||!spend.description.trim()||
+        typeof spend.recurring!=='boolean')
+        return {refused:refusal('Provider pricing is invalid or unavailable')};
+      spendCents=spend.cents;
+      if(spend.cents===0){
+        if(typeof ctx.checkSpend!=='function')
+          return {refused:refusal('Zero-cost policy service is unavailable')};
+        const check=await ctx.checkSpend(spend,Boolean(args.confirm));
+        if(!check||typeof check.allowed!=='boolean')
+          return {refused:refusal('Spend check did not return a decision')};
+        moneyLine=check.explanation;
+        if(!check.allowed&&check.code!=='needs_confirmation')
+          return {refused:refusal(check.explanation||'Spending was refused',check.code)};
+      }else{
+        // No daily allowance and no AI-supplied confirm can buy anything.
+        // The central write executor requests and consumes a separate owner-
+        // authenticated, transaction-specific, immutable purchase grant.
+        purchase={cents:spend.cents,recurring:spend.recurring,
+          description:spend.description.trim()};
+        moneyLine=spend.description.trim()+': '+
+          (spend.cents===null?'variable usage; an owner-specified ceiling is required':
+            '$'+(spend.cents/100).toFixed(2)+' USD')+
+          '. Separately authenticated approval for this transaction is mandatory.';
       }
-      moneyLine = check.explanation;
-      spendCents = spend?.cents ?? null;
-      if (!check.allowed && check.code !== 'needs_confirmation') {
-        return { refused: refusal(check.explanation || 'Spending is not permitted', check.code) };
-      }
-    } catch {
-      return { refused: refusal('Unable to verify spending before the request') };
+    }catch{
+      return {refused:refusal('Unable to verify pricing before the request')};
     }
   }
   if (spec.risk?.access) {
@@ -84,5 +99,5 @@ export async function writePreflight(spec, args, ctx) {
     }
   }
   return { before, production, targets, summary, moneyLine, spendCents,
-    mode: production.production ? 'PRODUCTION' : 'PREVIEW' };
+    mode: production.production ? 'PRODUCTION' : 'PREVIEW',purchase };
 }

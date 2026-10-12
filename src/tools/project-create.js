@@ -1,6 +1,5 @@
 // D-1r: empty unlinked projects and guarded metered Git-linked imports; no secrets.
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
-import {accountSpendGuard} from '../vercel/spend.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -46,9 +45,10 @@ function assertArgs(args){
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:entry=>db.recordChange(entry),
-    checkSpend:(declaration,confirm)=>declaration.cents===0?
+    // All chargeable paths are independently owner-gated by defineWrite.
+    checkSpend:declaration=>declaration.cents===0?
       {allowed:true,code:'allowed',explanation:'Unlinked empty project: $0 estimated build usage'}:
-      accountSpendGuard({db,account:connection.account})(declaration,confirm),
+      {allowed:false,code:'owner_required',explanation:'Owner purchase grant required'},
     replayStore:db.requestReplayStore(),
     guardProtected:targets=>checkProtected(targets,{db,connection,env}),
     guardApp:targets=>checkApp(targets,{db,connection,env})};
@@ -116,11 +116,11 @@ const create=defineWrite({
       }});
       verifyExactGitRepository(search,{repo:before.git.repo,
         provider:before.git.type,namespaceId:before.git.namespaceId});
-      // Last-moment owner spending decision follows BOTH potentially slow GETs.
-      const spending=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
-        {cents:null,recurring:true,description:'Git import may incur metered build usage'},true);
-      if(!spending.allowed)
-        throw new TypeError('Owner-approved daily spending limit no longer permits this Git import');
+      // The core executor already atomically consumed a transaction-bound,
+      // independently approved grant before entering any paid apply().
+      if(ctx.purchaseApproval?.operation!=='vercel_project_create'||
+        ctx.purchaseApproval?.requestKey!==requestKey)
+        throw new TypeError('An independent owner purchase grant is required');
       });
     }
     // Confirmation may lag the initial 404. A different administrator can
@@ -137,15 +137,19 @@ const create=defineWrite({
       }
       throw new TypeError('Project name was claimed after confirmation');
     });
-    // The final authenticated name lookup can be slow. An owner may revoke
-    // spending permission while it is pending; never dispatch a metered POST
-    // against the earlier policy snapshot.
+    // P1 race protection: recheck the exact owner purchase grant immediately
+    // AFTER the final potentially slow authenticated name GET and BEFORE POST.
     if(before.git){
       await requirePreDispatch(async()=>{
-        const spending=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
-          {cents:null,recurring:true,description:'Git import may incur metered build usage'},true);
-        if(!spending.allowed)
-          throw new TypeError('Owner spending authorization changed during final name lookup');
+        const ticket=ctx.purchaseApproval;
+        if(!ticket||ticket.operation!=='vercel_project_create'||
+          ticket.requestKey!==requestKey) throw new TypeError('Missing bound purchase grant');
+        const latest=await ctx.db.getPurchaseIntent({
+          account:ctx.connection.account,reference:ticket.reference});
+        if(latest?.status!=='consumed'||!latest.consumed_at||
+          !Number.isSafeInteger(Number(latest.ceiling_cents))||
+          Number(latest.ceiling_cents)<1)
+          throw new TypeError('Owner purchase grant changed before metered POST');
       });
     }
     return provider.write('projects_create',{body:{

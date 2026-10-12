@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **IN-08 PR #110 — charged-write enforcement:** centrally rejects agent-only purchases and old positive daily limits, requires a stable key and one-use separately authenticated owner purchase approval, with replay, payload and price binding. Metered Git imports and build-resource changes remain disabled until a verifiable provider-enforceable ceiling exists. Temporary recovery note removed; permanent connector-interruption procedure added to AGENTS. All five required exact-head CI jobs passed at the current tested implementation checkpoint; exact-head final CI must be reverified after this reconciliation. D-1 remains IN_PROGRESS; production inactive.
+
+
 - **IN-08 #109 — authenticated per-purchase owner setup:** owner may review the exact account, tool, quote/usage class, and expiring purchase intent, then separately approve a precisely chosen USD ceiling using fresh passphrase, CSRF, session and one-use database read-back. No agent-provided confirm or spend-limit setting substitutes for this owner action. Metered dispatch remains fail-closed pending #110. IN-08 ANSWERED but dispatch still NOT APPLIED; no live Vercel purchases.
 
 

@@ -42,32 +42,18 @@ describe('D-1q billed project resource configuration',()=>{
     expect(listMcpTools(registry,{...conn,profile:'read_only'})
       .some(x=>x.name===t.name)).toBe(false);
   });
-  it('sends one partial grouped PATCH, bound to team, with independent GET confirmation',async()=>{
-    const f=fixture();
-    const changes={buildMachineType:'enhanced',buildMachineSelection:'elastic',
-      elasticConcurrencyEnabled:true,fluid:true,
-      functionDefaultMemoryType:'performance',functionDefaultTimeout:60,
-      functionDefaultRegions:['sfo1'],
-      buildQueueConfiguration:'SKIP_NAMESPACE_QUEUE'};
-    const resourceConfig={buildMachineType:'enhanced',buildMachineSelection:'elastic',
-      elasticConcurrencyEnabled:true,fluid:true,
-      functionDefaultMemoryType:'performance',functionDefaultTimeout:60,
-      functionDefaultRegions:['sfo1'],
-      buildQueue:{configuration:'SKIP_NAMESPACE_QUEUE'}};
-    f.fake.when('GET','/v9/projects/{idOrName}').resolves(project)
-      .resolves(project)
-      .resolves({...project,resourceConfig:{...project.resourceConfig,...resourceConfig}});
-    f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({id:project.id});
-    const result=parse(await f.call({project:project.id,expectedName:project.name,
-      ...changes,confirm:true}));
-    expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','PATCH','GET']);
-    expect(f.fake.calls[2].query.teamId).toBe('team_FAKE');
-    expect(f.fake.calls[2].body).toEqual({resourceConfig});
-    expect(f.audits).toHaveLength(1);
-    expect(f.audits[0].spendCents).toBeNull();
-    expect(f.ledger.size).toBe(2);
-    expect(f.spendCalls).toEqual(['acct_FAKE','acct_FAKE']);
+  it('rejects all unbounded chargeable PATCHes, even with a positive old daily limit',async()=>{
+    const f=fixture({limit:900000});
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
+    const args={project:project.id,expectedName:project.name,
+      buildMachineType:'enhanced',confirm:true,requestKey:'usageCappedFake01'};
+    const result=parse(await f.call(args));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(result.reason).toMatch(/provider-enforceable/i);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+    expect(f.spendCalls).toHaveLength(0);
+    expect(f.audits).toHaveLength(0);
+    expect(f.ledger.size).toBe(0);
     f.fake.verify();
   });
   it('refuses metered PATCH when selected resource options change after confirmation',async()=>{
@@ -88,20 +74,15 @@ describe('D-1q billed project resource configuration',()=>{
       f.fake.verify();
     }
   });
-  it('stops a paid PATCH when the owner lowers the daily budget after confirmation',async()=>{
-    const f=fixture(),args={project:project.id,expectedName:project.name,
-      fluid:true,confirm:true,requestKey:'resourceSpendRaceFAKE01'};
-    let policyReads=0;
-    f.db.getVercelAccountSafe=async id=>{
-      f.spendCalls.push(id);
-      return {id,spend_limit_cents:++policyReads===1?10000:0};
-    };
+  it('does not treat a historically elevated daily limit as owner purchase permission',async()=>{
+    const f=fixture({limit:20000}),args={project:project.id,
+      expectedName:project.name,fluid:true,confirm:true,requestKey:'resourceSpendRaceFAKE01'};
+    f.db.getVercelAccountSafe=async()=>({id:'acct_FAKE',spend_limit_cents:900000000});
     f.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
     const result=parse(await f.call(args));
-    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
-    expect(policyReads).toBe(2);
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
-    expect(f.fake.calls.every(c=>c.method==='GET')).toBe(true);
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+    expect(f.spendCalls).toHaveLength(0);
   });
   it('blocks metered changes if the writable token narrows to project scope',async()=>{
     const f=fixture();
@@ -168,7 +149,7 @@ describe('D-1q billed project resource configuration',()=>{
     const preview=parse(await f.call({project:project.id,expectedName:project.name,
       fluid:true,dryRun:true}));
     expect(preview.status).toBe('preview');
-    expect(preview.moneyLine).toContain('usage-based');
+    expect(preview.moneyLine).toContain('variable usage');
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     f.fake.verify();
   });
@@ -179,13 +160,11 @@ describe('D-1q billed project resource configuration',()=>{
     expect(res.status).toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(0);
     const ok=fixture();
-    ok.fake.when('GET','/v9/projects/{idOrName}').resolves(project)
-      .resolves({...project,resourceConfig:project.resourceConfig});
-    ok.fake.when('PATCH','/v9/projects/{idOrName}').resolves({id:project.id});
+    ok.fake.when('GET','/v9/projects/{idOrName}').resolves(project);
     const result=parse(await ok.call({project:project.id,expectedName:project.name,
-      fluid:true,confirm:true}));
-    expect(result.status).toBe('applied');
-    expect(result.confirmed).toBe(false);
+      fluid:true,confirm:true,requestKey:'blockedEvenWithOwner01'}));
+    expect(result.status).toBe('refused_by_guard');
+    expect(ok.fake.calls.every(x=>x.method==='GET')).toBe(true);
     ok.fake.verify();
   });
 });
