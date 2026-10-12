@@ -110,6 +110,26 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     expect(JSON.stringify(result)).not.toMatch(/access_token|token|hidden|user:pass/);
     expect(fake.calls).toHaveLength(2);
   });
+  it('excludes off-provider or lookalike repository hosts while preserving canonical links',async()=>{
+    for(const [provider,expectedHost] of [
+      ['github','github.com'],['gitlab','gitlab.com'],['bitbucket','bitbucket.org']]){
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/integrations/git-namespaces')
+        .resolves([{id:'ns_FAKE',provider}]);
+      fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
+        {id:1,url:'https://'+expectedHost+'/acme/site'},
+        {id:2,url:'https://'+expectedHost+'.attacker.test/acme/site'},
+        {id:3,url:'https://example.test/acme/site'},
+        {id:4,url:'https://'+expectedHost+'@attacker.test/acme/site'}
+      ]});
+      const result=parse(await call('vercel_git_search_repos',{
+        provider,namespaceId:'ns_FAKE',query:'site'},fake));
+      expect(result.repositories.map(x=>x.url)).toEqual([
+        'https://'+expectedHost+'/acme/site',null,null,null]);
+      expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
+      fake.verify();
+    }
+  });
   it('refuses project-scoped Git account enumeration, cross-team and forged args',async()=>{
     const fake=makeFakeVercel();
     const invalid=[

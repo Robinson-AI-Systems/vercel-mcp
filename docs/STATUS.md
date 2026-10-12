@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1at PR #93 — Git repository link authenticity:** read-only Git search only projects canonical HTTPS repository links on the selected Git provider's recognized hostname, excluding external and lookalike hosts. Git identity/spend/creation gates unchanged; D-1 IN_PROGRESS.
+
 - **D-1as PR #92 — truthful project pause status:** project summaries and detail now distinguish unknown, contradictory and confirmed paused/unpaused metadata. Unknown never displays as safely running; provider read only, no traffic change. D-1 IN_PROGRESS.
 
 - **D-1ar PR #91 — verified member identity aliases:** project/team member pagination rejects conflicting provider `uid`/`userId` aliases before any project role grant or revocation. A distinct membership record `id` remains valid. Tested offline; privileged ADMIN/owner changes still disabled; D-1 IN_PROGRESS.
