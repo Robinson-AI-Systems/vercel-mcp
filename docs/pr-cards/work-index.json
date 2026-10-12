@@ -477,25 +477,28 @@
         112,
         113,
         114,
-        115
+        115,
+        140
       ],
       "revisit": {
-        "reason": "IN-07 and IN-08 are answered but D-1 engineering completion and real provider acceptance were not reconciled.",
-        "trigger": "owner-input-resolved",
+        "reason": "All fifteen approved D-1 operations have implemented handlers, intended guarded read/write classifications and mapped automated test suites, with required CI gate added in PR #140. Connected Vercel provider and owner-authenticated HTTPS custom MCP acceptance remain separate and unverified.",
+        "trigger": "external-acceptance",
         "ownerInputRefs": [
           "IN-07",
           "IN-08"
         ],
-        "resolution": "IN-07 implemented in #107 and IN-08 fixed-price policy through #119; metered and recurring dispatch remain forbidden without provider-enforced hard ceilings. Owner answers do not prove real service acceptance.",
-        "owner": "next Vercel MCP D-1 implementer",
-        "checkpoint": "Every session start and after #133; implement eligible D-1 completeness when needed without blocking independent D-2 reads",
-        "nextAction": "Reconcile D-1 finite matrix against registered operations/tests; classify code-complete vs independently blocked external proof; advance permitted D-2 reads without inventing D-1 hardening.",
-        "evidenceNeeded": "Audit all 15 D-1 catalog operations against real code/CI evidence and distinguish missing hosted Vercel API, authenticated owner setup and test credentials. Matrix exists as docs/pr-cards/D-1-ACCEPTANCE.md.",
-        "eligibilityCondition": "IN-07/IN-08 owner decisions already answered and C-2 merged; implementation audit is eligible immediately, but live provider acceptance requires owner-configured non-production origin, database and scoped token.",
+        "resolution": "Owner decisions IN-07 and IN-08 are answered; #140 machine-checks the existing finite D-1 code surface. Intentionally denied nonempty deletion, unapproved privileged access and unverifiable metered spending are policy restrictions, not missing code.",
+        "owner": "next authorized Vercel MCP acceptance implementer",
+        "checkpoint": "On next available owner-authorized nonproduction origin/stored token/Neon test connection, and every session-start and PR boundary; do not pause other eligible cards meanwhile.",
+        "nextAction": "On genuine owner-authorized nonproduction connection, exercise project-bound reads, guarded dry-run and applicable permitted scratch writes, inspect independent provider readback and Hub TEST/revocation evidence. Until then continue the highest-priority approved independent work including D-2 read-only exception.",
+        "evidenceNeeded": "A functioning owner-configured nonproduction HTTPS custom MCP with scoped encrypted token, isolated DB, authorized disposable Vercel project, independent provider observations and genuine RTC Hub direct/relay/Sandbox/revocation runs. No owner reconfirmation for IN-07 or IN-08.",
+        "eligibilityCondition": "Code acceptance gate is eligible immediately and part of CI; external acceptance resumes when authorized nonproduction origin, account token and disposable project exist. Independent tasks remain eligible regardless.",
         "dependencies": [
           "C-2"
         ]
-      }
+      },
+      "codeAcceptance": "CODE_COMPLETE_AFTER_GREEN_EXACT_HEAD_CI",
+      "externalAcceptance": "NOT_VERIFIED"
     },
     {
       "id": "D-2",
