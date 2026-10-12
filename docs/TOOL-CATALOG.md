@@ -541,3 +541,5 @@ D-1aw (#96): destructive `vercel_project_delete` requires pinned `pagination.cou
 <!-- D-1bb #101: Git discovery and metered Git import now share top-level authenticated gitAccount proof; no tool status or authorization change. -->
 
 D-1bc (#102): project access grant/removal now refuses membership-only IDs and requires proven user UIDs in every scoped inventory and execution-time recheck.
+
+D-1bd (#103): project/Git read metadata and the shared compact result shaper now screen nested percent-encoded credential text before presenting it to agents.
