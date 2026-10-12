@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1v PR #69 — independently verified deployment-free deletion:** even when the project GET claims `hasDeployments:false`, empty-project deletion also requires a complete authenticated `/v7/deployments` inventory, exactly scoped to the immutable project ID, before preview and again immediately before DELETE. Unknown/paginated/cross-project/late deployment data fails closed. Nonempty project deletion remains disabled; no live mutation.
+
+
 - **D-1u PR #68 — provably safe role revocation:** reuse the authenticated team contributor/complete-membership preflight for viewer/developer removals, preventing a misleading project role field from revoking a team owner/member or ambiguous identity. Missing, unconfirmed, paginated or non-contributor team records are denied before DELETE. No new owner role capability or real Vercel write.
 
 

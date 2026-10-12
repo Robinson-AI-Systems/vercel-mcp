@@ -59,10 +59,24 @@ async function inspect(ctx,selector){
   const domains=await client.request('projects_domains_list',{
     path:{idOrName:row.id},query:{limit:100}});
   const env=await client.request('projects_env_list',{path:{idOrName:row.id}});
+  // hasDeployments on a project is a secondary signal, not sufficient proof
+  // that no retained or previously deployed build exists. Require a distinct
+  // team-scoped deployment inventory before an irreversible deletion.
+  const countDomains=countComplete(domains,'domains');
+  const countEnvs=countComplete(env,'envs');
+  const deploymentPage=await client.request('deployments_list',{
+    query:{projectId:row.id,limit:100}
+  });
+  if(!Array.isArray(deploymentPage?.deployments)||
+    !deploymentPage.pagination||deploymentPage.pagination.next!==null||
+    deploymentPage.pagination.hasNext===true||
+    deploymentPage.deployments.length>100||
+    deploymentPage.deployments.some(item=>!item||item.projectId!==row.id))
+    throw new TypeError('Cannot prove complete project deployment inventory');
   const inventory={
-    deployments:row.hasDeployments?'present':0,
+    deployments:row.hasDeployments?'present':deploymentPage.deployments.length,
     git:row.link!=null?1:0,crons:cron.length,storageConnections:storage.length,
-    domains:countComplete(domains,'domains'),envVariables:countComplete(env,'envs')
+    domains:countDomains,envVariables:countEnvs
   };
   return {id:row.id,name:row.name,inventory,
     empty:Object.values(inventory).every(n=>n===0)};

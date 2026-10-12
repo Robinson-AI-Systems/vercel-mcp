@@ -26,11 +26,13 @@ function fixture(){
   const projectRule=fake.when('GET','/v9/projects/{idOrName}');
   const domainRule=fake.when('GET','/v9/projects/{idOrName}/domains');
   const envRule=fake.when('GET','/v10/projects/{idOrName}/env');
+  const deploymentRule=fake.when('GET','/v7/deployments')
+    .resolves({deployments:[],pagination:{next:null}});
   const deleteRule=fake.when('DELETE','/v9/projects/{idOrName}');
   const empty=()=>{projectRule.resolves(project);
     domainRule.resolves({domains:[],pagination:{next:null}});
     envRule.resolves({envs:[],pagination:{next:null}});};
-  return {fake,call,projectRule,domainRule,envRule,deleteRule,empty,audits,replay};
+  return {fake,call,projectRule,domainRule,envRule,deploymentRule,deleteRule,empty,audits,replay};
 }
 describe('D-1m destructive empty-project deletion',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
@@ -43,8 +45,10 @@ describe('D-1m destructive empty-project deletion',()=>{
     const result=parse(await f.call());
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(f.fake.calls.map(x=>x.method)).toEqual(
-      ['GET','GET','GET','GET','GET','GET','DELETE','GET']);
-    expect(f.fake.calls[6].params.idOrName).toBe(project.id);
+      ['GET','GET','GET','GET','GET','GET','GET','GET','DELETE','GET']);
+    expect(f.fake.calls[8].params.idOrName).toBe(project.id);
+    expect(f.fake.calls.filter(x=>x.path==='/v7/deployments')).toHaveLength(2);
+    expect(f.fake.calls.find(x=>x.path==='/v7/deployments').query.projectId).toBe(project.id);
     expect(f.fake.calls.every(x=>x.query.teamId==='team_FAKE')).toBe(true);
     expect(f.replay.size).toBe(2);
     expect(f.audits).toHaveLength(1);
@@ -56,7 +60,7 @@ describe('D-1m destructive empty-project deletion',()=>{
       const result=parse(await f.call(args));
       expect(result.status).toBe(args.dryRun?'preview':'needs_confirmation');
       expect(JSON.stringify(result)).toContain('IRREVERSIBLE');
-      expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
+      expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET']);
       f.fake.verify();
     }
   });
@@ -86,6 +90,30 @@ describe('D-1m destructive empty-project deletion',()=>{
       expect(f.fake.calls.some(x=>x.method==='DELETE')).toBe(false);
       f.fake.verify();
     }
+  });
+  it('refuses retained, ambiguous or cross-project deployment inventory even when project flags say empty',async()=>{
+    for(const response of [
+      {deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null}},
+      {deployments:[],pagination:{next:42}},
+      {deployments:[],pagination:{hasNext:true,next:null}},
+      {deployments:[{id:'dpl_FAKE',projectId:'prj_OTHER'}],pagination:{next:null}},
+      {deployments:[]}
+    ]){
+      const f=fixture();f.empty();
+      f.fake.when('GET','/v7/deployments').resolves(response);
+      const result=parse(await f.call());
+      expect(result.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    }
+  });
+  it('refuses a deployment that appears between preview and final inventory recheck',async()=>{
+    const f=fixture();f.empty();
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null}})
+      .resolves({deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null}});
+    const result=parse(await f.call());
+    expect(result.status).toBe('outcome_unknown');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
   });
   it('rejects hidden page cursors and unknown env response',async()=>{
     for(const row of [{domains:[],pagination:{next:123}}, {domains:[],pagination:{hasMore:true}}]){

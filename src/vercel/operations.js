@@ -7,6 +7,7 @@ export const OPS = Object.freeze({
   // endpoint takes teamId in the path, not as a redundant query parameter.
   teams_members_list: Object.freeze({ method: 'GET', path: '/v3/teams/{teamId}/members', teamScoped: false }),
   projects_list: Object.freeze({ method: 'GET', path: '/v10/projects' }),
+  deployments_list: Object.freeze({ method: 'GET', path: '/v7/deployments' }),
   projects_get: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}' }),
   projects_members_list: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/members' }),
   projects_members_add: Object.freeze({ method: 'POST', path: '/v1/projects/{idOrName}/members' }),
