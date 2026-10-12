@@ -39,8 +39,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('requires full impact inspection twice, one DELETE and independent 404 proof',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project).rejects(404);
-    f.domainRule.resolves({domains:[]}).resolves({domains:[]});
-    f.envRule.resolves({envs:[]}).resolves({envs:[]});
+    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[]});
+    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
     f.deleteRule.resolves(undefined,204);
     const result=parse(await f.call());
     expect(result).toMatchObject({status:'applied',confirmed:true});
@@ -62,6 +62,28 @@ describe('D-1m destructive empty-project deletion',()=>{
       expect(JSON.stringify(result)).toContain('IRREVERSIBLE');
       expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET']);
       f.fake.verify();
+    }
+  });
+  it('does not equate missing Git linkage with proven unlinked state',async()=>{
+    const f=fixture();f.projectRule.resolves({...project,link:undefined});
+    expect(parse(await f.call()).status).toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('rejects missing, contradictory or oversized env/domain inventories',async()=>{
+    for(const field of ['domains','envs']){
+      for(const page of [
+        {[field]:[]},
+        {[field]:[],pagination:{next:null,hasMore:true}},
+        {[field]:[],pagination:{next:null,hasNext:true}},
+        {[field]:Array.from({length:101},(_,i)=>({id:'row'+i})),pagination:{next:null}}
+      ]){
+        const f=fixture();f.projectRule.resolves(project);
+        f.domainRule.resolves(field==='domains'?page:{domains:[],pagination:{next:null}});
+        f.envRule.resolves(field==='envs'?page:{envs:[],pagination:{next:null}});
+        const r=parse(await f.call());
+        expect(r.status).toBe('refused_by_guard');
+        expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+      }
     }
   });
   it('denies unknown/partial resource inventories before DELETE',async()=>{
@@ -118,7 +140,7 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('rejects hidden page cursors and unknown env response',async()=>{
     for(const row of [{domains:[],pagination:{next:123}}, {domains:[],pagination:{hasMore:true}}]){
       const f=fixture();f.projectRule.resolves(project);f.domainRule.resolves(row);
-      f.envRule.resolves({envs:[]});
+      f.envRule.resolves({envs:[],pagination:{next:null}});
       expect(parse(await f.call()).status).toBe('refused_by_guard');
       expect(f.fake.calls.some(x=>x.method==='DELETE')).toBe(false);
       f.fake.verify();
@@ -147,8 +169,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('refuses late inventory changes without ever calling DELETE',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves({...project,hasDeployments:true});
-    f.domainRule.resolves({domains:[]}).resolves({domains:[]});
-    f.envRule.resolves({envs:[]}).resolves({envs:[]});
+    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
+    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[]});
     const result=parse(await f.call());
     expect(result.status).toBe('outcome_unknown');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
@@ -156,8 +178,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('fails confirmation if the project remains present after provider accepted DELETE',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project).resolves(project);
-    f.domainRule.resolves({domains:[]}).resolves({domains:[]});
-    f.envRule.resolves({envs:[]}).resolves({envs:[]});
+    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[]});
+    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[]});
     f.deleteRule.resolves(undefined,204);
     const result=parse(await f.call());
     expect(result).toMatchObject({status:'applied',confirmed:false});
