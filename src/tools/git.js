@@ -14,15 +14,24 @@ function preflight(args,keys){
 // Never echo raw credential-bearing provider links or unbounded names.
 const safeLabel=(s,max=201)=>typeof s==='string'&&s.length<=max&&
   !/[\x00-\x1f\x7f]/.test(s)&&!credentialLike(s)?s:null;
-// Link projection is not a repository-identity proof. Reject a provider's
-// misleading off-provider host rather than handing an agent a phishing URL.
+// A trusted provider host alone is insufficient: a malicious or stale
+// repository response may link to another repository on that very host.
+// Project only canonical links matching the provider's own fullName.
 const GIT_HOSTS=Object.freeze({github:'github.com',gitlab:'gitlab.com',bitbucket:'bitbucket.org'});
-function safeRepoUrl(value,provider){
-  if(typeof value!=='string'||value.length>1024||credentialLike(value))return null;
+function safeRepoUrl(value,provider,fullName){
+  if(typeof value!=='string'||value.length>1024||credentialLike(value)||
+    typeof fullName!=='string'||!safeLabel(fullName,201))return null;
+  const segments=fullName.split('/');
+  if(segments.length<2||segments.some(part=>!part||part==='.'||part==='..'||
+    !/^[a-zA-Z0-9_.-]+$/.test(part)))return null;
   try{
     const url=new URL(value);
-    if(url.protocol!=='https:'||url.username||url.password||
-      url.search||url.hash||url.hostname!==GIT_HOSTS[provider])return null;
+    if(url.protocol!=='https:'||url.username||url.password||url.port||
+      url.search||url.hash||url.hostname!==GIT_HOSTS[provider]||
+      /[\\\x00-\x20\x7f]/.test(value)||
+      // No encoded slashes, Unicode lookalikes or deceptive path segments.
+      url.pathname.includes('%')||
+      url.pathname.replace(/\/$/,'')!=='/'+fullName)return null;
     return url.toString();
   }catch{return null;}
 }
@@ -43,9 +52,11 @@ function namespaceSummary(row){
 }
 function repoSummary(row,provider){
   if(!row||typeof row!=='object'||Array.isArray(row))throw new TypeError('Malformed Git repository');
+  const fullName=safeLabel(row.fullName??row.slug);
   return {id:Number.isSafeInteger(row.id)&&row.id>=0?row.id:safeLabel(row.id,128),
-    name:safeLabel(row.name),fullName:safeLabel(row.fullName??row.slug),
-    url:safeRepoUrl(row.url??row.html_url,provider),private:typeof row.private==='boolean'?row.private:null,
+    name:safeLabel(row.name),fullName,
+    url:safeRepoUrl(row.url??row.html_url,provider,fullName),
+    private:typeof row.private==='boolean'?row.private:null,
     defaultBranch:safeLabel(row.defaultBranch??row.default_branch,128)};
 }
 const page=rows=>({count:rows.length,returned:Math.min(rows.length,100),
@@ -88,6 +99,28 @@ export const gitTools={
       const list=Array.isArray(raw)?raw:Array.isArray(raw?.repositories)?raw.repositories:
         Array.isArray(raw?.repos)?raw.repos:null;
       if(!Array.isArray(list))throw new TypeError('Unexpected Git repository response');
+      // The pinned object response carries the authenticated search identity
+      // at gitAccount, not necessarily on individual repositories. Verify it
+      // before allowing any row to be attributed to the requested namespace.
+      if(!Array.isArray(raw)){
+        const identity=raw?.gitAccount;
+        if(!identity||typeof identity!=='object'||Array.isArray(identity)||
+          identity.provider!==args.provider||
+          !Object.hasOwn(identity,'namespaceId')||
+          (identity.namespaceId!==null&&
+            !(typeof identity.namespaceId==='string'||
+              (typeof identity.namespaceId==='number'&&
+                Number.isSafeInteger(identity.namespaceId))) )||
+          (identity.namespaceId!==null&&
+            String(identity.namespaceId)!==args.namespaceId))
+          throw new TypeError('Git repository search account identity is unverified');
+      }
+      // Never label a row from a different provider or namespace as the
+      // namespace just authenticated through the selected team connection.
+      if(list.some(row=>row&&typeof row==='object'&&
+        ((row.provider!==undefined&&row.provider!==args.provider)||
+        (row.namespaceId!==undefined&&String(row.namespaceId)!==args.namespaceId))))
+        throw new TypeError('Git repository search returned a conflicting namespace');
       return safeText({...page(list),repositories:list.slice(0,100).map(row=>repoSummary(row,args.provider))});
     }
   }

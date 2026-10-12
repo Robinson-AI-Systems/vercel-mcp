@@ -46,7 +46,8 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     const repos=makeFakeVercel();
     repos.when('GET','/v1/integrations/git-namespaces').resolves([{
       id:'ns_FAKE',provider:'github',name:'public'}]);
-    repos.when('GET','/v1/integrations/search-repo').resolves({repos:[{
+    repos.when('GET','/v1/integrations/search-repo').resolves({gitAccount:{
+      provider:'github',namespaceId:'ns_FAKE'},repos:[{
       id:'vcp_FAKE_repo',name:'vcp_FAKE_name',fullName:'github_pat_FAKE_repo',
       defaultBranch:'vcp_FAKE_branch',url:'https://example.com/vcp_FAKE_secret',private:true
     }]});
@@ -60,7 +61,8 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
   it('searches namespace repos and injects the stored teamId only',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'1234',provider:'github',name:'Acme'}]);
-    fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
+    fake.when('GET','/v1/integrations/search-repo').resolves({gitAccount:{
+      provider:'github',namespaceId:'1234'},repos:[
       {id:99,name:'web',private:true,defaultBranch:'main',accessToken:'secret'}]});
     expect(validateRequest('git_repos_search',{query:{teamId:'team_FAKE',provider:'github',namespaceId:'1234',query:'web'}})).toBe(true);
     const result=parse(await call('vercel_git_search_repos',{
@@ -98,7 +100,8 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v1/integrations/git-namespaces')
       .resolves([{id:'ns_FAKE',provider:'github',name:'Acme'}]);
-    fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
+    fake.when('GET','/v1/integrations/search-repo').resolves({gitAccount:{
+      provider:'github',namespaceId:'ns_FAKE'},repos:[
       {id:12,name:'web',fullName:'acme/web',url:'https://github.com/acme/web',private:true,token:'hidden'},
       {id:13,name:'api',url:'https://github.com/acme/api?access_token=hidden',private:false},
       {id:14,name:'unsafe',url:'https://user:pass@github.com/acme/api',private:false}
@@ -116,11 +119,12 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
       const fake=makeFakeVercel();
       fake.when('GET','/v1/integrations/git-namespaces')
         .resolves([{id:'ns_FAKE',provider}]);
-      fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
-        {id:1,url:'https://'+expectedHost+'/acme/site'},
-        {id:2,url:'https://'+expectedHost+'.attacker.test/acme/site'},
-        {id:3,url:'https://example.test/acme/site'},
-        {id:4,url:'https://'+expectedHost+'@attacker.test/acme/site'}
+      fake.when('GET','/v1/integrations/search-repo').resolves({gitAccount:{
+        provider,namespaceId:'ns_FAKE'},repos:[
+        {id:1,fullName:'acme/site',url:'https://'+expectedHost+'/acme/site'},
+        {id:2,fullName:'acme/site',url:'https://'+expectedHost+'.attacker.test/acme/site'},
+        {id:3,fullName:'acme/site',url:'https://example.test/acme/site'},
+        {id:4,fullName:'acme/site',url:'https://'+expectedHost+'@attacker.test/acme/site'}
       ]});
       const result=parse(await call('vercel_git_search_repos',{
         provider,namespaceId:'ns_FAKE',query:'site'},fake));
@@ -129,6 +133,89 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
       expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
       fake.verify();
     }
+  });
+  it('only exposes repository URLs with canonical provider and repository paths',async()=>{
+    for(const provider of ['github','gitlab','bitbucket']){
+      const hostname={github:'github.com',gitlab:'gitlab.com',
+        bitbucket:'bitbucket.org'}[provider];
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/integrations/git-namespaces')
+        .resolves([{id:'ns_FAKE',provider}]);
+      fake.when('GET','/v1/integrations/search-repo').resolves({gitAccount:{
+        provider,namespaceId:'ns_FAKE'},repos:[
+        {id:1,fullName:'acme/site',url:'https://'+hostname+'/acme/site'},
+        {id:2,fullName:'acme/site',url:'https://'+hostname+'/other/site'},
+        {id:3,fullName:'acme/site',url:'https://'+hostname+'/acme/other'},
+        {id:4,fullName:'acme/site',url:'https://'+hostname+'/acme/site/tree/main'},
+        {id:5,fullName:'acme/site',url:'https://'+hostname+'/acme/%73ite'},
+        {id:6,fullName:'acme/site',url:'https://'+hostname+':8443/acme/site'},
+        {id:7,slug:'site',url:'https://'+hostname+'/acme/site'},
+        {id:8,fullName:'acme/site',slug:'another/site',
+          url:'https://'+hostname+'/another/site'},
+        {id:9,fullName:'group/subgroup/site',
+          url:'https://'+hostname+'/group/subgroup/site'},
+        {id:10,fullName:'acme/site',url:'https://'+hostname+'/acme/site/'}
+      ]});
+      const result=parse(await call('vercel_git_search_repos',{
+        provider,namespaceId:'ns_FAKE',query:'site'},fake));
+      expect(result.repositories.map(row=>row.url)).toEqual([
+        'https://'+hostname+'/acme/site',null,null,null,null,null,null,null,
+        'https://'+hostname+'/group/subgroup/site','https://'+hostname+'/acme/site/'
+      ]);
+      expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
+      fake.verify();
+    }
+  });
+  it('refuses conflicting repository provider or namespace within an authorized search',async()=>{
+    for(const poison of [
+      {fullName:'acme/site',provider:'gitlab'},
+      {fullName:'acme/site',namespaceId:'other_FAKE'}
+    ]){
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/integrations/git-namespaces')
+        .resolves([{id:'ns_FAKE',provider:'github'}]);
+      fake.when('GET','/v1/integrations/search-repo')
+        .resolves({gitAccount:{provider:'github',namespaceId:'ns_FAKE'},repos:[poison]});
+      const result=await call('vercel_git_search_repos',{
+        provider:'github',namespaceId:'ns_FAKE',query:'site'},fake);
+      expect(result.isError).toBe(true);
+      expect(fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
+      fake.verify();
+    }
+  });
+  it('authenticates the root Git account that Vercel returns with repository results',async()=>{
+    for(const gitAccount of [
+      {provider:'gitlab',namespaceId:'ns_FAKE'},
+      {provider:'github',namespaceId:'other_FAKE'},
+      {provider:'github',namespaceId:{}},
+      {provider:'github'},
+      null
+    ]){
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/integrations/git-namespaces')
+        .resolves([{id:'ns_FAKE',provider:'github'}]);
+      fake.when('GET','/v1/integrations/search-repo').resolves({
+        gitAccount,repos:[{id:1,fullName:'acme/site',
+          url:'https://github.com/acme/site'}]});
+      const response=await call('vercel_git_search_repos',{
+        provider:'github',namespaceId:'ns_FAKE',query:'site'},fake);
+      expect(response.isError).toBe(true);
+      expect(fake.calls.map(c=>c.method)).toEqual(['GET','GET']);
+      fake.verify();
+    }
+  });
+  it('accepts an authenticated root account with a null provider namespace reference',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'ns_FAKE',provider:'github'}]);
+    fake.when('GET','/v1/integrations/search-repo').resolves({
+      gitAccount:{provider:'github',namespaceId:null},
+      repos:[{id:1,fullName:'acme/site',url:'https://github.com/acme/site'}]});
+    const result=parse(await call('vercel_git_search_repos',{
+      provider:'github',namespaceId:'ns_FAKE',query:'site'},fake));
+    expect(result.repositories[0].url).toBe('https://github.com/acme/site');
+    expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
+    fake.verify();
   });
   it('refuses project-scoped Git account enumeration, cross-team and forged args',async()=>{
     const fake=makeFakeVercel();
