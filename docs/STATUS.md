@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **Security/RTC #128 — read-result content boundary:** read-only MCP shaping now screens plaintext even when the handler emits non-JSON text; unsupported non-text, image/resource and malformed parts fail closed before returning or storing any part. Regression tests prove credential-shaped text is hidden and no handler can bypass the RTC/MCP projection through an unrecognized content type. No provider traffic, production or spend change. Continue approved D-1/RTC integrity work.
+
+
 - **RTC #127 — atomic batch intent and mid-batch pass revocation:** HTTPS batches now execute the exact immutable preflighted call snapshot, not a second mutable request body. Between each provider read, check that the original preview-only pass still exists, is unexpired/unrevoked and has the identical account and area scope. Revocation/expiry/scope changes stop remaining calls without exposing partial results. Adversarial tests only; D-4 hosted acceptance, money and production remain inactive.
 
 
