@@ -20,7 +20,7 @@ Your session can end at any moment (the chat stops between actions), so the next
      `gh api "repos/$R/check-runs/<id>/annotations"`), reproduce locally, fix all of them, push once, re-check.
    - **Green and acceptance met → bring it up to date, then merge** (PLAYBOOK Steps 5 and 9): if
      `gh api "repos/$R/compare/main...<sha>" --jq .behind_by` is above 0, `git fetch origin main && git merge origin/main`,
-     run the checks, push, and merge only when `ci` is green at that new head. **Pending →** build the next slice meanwhile.
+     run the checks, push, and merge only when `ci` and `release-policy` are green at that new head. **Pending →** build the next slice meanwhile.
    - Review threads open → fix or answer each, then resolve.
 3. Continue from the resume note's "Next step". Only when nothing of yours is open: §1 and the next card.
 
@@ -64,8 +64,7 @@ Select one cohesive, safety-compatible slice of related operations (not routinel
 5. When the card is complete: update the docs **as if this PR had already merged** (card `MERGED (#n)`, STATUS,
    `work-index.json`, TOOL-CATALOG marks, ARCHITECTURE when infra changed — checklist B), push once, open the PR,
    then follow PLAYBOOK Steps 5–9: open the PR with the REST command in Step 6 (never `gh pr …`), check CI with
-   the one-check command in Step 10 (bounded, ~15 min), merge with the expected-head SHA (Step 9) when the **`ci`**
-   check is green at the exact head.
+   the one-check command in Step 10 (bounded, ~15 min), merge with the expected-head SHA (Step 9) when both **`ci`** and **`release-policy`** checks are green at the exact head.
 
 ## 4. Resume note — so stopping never loses your place
 

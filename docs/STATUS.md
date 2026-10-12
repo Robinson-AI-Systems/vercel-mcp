@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **PR #122 — owner hosting policy and late review repairs (2026-10-12):** Merge prepared HOSTING-COST-POLICY and reconcile operating instructions with already-merged #121 daily checked main → live policy, requiring `ci` plus `release-policy` at exact PR head. Cost inventory saved; first scheduled promotion, live source commit and production READY not yet proven. No separate Vercel or Neon project exists for this MCP; do not provision without approval. Correct #119 P1 cached provider quote, #116 P2 recurring price display, #117 P2 batch quota predebit validation, #118 P2 malformed limit selector. No real spending or production execution. See HOSTING-COST-POLICY and RTC-HUB-INTEGRATION.
+
+
 - **RTC fail-closed metadata/pass hardening #120:** RTC read-only catalogs require explicit read classification, valid area and non-contradictory read hints; duplicate names cannot be discovered, described, invoked or batched. DB-derived RTC pass identity, account, scopes and listing must be well formed before any provider read. Adversarial tests; no permissions widened, real D-4 hosted acceptance still pending.
 
 - **IN-08 last-moment pricing #119:** every spend-classified write (including $0) re-reads its server-owned price/recurrence/description after replay claim and before provider dispatch; a changed price or now-recurring cost refuses. For approved fixed one-time charges the check occurs before consumption of the one-use owner purchase grant. No new charge authority or live provider acceptance.
