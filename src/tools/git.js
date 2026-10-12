@@ -14,12 +14,15 @@ function preflight(args,keys){
 // Never echo raw credential-bearing provider links or unbounded names.
 const safeLabel=(s,max=201)=>typeof s==='string'&&s.length<=max&&
   !/[\x00-\x1f\x7f]/.test(s)&&!credentialLike(s)?s:null;
-function safeRepoUrl(value){
+// Link projection is not a repository-identity proof. Reject a provider's
+// misleading off-provider host rather than handing an agent a phishing URL.
+const GIT_HOSTS=Object.freeze({github:'github.com',gitlab:'gitlab.com',bitbucket:'bitbucket.org'});
+function safeRepoUrl(value,provider){
   if(typeof value!=='string'||value.length>1024||credentialLike(value))return null;
   try{
     const url=new URL(value);
     if(url.protocol!=='https:'||url.username||url.password||
-      url.search||url.hash||!url.hostname||url.hostname==='localhost')return null;
+      url.search||url.hash||url.hostname!==GIT_HOSTS[provider])return null;
     return url.toString();
   }catch{return null;}
 }
@@ -38,11 +41,11 @@ function namespaceSummary(row){
     accessRestricted:row.isAccessRestricted===true || row.isAccessRestricted==='true',
     requiresReauthentication:row.requireReauth===true || row.requireReauth==='true'};
 }
-function repoSummary(row){
+function repoSummary(row,provider){
   if(!row||typeof row!=='object'||Array.isArray(row))throw new TypeError('Malformed Git repository');
   return {id:Number.isSafeInteger(row.id)&&row.id>=0?row.id:safeLabel(row.id,128),
     name:safeLabel(row.name),fullName:safeLabel(row.fullName??row.slug),
-    url:safeRepoUrl(row.url??row.html_url),private:typeof row.private==='boolean'?row.private:null,
+    url:safeRepoUrl(row.url??row.html_url,provider),private:typeof row.private==='boolean'?row.private:null,
     defaultBranch:safeLabel(row.defaultBranch??row.default_branch,128)};
 }
 const page=rows=>({count:rows.length,returned:Math.min(rows.length,100),
@@ -85,7 +88,7 @@ export const gitTools={
       const list=Array.isArray(raw)?raw:Array.isArray(raw?.repositories)?raw.repositories:
         Array.isArray(raw?.repos)?raw.repos:null;
       if(!Array.isArray(list))throw new TypeError('Unexpected Git repository response');
-      return safeText({...page(list),repositories:list.slice(0,100).map(repoSummary)});
+      return safeText({...page(list),repositories:list.slice(0,100).map(row=>repoSummary(row,args.provider))});
     }
   }
 };
