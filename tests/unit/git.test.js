@@ -32,6 +32,31 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     expect(fake.calls[0].headers.authorization).toBe('Bearer [hidden]');
     expect(loadToken).toHaveBeenCalledWith(expect.objectContaining({accountId:'acct_TEAM'}));
   });
+  it('never returns credential-shaped names, IDs, provider labels or Git URLs',async()=>{
+    const namespaces=makeFakeVercel();
+    namespaces.when('GET','/v1/integrations/git-namespaces').resolves([{
+      id:'vcp_FAKE_namespace',name:'github_pat_FAKE_name',slug:'vcp_FAKE_slug',
+      provider:'github',ownerType:'xoxb_FAKE_owner'}]);
+    const ns=parse(await call('vercel_git_list_namespaces',{provider:'github'},namespaces));
+    expect(ns.namespaces[0]).toMatchObject({id:null,name:null,slug:null,
+      provider:'github',ownerType:null});
+    expect(JSON.stringify(ns)).not.toMatch(/vcp_FAKE|github_pat_FAKE|xoxb_FAKE/);
+    namespaces.verify();
+
+    const repos=makeFakeVercel();
+    repos.when('GET','/v1/integrations/git-namespaces').resolves([{
+      id:'ns_FAKE',provider:'github',name:'public'}]);
+    repos.when('GET','/v1/integrations/search-repo').resolves({repos:[{
+      id:'vcp_FAKE_repo',name:'vcp_FAKE_name',fullName:'github_pat_FAKE_repo',
+      defaultBranch:'vcp_FAKE_branch',url:'https://example.com/vcp_FAKE_secret',private:true
+    }]});
+    const found=parse(await call('vercel_git_search_repos',{
+      provider:'github',namespaceId:'ns_FAKE',query:'public'},repos));
+    expect(found.repositories[0]).toMatchObject({id:null,name:null,fullName:null,
+      defaultBranch:null,url:null,private:true});
+    expect(JSON.stringify(found)).not.toMatch(/vcp_FAKE|github_pat_FAKE/);
+    repos.verify();
+  });
   it('searches namespace repos and injects the stored teamId only',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'1234',provider:'github',name:'Acme'}]);
