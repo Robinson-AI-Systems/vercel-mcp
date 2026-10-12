@@ -228,7 +228,22 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
           if(result===null)return fail(res,'service_error');
           results.push(result);
         }
-        return send(res,200,{ok:true,result:{results}});
+        const response={ok:true,result:{results}};
+        if(Buffer.byteLength(JSON.stringify(response),'utf8')<=8192)
+          return send(res,200,response);
+        // Every item is individually shaped, but a ten-item batch can exceed
+        // the overall RTC response ceiling. Store it under this exact pass.
+        if(typeof db.putResult!=='function')return fail(res,'service_error');
+        const summary='Read-only RTC batch: '+results.length+' result(s)';
+        const issued=await db.putResult({account:connection.account,
+          owner:connection.resultOwner,body:results,summary});
+        if(!issued||typeof issued.handle!=='string'||!HANDLE.test(issued.handle)||
+          typeof issued.expiresAt!=='string'||!Number.isFinite(Date.parse(issued.expiresAt)))
+          return fail(res,'service_error');
+        return send(res,200,{ok:true,result:{status:'stored',
+          handle:issued.handle,expiresAt:issued.expiresAt,count:results.length,
+          summary,next:'Read /api/results/{handle} with page and fields'},
+          handle:issued.handle});
       }
       if(route==='result'){
         if(req.method!=='GET')return fail(res,'invalid_args');

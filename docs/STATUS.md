@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC batch aggregate result-store #124:** ten individually safe read responses must not combine into an oversized HTTP envelope. Inline ≤8 KiB; otherwise write a scoped, 24-hour transient result via the existing pass-derived owner and return a valid handle, read using #123 paged results. No production, money or permanent provider mutation; offline fake/Hub acceptance only.
+
+
 - **RTC read-only handle result paging #123:** bounded 20-record page of an owner-bound stored handle with page/limit/fields/detail validation, explicit count/next metadata, secret stripping and final ≤8 KB HTTP envelope. Oversized individual records refuse with a safe client error instead of exfiltrating huge data. No write, production or spend authority. Hosted D-4 not claimed.
 
 
