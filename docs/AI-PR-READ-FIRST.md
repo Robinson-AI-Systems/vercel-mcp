@@ -12,9 +12,21 @@ applicable item in the PR description saying how it is honored.
 3. Read-back decides `confirmed`; a tool never says "done" from the request alone; nothing waits more than 45 seconds.
 
 ## Spend
-4. Every `$` tool (TOOL-CATALOG) has a `spend()` declaration reading the price from Vercel or a stored setting (never
-   from arguments), a dollar line first, always needs `confirm`, and counts against the daily spend limit (default $0).
-   Universal `vercel_api_write` treats unknown buy/renew/upgrade/credit/billing operations as spend.
+4. Every `# Read before any PR that touches production, spend, tokens, secrets, guards, login or passes
+
+Blocking review input, in the spirit of Appliance Desk's audit note and the Stripe MCP's file. Write one line per
+applicable item in the PR description saying how it is honored.
+
+## Production
+1. Every write declares `production()` per `docs/designs/BATCH-B.md` B2; a preview connection never changes production;
+   a production write on a production connection needs `confirm`, carries the PRODUCTION banner and is logged as
+   production. Universal `vercel_api_write` treats unknown writes on a live project as production.
+2. Promote and rollback read what is live first; rollback uses the rollback operation and names the deployment it
+   chose; a profile's release rule and `rollback_caution` are honored.
+3. Read-back decides `confirmed`; a tool never says "done" from the request alone; nothing waits more than 45 seconds.
+
+## Spend
+ tool (TOOL-CATALOG) declares its provider/published verified cost (never an AI-supplied price), shows a dollar line and requires `confirm` PLUS one independently authenticated, exact owner approval consumed before dispatch. A positive daily limit alone cannot authorize payment. Default autonomous spend is $0. For variable cost, a chosen ceiling is insufficient without provider enforcement, so dispatch refuses. Unknown buy/renew/upgrade/credit/billing operations are paid by default.
 5. Registrar purchases send `expectedPrice` equal to the quoted price. No test, script or CI job buys anything.
 
 ## Secrets

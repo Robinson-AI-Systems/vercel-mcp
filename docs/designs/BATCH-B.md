@@ -188,3 +188,9 @@ Later revoke/spend MCP operations remain disabled until they have durable target
 and concurrency safeguards. See [B-8b owner boundary](B-8B-OWNER-BOUNDARY.md) for exact invariants,
 negative tests and successor requirements. This refines implementation without widening the
 previously approved production, spend, access or secret rules; IN-07 and IN-08 remain outstanding.
+
+## 2026-10-12 approved IN-08 amendment — replaces B3's discretionary daily spending limit
+
+The owner explicitly rejects autonomous AI purchases of **any amount**. Any previously configured positive `spend_limit_cents` is not a purchase authorization. A paid write is permitted only after the independently authenticated owner reviews the exact account, operation, request key, payload fingerprint and verified quoted price; an approved purchase grant is recorded in the database, re-read and consumed atomically once before provider dispatch. Generic MCP `confirm:true` is never a spending grant. There is no discretionary dollar cap for the owner's individual approvals, only the safe integer-cents representation. The $0 autonomous baseline persists.
+
+For usage-based charges, an owner-chosen dollar ceiling without a **provider-enforceable** maximum is not sufficient. Git imports and build/function resource setting mutations currently cannot prove a per-operation provider cap, so their charged execution remains disabled (read/preview allowed) until this is demonstrated. Quoted charges must use Vercel/pricing evidence, never amounts supplied by agents. This supersedes the B3 spend-limit permission rule and the older eight-contract test wording; all production, credential, ownership, replay and destructive-operation guards remain unchanged. IN-07 separately ends permanent project-identity exclusions by owner action.
