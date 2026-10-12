@@ -58,6 +58,39 @@ describe('RTC 1 read-only HTTPS door',()=>{
   expect((await f.call('describe','GET',{name:'vercel_fixture_write'})).code).toBe(403);
   expect((await f.call('describe','GET',{name:'vercel_hidden_read'})).code).toBe(403);
  });
+ it('follows real next-page cursors without repeating or exposing hidden tools',async()=>{
+  const f=fixture();
+  for(let i=0;i<12;i++){
+    const name='vercel_page_'+i;
+    f.registry.tools.push({name,writes:false,profiles:['read_only'],area:'server',
+      description:'Discover page fixture '+i,inputSchema:{type:'object',properties:{}}});
+    f.registry.handlers[name]=f.read;
+  }
+  const names=[];
+  let cursor=null,seen=0,expectCount=null;
+  do {
+    const q={limit:'4',...(cursor===null?{}:{cursor:String(cursor)})};
+    const response=await f.call('list','GET',q);
+    expect(response.code).toBe(200);
+    const {tools,count,next}=response.body.result;
+    if(expectCount===null)expectCount=count;
+    expect(count).toBe(expectCount);
+    expect(tools.length).toBeLessThanOrEqual(4);
+    names.push(...tools.map(t=>t.name));
+    seen++;expect(seen).toBeLessThan(10);
+    cursor=next;
+  }while(cursor!==null);
+  expect(names.length).toBe(13);
+  expect(new Set(names).size).toBe(13);
+  expect(names).not.toContain('vercel_fixture_write');
+  expect(names).not.toContain('vercel_hidden_read');
+  for(const bad of ['-1','01','1e3','1.5','100000',[]]){
+    const result=await f.call('list','GET',{limit:'4',cursor:bad});
+    expect(result.code).toBe(400);
+  }
+  const scoped=await f.call('list','GET',{area:'secretarea'});
+  expect(scoped.body.result).toMatchObject({count:0,next:null,tools:[]});
+ });
  it('uses the MCP dispatcher, forbidding write and cross-area invocation',async()=>{
   const f=fixture();
   expect((await f.call('invoke','POST',{name:'vercel_fixture_read'},{})).body.result)

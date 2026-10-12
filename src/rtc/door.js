@@ -56,12 +56,22 @@ function argumentsFor(input){
 }
 function listing(req,pass,registry){
   const requested=req.query||{};
-  if(Object.keys(requested).some(k=>!['q','area','audience','limit','listing'].includes(k)))
+  if(Object.keys(requested).some(k=>!['q','area','audience','limit','listing','cursor'].includes(k)))
     throw new TypeError('Unknown tool list selector');
   const limit=requested.limit===undefined?20:Number(requested.limit);
   if(!Number.isInteger(limit)||limit<1||limit>100||
     (requested.listing!==undefined&&!['catalog','compact'].includes(requested.listing)))
     throw new TypeError('Invalid listing limit');
+  // next is a bounded numeric offset, not a token granting a new scope.
+  if(requested.cursor!==undefined &&
+    (typeof requested.cursor!=='string' ||
+      !/^(0|[1-9][0-9]{0,4})$/.test(requested.cursor)))
+    throw new TypeError('Invalid listing cursor');
+  const cursor=Number(requested.cursor??0);
+  for(const field of ['q','area','audience']){
+    if(requested[field]!==undefined&&typeof requested[field]!=='string')
+      throw new TypeError('Invalid search selector');
+  }
   const catalog=rtcCatalog(registry,{...pass,
     listing:requested.listing||pass.listing});
   const q=String(requested.q??'').toLowerCase();
@@ -73,8 +83,8 @@ function listing(req,pass,registry){
   const matching=safe.filter(t=>(!q||(t.name+' '+t.description).toLowerCase().includes(q))&&
     (!requested.area||t.area===requested.area)&&
     (!requested.audience||t.audience.includes(requested.audience)));
-  return {tools:matching.slice(0,limit),count:matching.length,
-    next:matching.length>limit?limit:null};
+  return {tools:matching.slice(cursor,cursor+limit),count:matching.length,
+    next:cursor+limit<matching.length?cursor+limit:null};
 }
 function named(req,registry,pass){
   const name=req.query?.name;

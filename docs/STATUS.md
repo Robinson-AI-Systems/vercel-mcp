@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC discovery pagination #118:** authenticated HTTPS tool listing now accepts bounded `cursor` offset and returns a usable `next`, with scope/write filtering applied before pagination. Reject malformed selectors; OpenAPI names documented filters. Offline fake catalog tests cover all pages and no hidden tools. No new authority or live acceptance.
+
 - **RTC pass batch quota #117:** POST `_batch` reserves its actual read-tool count in one PostgreSQL atomic counter update before any provider calls. Unauthenticated/invalid batches never dispatch; the default 60/minute pass budget cannot be multiplied by batching. Tests cover shared two-connection contention. No live service D-4 proof or production/spending permission.
 
 - **IN-08 policy hardening #116:** the owner approved fixed one-time paid actions only with separately authenticated one-use approvals; recurring amounts (including $0 up front) and unknown usage cannot be dispatched under a single grant without verifiable provider-side total cost enforcement. Legacy daily-limit advice no longer authorizes charges. No actual paid purchase, live provider write or production activation; metered D-1 remains disabled.
