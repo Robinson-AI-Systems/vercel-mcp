@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1q grouped build/function resources (#64):** full-profile production-confirmed and protected project resource PATCH, with pinned resourceConfig body, authenticated owner limit/spent checks (unpriced usage blocked at $0), no caller-quoted charges, partial-field-only changes and independent resource read-back. No real Vercel spend or production activation. Continue D-1 Git-linked creation and separately approved elevated membership/broad-delete work.
+
 - **D-1p spend boundary preparation (#63):** shared account-bound spend policy reads only owner-approved limit and already-spent cents from the authenticated account; unknown costs cannot bypass $0 default or an exhausted limit, and user confirmation is still required. Paid writes carry integer-cents evidence into the safe change audit (only after actual apply, never on preview). Enables separately reviewed metered project resource settings; no paid writes or live Vercel actions introduced.
 
 - **D-1o guarded project transfer code issuance (#62):** full-profile production-confirmed project transfer request using exact typed project name and protected/app guards. The returned code is stored encrypted for owner-only one-time reveal; only opaque reference enters safe transport replay, audit and MCP. This initiates a claim, never completes a transfer; confirmation of actual ownership is unknown. No connected token or real project used. Remaining D-1: Git-linked creation, build-resource spend controls, privileged membership decisions and broad deletion safety.
