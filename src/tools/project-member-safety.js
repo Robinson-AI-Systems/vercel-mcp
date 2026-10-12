@@ -1,6 +1,19 @@
 // Fully enumerated member views for access-changing project operations.
 // Bound at the caller to its stored team/project; never accept caller team IDs.
 // At most 5 pages of 100, with repeated-cursor/identity and incomplete-page denial.
+// A membership-record id is not proof of a Vercel user UID. Every access
+// decision must use the stable uid/userId aliases, never the row id.
+export function verifiedUserUid(row){
+  if(!row||typeof row!=='object'||Array.isArray(row))
+    throw new TypeError('Malformed member identity');
+  if(row.uid!=null&&row.userId!=null&&row.uid!==row.userId)
+    throw new TypeError('Conflicting project or team member user IDs');
+  const uid=row.uid??row.userId;
+  if(typeof uid!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(uid))
+    throw new TypeError('Unverified project or team member user UID');
+  return uid;
+}
+
 const OPERATIONS=new Set(['projects_members_list','teams_members_list']);
 export async function completeMembers(client,operationId,path){
   if(!OPERATIONS.has(operationId))throw new TypeError('Unsupported member inventory');
@@ -14,12 +27,8 @@ export async function completeMembers(client,operationId,path){
        !reply.pagination||reply.pagination.hasMore===true)
       throw new TypeError('Cannot prove complete member inventory');
     for(const item of reply.members){
-      const uid=item?.uid??item?.userId??item?.id;
-      // uid and userId are alternate representations of the Vercel user UID.
-      // A separate item.id may be a membership-row identifier; do not compare it.
-      if(item?.uid!=null&&item?.userId!=null&&item.uid!==item.userId)
-        throw new TypeError('Conflicting project or team member user IDs');
-      if(typeof uid!=='string'||!uid||identities.has(uid))
+      const uid=verifiedUserUid(item);
+      if(identities.has(uid))
         throw new TypeError('Ambiguous or duplicate member identity');
       identities.add(uid);members.push(item);
     }
@@ -41,7 +50,7 @@ export async function completeMembers(client,operationId,path){
 // contributor: never invite a paid seat or treat MCP confirmation as owner auth.
 export async function verifyEligibleTeamMember(client,teamId,uid){
   const members=await completeMembers(client,'teams_members_list',{teamId});
-  const matches=members.filter(row=>row.uid===uid);
+  const matches=members.filter(row=>verifiedUserUid(row)===uid);
   if(matches.length!==1||matches[0].confirmed!==true||
     matches[0].role!=='CONTRIBUTOR')
     throw new TypeError('A confirmed team contributor UID is required');
