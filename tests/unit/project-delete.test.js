@@ -64,6 +64,27 @@ describe('D-1m destructive empty-project deletion',()=>{
       f.fake.verify();
     }
   });
+  it('shows nonempty impact only in dry-run, without enabling deletion',async()=>{
+    const f=fixture();
+    f.projectRule.resolves({...project,crons:{definitions:[{path:'/job',schedule:'0 0 * * *'}]},
+      storageConnections:[{id:'store_FAKE',secret:'NEVER_OUTPUT'}]});
+    f.domainRule.resolves({domains:[{name:'demo.example'}],pagination:{next:null}});
+    f.envRule.resolves({envs:[{key:'API_KEY',value:'NEVER_OUTPUT'}],pagination:{next:null}});
+    const preview=parse(await f.call({...request,dryRun:true,confirm:false}));
+    expect(preview).toMatchObject({status:'preview',dryRun:true});
+    expect(preview.preview).toContain('NOT ELIGIBLE');
+    expect(preview.preview).toContain('domains: 1');
+    expect(preview.preview).toContain('envVariables: 1');
+    expect(preview.preview).toContain('storageConnections: 1');
+    expect(preview.preview).toContain('crons: 1');
+    expect(JSON.stringify(preview)).not.toContain('NEVER_OUTPUT');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    const g=fixture();g.projectRule.resolves({...project,storageConnections:[{id:'store_FAKE'}]});
+    g.domainRule.resolves({domains:[],pagination:{next:null}});
+    g.envRule.resolves({envs:[],pagination:{next:null}});
+    expect(parse(await g.call({...request,confirm:true})).status).toBe('refused_by_guard');
+    expect(g.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
   it('does not equate missing Git linkage with proven unlinked state',async()=>{
     const f=fixture();f.projectRule.resolves({...project,link:undefined});
     expect(parse(await f.call()).status).toBe('refused_by_guard');

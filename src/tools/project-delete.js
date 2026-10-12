@@ -93,8 +93,9 @@ const deletion=defineWrite({
     const state=await inspect(ctx,args.project);
     if(state.name!==args.expectedName)
       throw new TypeError('Typed project name does not match provider identity');
-    if(!state.empty)
-      throw new TypeError('This delete tool supports only verified empty projects');
+    // Only dry-runs may inspect nonempty impact. Confirmation is empty-only.
+    if(!state.empty && args.dryRun!==true)
+      throw new TypeError('Nonempty deletion disabled; use dryRun for resource impact');
     return state;
   },
   async preview(_args,_ctx,before){
