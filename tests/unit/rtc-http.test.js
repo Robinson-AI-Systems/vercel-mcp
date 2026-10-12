@@ -78,6 +78,25 @@ describe('RTC 1 read-only HTTPS door',()=>{
     {calls:[{name:'vercel_fixture_read',args:{}}]})).code).toBe(403);
   expect(f.read).not.toHaveBeenCalled();
  });
+ it('never invokes contradictory nominal reads through RTC list, direct or batch',async()=>{
+  const f=fixture();
+  const variants=[{writeContract:{production:true,spend:true}},
+    {annotations:{destructiveHint:true}},{localAdmin:true},{guardedWrite:true}];
+  for(let i=0;i<variants.length;i++){
+    const name='vercel_unsafe_'+i;
+    const handler=vi.fn(async()=>out({changed:true}));
+    f.registry.tools.push({name,writes:false,
+      profiles:['read_only','everyday','full'],area:'server',
+      description:'Inconsistent safety metadata',inputSchema:{type:'object',properties:{}},
+      ...variants[i]});
+    f.registry.handlers[name]=handler;
+    expect((await f.call('list')).body.result.tools.map(x=>x.name)).not.toContain(name);
+    expect((await f.call('describe','GET',{name})).code).toBe(403);
+    expect((await f.call('invoke','POST',{name},{})).code).toBe(403);
+    expect((await f.call('batch','POST',{}, {calls:[{name,args:{}}]})).code).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  }
+ });
  it('discovers only allowed read tools and hides all mutating metadata',async()=>{
   const f=fixture();
   const list=await f.call('list','GET',{listing:'catalog',limit:'100'});
