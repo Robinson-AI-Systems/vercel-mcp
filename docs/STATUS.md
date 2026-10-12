@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1i guarded project member removal (#55):** DELETE /v1/projects/{idOrName}/members/{uid} only for existing viewer/developer roles, explicit production/full connection and confirmation, server principal and admin/owner/final member denial, complete pagination required and independent no-membership read-back. Admin/owner removal intentionally deferred pending verified last-owner protection. Finish remaining D-1 project operations in #56 onward; IN-07/08 still pending, production inactive.
+
 - **D-1h guarded project member grant (#54):** POST /v1/projects/{idOrName}/members for an existing team UID only, no seat invites or paid operations, production/full connection required, access-widening declaration, preflight member existence and bounded page, independent member-role GET read-back, safe audit and replay. Next guarded member removal; production inactive and IN-07/08 outstanding.
 
 - **D-1g guarded project rename/framework (#53):** PATCH /v9/projects/{idOrName} with authenticated scope, true before/after project GET, production classification on live or unknown deployments, protection for old/new project identity, replay, confirmation and safe shaping. Build/install/dev commands and remaining settings are still pending D-1, not claimed complete.
