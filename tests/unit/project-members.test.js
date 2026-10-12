@@ -128,6 +128,31 @@ describe('D-1h project access grants',()=>{
       expect(f.fake.calls.at(-1).params.teamId).toBe('team_FAKE');
     }
   });
+  it('blocks a contributor promoted to team owner between preflight and POST',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[],pagination:{next:null}});
+    f.fake.when('GET','/v3/teams/{teamId}/members')
+      .resolves({members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}})
+      .resolves({members:[{uid,role:'OWNER',confirmed:true}],pagination:{next:null}});
+    const result=parse(await f.call({project:name,uid,role,confirm:true,requestKey:'raceGrantFAKE01'}));
+    expect(result.status).toBe('outcome_unknown');
+    expect(result.confirmed).toBeNull();
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+  });
+  it('fails closed when the project identity changes before granting',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({id:name,name:'demo'}).resolves({id:name,name:'renamed'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[],pagination:{next:null}});
+    f.fake.when('GET','/v3/teams/{teamId}/members')
+      .resolves({members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}});
+    const result=parse(await f.call({project:name,uid,role,confirm:true,requestKey:'raceNameFAKE01'}));
+    expect(result.status).toBe('outcome_unknown');
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+  });
   it('keeps project administrator grants behind independent owner authorization',async()=>{
     const f=fixture();
     const tool=registry.tools.find(x=>x.name==='vercel_project_add_member');

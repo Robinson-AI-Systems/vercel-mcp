@@ -71,6 +71,15 @@ const grant=defineWrite({
   async access(_args,before){return {widens:true,who:before.uid,what:before.role+' on '+before.project};},
   async apply(_args,ctx,before,requestKey){
     if(before.alreadyAssigned)return {accepted:false,unchanged:true};
+    // The preview and confirmation may be separated in time. Do not grant a
+    // role after its team contributor status or project identity changed.
+    const {client,account}=await readProvider(ctx);
+    if(!['team','full'].includes(account.scope))
+      throw new TypeError('Team authority changed before project role grant');
+    const fresh=await client.request('projects_get',{path:{idOrName:before.project}});
+    if(fresh?.id!==before.project||fresh?.name!==before.name)
+      throw new TypeError('Project identity changed before role grant');
+    await verifyEligibleTeamMember(client,account.team_id,before.uid);
     const provider=await writeProvider(ctx);
     return provider.write('projects_members_add',{
       path:{idOrName:before.project},body:{uid:before.uid,role:before.role}
