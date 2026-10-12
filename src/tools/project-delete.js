@@ -53,10 +53,15 @@ async function inspect(ctx,selector,bound){
     throw new TypeError('Project identity not independently available');
   // A generic project GET does not prove storage/cron absence. The explicit
   // arrays are mandatory; missing, unknown or paginated resource data refuses.
-  const storage=Array.isArray(row.storageConnections)?row.storageConnections:
-    Array.isArray(row.stores)?row.stores:null;
+  // Vercel project responses can expose both legacy stores and newer
+  // storageConnections. Never let an empty preferred alias conceal a nonempty
+  // secondary inventory during irreversible deletion.
+  const storageKeys=['storageConnections','stores'].filter(key=>Object.hasOwn(row,key));
+  if(!storageKeys.length||storageKeys.some(key=>!Array.isArray(row[key])))
+    throw new TypeError('Cannot prove complete project storage inventory');
+  const storageCount=Math.max(...storageKeys.map(key=>row[key].length));
   const cron=row.crons?.definitions;
-  if(!Array.isArray(storage)||!Array.isArray(cron)||
+  if(!Array.isArray(cron)||
     typeof row.hasDeployments!=='boolean'||
     !Object.hasOwn(row,'link')||row.link===undefined)
     throw new TypeError('Cannot establish complete project resource inventory');
@@ -80,7 +85,7 @@ async function inspect(ctx,selector,bound){
     throw new TypeError('Cannot prove complete project deployment inventory');
   const inventory={
     deployments:deploymentPage.deployments.length,
-    git:row.link!=null?1:0,crons:cron.length,storageConnections:storage.length,
+    git:row.link!=null?1:0,crons:cron.length,storageConnections:storageCount,
     domains:countDomains,envVariables:countEnvs
   };
   return {id:row.id,name:row.name,inventory,

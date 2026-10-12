@@ -37,6 +37,29 @@ function fixture(){
 }
 describe('D-1m destructive empty-project deletion',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
+  it('treats every populated storage alias as a blocker for irreversible deletion',async()=>{
+    for(const extra of [
+      {storageConnections:[],stores:[{id:'store_FAKE'}]},
+      {storageConnections:[{id:'store_FAKE'}],stores:[]}
+    ]){
+      const f=fixture();
+      f.projectRule.resolves({...project,...extra});
+      f.domainRule.resolves({domains:[],pagination:{next:null}});
+      f.envRule.resolves({envs:[],pagination:{next:null}});
+      const result=parse(await f.call());
+      expect(result.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+      expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+      f.fake.verify();
+    }
+  });
+  it('rejects malformed secondary storage inventory instead of trusting a clear alias',async()=>{
+    const f=fixture();
+    f.projectRule.resolves({...project,stores:{malformed:true}});
+    const result=parse(await f.call());
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+  });
   it('requires full impact inspection twice, one DELETE and independent 404 proof',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project).rejects(404);

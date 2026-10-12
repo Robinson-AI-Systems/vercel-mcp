@@ -530,3 +530,5 @@ D-1as (#92): `vercel_project_list` and `vercel_project_get` report `paused: null
 D-1at (#93): Read-only `vercel_git_search_repos` only projects canonical URLs from the selected provider host; off-provider and lookalike URLs are suppressed.
 
 D-1au (#94): `vercel_project_create` Git imports require authoritative matching `fullName` when Vercel returns one; a conflicting repository `slug` cannot satisfy the guarded identity proof.
+
+D-1av (#95): destructive `vercel_project_delete` empty-only gate conservatively counts all supplied storage inventory aliases and refuses malformed aliases; nonempty deletion stays disabled.
