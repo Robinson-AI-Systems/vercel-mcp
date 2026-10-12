@@ -58,6 +58,17 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
     expect(JSON.stringify(found)).not.toMatch(/vcp_FAKE|github_pat_FAKE/);
     repos.verify();
   });
+  it('does not emit encoded credential strings in namespace metadata',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/integrations/git-namespaces').resolves([{
+      id:'ns_FAKE',provider:'github',
+      name:'%2576cp_FAKE_namespace',slug:'%76cp_FAKE_slug'
+    }]);
+    const result=parse(await call('vercel_git_list_namespaces',{provider:'github'},fake));
+    expect(result.namespaces[0]).toMatchObject({id:'ns_FAKE',name:null,slug:null});
+    expect(JSON.stringify(result)).not.toMatch(/%2576cp_FAKE|%76cp_FAKE/);
+    fake.verify();
+  });
   it('searches namespace repos and injects the stored teamId only',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'1234',provider:'github',name:'Acme'}]);
