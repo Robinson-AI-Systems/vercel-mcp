@@ -153,6 +153,35 @@ describe('D-1m destructive empty-project deletion',()=>{
       }
     }
   });
+  it('refuses contradictory, nonnumeric and forged resource totals before irreversible deletion',async()=>{
+    for(const field of ['domains','envs','deployments']){
+      for(const total of [1,'1','not-a-count',-1]){
+        for(const location of ['root','pagination']){
+          const f=fixture();f.empty();
+          const key=field==='deployments'?'deployments':field;
+          const forged={[key]:[],pagination:{next:null}};
+          if(location==='root')forged.total=total;
+          else forged.pagination.total=total;
+          if(field==='domains')f.domainRule.resolves(forged);
+          if(field==='envs')f.envRule.resolves(forged);
+          if(field==='deployments')f.fake.when('GET','/v7/deployments').resolves(forged);
+          const result=parse(await f.call());
+          expect(result.status).toBe('refused_by_guard');
+          expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+        }
+      }
+    }
+  });
+  it('accepts honest optional numeric totals, but catches a late total change',async()=>{
+    const f=fixture();
+    f.projectRule.resolves(project).resolves(project);
+    f.domainRule.resolves({domains:[],total:0,pagination:{next:null,total:'0'}})
+      .resolves({domains:[],total:1,pagination:{next:null}});
+    f.envRule.resolves({envs:[],total:'0',pagination:{next:null}});
+    const result=parse(await f.call());
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+  });
   it('denies unknown/partial resource inventories before DELETE',async()=>{
     for(const bad of [
       {...project,storageConnections:undefined},
