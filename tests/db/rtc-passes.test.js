@@ -1,12 +1,13 @@
 import {afterAll,beforeAll,describe,it,expect} from 'vitest';
 import {createDb} from '../../src/db.js';
+import pg from 'pg';
 import {openIsolatedSchema,closeIsolatedSchema,neonShapedQuery,rawQuery}
   from '../../test/helpers/pg-neon-adapter.js';
-let db;const url=process.env.TEST_DATABASE_URL;
+let db,schema;const url=process.env.TEST_DATABASE_URL;
 beforeAll(async()=>{
  if(!url||!['localhost','127.0.0.1','[::1]','::1'].includes(new URL(url).hostname))
    throw new Error('Disposable local Postgres required');
- await openIsolatedSchema(url);
+ schema=await openIsolatedSchema(url);
  db=createDb(neonShapedQuery());await db.initSchema();
  await rawQuery("INSERT INTO vercel_accounts(id,team_id,team_slug,label,scope,token_enc,token_last4) VALUES ('team_FAKE','team_FAKE','fake','Fake','team','fake','fake')");
 });
@@ -33,5 +34,28 @@ describe('RTC database-scoped credential lifecycle',()=>{
   await rawQuery('UPDATE rtc_passes SET expires_at=now()-interval \'1 second\' WHERE pass_id=$1',[a.id]);
   expect((await db.authorizeRtcPass(a.token)).status).toBe('pass_expired');
   await expect(db.issueReadOnlyRtcPass({account:'team_FAKE',hours:721})).rejects.toThrow();
+ });
+});
+
+describe('RTC cross-instance rate and revocation safety',()=>{
+ it('shares the atomic 60-per-minute budget across independent DB sessions',async()=>{
+   const second=new pg.Client({connectionString:url});
+   await second.connect();
+   try{
+     await second.query('SET search_path TO "'+schema+'"');
+     const query=async(strings,...values)=>{
+       let statement=strings[0];
+       for(let i=0;i<values.length;i++)statement+='$'+(i+1)+strings[i+1];
+       return (await second.query(statement,values)).rows;
+     };
+     const other=createDb(query);
+     const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server']});
+     const outcomes=await Promise.all(Array.from({length:80},(_,i)=>
+       (i%2?db:other).authorizeRtcPass(pass.token)));
+     expect(outcomes.filter(x=>x.status==='ok')).toHaveLength(60);
+     expect(outcomes.filter(x=>x.status==='rate_limited')).toHaveLength(20);
+     expect(await db.revokeRtcPass({account:'team_FAKE',id:pass.id})).toBe(true);
+     expect((await other.authorizeRtcPass(pass.token)).status).toBe('pass_revoked');
+   }finally{await second.end();}
  });
 });
