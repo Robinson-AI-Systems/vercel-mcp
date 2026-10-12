@@ -107,9 +107,9 @@ Protected-resource listings now include both global and team-scoped rules; the e
 |---|---|---|---|---|---|---|
 | `vercel_deploy_list` | Authenticated project-only deployments, bounded first page with honest cursor, state, target, Git commit/branch and safe metadata; remaining filters follow in D-2 | — | B Op | R | — | D-2 (read built #132) |
 | `vercel_deploy_get` | Scoped deployment ID/HTTPS URL detail: verified project, state, target, commit, branch and safe aliases (full diagnostics follow) | — | B Op | R | — | D-2 (read built #132) |
-| `vercel_deploy_get_build_logs` | Build log for a deployment: summary by default (steps, warnings, first error), full text behind a handle | — | B Op | R | — | D-2 |
+| `vercel_deploy_get_build_logs` | Project-verified deployment build events: bounded type/warning/error/step summary, no raw secret-bearing log text; full raw logs intentionally unavailable pending safe scoped storage | — | B Op | R | — | D-2 (safe summary #134; full text unverified) |
 | `vercel_deploy_get_runtime_logs` | Runtime (function) logs for a deployment, filtered by level, path, status and time | — | B Op | R | — | D-2 |
-| `vercel_deploy_list_files` | Files in a deployment's output | — | B | R | — | D-2 |
+| `vercel_deploy_list_files` | Project-verified bounded deployment source-file tree: safe file paths, no source content, honest empty/partial availability | — | B | R | — | D-2 (source tree #134; output-file completeness unverified) |
 | `vercel_deploy_get_file` | One file's contents from a deployment (size-capped; key-shaped strings hidden) | — | B | R | — | D-2 |
 | `vercel_deploy_wait` | Wait up to 45 seconds for a deployment to finish; returns the state and how to keep waiting | — | B Op | R | — | D-2 |
 | `vercel_check_list_runs` | Check runs attached to a deployment (Checks V2) with conclusions | — | B Op | R | — | D-2 |
