@@ -1233,14 +1233,29 @@
         "C-2"
       ],
       "card": "docs/pr-cards/U-1.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 500,
       "units": [
         "U-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "READY",
+      "ownerInputs": [],
+      "pr": [
+        148
+      ],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next Vercel MCP implementer",
+        "reason": "Public operation metadata implemented; scoped read transport and guarded universal writes remain.",
+        "nextAction": "Add indexed validated GET transport with secret exclusions and independently verified scope.",
+        "checkpoint": "After #148 and each session/PR boundary",
+        "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
+        "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
+        "dependencies": [
+          "C-2"
+        ]
+      }
     },
     {
       "id": "R-1",

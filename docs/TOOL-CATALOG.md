@@ -457,8 +457,8 @@ OpenAPI snapshot. The server never guesses an operation or a parameter.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_api_search` | Find Vercel operations by plain words: method, path, one-line summary, and whether it reads, changes, spends or returns a secret | — | B O Op | R | — | U-1 |
-| `vercel_api_describe` | Parameters for one operation, trimmed to what matters, from the OpenAPI snapshot | — | B O Op | R | — | U-1 |
+| `vercel_api_search` | Find Vercel operations by plain words: method, path, one-line summary, and whether it reads, changes, spends or returns a secret | — | B O Op | R | — | U-1 (metadata built #148) |
+| `vercel_api_describe` | Parameters for one operation, trimmed to what matters, from the OpenAPI snapshot | — | B O Op | R | — | U-1 (metadata built #148) |
 | `vercel_api_read` | Any GET operation, with the same summaries, `fields`, size cap and handles as every other read; secret-returning operations refused | — | B O Op | R | — | U-1 |
 | `vercel_api_write` | Any POST/PUT/PATCH/DELETE operation through the full safety layer: always `confirm`; spend table; production detection; hand-built tools win | C (always) | B O Op | F | y | U-1 |
 
