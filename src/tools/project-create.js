@@ -1,4 +1,4 @@
-// D-1f: new empty project only. Never attaches a Git repo, secrets or resources.
+// D-1r: empty unlinked projects and guarded metered Git-linked imports; no secrets.
 import {defineWrite,bindGuardedWrite} from '../core/write.js';
 import {accountSpendGuard} from '../vercel/spend.js';
 import {compact} from '../core/util.js';
@@ -89,7 +89,7 @@ const create=defineWrite({
     throw new TypeError('Project name is already assigned');
   },
   async preview(_args,_ctx,before){
-    return 'Create an empty, unlinked preview project named '+before.name+
+    return (before.git?'Import a Git-linked project named ':'Create an empty unlinked project named ')+before.name+
       (before.framework?' using '+before.framework:' with auto-detected framework')+
       (CONFIG_SETTINGS.some(key=>_args[key]!==undefined)?
         '; config fields: '+CONFIG_SETTINGS.filter(key=>_args[key]!==undefined).join(', '):'')+
@@ -128,7 +128,7 @@ const create=defineWrite({
       project:result.id};
   }
 });
-const out=result=>({isError:['refused_by_guard','outcome_unknown'].includes(result.status),
+const out=result=>({isError:['refused_by_guard','outcome_unknown','spend_limit'].includes(result.status),
   content:[{type:'text',text:JSON.stringify(result)}]});
 export const projectCreateTools={
   tools:[{name:'vercel_project_create',writes:true,guardedWrite:true,

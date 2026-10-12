@@ -6,13 +6,13 @@ import {loadToken} from '../../src/vercel/tokens.js';
 vi.mock('../../src/vercel/tokens.js',async old=>({...await old(),loadToken:vi.fn()}));
 const connection={account:'acct_FAKE',mode:'preview',profile:'everyday',listing:'catalog'};
 const token={token:'vcp_FAKE_project',account:{id:'acct_FAKE',team_id:'team_FAKE',scope:'team'}};
-function fixture(){
+function fixture(limit=0){
   const state=new Map(),audit=[];
   const db={
     getAccountCredential:async()=>({}),
     listProtectedResources:async()=>[],
     recordChange:async row=>audit.push(row),
-    getVercelAccountSafe:async id=>({id,spend_limit_cents:0}),
+    getVercelAccountSafe:async id=>({id,spend_limit_cents:limit}),
     getTodaySpendCents:async()=>0,
     requestReplayStore:()=>({
       claim:async({key})=>{
@@ -187,4 +187,92 @@ describe('D-1f guarded project creation',()=>{
     }
   });
 
+  it('guards Git creation with exact namespace/repository discovery and independent Git-link readback',async()=>{
+    const f=fixture(20000);
+    const linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    f.fake.when('GET','/v1/integrations/git-namespaces').resolves([
+      {id:'org_123',provider:'github',name:'Acme'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({repos:[{id:42,fullName:'acme/site',private:true}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+      .resolves({id:'prj_FAKE_NEW',name:'demo-site',link:{type:'github',repo:'acme/site'}});
+    f.fake.when('POST','/v11/projects')
+      .resolves({id:'prj_FAKE_NEW',name:'demo-site',token:'never-log'});
+    const args={name:'demo-site',gitRepository:linked,confirm:true,
+      requestKey:'gitCreationFAKE01'};
+    const result=parse(await f.call(args,{...connection,mode:'production',profile:'full'}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','POST','GET']);
+    expect(f.fake.calls[0].query).toEqual({provider:'github'});
+    expect(f.fake.calls[1].query).toEqual({provider:'github',namespaceId:'org_123',
+      query:'site',teamId:'team_FAKE'});
+    expect(f.fake.calls[3].body).toEqual({name:'demo-site',gitRepository:{
+      type:'github',repo:'acme/site'}});
+    expect(JSON.stringify(result)).not.toContain('never-log');
+    expect(f.audit).toHaveLength(1);
+    expect(f.audit[0].spendCents).toBeNull();
+    f.fake.verify();
+  });
+  it('refuses Git creation under $0 owner limit and without production/full authority',async()=>{
+    for(const scenario of ['zeroBudget','preview','everyday']){
+      const f=fixture(scenario==='zeroBudget'?0:20000);
+      f.fake.when('GET','/v1/integrations/git-namespaces').resolves([
+        {id:'org_123',provider:'github'}]);
+      f.fake.when('GET','/v1/integrations/search-repo')
+        .resolves({repos:[{fullName:'acme/site'}]});
+      f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+      const c={...connection,profile:scenario==='everyday'?'everyday':'full',
+        mode:scenario==='preview'?'preview':'production'};
+      const res=parse(await f.call({name:'demo-site',gitRepository:{
+        type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},c));
+      expect(res.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    }
+  });
+  it('rejects unknown and restricted Git namespaces, missing exact repo, and forged names',async()=>{
+    for(const issue of ['restricted','missingNamespace','wrongRepo']){
+      const f=fixture(20000);
+      f.fake.when('GET','/v1/integrations/git-namespaces')
+        .resolves(issue==='missingNamespace'?[]:
+          [{id:'org_123',provider:'github',isAccessRestricted:issue==='restricted'}]);
+      if(issue==='wrongRepo'){
+        f.fake.when('GET','/v1/integrations/search-repo')
+          .resolves({repos:[{fullName:'unrelated/site'}]});
+      }
+      const res=parse(await f.call({name:'demo-site',
+        gitRepository:{type:'github',repo:'acme/site',namespaceId:'org_123'},
+        confirm:true},{...connection,mode:'production',profile:'full'}));
+      expect(res.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+      f.fake.verify();
+    }
+    const bad=fixture();
+    for(const gitRepository of [
+      {type:'github',repo:'../sneak',namespaceId:'org_123'},
+      {type:'github',repo:'acme/site',namespaceId:'../escape'},
+      {type:'github',repo:'acme/site',namespaceId:'org_123',token:'secret'},
+      {type:'unknown',repo:'acme/site',namespaceId:'org_123'}
+    ]){
+      const res=await bad.call({name:'demo-site',gitRepository,confirm:true});
+      expect(res.isError||parse(res).status==='refused_by_guard').toBe(true);
+    }
+    expect(bad.fake.calls).toHaveLength(0);
+  });
+  it('does not mistake unverified Git link for completed provider import',async()=>{
+    const f=fixture(20000);
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+      .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+    f.fake.when('POST','/v11/projects')
+      .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+    const res=parse(await f.call({name:'demo-site',gitRepository:{
+      type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},
+      {...connection,mode:'production',profile:'full'}));
+    expect(res).toMatchObject({status:'applied',confirmed:false});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
+    f.fake.verify();
+  });
 });
