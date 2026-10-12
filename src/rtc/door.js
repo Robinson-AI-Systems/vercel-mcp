@@ -88,15 +88,30 @@ function listing(req,pass,registry){
   const matching=safe.filter(t=>(!q||(t.name+' '+t.description).toLowerCase().includes(q))&&
     (!requested.area||t.area===requested.area)&&
     (!requested.audience||t.audience.includes(requested.audience)));
-  return {tools:matching.slice(cursor,cursor+limit),count:matching.length,
-    next:cursor+limit<matching.length?cursor+limit:null};
+  // A catalog of safe tools is not necessarily a safe 8 KiB HTTP reply:
+  // each published schema and description also consumes response bytes.
+  // Return a strict prefix with a usable continuation, never silent clipping.
+  const tools=[];
+  for(let i=cursor;i<Math.min(matching.length,cursor+limit);i++){
+    const next=i+1<matching.length?i+1:null;
+    const candidate={ok:true,result:{tools:[...tools,matching[i]],
+      count:matching.length,next}};
+    if(Buffer.byteLength(JSON.stringify(candidate),'utf8')>8192){
+      if(!tools.length)throw new TypeError('Single tool metadata exceeds RTC reply budget');
+      break;
+    }
+    tools.push(matching[i]);
+  }
+  return {tools,count:matching.length,
+    next:cursor+tools.length<matching.length?cursor+tools.length:null};
 }
 function named(req,registry,pass){
   const name=req.query?.name;
   if(typeof name!=='string'||!NAME.test(name))return null;
-  return listing({query:{listing:'catalog'}},pass,registry).tools.find(t=>t.name===name)||
-    rtcCatalog(registry,{...pass,listing:'catalog'}).find(t=>
-      t.name===name&&!t.writes&&!BLOCKED.has(t.name)&&pass.areas.includes(t.area))||null;
+  // A direct lookup must not depend on fitting some earlier unrelated
+  // catalog page into the discovery envelope.
+  return rtcCatalog(registry,{...pass,listing:'catalog'}).find(t=>
+    t.name===name&&!t.writes&&!BLOCKED.has(t.name)&&pass.areas.includes(t.area))||null;
 }
 async function invoke(name,args,ctx){
   const response=await dispatchReadOnlyTool({registry:ctx.registry,name,args,
@@ -193,7 +208,12 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
             return fail(res,'outside_scope');
           return fail(res,'not_found');
         }
-        if(route==='describe')return send(res,200,{ok:true,result:def});
+        if(route==='describe'){
+          const response={ok:true,result:def};
+          if(Buffer.byteLength(JSON.stringify(response),'utf8')>8192)
+            return fail(res,'invalid_args');
+          return send(res,200,response);
+        }
         let body;
         try{body=argumentsFor(getBody(req));}
         catch{return fail(res,'invalid_args');}
