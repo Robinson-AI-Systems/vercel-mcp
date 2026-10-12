@@ -86,6 +86,24 @@ describe('D-1i guarded project member removal',()=>{
     expect(parse(await u.call(payload)).status).toBe('refused_by_guard');
     expect(u.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
   });
+  it('revokes a verified contributor across complete multi-page inventories',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[leader],pagination:{next:1700000000000}})
+      .resolves({members:[staff],pagination:{next:null}})
+      .resolves({members:[leader],pagination:{next:null}});
+    f.fake.when('GET','/v3/teams/{teamId}/members')
+      .resolves({members:[{uid:'user_FAKE_OTHER',role:'CONTRIBUTOR',confirmed:true}],pagination:{next:1700000001000}})
+      .resolves({members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}});
+    f.fake.when('DELETE','/v1/projects/{idOrName}/members/{uid}').resolves(undefined,204);
+    const data=parse(await f.call(payload));
+    expect(data).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    expect(f.fake.calls.filter(x=>x.path==='/v3/teams/team_FAKE/members'&&x.query.until==='1700000001000')).toHaveLength(1);
+    f.fake.verify();
+  });
   it('refuses removing a team owner, unconfirmed or missing contributor before DELETE',async()=>{
     for(const page of [
       {members:[{uid,role:'OWNER',confirmed:true}],pagination:{next:null}},

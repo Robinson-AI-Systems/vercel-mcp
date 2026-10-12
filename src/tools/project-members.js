@@ -4,7 +4,7 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {verifyEligibleTeamMember} from './project-member-safety.js';
+import {verifyEligibleTeamMember,completeMembers} from './project-member-safety.js';
 
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 // Administrative project access is held for a separately authenticated owner
@@ -37,13 +37,7 @@ const scope=async(ctx,project)=>{
     throw new TypeError('Project ownership cannot be verified');
   return {client:bound.client,id:row.id,name:row.name,teamId:bound.account.team_id};
 };
-const members=async(client,project)=>{
-  const page=await client.request('projects_members_list',{path:{idOrName:project},query:{limit:100}});
-  if(!Array.isArray(page?.members)||page.members.length>100||
-    !page.pagination||page.pagination.next!==null||page.pagination.hasMore===true)
-    throw new TypeError('Member list is incomplete or unavailable; refuse mutation');
-  return page.members;
-};
+const members=(client,project)=>completeMembers(client,'projects_members_list',{idOrName:project});
 const context=({db,connection,env,fetchImpl})=>({
   db,connection,env,fetchImpl,shape:compact,
   audit:entry=>db.recordChange(entry),

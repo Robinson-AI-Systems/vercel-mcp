@@ -81,6 +81,34 @@ describe('D-1h project access grants',()=>{
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     }
   });
+  it('safely follows authenticated project and team cursors before granting a role',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[{uid:'user_FAKE_OTHER',role:'PROJECT_VIEWER'}],pagination:{next:1700000000000}})
+      .resolves({members:[],pagination:{next:null}})
+      .resolves({members:[{uid,role}],pagination:{next:null}});
+    f.fake.when('GET','/v3/teams/{teamId}/members')
+      .resolves({members:[{uid:'user_FAKE_OTHER',role:'CONTRIBUTOR',confirmed:true}],pagination:{next:1700000001000}})
+      .resolves({members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}});
+    f.fake.when('POST','/v1/projects/{idOrName}/members').resolves({id:name});
+    const result=parse(await f.call({project:name,uid,role,confirm:true,requestKey:'pagedRoleFAKE01'}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.path==='/v1/projects/'+name+'/members'&&x.query.until==='1700000000000')).toHaveLength(1);
+    expect(f.fake.calls.filter(x=>x.path==='/v3/teams/team_FAKE/members'&&x.query.until==='1700000001000')).toHaveLength(1);
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('rejects duplicate identities across pages before making grants',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[{uid:'dup_FAKE',role:'PROJECT_VIEWER'}],pagination:{next:1700000000000}})
+      .resolves({members:[{uid:'dup_FAKE',role:'PROJECT_VIEWER'}],pagination:{next:null}});
+    const data=parse(await f.call({project:name,uid,role,confirm:true}));
+    expect(data.status).toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
   it('refuses non-contributors, unconfirmed users, forged identities and incomplete teams without granting',async()=>{
     for(const result of [
       {members:[{uid,role:'OWNER',confirmed:true}],pagination:{next:null}},

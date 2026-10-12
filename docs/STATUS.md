@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1w PR #70 — bounded complete membership pagination:** shared authenticated project/team member inventory now follows up to five explicit safe numeric cursors, while refusing duplicate identity, repeated cursor, missing pagination, contradictory flags and excess scope. Large-team viewer/developer grants and removals remain independently owner-safe and production-confirmed; no widened admin rights or real Vercel writes. D-1 still partial; privileged member and nonempty delete require separate approved owner design before D-2 dependency can be declared complete.
+
+
 - **D-1v PR #69 — independently verified deployment-free deletion:** even when the project GET claims `hasDeployments:false`, empty-project deletion also requires a complete authenticated `/v7/deployments` inventory, exactly scoped to the immutable project ID, before preview and again immediately before DELETE. Unknown/paginated/cross-project/late deployment data fails closed. Nonempty project deletion remains disabled; no live mutation.
 
 
