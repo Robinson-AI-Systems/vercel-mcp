@@ -86,6 +86,12 @@ export function rtcOpenApi(){
     '/api/tools/{name}':{get:{...noArgs,summary:'Authorized tool metadata'},
       post:{...noArgs,summary:'Invoke authorized tool through MCP guard'}},
     '/api/tools/_batch':{post:{...noArgs,summary:'At most 10 read-only calls'}},
-    '/api/results/{handle}':{get:{...noArgs,summary:'Read owner-bound result handle'}}
+    '/api/results/{handle}':{get:{...noArgs,summary:'Read bounded owner-bound result pages',
+      parameters:[
+        {name:'page',in:'query',schema:{type:'integer',minimum:0,maximum:10000}},
+        {name:'limit',in:'query',schema:{type:'integer',minimum:1,maximum:20}},
+        {name:'detail',in:'query',schema:{type:'string',enum:['summary','full']}},
+        {name:'fields',in:'query',schema:{type:'string',maxLength:800}}
+      ]}}
   }};
 }

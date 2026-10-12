@@ -234,13 +234,48 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
         if(req.method!=='GET')return fail(res,'invalid_args');
         const handle=req.query?.handle;
         if(typeof handle!=='string'||!HANDLE.test(handle))return fail(res,'invalid_args');
+        // A stored handle can be one megabyte: never return the entire object
+        // without bounded paging, projection and final JSON byte-size check.
+        const query=req.query||{};
+        if(Object.keys(query).some(k=>!['handle','page','limit','fields','detail'].includes(k)))
+          return fail(res,'invalid_args');
+        const parseNumber=(value,maximum,def)=>{
+          if(value===undefined)return def;
+          if(typeof value!=='string'||!/^(0|[1-9][0-9]{0,4})$/.test(value))
+            throw new TypeError('Invalid result page selector');
+          const number=Number(value);
+          if(number>maximum)throw new TypeError('Result page out of range');
+          return number;
+        };
+        let page,limit,fields,detail;
+        try{
+          page=parseNumber(query.page,10000,0);
+          limit=parseNumber(query.limit,20,20);
+          if(limit<1)throw new TypeError('Page limit must be positive');
+          fields=query.fields;
+          detail=query.detail??'full';
+          if(fields!==undefined&&typeof fields!=='string')throw new TypeError('Invalid fields');
+          if(!['summary','full'].includes(detail))throw new TypeError('Invalid detail');
+        }catch{return fail(res,'invalid_args');}
         const stored=await db.getResult({account:connection.account,
           owner:connection.resultOwner,handle});
         if(!stored)return fail(res,'not_found');
-        const fields=req.query?.fields;
-        if(fields!==undefined&&typeof fields!=='string')return fail(res,'invalid_args');
-        const data=prepareResult(stored.body,{detail:'full',fields});
-        return send(res,200,{ok:true,result:data.result});
+        const raw=stored.body;
+        const records=Array.isArray(raw)?raw:Array.isArray(raw?.rows)?raw.rows:[raw];
+        const from=page*limit;
+        let projected,summary;
+        try{
+          projected=prepareResult(records.slice(from,from+limit),{detail,fields});
+          summary=prepareResult(stored.summary??null,{detail:'full'}).result;
+        }catch{return fail(res,'invalid_args');}
+        const response={ok:true,result:{
+          handle,page,limit,count:records.length,
+          hasMore:from+limit<records.length,
+          next:from+limit<records.length?page+1:null,
+          records:projected.result,unknownFields:projected.unknownFields,summary}};
+        if(Buffer.byteLength(JSON.stringify(response),'utf8')>8192)
+          return fail(res,'invalid_args');
+        return send(res,200,response);
       }
       return fail(res,'not_found');
     }catch{return fail(res,'service_error');}

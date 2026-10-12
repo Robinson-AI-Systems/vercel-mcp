@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC read-only handle result paging #123:** bounded 20-record page of an owner-bound stored handle with page/limit/fields/detail validation, explicit count/next metadata, secret stripping and final ≤8 KB HTTP envelope. Oversized individual records refuse with a safe client error instead of exfiltrating huge data. No write, production or spend authority. Hosted D-4 not claimed.
+
+
 - **PR #122 — owner hosting policy and late review repairs (2026-10-12):** Merge prepared HOSTING-COST-POLICY and reconcile operating instructions with already-merged #121 daily checked main → live policy, requiring `ci` plus `release-policy` at exact PR head. Cost inventory saved; first scheduled promotion, live source commit and production READY not yet proven. No separate Vercel or Neon project exists for this MCP; do not provision without approval. Correct #119 P1 cached provider quote, #116 P2 recurring price display, #117 P2 batch quota predebit validation, #118 P2 malformed limit selector. No real spending or production execution. See HOSTING-COST-POLICY and RTC-HUB-INTEGRATION.
 
 
