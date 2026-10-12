@@ -8,12 +8,24 @@ const connection={account:'acct_FAKE',mode:'preview',profile:'everyday',listing:
 const token={token:'vcp_FAKE_project',account:{id:'acct_FAKE',team_id:'team_FAKE',scope:'team'}};
 function fixture(limit=0){
   const state=new Map(),audit=[];
+  // For legacy success scenarios a positive fixture value means an independent
+  // OWNER APPROVED simulated ledger. The configured daily spend limit is NOT an authorization.
+  const approval={status:limit>0?'approved':'pending'};
+  const purchaseRef='12345678-1234-1234-1234-123456789abc';
   const db={
     getAccountCredential:async()=>({}),
     listProtectedResources:async()=>[],
     recordChange:async row=>audit.push(row),
     getVercelAccountSafe:async id=>({id,spend_limit_cents:limit}),
     getTodaySpendCents:async()=>0,
+    requestPurchaseIntent:async()=>({reference:purchaseRef,status:approval.status,
+      expiresAt:new Date(Date.now()+600000).toISOString()}),
+    getPurchaseIntent:async()=>({status:approval.status,
+      price_cents:null,ceiling_cents:Number.MAX_SAFE_INTEGER,
+      approved_at:new Date(),expires_at:new Date(Date.now()+600000),
+      consumed_at:approval.status==='consumed'?new Date():null}),
+    consumePurchaseIntent:async()=>{if(approval.status!=='approved')return false;
+      approval.status='consumed';return true;},
     requestReplayStore:()=>({
       claim:async({key})=>{
         if(state.has(key))return state.get(key);
@@ -26,8 +38,10 @@ function fixture(limit=0){
   };
   const fake=makeFakeVercel();
   const call=(args,c=connection)=>dispatchReadOnlyTool({registry,
-    name:'vercel_project_create',args,db,connection:c,fetchImpl:fake.fetch});
-  return {db,fake,audit,state,call};
+    name:'vercel_project_create',
+    args:args?.gitRepository&&args.requestKey===undefined?{...args,requestKey:'fixtureGitRequest01'}:args,
+    db,connection:c,fetchImpl:fake.fetch});
+  return {db,fake,audit,state,approval,call};
 }
 const parse=r=>JSON.parse(r.content[0].text);
 describe('D-1f guarded project creation',()=>{
@@ -225,7 +239,7 @@ describe('D-1f guarded project creation',()=>{
         mode:scenario==='preview'?'preview':'production'};
       const res=parse(await f.call({name:'demo-site',gitRepository:{
         type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},c));
-      expect(res.status).toBe(scenario==='zeroBudget'?'spend_limit':'refused_by_guard');
+      expect(res.status).toBe(scenario==='zeroBudget'?'awaiting_owner_approval':'refused_by_guard');
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     }
   });
@@ -279,38 +293,48 @@ describe('D-1f guarded project creation',()=>{
       expect(f.audit).toHaveLength(0);
     }
   });
-  it('refuses a metered import if owner spending permission changes before POST',async()=>{
+  it('never dispatches a metered POST if its separately approved grant is revoked at consumption',async()=>{
     const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
-    let reads=0;
-    f.db.getVercelAccountSafe=async id=>({id,spend_limit_cents:++reads===1?20000:0});
+    f.db.consumePurchaseIntent=async()=>false;
     f.fake.when('GET','/v1/integrations/git-namespaces')
       .resolves([{id:'org_123',provider:'github'}]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
-      confirm:true,requestKey:'budgetRaceFAKE01'},
-      {...connection,mode:'production',profile:'full'}));
-    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
-    expect(reads).toBe(2);
+      confirm:true,requestKey:'budgetRaceFAKE01'}, {...connection,mode:'production',profile:'full'}));
+    expect(res.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
-    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
   });
-  it('refuses a metered POST if owner revokes permission during final project lookup',async()=>{
-    const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
-    let policyReads=0;
-    f.db.getVercelAccountSafe=async id=>({id,spend_limit_cents:++policyReads<3?20000:0});
+  it('rechecks the consumed owner grant AFTER the final project lookup before metered POST',async()=>{
+    const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    f.db.getPurchaseIntent=async()=>({status:f.approval.status==='consumed'?'revoked':'approved',
+      ceiling_cents:Number.MAX_SAFE_INTEGER,approved_at:new Date(),
+      expires_at:new Date(Date.now()+600000),consumed_at:new Date()});
     f.fake.when('GET','/v1/integrations/git-namespaces')
       .resolves([{id:'org_123',provider:'github'}]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
-    const res=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
+    const res=parse(await f.call({name:'demo-site',gitRepository:linked,confirm:true,
       requestKey:'lateBudgetRaceFAKE01'}, {...connection,mode:'production',profile:'full'}));
-    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
-    expect(policyReads).toBe(3);
+    expect(res.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('never authorizes paid imports solely from a positive daily spending limit',async()=>{
+    const f=fixture(0),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    f.db.getVercelAccountSafe=async id=>({id,spend_limit_cents:999999999});
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const pending=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
+      requestKey:'positiveBudgetNoOwner'}, {...connection,mode:'production',profile:'full'}));
+    expect(pending.status).toBe('awaiting_owner_approval');
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.approval.status).toBe('pending');
   });
   it('binds Git proof and POST to one execution-time credential',async()=>{
     const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
