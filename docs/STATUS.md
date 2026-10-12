@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1bd PR #103 — encoded metadata secrecy:** central credential checks now decode nested percent-encoded text for inspection before projecting project and Git metadata; unknown repeated nesting refuses rather than risking a hidden secret. Read-only fake-provider tests cover nested tokens; no provider write or additional authority. D-1 IN_PROGRESS; production inactive.
+
 - **D-1bc PR #102 — verified user identity for guarded access:** project/team membership inventory and grant/remove checks now require stable `uid` or matching `userId`, and never substitute a membership-record `id` for the user who could receive or lose access. Reject unverified records before POST/DELETE; adversarial identity tests. D-1 IN_PROGRESS; owner-gated admin/deletion disabled and production inactive.
 
 - **D-1bb PR #101 — consistent authenticated Git search:** require the same validated top-level `gitAccount` identity for read discovery and owner-gated metered Git project imports, including preflight and last-moment bound-credential verification. Forged or rotated provider/namespace metadata refuses before POST. Offline fake-provider tests only. D-1 remains IN_PROGRESS; IN-07/08 pending; production disabled.
