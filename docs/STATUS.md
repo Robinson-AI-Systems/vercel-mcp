@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **IN-08 #108 — transaction-bound purchase ledger foundation:** additive owner-approval intent table with exact account, operation, request key, immutable argument fingerprint and immutable provider/published/variable pricing classification. Proposal is not permission; separate owner approval records the specified maximum (without discretionary daily cap), one-use consumption is atomic and independently readable. NOT YET CONNECTED TO PAID DISPATCH; IN-08 ANSWERED, implementation still IN_PROGRESS, no live purchases.
+
+
 - **IN-07 #107 — all project identities eligible:** authenticated owner setup can clear existing global and account-scoped project exclusions, with fresh passphrase, CSRF, account verification, explicit removal acknowledgment, atomic audit and readback. No hard-coded named project (including this server) is unconditionally forbidden; server token, production, destructive, scope and app-profile protections remain independent. No live execution or authorization to activate production.
 
 

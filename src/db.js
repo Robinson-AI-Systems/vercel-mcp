@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -100,6 +100,110 @@ export function createDb(query) {
       return verified.length === 1 && verified[0].spend_limit_cents === cents;
     },
 
+
+    // IN-08: AI calls can request a priced operation, but cannot approve it.
+    // Only the separately authenticated setup endpoint may invoke approval.
+    async requestPurchaseIntent({account,operation,requestKey,fingerprint,priceCents,pricingSource}) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
+        !/^vercel_[a-z0-9_]{3,100}$/.test(operation||'') ||
+        !/^rmcp_[a-zA-Z0-9_-]{16,190}$/.test(requestKey||'') ||
+        !/^[a-f0-9]{64}$/.test(fingerprint||'') ||
+        !['provider_quote','published_price','metered'].includes(pricingSource) ||
+        (priceCents===null ? pricingSource!=='metered' :
+          !Number.isSafeInteger(priceCents)||priceCents<1))
+        throw new TypeError('Invalid purchase proposal');
+      const run=getSql();
+      const id=randomUUID();
+      const rows=await run`WITH inserted AS (
+          INSERT INTO purchase_intents
+            (id,vercel_account,operation,request_key,fingerprint,price_cents,pricing_source,expires_at)
+          SELECT ${id},${account},${operation},${requestKey},${fingerprint},
+            ${priceCents},${pricingSource},now()+interval '30 minutes'
+          WHERE EXISTS(SELECT 1 FROM vercel_accounts WHERE id=${account})
+          ON CONFLICT (vercel_account,operation,request_key) DO NOTHING
+          RETURNING id,fingerprint,price_cents,pricing_source,status,expires_at
+        )
+        SELECT id,fingerprint,price_cents,pricing_source,status,expires_at FROM inserted
+        UNION ALL
+        SELECT id,fingerprint,price_cents,pricing_source,status,expires_at
+        FROM purchase_intents WHERE vercel_account=${account} AND operation=${operation}
+          AND request_key=${requestKey} AND NOT EXISTS (SELECT 1 FROM inserted)`;
+      if(rows.length!==1||rows[0].fingerprint!==fingerprint||
+        Number(rows[0].price_cents??-1)!==Number(priceCents??-1)||
+        rows[0].pricing_source!==pricingSource||
+        !['pending','approved'].includes(rows[0].status)||
+        new Date(rows[0].expires_at).getTime()<=Date.now()) return null;
+      return {reference:rows[0].id,status:rows[0].status,expiresAt:rows[0].expires_at};
+    },
+    async getPurchaseIntent({account,reference}) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
+        !/^[0-9a-f-]{36}$/.test(reference||'')) return null;
+      const run=getSql();
+      const rows=await run`SELECT id,vercel_account,operation,price_cents,pricing_source,
+        ceiling_cents,status,created_at,expires_at,approved_at,consumed_at
+        FROM purchase_intents WHERE id=${reference} AND vercel_account=${account}`;
+      return rows.length===1?rows[0]:null;
+    },
+    async approvePurchaseIntent({account,reference,ceilingCents}) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'')||
+        !/^[0-9a-f-]{36}$/.test(reference||'')||
+        !Number.isSafeInteger(ceilingCents)||ceilingCents<1)
+        return false;
+      const run=getSql();
+      const rows=await run`WITH approved AS (
+          UPDATE purchase_intents SET status='approved',approved_at=now(),
+            ceiling_cents=${ceilingCents}
+          WHERE id=${reference} AND vercel_account=${account}
+            AND status='pending' AND expires_at>now()
+            AND (price_cents IS NULL OR price_cents<=${ceilingCents})
+          RETURNING id
+        ),audit AS (
+          INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
+          SELECT ${account},'production','vercel_owner_approve_purchase',
+            'Owner approved an exact purchase intent',FALSE,FALSE
+          FROM approved RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM approved)::int AS approved_count,
+          (SELECT COUNT(*) FROM audit)::int AS audit_count`;
+      if(rows.length!==1||Number(rows[0].approved_count)!==1||
+        Number(rows[0].audit_count)!==1) return false;
+      const read=await this.getPurchaseIntent({account,reference});
+      return read?.status==='approved'&&Number(read.ceiling_cents)===ceilingCents;
+    },
+    async consumePurchaseIntent({account,reference,operation,requestKey,fingerprint,priceCents,pricingSource}) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'')||
+        !/^[0-9a-f-]{36}$/.test(reference||'')||
+        !/^vercel_[a-z0-9_]{3,100}$/.test(operation||'')||
+        !/^rmcp_[a-zA-Z0-9_-]{16,190}$/.test(requestKey||'')||
+        !/^[a-f0-9]{64}$/.test(fingerprint||'')||
+        !['provider_quote','published_price','metered'].includes(pricingSource)||
+        (priceCents!==null&&(!Number.isSafeInteger(priceCents)||priceCents<1)))
+        return false;
+      const run=getSql();
+      const rows=await run`WITH used AS (
+          UPDATE purchase_intents SET status='consumed',consumed_at=now()
+          WHERE id=${reference} AND vercel_account=${account}
+            AND operation=${operation} AND request_key=${requestKey}
+            AND fingerprint=${fingerprint} AND price_cents IS NOT DISTINCT FROM ${priceCents}
+            AND pricing_source=${pricingSource}
+            AND status='approved' AND approved_at IS NOT NULL
+            AND consumed_at IS NULL AND expires_at>now()
+            AND ceiling_cents IS NOT NULL
+            AND (price_cents IS NULL OR price_cents<=ceiling_cents)
+          RETURNING id
+        ),audit AS (
+          INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
+          SELECT ${account},'production','vercel_purchase_approval_consumed',
+            'A transaction-bound owner approval was consumed',FALSE,FALSE
+          FROM used RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM used)::int AS used_count,
+          (SELECT COUNT(*) FROM audit)::int AS audit_count`;
+      if(rows.length!==1||Number(rows[0].used_count)!==1||
+        Number(rows[0].audit_count)!==1) return false;
+      const read=await this.getPurchaseIntent({account,reference});
+      return read?.status==='consumed'&&Boolean(read.consumed_at);
+    },
     /** Safe single-account read for MCP callers: no cross-account enumeration or secrets. */
     async getVercelAccountSafe(id) {
       if (typeof id !== 'string' || !id || id.length > 256) {
@@ -630,6 +734,17 @@ export function createDb(query) {
         id BIGSERIAL PRIMARY KEY, vercel_account TEXT, kind TEXT NOT NULL, match TEXT NOT NULL, note TEXT,
         source TEXT NOT NULL DEFAULT 'default', added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE NULLS NOT DISTINCT (vercel_account, kind, match))`;
+
+      await run`CREATE TABLE IF NOT EXISTS purchase_intents (
+        id TEXT PRIMARY KEY, vercel_account TEXT NOT NULL,
+        operation TEXT NOT NULL, request_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+        price_cents BIGINT, pricing_source TEXT NOT NULL,
+        ceiling_cents BIGINT, status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL,
+        approved_at TIMESTAMPTZ,consumed_at TIMESTAMPTZ,
+        UNIQUE(vercel_account,operation,request_key))`;
+      await run`CREATE INDEX IF NOT EXISTS purchase_intents_expires ON purchase_intents(expires_at)`;
 
       await run`CREATE TABLE IF NOT EXISTS result_store (
         handle TEXT PRIMARY KEY, connection TEXT NOT NULL, vercel_account TEXT NOT NULL,

@@ -125,3 +125,6 @@ authorization to activate anything. Details: `docs/designs/B-8B-OWNER-BOUNDARY.m
 
 ## 2026-10-12 — IN-07: owner-controlled all-project eligibility
 The owner rejects any permanent project-identity prohibition, including this MCP's own project. Existing seeded exclusions must be removable through independently authenticated owner setup; protection of the server credential, last owner, production, billing, destructive changes and app-owned state is separate and stays in force. Implementation #107 is not production approval.
+
+## 2026-10-12 — IN-08: zero autonomous spending, unlimited individual owner approvals
+The owner sets a fixed $0 autonomous-spending policy. `confirm:true`, general spending limits and agent-generated proposals never authorize payment. Authenticated owner setup must independently approve a transaction tied to account, operation, payload digest, verified provider price or explicit ceiling and one-use nonce. No artificial amount/daily maximum applies to the owner. A $20/month additional Pro developer seat is shown in Vercel's published pricing (https://vercel.com/docs/plans/pro-plan); viewer seats free. Database foundation #108, enforcement awaits subsequent work. No live purchases authorized.
