@@ -118,6 +118,11 @@ export function makeVercelClient({
   async function request(id, params = {}, options = {}) {
     const spec = operation(id);
     const method = spec.method;
+    // Short read-only status polling must not inherit a 25s network stall.
+    const timeoutMs = options.timeoutMs ?? 25000;
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 25000 ||
+        (method !== 'GET' && options.timeoutMs !== undefined))
+      throw new TypeError('Invalid provider read timeout');
     const query = { ...params.query };
     if (query.teamId !== undefined && query.teamId !== account.team_id) {
       throw error('team_scope_mismatch', 'The operation cannot access a different Vercel team');
@@ -159,7 +164,7 @@ export function makeVercelClient({
           method, headers: { authorization: 'Bearer ' + token, accept: 'application/json',
             ...(params.body === undefined ? {} : { 'content-type': 'application/json' }) },
           ...(params.body === undefined ? {} : { body: JSON.stringify(params.body) }),
-          signal: AbortSignal.timeout(25000)
+          signal: AbortSignal.timeout(timeoutMs)
         });
       } catch (cause) {
         if (attempt === 0 && RETRYABLE.has(method) && cause?.name !== 'TimeoutError' &&

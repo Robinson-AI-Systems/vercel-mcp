@@ -88,15 +88,15 @@ function cursorFor(reply,items,limit){
 
 // A deployment ID is checked against its account-scoped project before either
 // ancillary GET. File names and log text may contain secrets: do not return raw.
-export async function scopedDeployment(args,ctx){
+export async function scopedDeployment(args,ctx,requestOptions={}){
   if(typeof args.deployment!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(args.deployment))
     throw new TypeError('Select a valid deployment ID');
   const {client,account}=await readProvider(ctx);
   const project=projectFor(args,account);
-  const row=await client.request('deployments_get',{path:{idOrUrl:args.deployment}});
+  const row=await client.request('deployments_get',{path:{idOrUrl:args.deployment}},requestOptions);
   const verified=summary(row,project);
   if(verified.id!==args.deployment)throw new TypeError('Deployment identity changed');
-  return {client,project};
+  return {client,project,verified};
 }
 function buildEventSummary(events){
   if(!Array.isArray(events))throw new TypeError('Invalid deployment events response');
@@ -175,6 +175,12 @@ export const deploymentReadTools={
       inputSchema:schema({project:{type:'string',maxLength:128},
         deployment:{type:'string',minLength:7,maxLength:128}},['deployment']),
       annotations:{readOnlyHint:true}},
+    {name:'vercel_deploy_wait',writes:false,profiles:PROFILES,area:'deployments',
+      description:'Boundedly poll a project-verified deployment status; return terminal state or instructions to call again.',
+      inputSchema:schema({project:{type:'string',maxLength:128},
+        deployment:{type:'string',minLength:7,maxLength:128},
+        waitSeconds:{type:'integer',minimum:0,maximum:8}},['deployment']),
+      annotations:{readOnlyHint:true}},
     {name:'vercel_deploy_list_files',writes:false,profiles:PROFILES,area:'deployments',
       description:'Read up to 20 safe deployment file-tree paths from an independently verified project/deployment.',
       inputSchema:schema({project:{type:'string',maxLength:128},
@@ -182,6 +188,32 @@ export const deploymentReadTools={
       annotations:{readOnlyHint:true}}
   ],
   handlers:{
+    async vercel_deploy_wait(args,ctx){
+      validateArgs(args,['project','deployment','waitSeconds']);
+      const seconds=args.waitSeconds??4;
+      if(!Number.isSafeInteger(seconds)||seconds<0||seconds>8)
+        throw new TypeError('Invalid bounded wait duration');
+      // Vercel's serverless invocation budget is not a 45-second guarantee.
+      // Each poll independently proves account/project/deployment identity.
+      const start=Date.now(),deadline=start+seconds*1000;
+      let verified,project,reads=0;
+      do{
+        ({verified,project}=await scopedDeployment(args,ctx,{timeoutMs:4000}));
+        reads++;
+        const state=verified.state;
+        if(['READY','ERROR','CANCELED'].includes(state))break;
+        const left=deadline-Date.now();
+        if(reads>=3||left<=1500)break;
+        await new Promise(resolve=>setTimeout(resolve,Math.min(1500,left)));
+      }while(Date.now()<deadline);
+      const state=verified.state;
+      const done=['READY','ERROR','CANCELED'].includes(state);
+      return asText({project,deployment:args.deployment,state,
+        done,successful:state==='READY',polls:reads,
+        waitedSeconds:Math.min(45,Math.max(0,Math.ceil((Date.now()-start)/1000))),
+        next:done?null:'Call vercel_deploy_wait again with the same deployment and project ID',
+        note:done?null:'A bounded read cannot certify the final state of an unfinished or unknown deployment'});
+    },
     async vercel_deploy_get_build_logs(args,ctx){
       validateArgs(args,['project','deployment']);
       const {client,project}=await scopedDeployment(args,ctx);

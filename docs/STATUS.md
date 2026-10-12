@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-2d bounded deployment waiting (#136 candidate):** `vercel_deploy_wait` uses the pinned project-verified GET, short per-request timeouts, up to 3 status observations and an 8-second caller wait budget (below the design's 45-second maximum). Terminal READY/ERROR/CANCELED is reported only after provider readback; other states explicitly instruct the agent to call again. Fake HTTP/CI acceptance remains separate from deployed custom-MCP and Hub D-4 proof. Next investigate runtime streaming and bounded file bytes against the pinned provider contract.
+
 - **D-2c Checks V2 diagnostics #135:** three read-only scoped endpoints implemented for project check definitions, deployment run lists and exact run details. Independent project/deployment GET verification prevents cross-resource disclosure; bounded 20-row summaries redact provider output bodies. Fake HTTP/OpenAPI CI evidence does not establish deployed Vercel/custom-MCP acceptance. Next: assess runtime streamed log bounds, file-content response transport and deployment wait budget before implementing safely. Full RTC live direct/relay/Sandbox owner acceptance and D-1 connected provider proof remain separate gates.
 
 
