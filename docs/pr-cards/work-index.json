@@ -521,7 +521,7 @@
         "prerequisite": "D-1",
         "scope": "read_only",
         "evidence": "D-1 card PR #66 explicitly permits D-2 reads independent of owner-only blocked D-1 operations",
-        "nextAction": "Write the D-2 card from approved Batch D and implement scoped deployment list/get reads with real pinned operations and tests",
+        "nextAction": "Maintain independently code-verified read diagnostics while D-1 external write acceptance remains unavailable",
         "restrictions": "No D-2 writes or production changes; provider authorization and externally connected acceptance remain independent gates"
       },
       "pr": [
@@ -531,14 +531,17 @@
         136,
         137,
         138,
-        139
+        139,
+        141,
+        142,
+        143
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "All ten D-2 read names have guarded code and fake HTTP/CI tests, but successful real file-content response shape remains unverified; deployed/provider and Hub D-4 acceptance are separate.",
-        "nextAction": "Independently verify the actual deployment file-content payload against an approved disposable nonproduction provider account; if incompatible, correct parser instead of pretending success. Resume eligible D-1 finite code acceptance immediately.",
-        "checkpoint": "After #139 CI; each PR/session start and whenever owner-configured HTTPS or disposable provider evidence appears",
+        "reason": "All ten read tools now have code and CI inventory evidence, but actual provider file response fields and owner-hosted service/Hub run acceptance remain unavailable.",
+        "nextAction": "Attempt a strictly authorized disposable non-production deployment file GET with actual response metadata through hosted scoped custom MCP; reconcile field names without guessing. Continue other approved roadmap work when environment is unavailable.",
+        "checkpoint": "At each PR/session boundary, and as soon as owner-hosted HTTPS, isolated token and disposable deployment are evidenced",
         "evidenceNeeded": "Provider response field/encoding and connected owner-scoped custom MCP, authenticated Hub TEST direct, relay, Sandbox, revocation proof.",
         "eligibilityCondition": "Local provider GET/status-safe read slices eligible after correct OpenAPI/transport evidence; real provider acceptance eligible only after owner-authorized deployed custom HTTPS origin, encrypted scoped token and revocation procedure.",
         "dependencies": [

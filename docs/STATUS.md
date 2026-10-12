@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-2 finite ten-read code acceptance (#143 candidate):** a new mandatory `npm run check` gate reconciles all approved D-2 catalog rows, registered handlers, read-only metadata, diagnostic area and existing test evidence. Adversarial tests reject missing/added tools, fake read classification and vanished tests. Real provider file-response contract and hosted RTC integration remain EXTERNAL_ACCEPTANCE_PENDING; do not close D-2 from CI alone.
+
 - **D-2 strict source-content transport (#142 candidate):** reject malformed provider JSON without echoing upstream fragments, refuse declared over-budget HTTP file replies and binary control bytes even when UTF-8 decoding succeeds. Existing canonical-base64/tree/project/secret guards remain. Offline fake provider/transport tests only; real JSON field shape is not certified.
 
 - **D-2 runtime log wire reconciliation (#141 candidate):** validate alternate published log field names with strict conflict refusal, fix complete-vs-capped JSON array accounting, and suppress raw parser-error text. Fake HTTP regression coverage; no connected provider acceptance yet.
