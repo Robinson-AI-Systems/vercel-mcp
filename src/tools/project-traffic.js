@@ -1,6 +1,6 @@
 // D-1k: explicit production-traffic changes. No deployment/resource edits.
 // Vercel's POST success body is empty; independent project state is required.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -64,6 +64,15 @@ function trafficWrite({name,id,desired}){
     async apply(_args,ctx,before,requestKey){
       if(before.paused===desired)return {unchanged:true};
       const provider=await writeProvider(ctx);
+      await requirePreDispatch(async()=>{
+        if(!['team','full'].includes(provider.account.scope))
+          throw new TypeError('Team authority is required for production traffic');
+        // Same immutable credential/team for the final proof and traffic POST.
+        const row=await provider.read('projects_get',{path:{idOrName:before.id}});
+        if(row?.id!==before.id||row?.name!==before.name||
+          typeof row.paused!=='boolean'||row.paused!==before.paused)
+          throw new TypeError('Production traffic identity or pause state changed');
+      });
       return provider.write(id,{path:{projectId:before.id}},{
         requestKey,tool:name,shapeResult:()=>({accepted:true})
       });

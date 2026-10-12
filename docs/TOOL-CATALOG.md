@@ -79,6 +79,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 
 **D-1 settings execution revalidation (#84):** Before applying project rename/framework/build-command changes, the exact writable credential re-reads immutable project identity and production deployment classification. A newly-live or renamed project or narrowed credential refuses rather than crossing the original approval boundary.
 
+**D-1 traffic execution safety (#85):** Project pause/unpause revalidate team credential, exact immutable project identity and current paused state using the same binding as POST. Changed identity/state or narrowed credential refuses before traffic disruption; existing production confirmation still mandatory.
+
 ## Projects, crons and Git (`vercel_project_*`, `vercel_cron_*`, `vercel_git_*`) — 15
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
