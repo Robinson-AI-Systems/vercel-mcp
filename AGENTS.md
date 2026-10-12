@@ -87,6 +87,31 @@ five-PR outcome-based batch and produce the same compact prompt. Keep
 detailed history/evidence in repo, not in an oversized continuation prompt.
 Do not create a separate documentation-only PR to maintain this workflow.
 
+## Scoped blockers are problems to solve, not permission to stop (permanent owner directive, 2026-10-12)
+
+A blocker affecting one tool, operation, acceptance item, environment or milestone is **not a whole-project blocker**.
+Before declaring any work blocked, identify the failing contract and investigate its root cause: reproduce or inspect
+the defect, check CI logs, code, OpenAPI/provider mappings, configuration, dependencies, stale documentation,
+hosting limits and **owner decisions already answered**. Attempt every authorized repair and complete every eligible
+implementation/test step. Never convert an engineering defect into an unanswered owner question.
+
+Only after attempted remedies may a remaining unmet requirement be classified as a genuine external gate
+(permission, secret/credential, paid resource, unavailable provider evidence, owner approval or external deployment).
+Record its exact scope, root cause, attempts, independent evidence, dependency, next executable action,
+owner and re-entry condition in the existing work index/STATUS; never bypass security, spend, data integrity,
+owner approval, or assert fabricated connected acceptance. **Isolate that operation**, enumerate the
+remaining roadmap/dependencies, and immediately progress the highest-priority approved independent task
+(including approved read-only exceptions). Do not let one unverified endpoint freeze D-1/D-2 or unrelated cards.
+Recheck triggers at each PR boundary, session start and whenever environment/owner/dependency evidence changes;
+return newly eligible work to active implementation automatically.
+
+Five substantive merges remain the normal batch boundary, counting already merged PRs; neither pad with
+unrelated tasks nor stop early merely because a preferred acceptance step is externally gated. An early stop
+requires concrete evidence that *all* safe eligible work has been exhausted or a specific execution limitation,
+including what was attempted and the smallest external action truly needed. Future continuation prompts
+refer back to this authoritative rule and identify the next concrete outcome, unverified acceptance and due
+re-entry triggers, not just a PR quota.
+
 ## Blocked work must return to the roadmap (all future cards)
 
 A blocked or incomplete card is **not** postponed indefinitely. Before switching to another
