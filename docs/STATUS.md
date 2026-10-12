@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-2c Checks V2 diagnostics #135:** three read-only scoped endpoints implemented for project check definitions, deployment run lists and exact run details. Independent project/deployment GET verification prevents cross-resource disclosure; bounded 20-row summaries redact provider output bodies. Fake HTTP/OpenAPI CI evidence does not establish deployed Vercel/custom-MCP acceptance. Next: assess runtime streamed log bounds, file-content response transport and deployment wait budget before implementing safely. Full RTC live direct/relay/Sandbox owner acceptance and D-1 connected provider proof remain separate gates.
+
+
 - **D-2b #134 — deployment diagnostics:** verified-project build-log event summary and source-file tree via pinned Vercel read-only GETs. Returns bounded event counts and safe first-error step without raw text; bounded file list without contents. Independent deployment/project readback guards against cross-project access. Malformed/overdeep trees and provider identity mismatches fail closed. Unit/CI fake-provider evidence only, no deployed Vercel provider acceptance. Next D-2c: file contents and runtime/check reads after verifying stream/response bounds; no manual deploy or paid changes.
 
 

@@ -31,7 +31,7 @@ function deploymentLocator(value){
     throw new TypeError('Invalid deployment identifier');
   return value;
 }
-function projectFor(args,account){
+export function projectFor(args,account){
   const requested=args.project;
   if(requested!==undefined && (typeof requested!=='string'||!IDENT.test(requested)))
     throw new TypeError('Select a valid project ID');
@@ -88,7 +88,7 @@ function cursorFor(reply,items,limit){
 
 // A deployment ID is checked against its account-scoped project before either
 // ancillary GET. File names and log text may contain secrets: do not return raw.
-async function scopedDeployment(args,ctx){
+export async function scopedDeployment(args,ctx){
   if(typeof args.deployment!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(args.deployment))
     throw new TypeError('Select a valid deployment ID');
   const {client,account}=await readProvider(ctx);

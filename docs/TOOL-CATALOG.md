@@ -112,9 +112,9 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_deploy_list_files` | Project-verified bounded deployment source-file tree: safe file paths, no source content, honest empty/partial availability | — | B | R | — | D-2 (source tree #134; output-file completeness unverified) |
 | `vercel_deploy_get_file` | One file's contents from a deployment (size-capped; key-shaped strings hidden) | — | B | R | — | D-2 |
 | `vercel_deploy_wait` | Wait up to 45 seconds for a deployment to finish; returns the state and how to keep waiting | — | B Op | R | — | D-2 |
-| `vercel_check_list_runs` | Check runs attached to a deployment (Checks V2) with conclusions | — | B Op | R | — | D-2 |
-| `vercel_check_get_run` | One check run with its output | — | B Op | R | — | D-2 |
-| `vercel_check_list_project_checks` | The checks configured for a project | — | B O | R | — | D-2 |
+| `vercel_check_list_runs` | Scoped Checks V2 run summaries (first 20), safe status/conclusion/task counts; provider completeness unknown, no raw output | — | B Op | R | — | D-2 (read #135) |
+| `vercel_check_get_run` | One project-verified deployment check run: safe state/conclusion only; raw outputs withheld pending separately authorized sanitizer | — | B Op | R | — | D-2 (read #135; raw output unsupported) |
+| `vercel_check_list_project_checks` | Project-bound configured Checks V2 inventory, first 20 projected names/types, counts not assumed complete | — | B O | R | — | D-2 (read #135) |
 
 ## Deployments: changes (`vercel_deploy_*`) — 5
 

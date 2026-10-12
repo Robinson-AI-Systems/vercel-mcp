@@ -523,16 +523,17 @@
       },
       "pr": [
         132,
-        134
+        134,
+        135
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "First approved deployment list/detail read slice is implemented; remaining approved logs, file reads, wait and checks are not.",
-        "nextAction": "Verify API response modes for file contents and runtime/checks; implement D-2c bounded diagnostics/wait in the next eligible substantive PR, preserving project-scope readback.",
-        "checkpoint": "Immediately after PR #134 exact-head merge and each subsequent session start",
-        "evidenceNeeded": "D-2c safe file-content + runtime/check and bounded wait operations against pinned REST, with response/stream limits; then authenticated deployed service read acceptance.",
-        "eligibilityCondition": "D-1 PR #66 permits D-2 read-only work regardless of owner-only D-1 write acceptance; server-side scoped provider GET mappings and fake-HTTP tests are eligible now.",
+        "reason": "D-2 deployment list/get, build summaries/source-file tree and Checks V2 safe reads implemented; runtime logs, file content and bounded wait remain unverified or not built, plus all external custom-MCP acceptance.",
+        "nextAction": "Audit D-2 remaining 3 read operations against Basic response/stream time limits and implement next substantive safe slice; preserve honest external acceptance blockers.",
+        "checkpoint": "First next development session after #135 and immediately on newly verified provider/hosting/owner evidence",
+        "evidenceNeeded": "Verify bounded streamed runtime log and file-content transport; test 45-second wait within Basic serverless invocation limits; prove real read-only custom MCP HTTPS with protected credentials when owner deploy prerequisites are met.",
+        "eligibilityCondition": "Local provider GET/status-safe read slices eligible after correct OpenAPI/transport evidence; real provider acceptance eligible only after owner-authorized deployed custom HTTPS origin, encrypted scoped token and revocation procedure.",
         "dependencies": [
           "D-1"
         ]
