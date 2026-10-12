@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1aj PR #83 — metered resource execution proof:** guarded build/function resource mutations now recheck immutable project identity, same-bound writable token authority and independently owner-approved daily spending immediately before billable PATCH. Changed limits, scope or project identity abort without write. D-1 still IN_PROGRESS; production inactive.
+
 - **D-1ai PR #82 — destruction credential-race closure:** empty-only deletion now uses the identical write credential and team for complete final inventory and irreversible DELETE. Credential/scope changes cause definite pre-dispatch refusal; conservative project `hasDeployments` remains a hard gate even when the separate page is empty. No new deletion authority or live operations.
 
 - **D-1ah PR #81 — six post-merge review corrections:** canonical metadata sanitization, numeric deployment impact with conservative emptiness, same credential for write-time project access and Git proof, spend policy after Git reads, and retry-safe release for definite pre-dispatch denial. Adversarial unit and database checks; D-1 remains IN_PROGRESS, owner gates and production inactivity unchanged.
