@@ -4,6 +4,7 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
+import {verifyEligibleTeamMember} from './project-member-safety.js';
 
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const properties={
@@ -62,6 +63,10 @@ const revoke=defineWrite({
     // replay to reach the atomic store; a new key is a verified no-op.
     if(user && (!['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role)||rows.length<2))
       throw new TypeError('Admin, owner and final-member changes require separate owner checks');
+    // Project role alone is insufficient proof of the target's team authority.
+    // Remove only an independently verified team contributor, never an owner,
+    // member or an ambiguous identity even when a project page labels it viewer.
+    if(user)await verifyEligibleTeamMember(client,account.team_id,args.uid);
     return {project:project.id,name:project.name,uid:args.uid,role:user?.role??null,
       alreadyAbsent:!user};
   },

@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1u PR #68 — provably safe role revocation:** reuse the authenticated team contributor/complete-membership preflight for viewer/developer removals, preventing a misleading project role field from revoking a team owner/member or ambiguous identity. Missing, unconfirmed, paginated or non-contributor team records are denied before DELETE. No new owner role capability or real Vercel write.
+
+
 - **D-1t PR #67 — independently verified existing team identity:** ordinary project member grants require an independently fetched, complete team page containing exactly one confirmed CONTRIBUTOR matching the supplied UID. The team identifier comes only from the stored account, and no team invitation is issued. Owner/admin project access remains blocked. Fake Vercel and exact-head CI only; no live provider resources.
 
 

@@ -27,6 +27,10 @@ function fixture(){
 }
 const parse=r=>JSON.parse(r.content[0].text);
 function reads(f,after=[leader]){
+  f.fake.when('GET','/v3/teams/{teamId}/members').resolves({
+    members:[{uid,role:'CONTRIBUTOR',confirmed:true}],
+    pagination:{next:null,hasNext:false}
+  });
   f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
   f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
   f.fake.when('GET','/v1/projects/{idOrName}/members')
@@ -81,6 +85,22 @@ describe('D-1i guarded project member removal',()=>{
     u.fake.when('GET','/v2/user').resolves({user:{}});
     expect(parse(await u.call(payload)).status).toBe('refused_by_guard');
     expect(u.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+  });
+  it('refuses removing a team owner, unconfirmed or missing contributor before DELETE',async()=>{
+    for(const page of [
+      {members:[{uid,role:'OWNER',confirmed:true}],pagination:{next:null}},
+      {members:[{uid,role:'CONTRIBUTOR',confirmed:false}],pagination:{next:null}},
+      {members:[{uid:'wrong_FAKE',role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}},
+      {members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:42}},
+      {members:[]}
+    ]){
+      const f=fixture();reads(f);
+      f.fake.when('GET','/v3/teams/{teamId}/members').resolves(page);
+      const result=parse(await f.call(payload));
+      expect(result.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+      expect(f.fake.calls.at(-1).params.teamId).toBe('team_FAKE');
+    }
   });
   it('reports read-back mismatch, not a fabricated confirmed deletion',async()=>{
     const f=fixture();reads(f,[leader,staff]);
