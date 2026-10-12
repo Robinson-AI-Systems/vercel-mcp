@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC/D-1 cross-door contradictory-metadata hardening #125:** shared OAuth/MCP profile discovery and direct invocation now refuse nominal read declarations with guarded-write contracts, owner administration, secret directions, destructive hints or contradictory read-only annotations. RTC metadata mirrors the same classification and read-only batch/direct dispatch refuses. Adversarial tests cover every profile and HTTPS. No provider activation, live D-4 proof, spending permission or production deployment. Five-PR boundary reached; see handoff on PR #125 after merge.
+
+
 - **RTC batch aggregate result-store #124:** ten individually safe read responses must not combine into an oversized HTTP envelope. Inline ≤8 KiB; otherwise write a scoped, 24-hour transient result via the existing pass-derived owner and return a valid handle, read using #123 paged results. No production, money or permanent provider mutation; offline fake/Hub acceptance only.
 
 
