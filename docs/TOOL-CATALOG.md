@@ -551,3 +551,5 @@ D-1bf (#105): project member grants/removals now reject conflicting pagination c
 D-1bg (#106): the eighth percent decode is screened for generic high-entropy secrets in compact/project/Git responses; metered Git imports revalidate the owner spend setting after the last project-name read.
 
 IN-07 (#107): existing optional protected project exclusions can be cleared only by the authenticated owner in setup; no hard-coded service name or server project ID is a permanent write ban. Server credential and other safeguards remain.
+
+IN-08 (#108): priced operations will require separately authenticated transaction-bound owner purchase approvals. Ledger is implemented first; it does not grant any new paid tool authority and is not itself a purchase operation. Verified additional Pro developer seat rate: $20/month; free Viewer seats (Vercel Pro pricing).

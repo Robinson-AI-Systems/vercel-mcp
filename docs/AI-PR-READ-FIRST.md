@@ -50,3 +50,6 @@ applicable item in the PR description saying how it is honored.
 ## Context
 18. New tools keep listing descriptions ≤160 characters and default results ≤8 KB or a handle (budget check green);
     logs are summarized by default.
+
+## IN-08 owner purchase approval (2026-10-12)
+A stored daily limit, AI `confirm:true` or a proposed intent must never independently authorize money-out. Before charging, verify a separately authenticated owner's one-use, account/tool/payload/quote-bound approval. Variable fees require the owner to approve an explicit ceiling and fail closed without enforceable cost evidence. The owner has no arbitrary spending maximum. Record verified read-back and refuse replay, revocation or stale pricing.

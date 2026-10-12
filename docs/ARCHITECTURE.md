@@ -96,3 +96,5 @@ B-8 remaining revoke/spend and independent approval still require implementation
 ## C-1a scoped result persistence (#41)
 - `result_store` includes account, per-authenticated-bearer owner, opaque handle, 24-hour max expiry, sanitized JSONB, and an expiry index. Read path removes at most 100 expired rows; no public tool yet.
 - `requireMcpToken` internally derives a nonenumerable per-bearer result identity. No live Neon database or Vercel token configured.
+
+IN-08 (PR #108): additive `purchase_intents` ledger stores account, exact operation, request key, hashed payload fingerprint, quoted cents or variable-cost classification, owner ceiling and one-use status. Owner-approved amounts are BIGINT, with no policy-defined upper bound; JavaScript safe-integer validation remains necessary. Separate owner web authorization and paid dispatcher enforcement are not part of this foundation and remain blocked until verified.
