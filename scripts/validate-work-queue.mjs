@@ -1,7 +1,6 @@
 // Enforce a durable return path for any work paused behind an owner or external gate.
 // Read-only validation: never contacts providers, reads credentials or changes deployment.
 import {readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
 
 export function ownerInputStates(markdown) {
   const states = new Map();
