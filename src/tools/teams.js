@@ -54,7 +54,7 @@ export const teamReadTools={
     async vercel_team_list(args,ctx){
       noArgs(args);
       const {client,teamId}=await selected(ctx);
-      const page=await client.request('teams_list',{query:{limit:100}});
+      const page=await client.request('teams_list_unscoped',{query:{limit:100}});
       if(!Array.isArray(page?.teams)||page.teams.length>100)
         throw new TypeError('Vercel team inventory unavailable');
       const team=page.teams.find(row=>row?.id===teamId);
