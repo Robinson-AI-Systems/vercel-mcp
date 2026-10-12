@@ -13,13 +13,16 @@ export function rtcMetadata(tool,registered){
   if(!IDENT.test(tool.name))throw new TypeError('Invalid RTC tool name');
   // A read classification needs affirmative, unambiguous registry evidence:
   // absence, bad scope, or contradictory hints cannot silently become a read.
-  const scoped=typeof registered?.area==='string'&&AREA.test(registered.area);
+  // RTC historically scopes explicitly registered reads with no area to
+  // the narrow server area; invalid *supplied* areas must not get that default.
+  const hasArea=Boolean(registered&&Object.hasOwn(registered,'area'));
+  const scoped=!hasArea||(typeof registered.area==='string'&&AREA.test(registered.area));
   const writes=registered?.writes!==false||!scoped||
     registered?.annotations?.readOnlyHint===false||
     tool?.annotations?.readOnlyHint===false||META_MUTATIONS.has(tool.name);
   const money=Boolean(registered?.writeContract?.spend);
   const destructive=Boolean(registered?.annotations?.destructiveHint);
-  const area=scoped?registered.area:'unclassified';
+  const area=!hasArea?'server':scoped?registered.area:'unclassified';
   return {
     name:tool.name,
     description:safeDescription(tool.description),
