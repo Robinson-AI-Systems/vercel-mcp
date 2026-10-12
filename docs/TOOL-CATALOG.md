@@ -528,3 +528,5 @@ D-1ar (#91): Project/team member inventory preflight refuses contradictory user 
 D-1as (#92): `vercel_project_list` and `vercel_project_get` report `paused: null` when provider pause metadata is missing or contradictory, rather than false assurance of an unpaused project.
 
 D-1at (#93): Read-only `vercel_git_search_repos` only projects canonical URLs from the selected provider host; off-provider and lookalike URLs are suppressed.
+
+D-1au (#94): `vercel_project_create` Git imports require authoritative matching `fullName` when Vercel returns one; a conflicting repository `slug` cannot satisfy the guarded identity proof.

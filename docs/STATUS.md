@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1au PR #94 — canonical Git import identity:** authenticated repository search now treats `fullName` as authoritative when present; a colliding `slug` cannot override another repository identity before a potentially metered Git project creation. Scope and $0 default preserved; D-1 IN_PROGRESS.
+
 - **D-1at PR #93 — Git repository link authenticity:** read-only Git search only projects canonical HTTPS repository links on the selected Git provider's recognized hostname, excluding external and lookalike hosts. Git identity/spend/creation gates unchanged; D-1 IN_PROGRESS.
 
 - **D-1as PR #92 — truthful project pause status:** project summaries and detail now distinguish unknown, contradictory and confirmed paused/unpaused metadata. Unknown never displays as safely running; provider read only, no traffic change. D-1 IN_PROGRESS.
