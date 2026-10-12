@@ -41,6 +41,16 @@ describe('B-6 strict profile filtering', () => {
       connection:{account:'fixture',mode:'preview',profile:'full'}});
     expect(r.content[0].text).toBe('ran');
   });
+  it('preserves only the audited guarded vercel_call meta delegate exception',()=>{
+    const delegate={name:'vercel_call',writes:false,
+      profiles:['read_only','everyday','full'],
+      annotations:{readOnlyHint:false}};
+    expect(visibleToProfile(delegate,'read_only')).toBe(true);
+    expect(visibleToProfile({...delegate,writeContract:{spend:true}},'full')).toBe(false);
+    expect(visibleToProfile({...delegate,annotations:{
+      readOnlyHint:false,destructiveHint:true}},'full')).toBe(false);
+    expect(visibleToProfile({...delegate,name:'vercel_arbitrary_call'},'read_only')).toBe(false);
+  });
   it('hides internal tool safety metadata in lists', () => {
     const listed=listMcpTools(registry,{profile:'full'}).find(t=>t.name==='vercel_enable_production');
     expect(listed).not.toHaveProperty('writes');
