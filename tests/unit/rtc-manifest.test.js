@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {registry} from '../../src/tools/index.js';
-import {rtcManifest,rtcCatalog,rtcOpenApi,rtcMetadata} from '../../src/core/rtc-contract.js';
+import {rtcManifest,rtcCatalog,rtcMetadata} from '../../src/core/rtc-contract.js';
 import contract from '../../api/contract.js';
 import openapi from '../../api/rtc-openapi.js';
 function response(){
