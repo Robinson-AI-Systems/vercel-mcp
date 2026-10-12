@@ -17,7 +17,7 @@ let allowedReads=0;
 const db={
  async authorizeRtcPass(value){
    if(value!==pass)return {status:'permission'};
-   return state==='ok'?{status:'ok',account:'team_FAKE',id:'pass_FAKE',
+   return state==='ok'?{status:'ok',account:'team_FAKE',id:'pass_'+'b'.repeat(20),
       profile:'read_only',mode:'preview',listing:'catalog',areas:['server']}:
      {status:state};
  },

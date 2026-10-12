@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC fail-closed metadata/pass hardening #120:** RTC read-only catalogs require explicit read classification, valid area and non-contradictory read hints; duplicate names cannot be discovered, described, invoked or batched. DB-derived RTC pass identity, account, scopes and listing must be well formed before any provider read. Adversarial tests; no permissions widened, real D-4 hosted acceptance still pending.
+
 - **IN-08 last-moment pricing #119:** every spend-classified write (including $0) re-reads its server-owned price/recurrence/description after replay claim and before provider dispatch; a changed price or now-recurring cost refuses. For approved fixed one-time charges the check occurs before consumption of the one-use owner purchase grant. No new charge authority or live provider acceptance.
 
 - **RTC discovery pagination #118:** authenticated HTTPS tool listing now accepts bounded `cursor` offset and returns a usable `next`, with scope/write filtering applied before pagination. Reject malformed selectors; OpenAPI names documented filters. Offline fake catalog tests cover all pages and no hidden tools. No new authority or live acceptance.

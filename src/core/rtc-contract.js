@@ -1,6 +1,7 @@
 // RTC 1 public metadata; never publishes account identifiers, credentials or secret input.
 import {listMcpTools} from './mcp-server.js';
 const IDENT=/^vercel_[a-z0-9_]+$/;
+const AREA=/^[a-z][a-z0-9_]{0,47}$/;
 const META_MUTATIONS=new Set(['vercel_call']);
 const OWNER_TOOLS=new Set(['vercel_set_default_account','vercel_set_spend_limit',
   'vercel_revoke_connection','vercel_enable_production','vercel_disable_production']);
@@ -10,10 +11,18 @@ function safeDescription(value){
 }
 export function rtcMetadata(tool,registered){
   if(!IDENT.test(tool.name))throw new TypeError('Invalid RTC tool name');
-  const writes=registered?.writes===true||META_MUTATIONS.has(tool.name);
+  // A read classification needs affirmative, unambiguous registry evidence:
+  // absence, bad scope, or contradictory hints cannot silently become a read.
+  // RTC historically scopes explicitly registered reads with no area to
+  // the narrow server area; invalid *supplied* areas must not get that default.
+  const hasArea=Boolean(registered&&Object.hasOwn(registered,'area'));
+  const scoped=!hasArea||(typeof registered.area==='string'&&AREA.test(registered.area));
+  const writes=registered?.writes!==false||!scoped||
+    registered?.annotations?.readOnlyHint===false||
+    tool?.annotations?.readOnlyHint===false||META_MUTATIONS.has(tool.name);
   const money=Boolean(registered?.writeContract?.spend);
   const destructive=Boolean(registered?.annotations?.destructiveHint);
-  const area=registered?.area||'server';
+  const area=!hasArea?'server':scoped?registered.area:'unclassified';
   return {
     name:tool.name,
     description:safeDescription(tool.description),
@@ -31,8 +40,20 @@ export function rtcMetadata(tool,registered){
 }
 export function rtcCatalog(registry,connection){
   const requested={...connection,listing:connection?.listing||'catalog'};
+  // Duplicate declarations are ambiguous: neither the HTTPS catalog nor
+  // direct/batch RTC invocation may choose a potentially less safe first row.
+  const rows=Array.isArray(registry?.tools)?registry.tools:[];
+  const byName=new Map();
+  for(const row of rows){
+    if(typeof row?.name==='string'){
+      const values=byName.get(row.name)||[];
+      values.push(row);
+      byName.set(row.name,values);
+    }
+  }
   return listMcpTools(registry,requested)
-    .map(tool=>rtcMetadata(tool,registry.tools.find(row=>row.name===tool.name)));
+    .filter(tool=>byName.get(tool.name)?.length===1)
+    .map(tool=>rtcMetadata(tool,byName.get(tool.name)[0]));
 }
 export function rtcManifest(registry,version='0.1.0'){
   const all=rtcCatalog(registry,{profile:'full',listing:'catalog'});

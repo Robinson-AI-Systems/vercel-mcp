@@ -2,7 +2,7 @@ import {describe,it,expect,vi} from 'vitest';
 import {randomBytes} from 'node:crypto';
 import {rtcDoor} from '../../src/rtc/door.js';
 const pass='rtc_pass_'+randomBytes(32).toString('base64url');
-const a={account:'team_FAKE',id:'pass_FAKE',profile:'read_only',
+const a={account:'team_FAKE',id:'pass_'+'a'.repeat(20),profile:'read_only',
  mode:'preview',listing:'catalog',areas:['server']};
 const out=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
 function fixture(){
@@ -47,6 +47,35 @@ describe('RTC 1 read-only HTTPS door',()=>{
    expect(result.body.error.code).toBe(state);
    if(state==='rate_limited')expect(result.headers['Retry-After']).toBe('60');
   }
+ });
+ it('fails closed for untrusted or malformed SQL pass identity and scope',async()=>{
+  for(const invalid of [
+    {account:''},{account:'../team'},{id:'pass_FAKE'},
+    {areas:['server','server']},{areas:['server','INVALID']},
+    {areas:[{}]},{areas:[]},{listing:'unknown'},
+    {profile:'full'},{mode:'production'}
+  ]){
+    const f=fixture();
+    f.db.authorizeRtcPass.mockResolvedValueOnce({...a,...invalid,status:'ok'});
+    const result=await f.call('invoke','POST',{name:'vercel_fixture_read'},{});
+    expect(result.code).toBe(401);
+    expect(result.body.error.code).toBe('permission');
+    expect(f.read).not.toHaveBeenCalled();
+  }
+ });
+ it('denies ambiguous duplicate RTC declarations, even if one advertises read-only',async()=>{
+  const f=fixture();
+  const duplicate={name:'vercel_fixture_read',writes:true,
+    profiles:['read_only'],area:'server',description:'Unsafe duplicate',
+    inputSchema:{type:'object',properties:{}}};
+  f.registry.tools.push(duplicate);
+  expect((await f.call('list')).body.result.tools.map(x=>x.name))
+    .not.toContain('vercel_fixture_read');
+  expect((await f.call('describe','GET',{name:'vercel_fixture_read'})).code).toBe(403);
+  expect((await f.call('invoke','POST',{name:'vercel_fixture_read'},{})).code).toBe(403);
+  expect((await f.call('batch','POST',{},
+    {calls:[{name:'vercel_fixture_read',args:{}}]})).code).toBe(403);
+  expect(f.read).not.toHaveBeenCalled();
  });
  it('discovers only allowed read tools and hides all mutating metadata',async()=>{
   const f=fixture();

@@ -28,6 +28,22 @@ describe('RTC 1 public manifest and scoped catalog',()=>{
     expect(full.find(x=>x.name==='vercel_project_set_build_resources')).toMatchObject({
       writes:true,money:true});
     expect(()=>rtcMetadata({name:'unauthorized_name'},{})).toThrow();
+    const tool={name:'vercel_future_capability',description:'Unknown future operation',
+      inputSchema:{type:'object',properties:{}}};
+    for(const missing of [undefined,{},
+      {writes:false,area:'../wrong'},
+      {writes:false,area:'server',annotations:{readOnlyHint:false}},
+      {writes:true,area:'server'}]){
+      const metadata=rtcMetadata(tool,missing);
+      expect(metadata.writes).toBe(true);
+      expect(metadata.annotations.readOnlyHint).toBe(false);
+    }
+    expect(rtcMetadata(tool,{writes:false})).toMatchObject({
+      writes:false,area:'server',annotations:{readOnlyHint:true}});
+    expect(rtcMetadata(tool,{writes:false,area:'server'})).toMatchObject({
+      writes:false,area:'server',annotations:{readOnlyHint:true}});
+    expect(rtcMetadata({...tool,annotations:{readOnlyHint:false}},
+      {writes:false,area:'server'}).writes).toBe(true);
   });
   it('public endpoints expose only manifest/openapi and do not need database or credentials',()=>{
     const res=response();contract({method:'GET'},res);
