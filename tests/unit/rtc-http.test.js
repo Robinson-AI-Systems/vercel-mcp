@@ -6,7 +6,7 @@ const a={account:'team_FAKE',id:'pass_FAKE',profile:'read_only',
  mode:'preview',listing:'catalog',areas:['server']};
 const out=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
 function fixture(){
- const read=vi.fn(async()=>out({value:'safe'}));
+ const read=vi.fn(async()=>out({label:'safe'}));
  const mutate=vi.fn(async()=>out({status:'applied'}));
  const registry={tools:[
   {name:'vercel_fixture_read',writes:false,profiles:['read_only'],area:'server',
@@ -61,7 +61,7 @@ describe('RTC 1 read-only HTTPS door',()=>{
  it('uses the MCP dispatcher, forbidding write and cross-area invocation',async()=>{
   const f=fixture();
   expect((await f.call('invoke','POST',{name:'vercel_fixture_read'},{})).body.result)
-    .toEqual({value:'safe'});
+    .toEqual({label:'safe'});
   expect((await f.call('invoke','POST',{name:'vercel_fixture_write'},{confirm:true})).code)
     .toBe(403);
   expect((await f.call('invoke','POST',{name:'vercel_hidden_read'},{})).code)
@@ -79,7 +79,7 @@ describe('RTC 1 read-only HTTPS door',()=>{
   expect(many.body.error.code).toBe('invalid_args');
   const ok=await f.call('batch','POST',{},{
     calls:[{name:'vercel_fixture_read',args:{}},{name:'vercel_fixture_read',args:{}}]});
-  expect(ok.body.result.results).toEqual([{value:'safe'},{value:'safe'}]);
+  expect(ok.body.result.results).toEqual([{label:'safe'},{label:'safe'}]);
  });
  it('isolates result handles to the original pass-derived owner',async()=>{
   const f=fixture();
