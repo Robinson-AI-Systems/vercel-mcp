@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **O-1 guarded team profile updates (#145 candidate):** approved owner-controlled name, slug, description and preview suffix PATCH guarded by full production connection, immutable stored team ID, Vercel-pinned schema, protected-resource policy, durable replay, before/after provider GETs and confirmed output. Slug changes explicitly warn of Vercel's weekly quota; secret-bearing text refused. No live owner mutation or provider acceptance; remaining O-1 security/retention/mapping writes separate.
+
 - **O-1 compatibility correction (#144 candidate):** preserve existing account token-probe bound-team `teams_list` requests; route new owner reads through distinct query-free `teams_list_unscoped` GET and avoid scope regression.
 
 - **O-1 read-only team identity and security overview (#144 candidate):** independently provider-verified selected team GET and selected-only list; explicit allowlist of safe profile/plan/security flags with no other team names, SAML certificates or invitation material. Team/project credential scope binding, no caller team override and safe error behavior. Code + fake HTTP tests, not connected provider acceptance. Owner security writes remain separately gated.

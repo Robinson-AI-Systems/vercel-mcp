@@ -6,6 +6,7 @@ export const OPS = Object.freeze({
   // Preserve existing token probes while the owner list uses no team query.
   teams_list_unscoped: Object.freeze({ method: 'GET', path: '/v2/teams', teamScoped: false }),
   teams_get: Object.freeze({ method: 'GET', path: '/v2/teams/{teamId}', teamScoped: false }),
+  teams_patch: Object.freeze({ method: 'PATCH', path: '/v2/teams/{teamId}', teamScoped: false }),
   // Exact team ID comes only from the stored account, not the caller. This
   // endpoint takes teamId in the path, not as a redundant query parameter.
   teams_members_list: Object.freeze({ method: 'GET', path: '/v3/teams/{teamId}/members', teamScoped: false }),

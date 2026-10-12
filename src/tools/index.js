@@ -20,5 +20,6 @@ import {projectResourcesTools} from './project-resources.js';
 import {deploymentReadTools} from './deployments.js';
 import {checksReadTools} from './checks.js';
 import {teamReadTools} from './teams.js';
+import {teamProfileWriteTools} from './team-profile-write.js';
 
-export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, checksReadTools, teamReadTools]);
+export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, checksReadTools, teamReadTools, teamProfileWriteTools]);
