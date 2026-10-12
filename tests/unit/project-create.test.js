@@ -202,11 +202,14 @@ describe('D-1f guarded project creation',()=>{
       requestKey:'gitCreationFAKE01'};
     const result=parse(await f.call(args,{...connection,mode:'production',profile:'full'}));
     expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','POST','GET']);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET','GET','POST','GET']);
     expect(f.fake.calls[0].query).toEqual({provider:'github'});
     expect(f.fake.calls[1].query).toEqual({provider:'github',namespaceId:'org_123',
       query:'site',teamId:'team_FAKE'});
-    expect(f.fake.calls[3].body).toEqual({name:'demo-site',gitRepository:{
+    expect(f.fake.calls[3].query).toEqual({provider:'github'});
+    expect(f.fake.calls[4].query).toMatchObject({provider:'github',namespaceId:'org_123',
+      query:'site',teamId:'team_FAKE'});
+    expect(f.fake.calls[5].body).toEqual({name:'demo-site',gitRepository:{
       type:'github',repo:'acme/site'}});
     expect(JSON.stringify(result)).not.toContain('never-log');
     expect(f.audit).toHaveLength(1);
@@ -278,6 +281,54 @@ describe('D-1f guarded project creation',()=>{
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
       expect(f.audit).toHaveLength(0);
     }
+  });
+  it('refuses a metered import if owner spending permission changes before POST',async()=>{
+    const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    let reads=0;
+    f.db.getVercelAccountSafe=async id=>({id,spend_limit_cents:++reads===1?20000:0});
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const res=parse(await f.call({name:'demo-site',gitRepository:linked,
+      confirm:true,requestKey:'budgetRaceFAKE01'},
+      {...connection,mode:'production',profile:'full'}));
+    expect(res).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(reads).toBe(2);
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('refuses Git import when repository access is revoked after preflight',async()=>{
+    const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({repos:[{fullName:'acme/site'}]})
+      .resolves({repos:[{fullName:'acme/site',requireReauth:true}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const res=parse(await f.call({name:'demo-site',gitRepository:linked,
+      confirm:true,requestKey:'gitRaceFAKE01'},
+      {...connection,mode:'production',profile:'full'}));
+    expect(res).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/search-repo')).toHaveLength(2);
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('refuses Git import if its namespace becomes restricted before execution',async()=>{
+    const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}])
+      .resolves([{id:'org_123',provider:'github',isAccessRestricted:true}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const res=parse(await f.call({name:'demo-site',gitRepository:linked,
+      confirm:true,requestKey:'namespaceRaceFAKE01'},
+      {...connection,mode:'production',profile:'full'}));
+    expect(res).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/git-namespaces')).toHaveLength(2);
   });
   it('does not mistake unverified Git link for completed provider import',async()=>{
     const f=fixture(20000);
