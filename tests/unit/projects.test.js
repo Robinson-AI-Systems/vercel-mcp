@@ -71,6 +71,42 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(fake.calls[0].query).toMatchObject({teamId:'team_ALPHA',limit:'10'});
     expect(fake.calls[0].params.idOrName).toBe('prj_DEMO');
   });
+  it('rejects conflicting and duplicate user UID aliases in project member reads',async()=>{
+    for(const members of [
+      [{uid:'user_A',userId:'user_B',role:'PROJECT_VIEWER'}],
+      [{uid:'user_A',role:'PROJECT_VIEWER'},
+       {userId:'user_A',role:'PROJECT_DEVELOPER'}]
+    ]){
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/projects/{idOrName}/members')
+        .resolves({members,pagination:{next:null}});
+      const response=await call('vercel_project_list_members',
+        {project:'prj_DEMO'},db,fake.fetch);
+      expect(response.isError).toBe(true);
+      fake.verify();
+    }
+  });
+  it('never passes off a membership record ID as a verified user ID',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/projects/{idOrName}/members').resolves({
+      members:[{id:'mbr_FAKE_record',name:'Not identified',role:'PROJECT_VIEWER'}],
+      pagination:{next:null}});
+    const data=parse(await call('vercel_project_list_members',
+      {project:'prj_DEMO'},db,fake.fetch));
+    expect(data.members[0]).toMatchObject({id:null,name:'Not identified'});
+  });
+  it('refuses contradictory top-level continuation hints on read pages',async()=>{
+    for(const name of ['vercel_project_list','vercel_project_list_members']){
+      const fake=makeFakeVercel();
+      const url=name==='vercel_project_list'?'/v10/projects':
+        '/v1/projects/{idOrName}/members';
+      const key=name==='vercel_project_list'?'projects':'members';
+      fake.when('GET',url).resolves({[key]:[],pagination:{next:null},
+        hasMore:true});
+      expect((await call(name,name==='vercel_project_list'?{}:
+        {project:'prj_DEMO'},db,fake.fetch)).isError).toBe(true);
+    }
+  });
   it('redacts credential-shaped project member identities and display fields',async()=>{
     const fake=makeFakeVercel();
     const secret='vcp_FAKE_sensitive_member';
