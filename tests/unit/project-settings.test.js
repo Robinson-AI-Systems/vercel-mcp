@@ -119,4 +119,55 @@ describe('D-1g guarded project settings',()=>{
       .toBe('refused_by_guard');
     expect(f.fake.calls).toHaveLength(0);
   });
+  it('advertises null resets and a 256-character maximum for all six PATCH fields',()=>{
+    const props=registry.tools.find(x=>x.name==='vercel_project_update_settings').inputSchema.properties;
+    for(const key of ['buildCommand','installCommand','devCommand',
+      'commandForIgnoringBuildStep','rootDirectory','outputDirectory']){
+      expect(props[key].anyOf).toEqual([
+        {type:'string',minLength:1,maxLength:256},{type:'null'}]);
+    }
+  });
+  it('clears grouped command and directory overrides with explicit null and omitted read-back',async()=>{
+    const f=fixture(),keys=['buildCommand','installCommand','devCommand',
+      'commandForIgnoringBuildStep','rootDirectory','outputDirectory'];
+    const old=Object.fromEntries(keys.map(key=>[key,key==='rootDirectory'?'apps/site':'custom']));
+    const reset=Object.fromEntries(keys.map(key=>[key,null]));
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({...before,...old}).resolves(before);
+    f.fake.when('PATCH','/v9/projects/{idOrName}')
+      .resolves({...before,...reset});
+    const result=parse(await f.call({project:before.id,...reset,confirm:true}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','PATCH','GET']);
+    expect(f.fake.calls[1].body).toEqual(reset);
+    expect(f.rows.size).toBe(2);
+    f.fake.verify();
+  });
+  it('treats absent/null defaults as unchanged, rather than sending a reset PATCH',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before);
+    const response=parse(await f.call({project:before.id,buildCommand:null,confirm:true}));
+    expect(response.status).toBe('refused_by_guard');
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+    f.fake.verify();
+  });
+  it('accepts 256 characters and rejects 257 before any provider I/O for every config key',async()=>{
+    for(const key of ['buildCommand','installCommand','devCommand',
+      'commandForIgnoringBuildStep','rootDirectory','outputDirectory']){
+      const over=fixture();
+      const invalid=await over.call({project:before.id,[key]:'a'.repeat(257),confirm:true});
+      expect(invalid.isError||parse(invalid).status==='refused_by_guard').toBe(true);
+      expect(over.fake.calls).toHaveLength(0);
+      const good=fixture(),value='a'.repeat(256);
+      good.fake.when('GET','/v9/projects/{idOrName}')
+        .resolves(before).resolves({...before,[key]:value});
+      good.fake.when('PATCH','/v9/projects/{idOrName}')
+        .resolves({...before,[key]:value});
+      const result=parse(await good.call({project:before.id,[key]:value,confirm:true}));
+      expect(result).toMatchObject({status:'applied',confirmed:true});
+      expect(good.fake.calls[1].body).toEqual({[key]:value});
+      good.fake.verify();
+    }
+  });
+
 });

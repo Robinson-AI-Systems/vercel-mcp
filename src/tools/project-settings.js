@@ -4,7 +4,7 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {CONFIG_SETTINGS,configFields,invalidProjectConfiguration,providerConfigBody} from './project-config-fields.js';
+import {CONFIG_SETTINGS,configFields,invalidProjectConfiguration,providerConfigBody,sameProjectConfiguration} from './project-config-fields.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const NAME=/^[a-z0-9][a-z0-9._-]{0,99}$/;
@@ -27,7 +27,7 @@ function validate(args){
     (args.name!==undefined&&(typeof args.name!=='string'||!NAME.test(args.name)))||
     (args.framework!==undefined&&args.framework!==null&&
       (typeof args.framework!=='string'||args.framework.length===0||args.framework.length>100))||
-    invalidProjectConfiguration(args)||
+    invalidProjectConfiguration(args,{nullable:true})||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
     throw new TypeError('Invalid project settings request');
@@ -59,7 +59,7 @@ const update=defineWrite({
     // Undefined production metadata is unknown, and is treated as live.
     const live=row.hasDeployments!==false;
     const configChanges=CONFIG_SETTINGS.filter(key=>
-      args[key]!==undefined && args[key]!==row[key]);
+      args[key]!==undefined && !sameProjectConfiguration(args[key],row[key]));
     if((args.name===undefined||args.name===row.name) &&
       (args.framework===undefined||args.framework===(row.framework??null)) &&
       configChanges.length===0)
@@ -107,7 +107,7 @@ const update=defineWrite({
     const row=await client.request('projects_get',{path:{idOrName:before.id}});
     return {confirmed:row?.id===applied?.id && row?.name===before.newName &&
       (!before.changeFramework || row.framework===before.newFramework) &&
-      before.configChanges.every(key=>row?.[key]===_args[key]),
+      before.configChanges.every(key=>sameProjectConfiguration(_args[key],row?.[key])),
       project:before.id};
   }
 });
