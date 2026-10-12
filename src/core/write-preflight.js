@@ -79,7 +79,7 @@ export async function writePreflight(spec, args, ctx) {
         purchase={cents:spend.recurring?null:spend.cents,recurring:spend.recurring,
           description:spend.description.trim()};
         moneyLine=spend.description.trim()+': '+
-          (spend.cents===null?'variable usage; an owner-specified ceiling is required':
+          (spend.cents===null||spend.recurring?'variable usage or ongoing recurring charges; a provider-enforceable total ceiling is required':
             '$'+(spend.cents/100).toFixed(2)+' USD')+
           '. Separately authenticated approval for this transaction is mandatory.';
       }

@@ -41,7 +41,7 @@ describe('B-1 conservative integer-cents spend guard', () => {
     expect(spendPreflight({ declaration, spentTodayCents: 0, spendLimitCents: 0, confirm: true }).code)
       .toBe('owner_required');
     expect(spendPreflight({ declaration, spentTodayCents: 100, spendLimitCents: 2000 }).code)
-      .toBe('needs_confirmation');
+      .toBe('owner_required');
     const decision = spendPreflight({ declaration, spentTodayCents: 100, spendLimitCents: 2000, confirm: true });
     expect(decision.allowed).toBe(false);
     expect(decision.code).toBe('owner_required');
