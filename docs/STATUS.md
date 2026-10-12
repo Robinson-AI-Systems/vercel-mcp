@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1ax PR #97 — transfer issuance credential-bound recheck:** a one-time transfer claim now requires an unchanged stored team/account and a fresh immutable project ID/name proof using the exact credential that would POST. Credential rotation or rename aborts before transfer code issuance. No claim is generated in real Vercel; production and owner controls unchanged. D-1 IN_PROGRESS.
+
 - **D-1aw PR #96 — conservative reported resource totals:** irreversible empty-only project deletion rejects any domain, environment or deployment inventory whose declared total contradicts the observed terminal page; totals on preflight and final bound-credential recheck are both enforced. Nonempty deletion, spending and production remain blocked. D-1 IN_PROGRESS.
 
 - **D-1av PR #95 — destructive storage inventory consistency:** empty-only project deletion now inspects both `storageConnections` and legacy `stores` when both are present; a nonempty or malformed secondary inventory refuses DELETE rather than allowing one empty alias to conceal data. D-1 remains IN_PROGRESS; independently owner-gated privileged roles and nonempty deletion remain disabled.
