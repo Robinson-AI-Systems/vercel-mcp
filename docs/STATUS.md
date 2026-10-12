@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC #133 — isolated Hub TEST identity:** Owner setup issues a separate `mode=test` pass, not a renamed preview credential. SQL limits TEST to exact `server` scope; HTTPS catalog, direct and batch dispatch expose only TEST-safe `vercel_whoami`, which never reads account data or real Vercel API resources. Unit/DB/pinned local Hub checks cover allowed and denied modes, scopes, dispatch and revocation. Actual owner-issued hosted pass, deployed HTTPS, Hub direct/relay/Sandbox and provider acceptance remain UNVERIFIED; production and spending restrictions unchanged.
+
+
 - **D-2a deployment reads #132:** implemented authenticated, project-bounded `vercel_deploy_list` and `vercel_deploy_get` via pinned GET /v7/deployments and /v13/deployments/{idOrUrl}, with provider project identity verification, pagination, ID/URL normalization and safe field projection. Fake HTTP/OpenAPI regression tests; no real Vercel read, deployment or paid resource. Read-only D-2 progression is explicitly permitted by D-1 #66. Next D-2b logs/files/checks. D-1 remains open with the finite acceptance inventory in `docs/pr-cards/D-1-ACCEPTANCE.md`, and no owner input is pending for IN-07 or IN-08.
 
 
