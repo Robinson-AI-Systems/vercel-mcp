@@ -39,7 +39,7 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('requires full impact inspection twice, one DELETE and independent 404 proof',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project).rejects(404);
-    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[]});
+    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
     f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
     f.deleteRule.resolves(undefined,204);
     const result=parse(await f.call());
@@ -170,7 +170,7 @@ describe('D-1m destructive empty-project deletion',()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves({...project,hasDeployments:true});
     f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
-    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[]});
+    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
     const result=parse(await f.call());
     expect(result.status).toBe('outcome_unknown');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
@@ -178,8 +178,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('fails confirmation if the project remains present after provider accepted DELETE',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project).resolves(project);
-    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[]});
-    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[]});
+    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
+    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
     f.deleteRule.resolves(undefined,204);
     const result=parse(await f.call());
     expect(result).toMatchObject({status:'applied',confirmed:false});
