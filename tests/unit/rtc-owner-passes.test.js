@@ -17,6 +17,7 @@ function fixture(){
   issueReadOnlyRtcPass:vi.fn(async()=>({token:issued,id:'pass_'+'a'.repeat(20)})),
   revokeRtcPass:vi.fn(async()=>true),
   insertOneTimeSecret:vi.fn(async()=>{}),
+  consumeOneTimeSecret:vi.fn(async()=>null),
   recordLoginAttempt:async()=>1,countRecentFailedLogins:async()=>0,
   markLoginAttemptSucceeded:async()=>{}
  };
