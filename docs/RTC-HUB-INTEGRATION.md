@@ -21,3 +21,7 @@ Owner approved narrowly scoped read-only, non-production tests on 2026-10-12. Th
 From a reviewed Hub checkout, configure protected `RTOOL_SERVERS=vercel=https://VERIFIED_ORIGIN` and protected `RTC_TEST_PASS` (plus `RTOOL_PASS_VERCEL` if required by CLI). Run `node scripts/agent-check.mjs --server vercel --read-tool vercel_whoami --pass-env RTC_TEST_PASS --expect-route direct --authorized-real-run`. Then prove a GitHub-only workspace relay route with exact scoped encrypted relay binding and `--expect-route relay`, and separately a Vercel Sandbox allow-listed direct run. Follow the Hub `docs/pr-cards/D-4.md` and `docs/AGENT-SETUP.md` for safeguards and route setup. Existing ordinary GitHub/Vercel connectors are NOT evidence of custom RTC routing.
 
 Record each run's reviewed commit, UTC timestamp, runner environment, expected/observed route, exit code, and pass revocation; do not record credential values or sensitive tool output. Revoke every temporary pass even on failure. No hosted relay bindings, real owner pass, live endpoint tests, real relay, or Sandbox run were configured or performed in PRs #112–#115. Production, money and D-2 remain gated independently.
+
+## Credential integrity cross-check
+
+The server-side output projector, audit writer and repository secret scanner recognize RTC pass bearer material. The scanner rejects a real-shaped pass even if the text contains FAKE. Tests use generated in-memory test credentials and verify that no bearer is emitted in scanner diagnostics, tool output or audit metadata.

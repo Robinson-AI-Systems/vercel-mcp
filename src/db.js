@@ -468,7 +468,7 @@ export function createDb(query) {
           return;
         }
         if (typeof value === 'string' &&
-          /(?:vcp_|github_pat_|ghp_|whsec_|sk_live_)[A-Za-z0-9_-]{8,}/.test(value)) {
+          /(?:rtc_pass_|vcp_|github_pat_|ghp_|whsec_|sk_live_)[A-Za-z0-9_-]{8,}/.test(value)) {
           throw new TypeError('Audit data contains a sensitive credential');
         }
       }

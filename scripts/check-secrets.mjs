@@ -25,6 +25,8 @@ export function isPinnedOpenApiSnapshot(path, bytes) {
 const RULES = [
   // Vercel access tokens: personal (vcp_), integration (vci_), app access/refresh (vca_/vcr_), API keys (vck_).
   ['Vercel token', /\bvc[pikar]_[A-Za-z0-9_-]{20,}/g, true],
+  // RTC 1 bearer is always sensitive, including values containing FAKE.
+  ['RTC pass', /\\brtc_pass_[A-Za-z0-9_-]{43}\\b/g, false],
   ['Vercel Blob token', /\bvercel_blob_rw_[A-Za-z0-9_]{16,}/g, true],
   ['Stripe live key', /\b(?:sk|rk)_live_[A-Za-z0-9]{12,}/g, false],
   ['Stripe test key', /\b(?:sk|rk)_test_[A-Za-z0-9]{12,}/g, true],
