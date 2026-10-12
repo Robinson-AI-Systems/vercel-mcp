@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1ae PR #78 — grant-time identity revalidation:** project role grants now re-read immutable project identity and independently re-prove confirmed team contributor eligibility immediately before POST. Changed team role or project identity stops execution; administrative grants remain separately owner-gated, production inactive. D-1 IN_PROGRESS.
+
 - **D-1ad PR #77 — nonempty deletion impact in dry-run only:** authenticated complete inventory counts explain nonempty deletion impact during dry-run without unlocking removal; confirmation remains empty-only and owner-gated. Fake REST verifies no DELETE or sensitive content. D-1 remains IN_PROGRESS.
 
 - **D-1ac PR #76 — safe project metadata projection:** project list and detail whitelists now reject credential-shaped, unbounded or control-bearing scalar fields and suspicious production alias URLs. Project settings/createdAt are bounded; no provider writes or owner gate changes. D-1 remains IN_PROGRESS.
