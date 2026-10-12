@@ -545,3 +545,5 @@ D-1bc (#102): project access grant/removal now refuses membership-only IDs and r
 D-1bd (#103): project/Git read metadata and the shared compact result shaper now screen nested percent-encoded credential text before presenting it to agents.
 
 D-1be (#104): `vercel_project_create` now refuses stale name-availability proofs by rechecking the proposed project name with its bound write credential immediately before creation.
+
+D-1bf (#105): project member grants/removals now reject conflicting pagination count and continuation flags during complete project/team inventory before access changes.

@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1bf PR #105 — membership pagination integrity:** complete team/project member inventories now reject contradictory root continuation flags, incomplete next-page signals and declared page counts that differ from observed records. Existing safe role grants/removals refuse before POST/DELETE on contradictory provider inventories. Fake-provider regression coverage; owner-gated admin and nonempty deletion still disabled. D-1 IN_PROGRESS; production inactive.
+
 - **D-1be PR #104 — name-collision race protection:** creation rechecks exact project name availability with the same bound credential that would POST, after any slow Git proof and owner spend checks; a concurrently claimed name or unverified GET refuses all creation. Fake-provider tests cover both empty and paid Git imports. D-1 IN_PROGRESS; no live resources or changed owner gates.
 
 - **D-1bd PR #103 — encoded metadata secrecy:** central credential checks now decode nested percent-encoded text for inspection before projecting project and Git metadata; unknown repeated nesting refuses rather than risking a hidden secret. Read-only fake-provider tests cover nested tokens; no provider write or additional authority. D-1 IN_PROGRESS; production inactive.

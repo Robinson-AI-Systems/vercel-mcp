@@ -36,6 +36,33 @@ describe('D-1ar member identity aliases',()=>{
     await expect(verifyEligibleTeamMember(client([record]),'team_FAKE',
       'user_FAKE_A')).resolves.toBeUndefined();
   });
+  it('refuses contradictory root, page and count inventory metadata',async()=>{
+    const row={uid:'user_FAKE_A',role:'CONTRIBUTOR',confirmed:true};
+    for(const reply of [
+      {members:[row],pagination:{next:null},hasMore:true},
+      {members:[row],pagination:{next:42},hasMore:false},
+      {members:[row],pagination:{next:42,hasMore:false}},
+      {members:[row],pagination:{next:null,count:0}},
+      {members:[row],pagination:{next:null,count:'1'}},
+      {members:[row],pagination:{next:null,count:2}}
+    ]){
+      const fake={request:vi.fn().mockResolvedValue(reply)};
+      await expect(completeMembers(fake,'projects_members_list',
+        {idOrName:'prj_FAKE'})).rejects.toThrow();
+      await expect(verifyEligibleTeamMember(fake,'team_FAKE',
+        'user_FAKE_A')).rejects.toThrow();
+      expect(fake.request).toHaveBeenCalledTimes(2);
+    }
+  });
+  it('accepts consistent page count with authenticated terminal inventory',async()=>{
+    const rows=[{uid:'user_FAKE_A',role:'CONTRIBUTOR',confirmed:true}];
+    const fake={request:vi.fn().mockResolvedValue({
+      members:rows,pagination:{next:null,count:1,hasNext:false,hasMore:false},
+      hasMore:false
+    })};
+    await expect(verifyEligibleTeamMember(fake,'team_FAKE',
+      'user_FAKE_A')).resolves.toBeUndefined();
+  });
   it('rejects a role grant when later pagination has a contradictory UID alias',async()=>{
     const fake={request:vi.fn()
       .mockResolvedValueOnce({members:[{uid:'user_FAKE_OTHER'}],pagination:{next:42}})

@@ -43,6 +43,16 @@ function reads(f,after=[leader]){
 }
 describe('D-1i guarded project member removal',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
+  it('refuses a revocation on contradictory member inventory pagination',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[staff,leader],pagination:{next:null,count:1}});
+    const result=parse(await f.call(payload));
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
   it('never revokes by a membership row ID without a verified UID',async()=>{
     const f=fixture();
     f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});

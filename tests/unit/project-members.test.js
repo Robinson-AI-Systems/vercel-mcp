@@ -40,6 +40,15 @@ function reads(fake,after){
 }
 describe('D-1h project access grants',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
+  it('refuses a grant on inconsistent member inventory pagination',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members')
+      .resolves({members:[],pagination:{next:null,count:1}});
+    const result=parse(await f.call({project:name,uid,role,confirm:true}));
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
   it('refuses access decisions when a project member only has a row ID',async()=>{
     const f=fixture();
     f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
