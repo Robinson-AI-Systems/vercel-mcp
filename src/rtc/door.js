@@ -10,6 +10,9 @@ import {prepareResult} from '../core/result-rules.js';
 const NAME=/^vercel_[a-z0-9_]{1,96}$/;
 const HANDLE=/^res_[a-f0-9]{32}$/;
 const PASS=/^Bearer (rtc_pass_[A-Za-z0-9_-]{43})$/;
+const ACCOUNT=/^[a-zA-Z0-9_/-]{3,256}$/;
+const PASS_ID=/^pass_[a-f0-9]{20}$/;
+const AREA=/^[a-z][a-z0-9_]{0,47}$/;
 const BLOCKED=new Set(['vercel_call','vercel_batch','vercel_search_tools',
   'vercel_describe_tool']);
 const MESSAGES={
@@ -120,8 +123,13 @@ async function requirePass(req,db,res,route){
   }
   const record=await db.authorizeRtcPass(m[1],units);
   if(record?.status!=='ok'){fail(res,record?.status in MESSAGES?record.status:'permission');return null;}
-  if(record.mode!=='preview'||record.profile!=='read_only'||
-    !Array.isArray(record.areas)||record.areas.length===0 ||
+  // A malformed database authorization record is never a valid scoped pass.
+  // Scope/account/identity must be independently well formed before dispatch.
+  if(!ACCOUNT.test(record.account||'')||!PASS_ID.test(record.id||'')||
+    record.mode!=='preview'||record.profile!=='read_only'||
+    !Array.isArray(record.areas)||record.areas.length===0||
+    record.areas.length>12||new Set(record.areas).size!==record.areas.length||
+    record.areas.some(area=>typeof area!=='string'||!AREA.test(area))||
     !['compact','catalog'].includes(record.listing)){
     fail(res,'permission');return null;
   }
