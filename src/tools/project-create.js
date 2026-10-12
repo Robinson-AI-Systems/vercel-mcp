@@ -98,6 +98,25 @@ const create=defineWrite({
     {cents:0,recurring:false,description:'Empty unlinked project creation'};},
   async targets(_args,before){return [{kind:'project',id:before.name,name:before.name}];},
   async apply(_args,ctx,before,requestKey){
+    if(before.git){
+      // A metered Git import may occur long after preview and approval. Repeat
+      // identity and independently owned spend-policy checks before the POST.
+      const {client,account}=await readProvider(ctx);
+      if(!['team','full'].includes(account.scope)||
+        ctx.connection?.profile!=='full'||ctx.connection?.mode!=='production')
+        throw new TypeError('Git import authority changed before execution');
+      const spending=await accountSpendGuard({db:ctx.db,account:ctx.connection.account})(
+        {cents:null,recurring:true,description:'Git import may incur metered build usage'},true);
+      if(!spending.allowed)
+        throw new TypeError('Owner-approved daily spending limit no longer permits this Git import');
+      const namespaces=await client.request('git_namespaces',{query:{provider:before.git.type}});
+      verifyGitNamespace(namespaces,before.git.type,before.git.namespaceId);
+      const search=await client.request('git_repos_search',{query:{
+        provider:before.git.type,namespaceId:before.git.namespaceId,
+        query:before.git.repo.split('/')[1]
+      }});
+      verifyExactGitRepository(search,before.git);
+    }
     const provider=await writeProvider(ctx);
     return provider.write('projects_create',{body:{
       name:before.name,...(before.framework?{framework:before.framework}:{}),...providerConfigBody(_args),
