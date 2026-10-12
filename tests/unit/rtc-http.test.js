@@ -197,6 +197,28 @@ describe('RTC 1 read-only HTTPS door',()=>{
     calls:[{name:'vercel_fixture_read',args:{}},{name:'vercel_fixture_read',args:{}}]});
   expect(ok.body.result.results).toEqual([{label:'safe'},{label:'safe'}]);
  });
+ it('pages stored handle records, projects safe fields and never exceeds 8KB',async()=>{
+  const f=fixture(),handle='res_'+'a'.repeat(32);
+  const rows=Array.from({length:45},(_,i)=>({id:i,label:'row-'+i,token:'must_be_removed'}));
+  f.db.getResult.mockResolvedValue({body:{rows},summary:'Test set'});
+  const a=await f.call('result','GET',{handle,page:'0',limit:'20',fields:'id,label'});
+  expect(a.code).toBe(200);
+  expect(a.body.result).toMatchObject({page:0,limit:20,count:45,hasMore:true,next:1});
+  expect(a.body.result.records).toHaveLength(20);
+  expect(a.body.result.records[0]).toEqual({id:0,label:'row-0'});
+  const b=await f.call('result','GET',{handle,page:'2',limit:'20'});
+  expect(b.body.result).toMatchObject({page:2,count:45,hasMore:false,next:null});
+  expect(b.body.result.records).toHaveLength(5);
+  expect(JSON.stringify(b.body)).not.toContain('must_be_removed');
+  for(const bad of [{page:['0']},{page:'-1'},{limit:'0'},{limit:'21'},
+    {detail:'write'},{fields:['id']},{unrelated:'1'}]){
+    const fail=await f.call('result','GET',{handle,...bad});
+    expect(fail.code).toBe(400);
+  }
+  f.db.getResult.mockResolvedValue({body:[{content:'x'.repeat(9000)}],summary:'Big'});
+  expect((await f.call('result','GET',{handle,page:'0'})).code).toBe(400);
+  expect((await f.call('result','GET',{handle,fields:'id'})).code).toBe(200);
+ });
  it('isolates result handles to the original pass-derived owner',async()=>{
   const f=fixture();
   f.db.getResult.mockResolvedValue({body:{message:'saved fixture'},summary:'Fixture'});
