@@ -121,11 +121,13 @@ export function createDb(query) {
             ${priceCents},${pricingSource},now()+interval '30 minutes'
           WHERE EXISTS(SELECT 1 FROM vercel_accounts WHERE id=${account})
           ON CONFLICT (vercel_account,operation,request_key) DO NOTHING
-          RETURNING id
+          RETURNING id,fingerprint,price_cents,pricing_source,status,expires_at
         )
+        SELECT id,fingerprint,price_cents,pricing_source,status,expires_at FROM inserted
+        UNION ALL
         SELECT id,fingerprint,price_cents,pricing_source,status,expires_at
         FROM purchase_intents WHERE vercel_account=${account} AND operation=${operation}
-          AND request_key=${requestKey}`;
+          AND request_key=${requestKey} AND NOT EXISTS (SELECT 1 FROM inserted)`;
       if(rows.length!==1||rows[0].fingerprint!==fingerprint||
         Number(rows[0].price_cents??-1)!==Number(priceCents??-1)||
         rows[0].pricing_source!==pricingSource||
