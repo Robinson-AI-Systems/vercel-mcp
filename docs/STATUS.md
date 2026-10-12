@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1al PR #85 — project traffic execution race hardening:** production pause/unpause now authenticate the current team scope, immutable project identity and original pause state using the same writable credential that would perform POST. Changed state, owner token rotation or project rename abort before traffic impact. D-1 remains IN_PROGRESS pending independently owner-gated operations. D-2 only when roadmap dependency authority permits; production inactive.
+
 - **D-1ak PR #84 — project settings confirmation-time identity and production protection:** rename, framework and grouped build-command/directory updates now validate final project identity and live-status classification through the exact PATCH credential. Project renames, rotated project scope and new live deployments abort before PATCH. D-1 remains IN_PROGRESS; production inactive.
 
 - **D-1aj PR #83 — metered resource execution proof:** guarded build/function resource mutations now recheck immutable project identity, same-bound writable token authority and independently owner-approved daily spending immediately before billable PATCH. Changed limits, scope or project identity abort without write. D-1 still IN_PROGRESS; production inactive.

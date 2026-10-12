@@ -16,7 +16,8 @@ function fixture(){
     requestReplayStore:()=>({
       claim:async({key})=>completed.has(key)?
         {state:'completed',result:completed.get(key)}:{state:'claimed',claimId:key},
-      complete:async({key,result})=>{completed.set(key,result);}
+      complete:async({key,result})=>{completed.set(key,result);},
+      release:async()=>{}
     })
   };
   const call=(name,args,c=connection)=>dispatchReadOnlyTool({
@@ -33,14 +34,15 @@ describe('D-1k guarded project pause/unpause',()=>{
     async(name,operation,initial,desired)=>{
       const f=fixture();
       f.fake.when('GET','/v9/projects/{idOrName}')
-        .resolves({...before,paused:initial}).resolves({...before,paused:desired});
+        .resolves({...before,paused:initial}).resolves({...before,paused:initial})
+        .resolves({...before,paused:desired});
       f.fake.when('POST','/v1/projects/{projectId}/'+operation).resolves({});
       const result=parse(await f.call(name,{project:before.id,confirm:true}));
       expect(result).toMatchObject({status:'applied',confirmed:true});
-      expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST','GET']);
-      expect(f.fake.calls[1].params.projectId).toBe(before.id);
-      expect(f.fake.calls[1].query.teamId).toBe('team_FAKE');
-      expect(f.fake.calls[1].body).toBeUndefined();
+      expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','POST','GET']);
+      expect(f.fake.calls[2].params.projectId).toBe(before.id);
+      expect(f.fake.calls[2].query.teamId).toBe('team_FAKE');
+      expect(f.fake.calls[2].body).toBeUndefined();
       expect(f.completed.size).toBe(2);
       expect(f.audits).toHaveLength(1);
       f.fake.verify();
@@ -91,12 +93,46 @@ describe('D-1k guarded project pause/unpause',()=>{
   it('does not mistake absent after-state for successful provider verification',async()=>{
     const f=fixture();
     f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
-      .resolves({...before,paused:undefined});
+      .resolves(before).resolves({...before,paused:undefined});
     f.fake.when('POST','/v1/projects/{projectId}/pause').resolves({});
     const result=parse(await f.call('vercel_project_pause',{project:before.id,confirm:true}));
     expect(result.status).toBe('applied');
     expect(result.confirmed).toBeNull();
     f.fake.verify();
+  });
+  it.each([
+    ['vercel_project_pause',false,true,'pause'],
+    ['vercel_project_unpause',true,false,'unpause']
+  ])('refuses a changed pause state between preview and %s execution',async(name,initial,desired)=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({...before,paused:initial}).resolves({...before,paused:desired});
+    const result=parse(await f.call(name,{project:before.id,confirm:true,
+      requestKey:'trafficChangedState01'}));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+  });
+  it('refuses an unexpected project rename before changing traffic',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(before).resolves({...before,name:'externally-renamed'});
+    const result=parse(await f.call('vercel_project_pause',{
+      project:before.id,confirm:true,requestKey:'trafficRenameRace01'}));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+  });
+  it('refuses a token rotated into project-only scope without POST',async()=>{
+    const f=fixture();
+    loadToken.mockResolvedValueOnce(token).mockResolvedValueOnce({
+      token:'vcp_FAKE_traffic_rotated',
+      account:{...token.account,scope:'project',project_id:before.id}
+    });
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before);
+    const result=parse(await f.call('vercel_project_pause',{
+      project:before.id,confirm:true,requestKey:'trafficRotateRace01'}));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(loadToken).toHaveBeenCalledTimes(2);
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
   });
   it('advertises both operations as writes without read-only selectors',()=>{
     for(const name of ['vercel_project_pause','vercel_project_unpause']){
