@@ -1,7 +1,7 @@
 // D-1c: bounded Git integration discovery via stored credentials only.
 import {readProvider} from '../vercel/provider.js';
 import {credentialLike} from '../core/util.js';
-import {verifyGitNamespace} from './git-identity.js';
+import {verifyGitNamespace,verifyGitSearchAccount} from './git-identity.js';
 const PROFILES=['read_only','everyday','full'];
 const PROVIDERS=['github','gitlab','bitbucket'];
 const safeText=x=>({content:[{type:'text',text:JSON.stringify(x)}]});
@@ -99,22 +99,7 @@ export const gitTools={
       const list=Array.isArray(raw)?raw:Array.isArray(raw?.repositories)?raw.repositories:
         Array.isArray(raw?.repos)?raw.repos:null;
       if(!Array.isArray(list))throw new TypeError('Unexpected Git repository response');
-      // The pinned object response carries the authenticated search identity
-      // at gitAccount, not necessarily on individual repositories. Verify it
-      // before allowing any row to be attributed to the requested namespace.
-      if(!Array.isArray(raw)){
-        const identity=raw?.gitAccount;
-        if(!identity||typeof identity!=='object'||Array.isArray(identity)||
-          identity.provider!==args.provider||
-          !Object.hasOwn(identity,'namespaceId')||
-          (identity.namespaceId!==null&&
-            !(typeof identity.namespaceId==='string'||
-              (typeof identity.namespaceId==='number'&&
-                Number.isSafeInteger(identity.namespaceId))) )||
-          (identity.namespaceId!==null&&
-            String(identity.namespaceId)!==args.namespaceId))
-          throw new TypeError('Git repository search account identity is unverified');
-      }
+      verifyGitSearchAccount(raw,args.provider,args.namespaceId);
       // Never label a row from a different provider or namespace as the
       // namespace just authenticated through the selected team connection.
       if(list.some(row=>row&&typeof row==='object'&&
