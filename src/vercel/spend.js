@@ -12,30 +12,29 @@ export function classifySpend({ cents, recurring = false, description = '' }) {
   }
   return { cents, recurring, description: description.trim() };
 }
+// Legacy daily-limit helper is advisory only. A positive owner limit and
+// AI confirm do not authorize a purchase; all paid writes use the separately
+// authenticated one-use purchase ledger in core/write.js.
 export function spendPreflight({ declaration, spentTodayCents, spendLimitCents, confirm = false }) {
   const quote = classifySpend(declaration);
-  const known = quote.cents !== null;
   if (!Number.isSafeInteger(spendLimitCents) || spendLimitCents < 0 ||
-    !Number.isSafeInteger(spentTodayCents) || spentTodayCents < 0) {
-    return { allowed: false, code: 'spend_settings_unavailable',
-      explanation: 'Spend limit or already-used amount cannot be verified' };
+      !Number.isSafeInteger(spentTodayCents) || spentTodayCents < 0) {
+    return { allowed:false, code:'spend_settings_unavailable',
+      explanation:'Spend settings or already-used amount cannot be verified' };
   }
-  const line = known ?
-    quote.description + ': ' + usd(quote.cents) + '. Today: ' + usd(spentTodayCents) +
-      ' of ' + usd(spendLimitCents) + '.' :
-    quote.description + ': usage-based pricing is not known in advance. ' +
-      'The owner must confirm the charge and review provider pricing.';
-  // Unknown usage cannot be authorized by the safe $0 default or an exhausted limit.
-  // A positive limit must have been independently approved on the owner setup page.
-  if (!known && (spendLimitCents === 0 || spentTodayCents >= spendLimitCents)) {
-    return {allowed:false,code:'spend_limit',explanation:line +
-      ' No unpriced change is permitted under this daily limit.'};
+  const amount = quote.cents === null ? 'unquantified usage' : usd(quote.cents);
+  const line = quote.description + ': ' + amount + (quote.recurring ? '; recurring charges' : '') +
+    '. Owner daily policy: ' + usd(spentTodayCents) + ' of ' + usd(spendLimitCents) + '.';
+  if (quote.recurring || quote.cents === null) {
+    return {allowed:false, code:'provider_ceiling_required',
+      explanation:line + ' A provider-enforceable total ceiling is required.'};
   }
-  if (known && quote.cents + spentTodayCents > spendLimitCents) {
-    return { allowed: false, code: 'spend_limit', explanation: line };
+  if (quote.cents > 0) {
+    return {allowed:false, code:'owner_required',
+      explanation:line + ' Separately authenticated transaction approval is required.'};
   }
-  if (!confirm) return { allowed: false, code: 'needs_confirmation', explanation: line };
-  return { allowed: true, code: 'allowed', explanation: line };
+  if (!confirm) return {allowed:false, code:'needs_confirmation',explanation:line};
+  return {allowed:true, code:'allowed', explanation:line};
 }
 
 // Shared account-bound policy adapter for any paid project write. No cost or

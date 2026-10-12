@@ -62,7 +62,8 @@ export async function writePreflight(spec, args, ctx) {
         typeof spend.recurring!=='boolean')
         return {refused:refusal('Provider pricing is invalid or unavailable')};
       spendCents=spend.cents;
-      if(spend.cents===0){
+      // An initial $0 is not free if recurring charges can follow.
+      if(spend.cents===0 && spend.recurring===false){
         if(typeof ctx.checkSpend!=='function')
           return {refused:refusal('Zero-cost policy service is unavailable')};
         const check=await ctx.checkSpend(spend,Boolean(args.confirm));
@@ -75,7 +76,7 @@ export async function writePreflight(spec, args, ctx) {
         // No daily allowance and no AI-supplied confirm can buy anything.
         // The central write executor requests and consumes a separate owner-
         // authenticated, transaction-specific, immutable purchase grant.
-        purchase={cents:spend.cents,recurring:spend.recurring,
+        purchase={cents:spend.recurring?null:spend.cents,recurring:spend.recurring,
           description:spend.description.trim()};
         moneyLine=spend.description.trim()+': '+
           (spend.cents===null?'variable usage; an owner-specified ceiling is required':

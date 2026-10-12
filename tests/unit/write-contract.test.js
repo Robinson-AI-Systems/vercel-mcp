@@ -35,6 +35,23 @@ describe('B-1 contract hardening', () => {
     expect(f.audits[1]).toMatchObject({dryRun:false,spendCents:475});
     expect(f.provider).toHaveLength(1);
   });
+  it('never treats a recurring $0 upfront or known per-cycle charge as a free one-time write',async()=>{
+    for(const cents of [0,1250]){
+      const f=sampleWrite({spend:true,cents});
+      f.spec.spend=async()=>({cents,recurring:true,description:'Ongoing billed resource'});
+      const args={confirm:true,requestKey:'recurringCostFAKE01'};
+      const preview=await f.tool.run({dryRun:true},f.ctx);
+      expect(preview.status).toBe('preview');
+      expect(preview.moneyLine).toContain('variable usage');
+      attachFakeOwnerPurchase(f.ctx);
+      const result=await f.tool.run(args,f.ctx);
+      expect(result.status).toBe('refused_by_guard');
+      expect(result.reason).toMatch(/provider-enforceable/i);
+      expect(f.provider).toHaveLength(0);
+      expect(f.audits).toHaveLength(1);
+      expect(f.rows.size).toBe(0);
+    }
+  });
   it('binds owner purchase identity to account, meaningful args, description and exact quote',()=>{
     const a={account:'acct_FAKE',mode:'production',profile:'full'};
     const quote={cents:2000,recurring:false,description:'Vercel provider quote'};
