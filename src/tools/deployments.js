@@ -337,7 +337,7 @@ export const deploymentReadTools={
         .filter(k=>args[k]!==undefined).map(k=>[k,args[k]]));
       return asText({project,deployments,count:deployments.length,filters,
         next,complete:next===null,
-        nextStep:next===null:
+        nextStep:next===null?null:
           'Call vercel_deploy_list with this project, the same filters, and until='+next});
     },
     async vercel_deploy_get(args,ctx){
