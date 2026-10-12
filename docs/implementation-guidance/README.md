@@ -5,6 +5,8 @@ current cards and drift protocol. Baseline inspected: `fad643a011171fee5766be9d0
 PR #24 is merged; all five main checks passed; no open PRs at inspection. B-8b is next, then C-1/C-2.
 Recheck GitHub before selecting work. Branch names from merged PRs are not unfinished work by themselves.
 
+**Current security update (#56):** §7 of [RECIPES](RECIPES.md#7-grouped-operations-and-security-first-throughput-d-1-onward) governs cohesive multi-operation PRs; the runtime authenticates the `defineWrite` origin and guarded handler, partitions transport replay per mutation and preserves write classification in MCP metadata. The older baseline map below is historical; verify current modules and signatures before following its examples.
+
 ## Choose the smallest reading route
 
 | Current task | Read | Then inspect |
