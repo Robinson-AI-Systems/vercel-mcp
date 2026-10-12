@@ -90,6 +90,11 @@ export function defineWrite(spec) {
     // exclusively from separately authenticated owner setup (not MCP confirm).
     let charge=null;
     if(purchase){
+      // An approved numeric ceiling is not meaningful unless the provider
+      // guarantees charges cannot exceed it. Vercel build/compute usage
+      // currently supplies no enforceable per-request maximum here.
+      if(purchase.cents===null) return refusal(
+        'Unbounded metered usage is disabled until a provider-enforceable owner ceiling can be verified');
       if(typeof args.requestKey!=='string')
         return refusal('A stable explicit requestKey is mandatory for paid operations');
       if(typeof ctx.db?.requestPurchaseIntent!=='function' ||
