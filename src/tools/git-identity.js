@@ -20,7 +20,9 @@ export function verifyExactGitRepository(response,{repo,provider,namespaceId}){
   if(!Array.isArray(rows)||rows.length>500)
     throw new TypeError('Git repository search cannot be verified');
   const matches=rows.filter(row=>row&&typeof row==='object'&&
-    (row.fullName===repo||row.slug===repo));
+    // A canonical fullName, if supplied, takes precedence over the slug.
+    // A matching stale/attacker-controlled alias must not override it.
+    (typeof row.fullName==='string'?row.fullName===repo:row.slug===repo));
   if(matches.length!==1)
     throw new TypeError('Git repository identity is absent or ambiguous');
   const row=matches[0];
