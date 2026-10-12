@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1aq PR #90 — project member read secrecy:** member ID, display name, email and role fields now reject credential-shaped provider text as well as control characters and oversize values. Fake-provider regressions verify secrets cannot escape in read-only MCP results. D-1 remains IN_PROGRESS pending separate owner-gated privileged changes; D-2 not yet authorized.
+
 - **D-1ap PR #89 — Git discovery output secrecy:** namespace and repository fields reject credential-shaped text, identifiers and repository URLs, including arbitrary provider labels. Fake-provider adversarial tests; no live Vercel actions or widened access. D-1 remains IN_PROGRESS.
 
 - **D-1ao PR #88 — metered resource lost-update defense:** fingerprint selected original build/function settings; final credential-bound GET refuses a concurrent value change before the billed PATCH. Usage-spend and confirmation gates unchanged; no real billable operations or production activation.
