@@ -4,7 +4,7 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
-- **D-1ba PR #100 — canonical Git discovery links:** read-only repository results now expose a provider HTTPS link only when the URL path exactly matches the verified canonical full repository name, and refuse mismatched provider/namespace metadata. Fake-provider tests cover same-host link spoofing, encoded paths and cross-namespace rows. No live provider write, privileges, production activation or spending changes; D-1 remains IN_PROGRESS.
+- **D-1ba PR #100 — canonical Git discovery links:** read-only repository results now expose a provider HTTPS link only when the URL path exactly matches the verified canonical full repository name, and refuse mismatched provider/namespace metadata. Fake-provider tests cover same-host link spoofing, encoded paths and cross-namespace rows. Also corrects post-merge #99 P1: percent-encoded cron paths/schedules now redact before MCP output. No live provider write, privileges, production activation or spending changes; D-1 remains IN_PROGRESS.
 
 - **D-1az PR #99 — cron output secrecy:** cron list projection now strips URL parameters while suppressing credential-shaped plain/percent-encoded paths, control-bearing paths, suspicious schedules and provider IDs. No cron invocation or provider write. D-1 still IN_PROGRESS; production remains inactive.
 
