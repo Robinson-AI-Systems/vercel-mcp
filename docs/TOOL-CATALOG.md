@@ -532,7 +532,7 @@ D-1at (#93): Read-only `vercel_git_search_repos` only projects canonical URLs fr
 D-1au (#94): `vercel_project_create` Git imports require authoritative matching `fullName` when Vercel returns one; a conflicting repository `slug` cannot satisfy the guarded identity proof.
 
 D-1av (#95): destructive `vercel_project_delete` empty-only gate conservatively counts all supplied storage inventory aliases and refuses malformed aliases; nonempty deletion stays disabled.
-D-1ba (#100): Git discovery repository links require canonical provider HTTPS host *and* exact full-repository path; mismatched provider/namespace entries are rejected rather than mislabeled. Includes #99 post-merge P1 correction: encoded/double-encoded cron paths or schedules are suppressed before disclosure.
+D-1ba (#100): Git discovery repository links require canonical provider HTTPS host *and* exact full-repository path; mismatched root `gitAccount` or repository provider/namespace entries are rejected rather than mislabeled. Includes #99 post-merge P1 correction: encoded/double-encoded cron paths or schedules are suppressed before disclosure.
 D-1az (#99): `vercel_cron_list` suppresses credential-shaped and decoded path/schedule metadata while keeping safe stripped URL paths and UTC/Denver examples; read-only only.
 D-1ay (#98): member read pages refuse contradictory or duplicate user identities, do not substitute membership-record IDs for user UIDs, and honor root continuation contradiction signals for project/member lists.
 D-1ax (#97): `vercel_project_transfer` revalidates exact issuer team/account and immutable project ID/name immediately before requesting any owner-vaulted transfer code; rotated authority or renamed projects refuse.
