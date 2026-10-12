@@ -105,7 +105,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_deploy_list` | Authenticated project-only deployments, bounded first page with honest cursor, state, target, Git commit/branch and safe metadata; remaining filters follow in D-2 | — | B Op | R | — | D-2 (read built #132) |
+| `vercel_deploy_list` | Authenticated project-only deployments, bounded first page with honest cursor, state, target, Git commit/branch and safe metadata; state/environment/branch/commit and time filters built #138 | — | B Op | R | — | D-2 (read built #132) |
 | `vercel_deploy_get` | Scoped deployment ID/HTTPS URL detail: verified project, state, target, commit, branch and safe aliases (full diagnostics follow) | — | B Op | R | — | D-2 (read built #132) |
 | `vercel_deploy_get_build_logs` | Project-verified deployment build events: bounded type/warning/error/step summary, no raw secret-bearing log text; full raw logs intentionally unavailable pending safe scoped storage | — | B Op | R | — | D-2 (safe summary #134; full text unverified) |
 | `vercel_deploy_get_runtime_logs` | Project-verified runtime stream sample (≤32 KiB/50 entries/6s), local window/level/status/path counts with explicit partial-result flag and no raw messages | — | B Op | R | — | D-2 (bounded read #137; full text unverified) |
