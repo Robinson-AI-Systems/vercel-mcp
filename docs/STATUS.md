@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1y PR #72 — independently verified Git discovery:** authenticated repository search first checks that exactly one matching, accessible Git namespace exists for the selected provider, rejecting restricted/reauth/ambiguous selectors before search. Returned repository links require safe HTTPS with no URL credentials, query or fragment; metadata is whitelisted and bounded. D-1 privileged actions remain gated; production inactive.
+
+
 - **D-1x PR #71 — richer safe project inspection:** `vercel_project_get` includes whitelisted Git linkage, ignore-build command, deployment presence, pause status, selected compute configuration and bounded production deployment metadata for operational diagnosis. Unknown is null; nested tokens/credentials and arbitrary provider objects excluded. D-1 owner-gated privileged access and nonempty delete remain disabled.
 
 
