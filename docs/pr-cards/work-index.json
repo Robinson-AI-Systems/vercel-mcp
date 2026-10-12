@@ -524,15 +524,16 @@
       "pr": [
         132,
         134,
-        135
+        135,
+        136
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "D-2 deployment list/get, build summaries/source-file tree and Checks V2 safe reads implemented; runtime logs, file content and bounded wait remain unverified or not built, plus all external custom-MCP acceptance.",
-        "nextAction": "Audit D-2 remaining 3 read operations against Basic response/stream time limits and implement next substantive safe slice; preserve honest external acceptance blockers.",
-        "checkpoint": "First next development session after #135 and immediately on newly verified provider/hosting/owner evidence",
-        "evidenceNeeded": "Verify bounded streamed runtime log and file-content transport; test 45-second wait within Basic serverless invocation limits; prove real read-only custom MCP HTTPS with protected credentials when owner deploy prerequisites are met.",
+        "reason": "Scoped deployment list/detail, build summary/tree, Checks V2 and bounded status waiting implemented in offline tests; runtime logs, file-content transport and connected acceptance remain unverified.",
+        "nextAction": "Investigate pinned runtime-log stream framing and strict byte/time limits; implement next safe read slice and independently verify external owner/Hub gates.",
+        "checkpoint": "After #136 review and at each next development session, or immediately on deployed/credential evidence",
+        "evidenceNeeded": "Bounded NDJSON runtime-log read and capped file bytes transport against exact pinned OpenAPI; separate real deployed HTTPS/custom MCP/Hub D-4 owner TEST evidence.",
         "eligibilityCondition": "Local provider GET/status-safe read slices eligible after correct OpenAPI/transport evidence; real provider acceptance eligible only after owner-authorized deployed custom HTTPS origin, encrypted scoped token and revocation procedure.",
         "dependencies": [
           "D-1"
