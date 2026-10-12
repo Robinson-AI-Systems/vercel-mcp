@@ -123,7 +123,9 @@ async function invoke(name,args,ctx){
   if(response?.isError||!Array.isArray(response?.content)||response.content.length!==1||
     response.content[0]?.type!=='text')return null;
   try{return JSON.parse(response.content[0].text);}
-  catch{return null;}
+  // Common read shaping has already screened every text part; plain text
+  // is a valid safe RTC read payload, not an unfiltered error string.
+  catch{return response.content[0].text;}
 }
 function validPassRecord(record){
   return Boolean(record&&ACCOUNT.test(record.account||'')&&PASS_ID.test(record.id||'')&&

@@ -195,6 +195,19 @@ describe('RTC 1 read-only HTTPS door',()=>{
   expect(badBatch.body.error.code).toBe('invalid_args');
   expect(f.read).not.toHaveBeenCalled();
  });
+ it('returns only sanitized plain text from direct and batched RTC reads',async()=>{
+  const f=fixture();
+  f.read.mockResolvedValue({content:[{type:'text',
+    text:'unstructured vcp_FAKE_credential returned by provider'}]});
+  const direct=await f.call('invoke','POST',{name:'vercel_fixture_read'},{});
+  expect(direct.code).toBe(200);
+  expect(direct.body.result).toBe('[hidden]');
+  const batch=await f.call('batch','POST',{},
+    {calls:[{name:'vercel_fixture_read',args:{}}]});
+  expect(batch.code).toBe(200);
+  expect(batch.body.result.results).toEqual(['[hidden]']);
+  expect(JSON.stringify(direct.body)+JSON.stringify(batch.body)).not.toContain('vcp_FAKE');
+ });
  it('uses the MCP dispatcher, forbidding write and cross-area invocation',async()=>{
   const f=fixture();
   expect((await f.call('invoke','POST',{name:'vercel_fixture_read'},{})).body.result)

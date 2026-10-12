@@ -6,11 +6,15 @@ function text(payload){return {type:'text',text:JSON.stringify(payload)}}
 export async function shapeStoredMcpResult(response,{connection,db,args={},readOnly=false,tool}={}){
   if(!readOnly)return shapeMcpResult(response,{connection,tool});
   if(!response || !Array.isArray(response.content))throw new TypeError('Invalid tool result');
+  // Do not let unsupported payload types bypass secret screening. Text
+  // outside JSON is still untrusted provider output and must be redacted.
+  // Validate the entire response before storing or returning any part.
+  if(response.content.some(part=>part?.type!=='text'||typeof part.text!=='string'))
+    throw new TypeError('Unstructured non-text read result is unavailable');
   const content=[];
   for(const part of response.content){
-    if(part?.type!=='text' || typeof part.text!=='string'){content.push(part);continue;}
     let parsed;
-    try{parsed=JSON.parse(part.text);}catch{content.push(part);continue;}
+    try{parsed=JSON.parse(part.text);}catch{parsed=part.text;}
     const {result,unknownFields}=prepareResult(parsed,{
       detail:args.detail??'summary',fields:args.fields,kind:args.resultKind,summaryMapper:summarizeObject
     });
