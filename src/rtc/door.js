@@ -145,7 +145,10 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       }
       if(route==='list'){
         if(req.method!=='GET')return fail(res,'invalid_args');
-        return send(res,200,{ok:true,result:listing(req,pass,registry)});
+        let view;
+        try{view=listing(req,pass,registry);}
+        catch{return fail(res,'invalid_args');}
+        return send(res,200,{ok:true,result:view});
       }
       if(route==='describe'||route==='invoke'){
         if(route==='describe'&&req.method!=='GET'||
@@ -159,7 +162,9 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
           return fail(res,'not_found');
         }
         if(route==='describe')return send(res,200,{ok:true,result:def});
-        const body=argumentsFor(getBody(req));
+        let body;
+        try{body=argumentsFor(getBody(req));}
+        catch{return fail(res,'invalid_args');}
         const data=await invoke(def.name,body,ctx);
         if(data===null)return fail(res,'service_error');
         if(data.status==='stored'&&typeof data.handle==='string')
@@ -168,7 +173,9 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       }
       if(route==='batch'){
         if(req.method!=='POST')return fail(res,'invalid_args');
-        const body=getBody(req);
+        let body;
+        try{body=getBody(req);}
+        catch{return fail(res,'invalid_args');}
         if(Object.keys(body).some(k=>k!=='calls')||!Array.isArray(body.calls)||
           body.calls.length<1||body.calls.length>10)return fail(res,'invalid_args');
         const approved=[];
@@ -178,7 +185,10 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
             typeof call.name!=='string')return fail(res,'invalid_args');
           const def=named({query:{name:call.name}},registry,pass);
           if(!def)return fail(res,'refused_by_guard');
-          approved.push({name:def.name,args:argumentsFor(call.args||{})});
+          let args;
+          try{args=argumentsFor(call.args||{});}
+          catch{return fail(res,'invalid_args');}
+          approved.push({name:def.name,args});
         }
         const results=[];
         for(const call of approved){

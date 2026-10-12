@@ -91,6 +91,18 @@ describe('RTC 1 read-only HTTPS door',()=>{
   const scoped=await f.call('list','GET',{area:'secretarea'});
   expect(scoped.body.result).toMatchObject({count:0,next:null,tools:[]});
  });
+ it('rejects malformed HTTPS arguments as invalid_args without invoking any tool',async()=>{
+  const f=fixture();
+  const badInvoke=await f.call('invoke','POST',{name:'vercel_fixture_read'},
+    {fields:[1,2]});
+  expect(badInvoke.code).toBe(400);
+  expect(badInvoke.body.error.code).toBe('invalid_args');
+  const badBatch=await f.call('batch','POST',{},
+    {calls:[{name:'vercel_fixture_read',args:{fields:[1]}}]});
+  expect(badBatch.code).toBe(400);
+  expect(badBatch.body.error.code).toBe('invalid_args');
+  expect(f.read).not.toHaveBeenCalled();
+ });
  it('uses the MCP dispatcher, forbidding write and cross-area invocation',async()=>{
   const f=fixture();
   expect((await f.call('invoke','POST',{name:'vercel_fixture_read'},{})).body.result)
