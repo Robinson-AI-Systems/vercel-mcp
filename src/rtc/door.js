@@ -56,12 +56,22 @@ function argumentsFor(input){
 }
 function listing(req,pass,registry){
   const requested=req.query||{};
-  if(Object.keys(requested).some(k=>!['q','area','audience','limit','listing'].includes(k)))
+  if(Object.keys(requested).some(k=>!['q','area','audience','limit','listing','cursor'].includes(k)))
     throw new TypeError('Unknown tool list selector');
   const limit=requested.limit===undefined?20:Number(requested.limit);
   if(!Number.isInteger(limit)||limit<1||limit>100||
     (requested.listing!==undefined&&!['catalog','compact'].includes(requested.listing)))
     throw new TypeError('Invalid listing limit');
+  // next is a bounded numeric offset, not a token granting a new scope.
+  if(requested.cursor!==undefined &&
+    (typeof requested.cursor!=='string' ||
+      !/^(0|[1-9][0-9]{0,4})$/.test(requested.cursor)))
+    throw new TypeError('Invalid listing cursor');
+  const cursor=Number(requested.cursor??0);
+  for(const field of ['q','area','audience']){
+    if(requested[field]!==undefined&&typeof requested[field]!=='string')
+      throw new TypeError('Invalid search selector');
+  }
   const catalog=rtcCatalog(registry,{...pass,
     listing:requested.listing||pass.listing});
   const q=String(requested.q??'').toLowerCase();
@@ -73,8 +83,8 @@ function listing(req,pass,registry){
   const matching=safe.filter(t=>(!q||(t.name+' '+t.description).toLowerCase().includes(q))&&
     (!requested.area||t.area===requested.area)&&
     (!requested.audience||t.audience.includes(requested.audience)));
-  return {tools:matching.slice(0,limit),count:matching.length,
-    next:matching.length>limit?limit:null};
+  return {tools:matching.slice(cursor,cursor+limit),count:matching.length,
+    next:cursor+limit<matching.length?cursor+limit:null};
 }
 function named(req,registry,pass){
   const name=req.query?.name;
@@ -135,7 +145,10 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       }
       if(route==='list'){
         if(req.method!=='GET')return fail(res,'invalid_args');
-        return send(res,200,{ok:true,result:listing(req,pass,registry)});
+        let view;
+        try{view=listing(req,pass,registry);}
+        catch{return fail(res,'invalid_args');}
+        return send(res,200,{ok:true,result:view});
       }
       if(route==='describe'||route==='invoke'){
         if(route==='describe'&&req.method!=='GET'||
@@ -149,7 +162,9 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
           return fail(res,'not_found');
         }
         if(route==='describe')return send(res,200,{ok:true,result:def});
-        const body=argumentsFor(getBody(req));
+        let body;
+        try{body=argumentsFor(getBody(req));}
+        catch{return fail(res,'invalid_args');}
         const data=await invoke(def.name,body,ctx);
         if(data===null)return fail(res,'service_error');
         if(data.status==='stored'&&typeof data.handle==='string')
@@ -158,7 +173,9 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       }
       if(route==='batch'){
         if(req.method!=='POST')return fail(res,'invalid_args');
-        const body=getBody(req);
+        let body;
+        try{body=getBody(req);}
+        catch{return fail(res,'invalid_args');}
         if(Object.keys(body).some(k=>k!=='calls')||!Array.isArray(body.calls)||
           body.calls.length<1||body.calls.length>10)return fail(res,'invalid_args');
         const approved=[];
@@ -168,7 +185,10 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
             typeof call.name!=='string')return fail(res,'invalid_args');
           const def=named({query:{name:call.name}},registry,pass);
           if(!def)return fail(res,'refused_by_guard');
-          approved.push({name:def.name,args:argumentsFor(call.args||{})});
+          let args;
+          try{args=argumentsFor(call.args||{});}
+          catch{return fail(res,'invalid_args');}
+          approved.push({name:def.name,args});
         }
         const results=[];
         for(const call of approved){

@@ -53,7 +53,15 @@ export function rtcOpenApi(){
     '/api/contract':{get:{...noArgs,summary:'Public RTC manifest'}},
     '/api/openapi.json':{get:{...noArgs,summary:'Public HTTPS API documentation'}},
     '/api/whoami':{get:{...noArgs,summary:'Pass scope, never pass value'}},
-    '/api/tools':{get:{...noArgs,summary:'Authorized tool discovery'}},
+    '/api/tools':{get:{...noArgs,summary:'Authorized tool discovery',
+      parameters:[
+        {name:'q',in:'query',schema:{type:'string',maxLength:120}},
+        {name:'area',in:'query',schema:{type:'string',maxLength:48}},
+        {name:'audience',in:'query',schema:{type:'string',maxLength:48}},
+        {name:'limit',in:'query',schema:{type:'integer',minimum:1,maximum:100}},
+        {name:'cursor',in:'query',schema:{type:'integer',minimum:0,maximum:99999}},
+        {name:'listing',in:'query',schema:{type:'string',enum:['catalog','compact']}}
+      ]}},
     '/api/tools/{name}':{get:{...noArgs,summary:'Authorized tool metadata'},
       post:{...noArgs,summary:'Invoke authorized tool through MCP guard'}},
     '/api/tools/_batch':{post:{...noArgs,summary:'At most 10 read-only calls'}},
