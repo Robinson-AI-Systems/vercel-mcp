@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1be PR #104 — name-collision race protection:** creation rechecks exact project name availability with the same bound credential that would POST, after any slow Git proof and owner spend checks; a concurrently claimed name or unverified GET refuses all creation. Fake-provider tests cover both empty and paid Git imports. D-1 IN_PROGRESS; no live resources or changed owner gates.
+
 - **D-1bd PR #103 — encoded metadata secrecy:** central credential checks now decode nested percent-encoded text for inspection before projecting project and Git metadata; unknown repeated nesting refuses rather than risking a hidden secret. Read-only fake-provider tests cover nested tokens; no provider write or additional authority. D-1 IN_PROGRESS; production inactive.
 
 - **D-1bc PR #102 — verified user identity for guarded access:** project/team membership inventory and grant/remove checks now require stable `uid` or matching `userId`, and never substitute a membership-record `id` for the user who could receive or lose access. Reject unverified records before POST/DELETE; adversarial identity tests. D-1 IN_PROGRESS; owner-gated admin/deletion disabled and production inactive.
