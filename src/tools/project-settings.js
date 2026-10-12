@@ -4,17 +4,10 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
+import {CONFIG_SETTINGS,configFields,invalidProjectConfiguration,providerConfigBody} from './project-config-fields.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const NAME=/^[a-z0-9][a-z0-9._-]{0,99}$/;
-// One pinned PATCH, grouped across build commands and relative directories.
-// Values never enter preview, logical audit snapshots or provider results.
-const COMMAND_SETTINGS=['buildCommand','installCommand','devCommand','commandForIgnoringBuildStep'];
-const DIRECTORY_SETTINGS=['rootDirectory','outputDirectory'];
-const CONFIG_SETTINGS=[...COMMAND_SETTINGS,...DIRECTORY_SETTINGS];
-const configFields=Object.fromEntries(CONFIG_SETTINGS.map(key=>[key,{
-  type:'string',minLength:1,maxLength:COMMAND_SETTINGS.includes(key)?2048:500
-}]));
 const props={
   ...configFields,
   project:{type:'string',minLength:1,maxLength:128},
@@ -34,14 +27,7 @@ function validate(args){
     (args.name!==undefined&&(typeof args.name!=='string'||!NAME.test(args.name)))||
     (args.framework!==undefined&&args.framework!==null&&
       (typeof args.framework!=='string'||args.framework.length===0||args.framework.length>100))||
-    COMMAND_SETTINGS.some(key=>args[key]!==undefined&&(
-      typeof args[key]!=='string'||args[key].length<1||args[key].length>2048||
-      /[\u0000-\u001f\u007f]/.test(args[key])))||
-    DIRECTORY_SETTINGS.some(key=>args[key]!==undefined&&(
-      typeof args[key]!=='string'||args[key].length<1||args[key].length>500||
-      args[key].startsWith('/')||args[key].includes('\\')||
-      args[key].split('/').some(part=>!part||part==='..')||
-      /[\u0000-\u001f\u007f]/.test(args[key])))||
+    invalidProjectConfiguration(args)||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
     throw new TypeError('Invalid project settings request');
@@ -58,8 +44,8 @@ const update=defineWrite({
     validate(args);
     // Validate every supplied change against the immutable pinned PATCH schema
     // before any provider read or write, including combinations of fields.
-    const body=Object.fromEntries(['name','framework',...CONFIG_SETTINGS]
-      .filter(key=>args[key]!==undefined).map(key=>[key,args[key]]));
+    const body={...providerConfigBody(args),...(args.name!==undefined?{name:args.name}:{}),
+      ...(args.framework!==undefined?{framework:args.framework}:{})};
     validateRequest('projects_update',{
       path:{idOrName:args.project},query:{teamId:'team_FAKE_validation'},body
     });
