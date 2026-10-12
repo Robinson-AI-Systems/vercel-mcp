@@ -194,6 +194,209 @@ export const deploymentReadTools={
         deployment:{type:'string',minLength:7,maxLength:128},
         waitSeconds:{type:'integer',minimum:0,maximum:8}},['deployment']),
       annotations:{readOnlyHint:true}},
+    {name:'vercel_deploy_get_file',writes:false,profiles:PROFILES,area:'deployments',
+      description:'Read one small, verified UTF-8 deployment source file; reject secrets, binary data, oversized or unrecognized provider responses.',
+      inputSchema:schema({project:{type:'string',maxLength:128},
+        deployment:{type:'string',minLength:7,maxLength:128},
+        fileId:{type:'string',pattern:'^[a-fA-F0-9]{32,128}profiles:PROFILES,area:'deployments',
+      description:'Read up to 20 safe deployment file-tree paths from an independently verified project/deployment.',
+      inputSchema:schema({project:{type:'string',maxLength:128},
+        deployment:{type:'string',minLength:7,maxLength:128}},['deployment']),
+      annotations:{readOnlyHint:true}}
+  ],
+  handlers:{
+    async vercel_deploy_get_file(args,ctx){
+      validateArgs(args,['project','deployment','fileId']);
+      if(typeof args.fileId!=='string'||!/^[a-fA-F0-9]{32,128}$/.test(args.fileId))
+        throw new TypeError('Select a valid file identifier from deployment file listing');
+      const {client,project}=await scopedDeployment(args,ctx,{timeoutMs:4000});
+      // A file ID alone must not grant a different or unlisted resource.
+      const listed=await client.request('deployments_files_list',{path:{id:args.deployment}});
+      const files=safeFileTree(listed);
+      const selected=files.files.find(row=>row.type==='file'&&row.fileId===args.fileId);
+      if(!selected)throw new TypeError('File was not independently verified in the bounded deployment tree');
+      if(/(^|\/)(?:\.env(?:\..*)?|\.npmrc|\.netrc|id_rsa|credentials?|secrets?)(?:$|\/|\.)/i.test(selected.path))
+        throw new TypeError('Sensitive file paths are not readable through MCP');
+      const payload=await client.request('deployments_file_get',{
+        path:{id:args.deployment,fileId:args.fileId},
+        query:{path:selected.path}
+      },{fileContent:true,timeoutMs:6000});
+      if(!payload||typeof payload!=='object'||Array.isArray(payload)||
+        typeof payload.content!=='string'||
+        payload.encoding!==undefined&&payload.encoding!=='base64'||
+        payload.fileId!==undefined&&payload.fileId!==args.fileId||
+        payload.deploymentId!==undefined&&payload.deploymentId!==args.deployment||
+        payload.path!==undefined&&payload.path!==selected.path)
+        throw new TypeError('Unrecognized or mismatched Vercel file response');
+      const encoded=payload.content;
+      if(encoded.length>4096||!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded))
+        throw new TypeError('Deployment file is not safely sized canonical base64');
+      const raw=Buffer.from(encoded,'base64');
+      if(raw.length>2048||raw.toString('base64')!==encoded)
+        throw new TypeError('Deployment file exceeds safe text read limit');
+      let content;
+      try{content=new TextDecoder('utf-8',{fatal:true}).decode(raw);}
+      catch{throw new TypeError('Binary deployment files cannot be returned');}
+      if(credentialLike(content)||/((?:password|secret|api[_-]?key|authorization|private[_-]?key)\s*[:=]\s*\S+)/i.test(content))
+        throw new TypeError('Deployment source contains potentially sensitive content');
+      return asText({project,deployment:args.deployment,fileId:args.fileId,
+        path:selected.path,content,bytes:raw.length,
+        note:'Small verified UTF-8 file only; raw or secret-bearing files are deliberately unavailable'});
+    },
+    async vercel_deploy_get_runtime_logs(args,ctx){
+      validateArgs(args,['project','deployment','sinceMs','untilMs','level','status','path']);
+      const until=args.untilMs??Date.now(),since=args.sinceMs??until-1800000;
+      if(!Number.isSafeInteger(until)||!Number.isSafeInteger(since)||since<1||
+         until> Date.now()+1000||since>=until||until-since>86400000)
+        throw new TypeError('Select a valid runtime log window of at most 24 hours');
+      if(args.level!==undefined && !['error','warning','info','fatal','debug'].includes(args.level))
+        throw new TypeError('Invalid runtime log level');
+      if(args.status!==undefined && (!Number.isInteger(args.status)||args.status<100||args.status>599))
+        throw new TypeError('Invalid response status');
+      if(args.path!==undefined && (typeof args.path!=='string'||
+        !/^\/[A-Za-z0-9/_-]{0,149}$/.test(args.path)||credentialLike(args.path)))
+        throw new TypeError('Invalid runtime path filter');
+      const {client,project}=await scopedDeployment(args,ctx,{timeoutMs:4000});
+      const received=await client.request('runtime_logs_get',{
+        path:{projectId:project,deploymentId:args.deployment}
+      },{streamLogs:true,timeoutMs:6000});
+      let matched=0,inWindow=0;
+      const levels={error:0,warning:0,info:0,fatal:0,debug:0,other:0};
+      const statuses={};
+      for(const row of received.records){
+        if(row.deploymentId!=null && row.deploymentId!==args.deployment ||
+          row.projectId!=null && row.projectId!==project)
+          throw new TypeError('Provider log entry belongs to a different resource');
+        const stamp=row.timestampInMs;
+        if(!Number.isSafeInteger(stamp)||stamp<1)throw new TypeError('Runtime log has no verifiable timestamp');
+        if(stamp<since||stamp>until)continue;
+        inWindow++;
+        if(args.level!==undefined&&row.level!==args.level)continue;
+        if(args.status!==undefined&&row.responseStatusCode!==args.status)continue;
+        if(args.path!==undefined&&row.requestPath!==args.path)continue;
+        matched++;
+        const level=['error','warning','info','fatal','debug'].includes(row.level)?row.level:'other';
+        levels[level]++;
+        const status=row.responseStatusCode;
+        if(Number.isSafeInteger(status)&&status>=100&&status<=599)
+          statuses[status]=(statuses[status]||0)+1;
+        // Do not expose raw messages, paths, hostnames, IDs or metadata.
+      }
+      return asText({project,deployment:args.deployment,sinceMs:since,untilMs:until,
+        scanned:received.records.length,inWindow,matched,levels,statuses,
+        transport:received.stream,containsRawLogText:false,
+        note:'Streamed sample only. Zero matches does not certify no logs in this window'});
+    },
+    async vercel_deploy_wait(args,ctx){
+      validateArgs(args,['project','deployment','waitSeconds']);
+      const seconds=args.waitSeconds??4;
+      if(!Number.isSafeInteger(seconds)||seconds<0||seconds>8)
+        throw new TypeError('Invalid bounded wait duration');
+      // Vercel's serverless invocation budget is not a 45-second guarantee.
+      // Each poll independently proves account/project/deployment identity.
+      const start=Date.now(),deadline=start+seconds*1000;
+      let verified,project,reads=0;
+      do{
+        ({verified,project}=await scopedDeployment(args,ctx,{timeoutMs:4000}));
+        reads++;
+        const state=verified.state;
+        if(['READY','ERROR','CANCELED'].includes(state))break;
+        const left=deadline-Date.now();
+        if(reads>=3||left<=1500)break;
+        await new Promise(resolve=>setTimeout(resolve,Math.min(1500,left)));
+      }while(Date.now()<deadline);
+      const state=verified.state;
+      const done=['READY','ERROR','CANCELED'].includes(state);
+      return asText({project,deployment:args.deployment,state,
+        done,successful:state==='READY',polls:reads,
+        waitedSeconds:Math.min(45,Math.max(0,Math.ceil((Date.now()-start)/1000))),
+        next:done?null:'Call vercel_deploy_wait again with the same deployment and project ID',
+        note:done?null:'A bounded read cannot certify the final state of an unfinished or unknown deployment'});
+    },
+    async vercel_deploy_get_build_logs(args,ctx){
+      validateArgs(args,['project','deployment']);
+      const {client,project}=await scopedDeployment(args,ctx);
+      const events=await client.request('deployments_events',{
+        path:{idOrUrl:args.deployment},
+        query:{limit:100,follow:0,direction:'backward'}});
+      return asText({project,deployment:args.deployment,
+        ...buildEventSummary(events)});
+    },
+    async vercel_deploy_list_files(args,ctx){
+      validateArgs(args,['project','deployment']);
+      const {client,project}=await scopedDeployment(args,ctx);
+      const files=await client.request('deployments_files_list',{path:{id:args.deployment}});
+      return asText({project,deployment:args.deployment,...safeFileTree(files)});
+    },
+    async vercel_deploy_list(args,ctx){
+      validateArgs(args,['project','limit','until','since','target','state','branch','sha']);
+      const limit=args.limit??20;
+      if(!Number.isInteger(limit)||limit<1||limit>20||
+        args.until!==undefined&&(!Number.isSafeInteger(args.until)||args.until<=0)||
+        args.since!==undefined&&(!Number.isSafeInteger(args.since)||args.since<=0)||
+        args.since!==undefined&&args.until!==undefined&&args.since>=args.until)
+        throw new TypeError('Invalid deployment page');
+      if(args.state!==undefined&&!['BUILDING','ERROR','INITIALIZING','QUEUED','READY','CANCELED','BLOCKED'].includes(args.state))
+        throw new TypeError('Invalid deployment state filter');
+      if(args.target!==undefined&&!['production','preview'].includes(args.target))
+        throw new TypeError('Invalid deployment environment filter');
+      if(args.branch!==undefined&&(typeof args.branch!=='string'||
+        !/^[A-Za-z0-9._/-]{1,100}$/.test(args.branch)||
+        args.branch.includes('..')||credentialLike(args.branch)))
+        throw new TypeError('Invalid Git branch filter');
+      if(args.sha!==undefined&&(typeof args.sha!=='string'||!/^[0-9a-fA-F]{7,64}$/.test(args.sha)))
+        throw new TypeError('Invalid commit SHA filter');
+      const {client,account}=await readProvider(ctx);
+      const project=projectFor(args,account);
+      const reply=await client.request('deployments_list',{
+        query:{projectId:project,limit,...(args.until?{until:args.until}:{}),
+          ...(args.since?{since:args.since}:{}),
+          ...(args.target?{target:args.target}:{}),
+          ...(args.state?{state:args.state}:{}),
+          ...(args.branch?{branch:args.branch}:{}),
+          ...(args.sha?{sha:args.sha}:{})}});
+      if(!Array.isArray(reply?.deployments))
+        throw new TypeError('Provider did not return deployment inventory');
+      const next=cursorFor(reply,reply.deployments,limit);
+      const seen=new Set();
+      const deployments=reply.deployments.map(row=>{
+        const safe=summary(row,project);
+        if(seen.has(safe.id))throw new TypeError('Duplicate deployment identity');
+        seen.add(safe.id);
+        if(args.state && safe.state!==args.state)
+          throw new TypeError('Provider returned a deployment outside the state filter');
+        if(args.target==='production' && safe.target!=='production')
+          throw new TypeError('Provider returned a deployment outside the production filter');
+        if(args.target==='preview' && ![null,'preview'].includes(safe.target))
+          throw new TypeError('Provider returned a deployment outside the preview filter');
+        if(args.branch && safe.branch!==args.branch)
+          throw new TypeError('Provider returned a deployment outside the branch filter');
+        if(args.sha && safe.commit!==args.sha)
+          throw new TypeError('Provider returned a deployment outside the commit filter');
+        return safe;
+      });
+      const filters=Object.fromEntries(['state','target','branch','sha','since']
+        .filter(k=>args[k]!==undefined).map(k=>[k,args[k]]));
+      return asText({project,deployments,count:deployments.length,filters,
+        next,complete:next===null,
+        nextStep:next===null?null:
+          'Call vercel_deploy_list with this project, the same filters, and until='+next});
+    },
+    async vercel_deploy_get(args,ctx){
+      validateArgs(args,['project','deployment']);
+      const locator=deploymentLocator(args.deployment);
+      const {client,account}=await readProvider(ctx);
+      const project=projectFor(args,account);
+      const response=await client.request('deployments_get',{path:{idOrUrl:locator}});
+      const data=summary(response,project);
+      const errorCode=name(response.errorCode,80);
+      return asText({...data,errorCode,aliasesCapped:Array.isArray(response.alias)&&
+        response.alias.length>10});
+    }
+  }
+};
+}},['deployment','fileId']),
+      annotations:{readOnlyHint:true}},
     {name:'vercel_deploy_list_files',writes:false,profiles:PROFILES,area:'deployments',
       description:'Read up to 20 safe deployment file-tree paths from an independently verified project/deployment.',
       inputSchema:schema({project:{type:'string',maxLength:128},
