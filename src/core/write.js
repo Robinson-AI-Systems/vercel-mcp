@@ -36,6 +36,15 @@ export function writeRequestKey(name, args, connection, now = Date.now()) {
   return 'rmcp_' + String(name).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,50) +
     '_' + hash + '_' + Math.floor(now/600000);
 }
+// Stable owner charge identity. Presentation and caller requestKey are not part
+// of the resource mutation digest, but all meaningful arguments and price are.
+export function purchaseFingerprint(name,args,connection,spend) {
+  return createHash('sha256').update(JSON.stringify({
+    name,account:connection.account,mode:connection.mode,profile:connection.profile,
+    args:canonical(args),priceCents:spend.cents,recurring:spend.recurring,
+    description:spend.description
+  })).digest('hex');
+}
 export function defineWrite(spec) {
   if (typeof spec?.name !== 'string' || !spec.name) throw new TypeError('Write name required');
   for (const key of ['before','preview','production','targets','apply','verify']) {
@@ -58,7 +67,7 @@ export function defineWrite(spec) {
   async function run(args = {}, ctx = {}) {
     const checked = await writePreflight(spec, args, ctx);
     if (checked.refused) return checked.refused;
-    const { before, production, targets, summary, moneyLine, spendCents, mode } = checked;
+    const { before, production, targets, summary, moneyLine, spendCents, mode, purchase } = checked;
     const requestKey = writeRequestKey(spec.name, args, ctx.connection,
       typeof ctx.now === 'function' ? ctx.now() : Date.now());
     const auditBase = {
@@ -77,6 +86,44 @@ export function defineWrite(spec) {
       status: 'needs_confirmation', mode, confirmed: false,
       preview: summary, moneyLine, requestKey
     };
+    // Agents may only PROPOSE a purchase. The single-use purchase grant comes
+    // exclusively from separately authenticated owner setup (not MCP confirm).
+    let charge=null;
+    if(purchase){
+      if(typeof args.requestKey!=='string')
+        return refusal('A stable explicit requestKey is mandatory for paid operations');
+      if(typeof ctx.db?.requestPurchaseIntent!=='function' ||
+        typeof ctx.db?.getPurchaseIntent!=='function' ||
+        typeof ctx.db?.consumePurchaseIntent!=='function')
+        return refusal('Independent owner purchase approval is unavailable');
+      const pricingSource=purchase.cents===null?'metered':'provider_quote';
+      const fingerprint=purchaseFingerprint(spec.name,args,ctx.connection,purchase);
+      const binding={account:ctx.connection.account,operation:spec.name,
+        requestKey,fingerprint,priceCents:purchase.cents,pricingSource};
+      let issued;
+      try {issued=await ctx.db.requestPurchaseIntent(binding);}catch{return refusal('Purchase intent could not be safely recorded');}
+      if(!issued||typeof issued.reference!=='string')
+        return refusal('Transaction price or request identity was changed or unavailable');
+      if(issued.status==='pending'){
+        await ctx.audit({...auditBase,dryRun:true,
+          summary:'Awaiting independently authenticated owner purchase approval (no provider write)'});
+        return {status:'awaiting_owner_approval',confirmed:false,ownerApprovalRequired:true,
+          reference:issued.reference,expiresAt:issued.expiresAt,
+          requestKey,reviewAt:'/api/vercel/setup',moneyLine,
+          reason:'Owner must review and approve this exact transaction separately'};
+      }
+      if(issued.status!=='approved')
+        return refusal('Owner has not approved this exact transaction');
+      let verified;
+      try{verified=await ctx.db.getPurchaseIntent({account:binding.account,reference:issued.reference});}
+      catch{return refusal('Owner purchase approval read-back failed');}
+      const ceiling=Number(verified?.ceiling_cents);
+      if(verified?.status!=='approved'||!Number.isSafeInteger(ceiling)||
+        ceiling<1||(purchase.cents!==null&&purchase.cents>ceiling)||
+        !verified.approved_at||new Date(verified.expires_at).getTime()<=Date.now())
+        return refusal('Owner purchase approval is stale or cannot cover the quoted price');
+      charge={...binding,reference:issued.reference};
+    }
     if (typeof ctx.replayStore?.claim !== 'function' ||
       typeof ctx.replayStore?.complete !== 'function') {
       return refusal('Durable replay protection is unavailable');
@@ -92,7 +139,16 @@ export function defineWrite(spec) {
     };
     let providerResult;
     try {
-      providerResult = await spec.apply(args, ctx, before, requestKey);
+      let executionContext=ctx;
+      if(charge){
+        // Atomic consume + audit is mandatory BEFORE any chargeable apply.
+        // The transaction can never be spent again, regardless of transport.
+        const consumed=await ctx.db.consumePurchaseIntent(charge);
+        if(consumed!==true) throw new PreDispatchRefusal('Owner purchase grant was unavailable');
+        executionContext={...ctx,purchaseApproval:Object.freeze({
+          reference:charge.reference,requestKey,operation:spec.name})};
+      }
+      providerResult = await spec.apply(args, executionContext, before, requestKey);
     } catch (error) {
       if (error instanceof PreDispatchRefusal && typeof ctx.replayStore.release === 'function') {
         try {
