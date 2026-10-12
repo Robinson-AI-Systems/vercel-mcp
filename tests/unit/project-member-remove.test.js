@@ -30,6 +30,8 @@ function reads(f,after=[leader]){
   f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
   f.fake.when('GET','/v1/projects/{idOrName}/members')
     .resolves({members:[staff,leader],pagination:{next:null}})
+    .resolves({members:[staff,leader],pagination:{next:null}})
+    .resolves({members:[staff,leader],pagination:{next:null}})
     .resolves({members:after,pagination:{next:null}});
 }
 describe('D-1i guarded project member removal',()=>{
