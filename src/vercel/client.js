@@ -186,7 +186,7 @@ export function makeVercelClient({
     if (!response?.ok) throw error('vercel_api_error', 'Vercel API request did not succeed');
     if (isWrite) {
       // Never persist raw provider output, and do not cache secrets in memory.
-      const safe = options.shapeResult(envelope);
+      const safe = await options.shapeResult(envelope);
       if (safe === undefined) throw error('unsafe_write_result', 'Write result must be safely shaped');
       const verified = safeReplayResult(safe);
       await replayStore.complete({ key, claimId, result: verified });
