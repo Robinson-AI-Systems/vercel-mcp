@@ -4,7 +4,7 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {verifyEligibleTeamMember} from './project-member-safety.js';
+import {verifyEligibleTeamMember,completeMembers} from './project-member-safety.js';
 
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const properties={
@@ -22,15 +22,7 @@ function validate(args){
     (args.confirm!==undefined&&typeof args.confirm!=='boolean'))
     throw new TypeError('Invalid member removal arguments');
 }
-async function listMembers(client,id){
-  const page=await client.request('projects_members_list',{
-    path:{idOrName:id},query:{limit:100}
-  });
-  if(!Array.isArray(page?.members)||page.members.length>100||
-    !page.pagination||page.pagination.next!==null||page.pagination.hasMore===true)
-    throw new TypeError('Member list incomplete; change refused');
-  return page.members;
-}
+const listMembers=(client,id)=>completeMembers(client,'projects_members_list',{idOrName:id});
 const context=({db,connection,env,fetchImpl})=>({
   db,connection,env,fetchImpl,shape:compact,
   audit:x=>db.recordChange(x),replayStore:db.requestReplayStore(),
