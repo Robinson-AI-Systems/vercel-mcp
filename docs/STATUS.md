@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1az PR #99 — cron output secrecy:** cron list projection now strips URL parameters while suppressing credential-shaped plain/percent-encoded paths, control-bearing paths, suspicious schedules and provider IDs. No cron invocation or provider write. D-1 still IN_PROGRESS; production remains inactive.
+
 - **D-1ay PR #98 — unambiguous read-only membership identities:** project member reads reject contradictory `uid`/`userId` aliases and duplicate user IDs; membership-record IDs are not misrepresented as user UIDs. Project and member read pages also refuse contradictory root continuation flags. No access grants/removals or elevated authority unlocked. D-1 IN_PROGRESS.
 
 - **D-1ax PR #97 — transfer issuance credential-bound recheck:** a one-time transfer claim now requires an unchanged stored team/account and a fresh immutable project ID/name proof using the exact credential that would POST. Credential rotation or rename aborts before transfer code issuance. No claim is generated in real Vercel; production and owner controls unchanged. D-1 IN_PROGRESS.
