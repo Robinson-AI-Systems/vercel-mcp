@@ -41,6 +41,25 @@ implementation PRs, not dedicated docs-only PRs. At handoff summarize
 capability advanced, what was genuinely proven, remaining blockers and
 the next eligible step.
 
+### Recovery is required before postponement
+
+A failing preferred operation does not block the entire milestone, batch or
+project. Before a "BLOCKED" disposition: reproduce/inspect the specific failure,
+audit code, configuration, pinned provider contract, stale dependencies/docs and
+already-answered owner policy; attempt authorized remedies and run the available
+verification. Record what was fixed versus what genuinely needs unavailable
+external permissions, provider evidence, credentials or owner action. Only the
+unavailable acceptance item is deferred; advance the next highest-priority
+independent eligible card or read-only exception after checking roadmap
+dependencies. An implementation agent must not stop merely after recording a
+blocker. At each PR boundary and changed dependency/owner/environment trigger,
+reconsider paused items and automatically reactivate eligible work. An early
+stop before the normal five-merge boundary requires evidence of exhausted
+eligible work or a specific execution limitation, not the preferred item failing.
+Use the existing STATUS and validated work-index instead of creating another
+instruction or postponement file. Preserve independent CI, review and
+production/security/spend safeguards. See AGENTS.md for the canonical rule.
+
 ## A. Start of every PR (one bounded pass, ~10 minutes)
 
 1. Record: current `main` SHA, the predecessor's merged SHA, the card's "Baseline inspected" SHA.
