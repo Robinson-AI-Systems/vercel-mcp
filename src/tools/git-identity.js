@@ -13,7 +13,22 @@ export function verifyGitNamespace(rows,provider,namespaceId){
   return {id:namespaceId,provider};
 }
 
-export function verifyExactGitRepository(response,{repo,provider,namespaceId}){
+// The search endpoint's object response authenticates the provider at the root,
+// not on every row. Share this proof between read discovery and paid imports.
+export function verifyGitSearchAccount(response,provider,namespaceId){
+  if(Array.isArray(response))return;
+  const identity=response?.gitAccount;
+  if(!identity||typeof identity!=='object'||Array.isArray(identity)||
+    identity.provider!==provider||!Object.hasOwn(identity,'namespaceId')||
+    (identity.namespaceId!==null&&
+      !(typeof identity.namespaceId==='string'||
+        (typeof identity.namespaceId==='number'&&Number.isSafeInteger(identity.namespaceId))))||
+    (identity.namespaceId!==null&&String(identity.namespaceId)!==namespaceId))
+    throw new TypeError('Git search account identity is unverified');
+}
+
+export function verifyExactGitRepository(response,{repo,provider,namespaceId}) {
+  verifyGitSearchAccount(response,provider,namespaceId);
   const rows=Array.isArray(response)?response:
     Array.isArray(response?.repos)?response.repos:
     Array.isArray(response?.repositories)?response.repositories:null;

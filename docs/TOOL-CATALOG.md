@@ -537,3 +537,5 @@ D-1az (#99): `vercel_cron_list` suppresses credential-shaped and decoded path/sc
 D-1ay (#98): member read pages refuse contradictory or duplicate user identities, do not substitute membership-record IDs for user UIDs, and honor root continuation contradiction signals for project/member lists.
 D-1ax (#97): `vercel_project_transfer` revalidates exact issuer team/account and immutable project ID/name immediately before requesting any owner-vaulted transfer code; rotated authority or renamed projects refuse.
 D-1aw (#96): destructive `vercel_project_delete` requires pinned `pagination.count` and cross-checks declared root/pagination totals for domains, env vars and deployments against terminal page lengths before both deletion scans; contradictory totals refuse irreversible DELETE.
+
+<!-- D-1bb #101: Git discovery and metered Git import now share top-level authenticated gitAccount proof; no tool status or authorization change. -->
