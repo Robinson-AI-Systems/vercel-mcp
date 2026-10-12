@@ -13,7 +13,9 @@ const barePath=value=>{
     // must not poison an otherwise legitimate path. Also inspect decoding:
     // escaped provider token shapes must not appear in MCP output as paths.
     const pathname=new URL(value,'https://invalid.example').pathname;
-    if(unsafe(pathname)||unsafe(decodeURIComponent(pathname)))return null;
+    // Percent encoding can hide credentials, including double-encoded tokens
+    // that a downstream consumer decodes again. Do not project encoded paths.
+    if(pathname.includes('%')||unsafe(pathname))return null;
     return pathname.slice(0,500);
   }catch{return null;}
 };
@@ -54,7 +56,7 @@ function definition(row){
   if(!row||typeof row!=='object'||Array.isArray(row))
     throw new TypeError('Invalid cron definition');
   const schedule=typeof row.schedule==='string'&&row.schedule.length<=160&&
-    !unsafe(row.schedule)?
+    !row.schedule.includes('%')&&!unsafe(row.schedule)?
     row.schedule:null;
   return {path:barePath(row.path),scheduleUtc:schedule,source:sourceName(row.source),
     denverExample:denverCronPreview(schedule)};
