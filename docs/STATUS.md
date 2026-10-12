@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC #126 — byte-bounded discovery:** GET tool lists now paginate to an exact 8 KiB JSON envelope even for many large, authorized schemas. Direct lookup no longer depends on the first catalog page; oversized single descriptors fail closed rather than returning large replies. Offline adversarial tests; no new authority, production, hosting, money or deployed D-4 proof. Next: RTC response and multi-call integrity work.
+
+
 - **RTC/D-1 cross-door contradictory-metadata hardening #125:** shared OAuth/MCP profile discovery and direct invocation now refuse nominal read declarations with guarded-write contracts, owner administration, secret directions, destructive hints or contradictory read-only annotations. RTC metadata mirrors the same classification and read-only batch/direct dispatch refuses. Adversarial tests cover every profile and HTTPS. No provider activation, live D-4 proof, spending permission or production deployment. Five-PR boundary reached; see handoff on PR #125 after merge.
 
 
