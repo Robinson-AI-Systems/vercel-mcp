@@ -83,7 +83,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_project_delete` | Strict empty-project-only deletion: require full profile, production confirmation, typed name, complete scoped impact inventory and reread before DELETE; nonempty/unknown blocked | D PR | O | F | y | D-1 (partial #60) |
 | `vercel_project_pause` | Guarded pause of project production traffic; authenticated project state before and after, confirmation, production connection | PR | O Op | F | y | D-1 (built #58) |
 | `vercel_project_unpause` | Guarded production resumption; authenticated state, full-profile production confirmation, metered usage warning | PR | O Op | F | y | D-1 (built #58) |
-| `vercel_project_transfer` | Issue an owner-only encrypted one-time transfer claim code; never auto-completes ownership transfer | D PR 1x | O | F | y | D-1 (partial #62) |
+| `vercel_project_transfer` | Issue an owner-only encrypted one-time transfer claim code; never auto-completes ownership transfer | A D PR 1x | O | F | y | D-1 (partial #62) |
 | `vercel_project_list_members` | Project-level members and their project roles | — | O | R | — | D-1 (built #48) |
 | `vercel_project_add_member` | Give an existing team user a project role by UID (no new seat or team invite) | A | O | F | — | D-1 (built #54 UID-only) |
 | `vercel_project_remove_member` | Remove viewer/developer project role by UID; admin/owner/final member removal remains blocked | C | O | F | — | D-1 (partial #55) |
