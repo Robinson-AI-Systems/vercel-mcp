@@ -25,7 +25,8 @@ async function listMembers(client,id){
   const page=await client.request('projects_members_list',{
     path:{idOrName:id},query:{limit:100}
   });
-  if(!Array.isArray(page?.members)||page.pagination?.next!=null)
+  if(!Array.isArray(page?.members)||page.members.length>100||
+    !page.pagination||page.pagination.next!==null||page.pagination.hasMore===true)
     throw new TypeError('Member list incomplete; change refused');
   return page.members;
 }

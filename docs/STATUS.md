@@ -4,6 +4,9 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1s PR #66 — access-role and pagination safety:** MCP project role grants are restricted to project developer/viewer until an independently authenticated owner design is approved for ADMIN; grant and removal refuse incomplete member inventories (missing terminal cursor, further pages, oversized page). Offline CI only. Remaining D-1 privileged role and nonempty deletion work stays gated; D-2 read tools can proceed independently.
+
+
 - **D-1r guarded Git-linked creation (#65):** extend existing project creation with exact repository/namespace lookup through the authenticated Vercel Git connection. Unlinked projects retain preview-mode $0 flow. Git imports require full-profile production connection and explicit confirmation, spend policy with owner-set positive limit, pinned POST schema and independent GET identity/Git-link read-back. No repo credentials, user-supplied monetary quote, provider Git tokens or real Vercel writes. Elevated role removal and broad project delete remain independently blocked; IN-07/08 pending.
 
 - **D-1q grouped build/function resources (#64):** full-profile production-confirmed and protected project resource PATCH, with pinned resourceConfig body, authenticated owner limit/spent checks (unpriced usage blocked at $0), no caller-quoted charges, partial-field-only changes and independent resource read-back. No real Vercel spend or production activation. Continue D-1 Git-linked creation and separately approved elevated membership/broad-delete work.
