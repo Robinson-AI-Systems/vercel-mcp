@@ -307,7 +307,7 @@ export function createDb(query) {
         VALUES (${entry.account}, ${entry.mode || 'preview'}, ${entry.tool}, ${summary},
           ${before}::jsonb, ${after}::jsonb, ${entry.dryRun},
           ${entry.production}, ${entry.requestKey || null},
-          ${result}::jsonb, ${entry.dryRun?null:(cents??null)})
+          ${result}::jsonb, ${inverse}::jsonb, ${entry.dryRun?null:(cents??null)})
         RETURNING id`;
       return rows[0].id;
     },
