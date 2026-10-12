@@ -40,6 +40,46 @@ describe('D-1g guarded project settings',()=>{
     expect(f.rows.size).toBe(2);
     f.fake.verify();
   });
+  it('groups command and directory changes in one guarded PATCH and independent read-back',async()=>{
+    const f=fixture(),change={buildCommand:'npm run build:site',
+      installCommand:'npm ci --ignore-scripts',devCommand:'npm run dev:site',
+      commandForIgnoringBuildStep:'git diff --quiet HEAD~1',
+      outputDirectory:'dist/site',rootDirectory:'apps/site'};
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
+      .resolves({...before,...change});
+    f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({...before,...change});
+    const result=parse(await f.call({project:before.id,...change,confirm:true}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','PATCH','GET']);
+    expect(f.fake.calls[1].body).toEqual(change);
+    expect(JSON.stringify(result)).not.toContain('npm run build:site');
+    expect(f.rows.size).toBe(2);
+    f.fake.verify();
+  });
+  it('keeps raw command values out of preview, audit and read-only discovery',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before);
+    const changed={project:before.id,buildCommand:'npm run build:private'};
+    const preview=parse(await f.call({...changed,dryRun:true}));
+    expect(preview.status).toBe('preview');
+    expect(JSON.stringify(preview)).not.toContain(changed.buildCommand);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+    f.fake.verify();
+  });
+  it('rejects unsafe directories, control characters and all-unchanged command settings',async()=>{
+    const f=fixture();
+    for(const value of ['../outside','/etc','folder//sub','folder\\outside']){
+      const response=await f.call({project:before.id,rootDirectory:value,confirm:true});
+      expect(response.isError||parse(response).status==='refused_by_guard').toBe(true);
+    }
+    expect((await f.call({project:before.id,buildCommand:'build\nsecret'})).isError).toBe(true);
+    expect(f.fake.calls).toHaveLength(0);
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({...before,buildCommand:'npm run build'});
+    expect(parse(await f.call({project:before.id,buildCommand:'npm run build',confirm:true})).status)
+      .toBe('refused_by_guard');
+    f.fake.verify();
+  });
   it('requires production mode for a project serving or possibly serving live traffic',async()=>{
     for(const live of [true,undefined]){
       const f=fixture();

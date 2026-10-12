@@ -7,7 +7,16 @@ import {checkApp} from './app-guard.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const NAME=/^[a-z0-9][a-z0-9._-]{0,99}$/;
+// One pinned PATCH, grouped across build commands and relative directories.
+// Values never enter preview, logical audit snapshots or provider results.
+const COMMAND_SETTINGS=['buildCommand','installCommand','devCommand','commandForIgnoringBuildStep'];
+const DIRECTORY_SETTINGS=['rootDirectory','outputDirectory'];
+const CONFIG_SETTINGS=[...COMMAND_SETTINGS,...DIRECTORY_SETTINGS];
+const configFields=Object.fromEntries(CONFIG_SETTINGS.map(key=>[key,{
+  type:'string',minLength:1,maxLength:COMMAND_SETTINGS.includes(key)?2048:500
+}]));
 const props={
+  ...configFields,
   project:{type:'string',minLength:1,maxLength:128},
   name:{type:'string',pattern:NAME.source,maxLength:100},
   framework:{anyOf:[{type:'string',minLength:1,maxLength:100},{type:'null'}],
@@ -20,10 +29,19 @@ function validate(args){
   if(!args||typeof args!=='object'||Array.isArray(args)||
     Object.keys(args).some(k=>!Object.hasOwn(props,k))||
     typeof args.project!=='string'||!ID.test(args.project)||
-    (args.name===undefined && args.framework===undefined)||
+    (args.name===undefined && args.framework===undefined &&
+      !CONFIG_SETTINGS.some(key=>args[key]!==undefined))||
     (args.name!==undefined&&(typeof args.name!=='string'||!NAME.test(args.name)))||
     (args.framework!==undefined&&args.framework!==null&&
       (typeof args.framework!=='string'||args.framework.length===0||args.framework.length>100))||
+    COMMAND_SETTINGS.some(key=>args[key]!==undefined&&(
+      typeof args[key]!=='string'||args[key].length<1||args[key].length>2048||
+      /[\u0000-\u001f\u007f]/.test(args[key])))||
+    DIRECTORY_SETTINGS.some(key=>args[key]!==undefined&&(
+      typeof args[key]!=='string'||args[key].length<1||args[key].length>500||
+      args[key].startsWith('/')||args[key].includes('\\')||
+      args[key].split('/').some(part=>!part||part==='..')||
+      /[\u0000-\u001f\u007f]/.test(args[key])))||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
     throw new TypeError('Invalid project settings request');
@@ -38,9 +56,12 @@ const update=defineWrite({
   name:'vercel_project_update_settings',
   async before(args,ctx){
     validate(args);
-    if(args.framework!==undefined)validateRequest('projects_update',{
-      path:{idOrName:args.project},query:{teamId:'team_FAKE_validation'},
-      body:{framework:args.framework}
+    // Validate every supplied change against the immutable pinned PATCH schema
+    // before any provider read or write, including combinations of fields.
+    const body=Object.fromEntries(['name','framework',...CONFIG_SETTINGS]
+      .filter(key=>args[key]!==undefined).map(key=>[key,args[key]]));
+    validateRequest('projects_update',{
+      path:{idOrName:args.project},query:{teamId:'team_FAKE_validation'},body
     });
     const {client,account}=await readProvider(ctx);
     if(account.scope==='project'&&args.project!==account.project_id)
@@ -51,20 +72,25 @@ const update=defineWrite({
       throw new TypeError('Project identity unavailable');
     // Undefined production metadata is unknown, and is treated as live.
     const live=row.hasDeployments!==false;
+    const configChanges=CONFIG_SETTINGS.filter(key=>
+      args[key]!==undefined && args[key]!==row[key]);
     if((args.name===undefined||args.name===row.name) &&
-      (args.framework===undefined||args.framework===(row.framework??null)))
+      (args.framework===undefined||args.framework===(row.framework??null)) &&
+      configChanges.length===0)
       throw new TypeError('No settings change requested');
     return {id:row.id,name:row.name,framework:row.framework??null,live,
       newName:args.name??row.name,
       newFramework:args.framework!==undefined?args.framework:row.framework??null,
       changeName:args.name!==undefined,
-      changeFramework:args.framework!==undefined};
+      changeFramework:args.framework!==undefined,
+      configChanges};
   },
   async preview(_args,_ctx,before){
     return 'Update settings for project '+before.name+' ('+before.id+')'+
       (before.changeName?'; rename to '+before.newName+
         ' (project URLs and aliases may be affected)':'')+
       (before.changeFramework?'; set framework to '+before.newFramework:'')+
+      (before.configChanges.length?'; update build settings: '+before.configChanges.join(', '):'')+
       (before.live?'; this is classified as a PRODUCTION change':'');
   },
   async production(_args,_ctx,before){
@@ -81,7 +107,8 @@ const update=defineWrite({
     return provider.write('projects_update',{
       path:{idOrName:before.id},body:{
         ...(before.changeName?{name:before.newName}:{}),
-        ...(before.changeFramework?{framework:before.newFramework}:{})
+        ...(before.changeFramework?{framework:before.newFramework}:{}),
+        ...Object.fromEntries(before.configChanges.map(key=>[key,_args[key]]))
       }
     },{requestKey,tool:'vercel_project_update_settings',shapeResult:row=>{
       if(typeof row?.id!=='string'||typeof row?.name!=='string')
@@ -93,14 +120,15 @@ const update=defineWrite({
     const {client}=await readProvider(ctx);
     const row=await client.request('projects_get',{path:{idOrName:before.id}});
     return {confirmed:row?.id===applied?.id && row?.name===before.newName &&
-      (!before.changeFramework || row.framework===before.newFramework),
+      (!before.changeFramework || row.framework===before.newFramework) &&
+      before.configChanges.every(key=>row?.[key]===_args[key]),
       project:before.id};
   }
 });
 export const projectSettingsTools={
   tools:[{name:'vercel_project_update_settings',writes:true,guardedWrite:true,
     profiles:['everyday','full'],area:'projects',
-    description:'Rename or set project framework; live projects require production mode and confirmation.',
+    description:'Update project name, framework, build commands and directories after a guarded live-status check.',
     inputSchema,writeContract:update.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{
