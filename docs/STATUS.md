@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1ar PR #91 — verified member identity aliases:** project/team member pagination rejects conflicting provider `uid`/`userId` aliases before any project role grant or revocation. A distinct membership record `id` remains valid. Tested offline; privileged ADMIN/owner changes still disabled; D-1 IN_PROGRESS.
+
 - **D-1aq PR #90 — project member read secrecy:** member ID, display name, email and role now reject credential-shaped provider text as well as control characters and oversized values. Fake-provider tests show secrets cannot escape in read-only MCP results. D-1 remains IN_PROGRESS pending independent owner-gated privileged membership/deletion; D-2 not yet authorized.
 
 - **D-1ap PR #89 — Git discovery output secrecy:** namespace and repository fields reject credential-shaped text, identifiers and repository URLs, including arbitrary provider labels. Fake-provider adversarial tests; no live Vercel actions or widened access. D-1 remains IN_PROGRESS.
