@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC 1 #112 — public contract and metadata:** read-only `GET /api/contract` and `GET /api/openapi.json` advertise correct operation names, safety flags, counts and modes without requiring credentials; metadata derives from actual guarded MCP registry. Delegated `vercel_call` is classified as write-capable. No HTTP pass access is enabled by a manifest alone. Follow-up: owner-issued read-only pass and authenticated HTTPS door. Production inactive; D-1 remains IN_PROGRESS.
+
 - **D-1bh PR #111 — replay payload isolation:** explicit MCP request keys now use the canonical meaningful payload as well as account, mode and tool; a completed write cannot falsely satisfy changed arguments. Replay-claim transport errors fail closed before provider dispatch. Unit regressions for old-result collisions, database outage and consumed owner purchase approval. IN-08 metered operations remain disabled, production inactive.
 
 - **IN-08 PR #110 — charged-write enforcement:** centrally rejects agent-only purchases and old positive daily limits, requires a stable key and one-use separately authenticated owner purchase approval, with replay, payload and price binding. Metered Git imports and build-resource changes remain disabled until a verifiable provider-enforceable ceiling exists. Temporary recovery note removed; permanent connector-interruption procedure added to AGENTS. All five required exact-head CI jobs passed at the current tested implementation checkpoint; exact-head final CI must be reverified after this reconciliation. D-1 remains IN_PROGRESS; production inactive.
