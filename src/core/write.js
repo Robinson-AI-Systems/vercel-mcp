@@ -162,7 +162,11 @@ export function defineWrite(spec) {
         // provider quote description drifted, no provider mutation is safe.
         // For chargeable writes this occurs BEFORE consuming the owner grant.
         await requirePreDispatch(async()=>{
-          const fresh=await spec.spend(args,ctx,before);
+          // Cached preflight state cannot validate a provider-sourced quote.
+          // Re-read charged operations before consuming a one-use owner grant.
+          const freshBefore=spendDeclaration.cents===0&&!spendDeclaration.recurring?
+            before:await spec.before(args,ctx);
+          const fresh=await spec.spend(args,ctx,freshBefore);
           if(!fresh||fresh.cents!==spendDeclaration.cents||
             fresh.recurring!==spendDeclaration.recurring||
             typeof fresh.description!=='string'||

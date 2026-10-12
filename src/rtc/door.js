@@ -66,6 +66,8 @@ function listing(req,pass,registry){
     (requested.listing!==undefined&&!['catalog','compact'].includes(requested.listing)))
     throw new TypeError('Invalid listing limit');
   // next is a bounded numeric offset, not a token granting a new scope.
+  if(requested.limit!==undefined&&typeof requested.limit!=='string')
+    throw new TypeError('Invalid limit selector');
   if(requested.cursor!==undefined &&
     (typeof requested.cursor!=='string' ||
       !/^(0|[1-9][0-9]{0,4})$/.test(requested.cursor)))
@@ -106,10 +108,18 @@ async function invoke(name,args,ctx){
   try{return JSON.parse(response.content[0].text);}
   catch{return null;}
 }
-async function requirePass(req,db,res,route){
+function validPassRecord(record){
+  return Boolean(record&&ACCOUNT.test(record.account||'')&&PASS_ID.test(record.id||'')&&
+    record.mode==='preview'&&record.profile==='read_only'&&
+    Array.isArray(record.areas)&&record.areas.length>0&&record.areas.length<=12&&
+    new Set(record.areas).size===record.areas.length&&
+    record.areas.every(area=>typeof area==='string'&&AREA.test(area))&&
+    ['compact','catalog'].includes(record.listing));
+}
+async function requirePass(req,db,res,route,registry){
   const m=PASS.exec(String(req.headers?.authorization||''));
   if(!m){fail(res,'permission');return null;}
-  let units=1;
+  let units=1,peek=null;
   if(route==='batch' && req.method==='POST'){
     // Reserve every read atomically before the first provider call; never
     // multiply a 60/minute pass into 600/minute via ten-item batches.
@@ -119,18 +129,32 @@ async function requirePass(req,db,res,route){
       body.calls.length<1||body.calls.length>10){
       fail(res,'invalid_args');return null;
     }
+    // Preview scope before spending quota; no read tools run on this snapshot.
+    // The atomic authorization below remains the final safety gate.
+    if(typeof db.inspectRtcPass!=='function'){fail(res,'permission');return null;}
+    peek=await db.inspectRtcPass(m[1]);
+    if(peek?.status!=='ok'){
+      fail(res,peek?.status in MESSAGES?peek.status:'permission');return null;
+    }
+    if(!validPassRecord(peek)){fail(res,'permission');return null;}
+    for(const call of body.calls){
+      if(!call||typeof call!=='object'||Array.isArray(call)||
+        Object.keys(call).some(k=>!['name','args'].includes(k))||
+        typeof call.name!=='string'){fail(res,'invalid_args');return null;}
+      if(!named({query:{name:call.name}},registry,peek)){
+        fail(res,'refused_by_guard');return null;
+      }
+      try{argumentsFor(call.args??{});}catch{fail(res,'invalid_args');return null;}
+    }
     units=body.calls.length;
   }
   const record=await db.authorizeRtcPass(m[1],units);
   if(record?.status!=='ok'){fail(res,record?.status in MESSAGES?record.status:'permission');return null;}
   // A malformed database authorization record is never a valid scoped pass.
   // Scope/account/identity must be independently well formed before dispatch.
-  if(!ACCOUNT.test(record.account||'')||!PASS_ID.test(record.id||'')||
-    record.mode!=='preview'||record.profile!=='read_only'||
-    !Array.isArray(record.areas)||record.areas.length===0||
-    record.areas.length>12||new Set(record.areas).size!==record.areas.length||
-    record.areas.some(area=>typeof area!=='string'||!AREA.test(area))||
-    !['compact','catalog'].includes(record.listing)){
+  if(!validPassRecord(record)||
+    (peek&&(peek.id!==record.id||peek.account!==record.account||
+      peek.listing!==record.listing||JSON.stringify(peek.areas)!==JSON.stringify(record.areas)))){
     fail(res,'permission');return null;
   }
   const connection={account:record.account,profile:'read_only',mode:'preview',
@@ -142,7 +166,7 @@ async function requirePass(req,db,res,route){
 export function rtcDoor({db,registry,env=process.env,fetchImpl}){
   return async function handler(req,res,route){
     try{
-      const auth=await requirePass(req,db,res,route);
+      const auth=await requirePass(req,db,res,route,registry);
       if(!auth)return;
       const {pass,connection}=auth;
       const ctx={db,registry,env,fetchImpl,connection};
