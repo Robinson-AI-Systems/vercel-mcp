@@ -50,6 +50,22 @@ export function sampleWrite(options = {}) {
   return { spec, tool: defineWrite(spec), ctx, provider, audits, rows };
 }
 
+// Fake *independently authenticated* owner approval for contract tests only.
+// No daily limit or AI confirm can set this DB-owned approval status.
+export function attachFakeOwnerPurchase(ctx,initiallyApproved=true) {
+  const state={status:initiallyApproved?'approved':'pending'};
+  ctx.db={
+    requestPurchaseIntent:async()=>({reference:'12345678-1234-1234-1234-123456789abc',
+      status:state.status,expiresAt:new Date(Date.now()+600000).toISOString()}),
+    getPurchaseIntent:async()=>({status:state.status,
+      ceiling_cents:Number.MAX_SAFE_INTEGER,approved_at:new Date(),
+      expires_at:new Date(Date.now()+600000),
+      consumed_at:state.status==='consumed'?new Date():null}),
+    consumePurchaseIntent:async()=>{if(state.status!=='approved')return false;
+      state.status='consumed';return true;}
+  };
+  return state;
+}
 export function runWriteContract(label, factory = sampleWrite) {
   describe('eight guarded write contract categories: ' + label, () => {
     it('1 dry run is preview-only and recorded', async () => {
@@ -92,13 +108,21 @@ export function runWriteContract(label, factory = sampleWrite) {
       const allowed = await a.tool.run({ live: true, confirm: true }, a.ctx);
       expect(allowed.mode).toBe('PRODUCTION');
     });
-    it('7 spend declaration comes from provider and enforces cap/confirmation', async () => {
-      const a = sampleWrite({ spend: true });
-      expect((await a.tool.run({ confirm: true }, a.ctx)).status).toBe('spend_limit');
-      a.ctx.spendLimitCents = 1000;
-      const p = await a.tool.run({ dryRun: true }, a.ctx);
+    it('7 paid writes reject AI confirmation and daily limit without a one-use owner purchase', async () => {
+      const a=sampleWrite({spend:true});
+      expect((await a.tool.run({confirm:true},a.ctx)).status).toBe('refused_by_guard');
+      a.ctx.spendLimitCents=1000;
+      const p=await a.tool.run({dryRun:true},a.ctx);
       expect(p.moneyLine).toContain('$5.00 USD');
-      expect((await a.tool.run({ confirm: true }, a.ctx)).confirmed).toBe(true);
+      expect((await a.tool.run({confirm:true,requestKey:'ownerInvoiceFake01'},a.ctx)).status)
+        .toBe('refused_by_guard');
+      const owner=attachFakeOwnerPurchase(a.ctx,false);
+      const args={confirm:true,requestKey:'ownerInvoiceFake01'};
+      expect((await a.tool.run(args,a.ctx)).status).toBe('awaiting_owner_approval');
+      expect(a.provider).toHaveLength(0);
+      owner.status='approved';
+      expect((await a.tool.run(args,a.ctx)).confirmed).toBe(true);
+      expect(a.provider).toHaveLength(1);
     });
     it('8 access widening requires confirm; read-only profile cannot write', async () => {
       const a = sampleWrite({ access: true });
