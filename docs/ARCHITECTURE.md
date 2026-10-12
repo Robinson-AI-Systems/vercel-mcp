@@ -98,3 +98,5 @@ B-8 remaining revoke/spend and independent approval still require implementation
 - `requireMcpToken` internally derives a nonenumerable per-bearer result identity. No live Neon database or Vercel token configured.
 
 IN-08 (PR #108): additive `purchase_intents` ledger stores account, exact operation, request key, hashed payload fingerprint, quoted cents or variable-cost classification, owner ceiling and one-use status. Owner-approved amounts are BIGINT, with no policy-defined upper bound; JavaScript safe-integer validation remains necessary. Separate owner web authorization and paid dispatcher enforcement are not part of this foundation and remain blocked until verified.
+
+IN-08 (PR #109): /api/vercel/setup owner purchase review and owner approval use an HttpOnly session, per-session CSRF, independent password reentry and account-scoped one-time ledger approval/readback. No new provider write. Paid-dispatch enforcement is a separate following PR.
