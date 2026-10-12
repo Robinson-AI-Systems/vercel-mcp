@@ -20,6 +20,7 @@ function fixture(limit=0){
         state.set(key,{state:'pending'});
         return {state:'claimed',claimId:'claim_FAKE'};
       },
+      release:async({key})=>{state.delete(key);},
       complete:async({key,result})=>state.set(key,{state:'completed',result})
     })
   };
@@ -294,10 +295,23 @@ describe('D-1f guarded project creation',()=>{
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'budgetRaceFAKE01'},
       {...connection,mode:'production',profile:'full'}));
-    expect(res).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
     expect(reads).toBe(2);
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('binds Git proof and POST to one execution-time credential',async()=>{
+    const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
+    f.fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo').resolves({repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+      .resolves({id:'prj_FAKE_NEW',name:'demo-site',link:{type:'github',repo:'acme/site'}});
+    f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+    const result=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
+      requestKey:'bindOnceGitFAKE01'},{...connection,mode:'production',profile:'full'}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(loadToken).toHaveBeenCalledTimes(3);
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
   });
   it('refuses Git import when repository access is revoked after preflight',async()=>{
     const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
@@ -310,7 +324,7 @@ describe('D-1f guarded project creation',()=>{
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'gitRaceFAKE01'},
       {...connection,mode:'production',profile:'full'}));
-    expect(res).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
     expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/search-repo')).toHaveLength(2);
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
@@ -326,7 +340,7 @@ describe('D-1f guarded project creation',()=>{
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'namespaceRaceFAKE01'},
       {...connection,mode:'production',profile:'full'}));
-    expect(res).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
     expect(f.fake.calls.filter(x=>x.path==='/v1/integrations/git-namespaces')).toHaveLength(2);
   });

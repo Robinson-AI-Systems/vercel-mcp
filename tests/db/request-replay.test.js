@@ -31,6 +31,18 @@ describe('atomic durable write replay in Postgres', () => {
     expect(rows[0].result).toEqual({ id: 'prj_FAKE' });
   });
 
+  it('releases only its own pending refusal and allows the same request key',async()=>{
+    const first=await claim('preflight_release_test_123');
+    expect(first.state).toBe('claimed');
+    await expect(store.release({key:'preflight_release_test_123',claimId:'wrong_claim'})).rejects.toThrow();
+    expect((await claim('preflight_release_test_123')).state).toBe('pending');
+    await store.release({key:'preflight_release_test_123',claimId:first.claimId});
+    const second=await claim('preflight_release_test_123');
+    expect(second.state).toBe('claimed');
+    await expect(store.release({key:'preflight_release_test_123',claimId:first.claimId})).rejects.toThrow();
+    await store.complete({key:'preflight_release_test_123',claimId:second.claimId,result:{confirmed:true}});
+    expect((await claim('preflight_release_test_123')).state).toBe('completed');
+  });
   it('expired claim can be safely reissued, but an old claimant cannot complete it', async () => {
     const old = await claim('expired_request_key_123');
     expect(old.state).toBe('claimed');

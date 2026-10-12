@@ -77,6 +77,7 @@ describe('D-1m destructive empty-project deletion',()=>{
     expect(preview.preview).toContain('envVariables: 1');
     expect(preview.preview).toContain('storageConnections: 1');
     expect(preview.preview).toContain('crons: 1');
+    expect(preview.preview).toContain('deployments: 0');
     expect(JSON.stringify(preview)).not.toContain('NEVER_OUTPUT');
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     const g=fixture();g.projectRule.resolves({...project,storageConnections:[{id:'store_FAKE'}]});

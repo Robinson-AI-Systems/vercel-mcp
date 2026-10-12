@@ -16,6 +16,7 @@ function fixture(){
         if(rows.has(key))return rows.get(key);
         rows.set(key,{state:'pending'});return {state:'claimed',claimId:'FAKE'};
       },
+      release:async({key})=>{rows.delete(key);},
       complete:async({key,result})=>rows.set(key,{state:'completed',result})
     })
   };
@@ -137,7 +138,7 @@ describe('D-1h project access grants',()=>{
       .resolves({members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}})
       .resolves({members:[{uid,role:'OWNER',confirmed:true}],pagination:{next:null}});
     const result=parse(await f.call({project:name,uid,role,confirm:true,requestKey:'raceGrantFAKE01'}));
-    expect(result.status).toBe('outcome_unknown');
+    expect(result.status).toBe('refused_by_guard');
     expect(result.confirmed).toBeNull();
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
   });
@@ -150,7 +151,7 @@ describe('D-1h project access grants',()=>{
     f.fake.when('GET','/v3/teams/{teamId}/members')
       .resolves({members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}});
     const result=parse(await f.call({project:name,uid,role,confirm:true,requestKey:'raceNameFAKE01'}));
-    expect(result.status).toBe('outcome_unknown');
+    expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
   });
   it('keeps project administrator grants behind independent owner authorization',async()=>{

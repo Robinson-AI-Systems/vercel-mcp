@@ -18,6 +18,7 @@ function fixture(){
         if(rows.has(key))return rows.get(key);
         rows.set(key,{state:'pending'});return {state:'claimed',claimId:'FAKE'};
       },
+      release:async({key})=>{rows.delete(key);},
       complete:async({key,result})=>rows.set(key,{state:'completed',result})
     })
   };
@@ -117,15 +118,28 @@ describe('D-1i guarded project member removal',()=>{
       members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}
     });
     const result=parse(await f.call(payload));
-    expect(result).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
+  it('blocks a rotated token when its principal is the DELETE target',async()=>{
+    const f=fixture();reads(f);
+    loadToken.mockResolvedValueOnce(token).mockResolvedValueOnce({
+      ...token,token:'vcp_FAKE_rotated',account:{...token.account}
+    });
+    f.fake.when('GET','/v2/user')
+      .resolves({user:{id:'user_FAKE_OWNER'}}).resolves({user:{id:uid}});
+    const result=parse(await f.call({...payload,requestKey:'rotationGuardFAKE01'}));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    expect(loadToken).toHaveBeenCalledTimes(2);
+    expect(f.rows.size).toBe(0);
   });
   it('refuses execution if the bound acting principal becomes the target',async()=>{
     const f=fixture();reads(f);
     f.fake.when('GET','/v2/user')
       .resolves({user:{id:'user_FAKE_OWNER'}}).resolves({user:{id:uid}});
     const result=parse(await f.call(payload));
-    expect(result).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
   });
   it('refuses removing a team owner, unconfirmed or missing contributor before DELETE',async()=>{
