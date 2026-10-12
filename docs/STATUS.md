@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1aw PR #96 — conservative reported resource totals:** irreversible empty-only project deletion rejects any domain, environment or deployment inventory whose declared total contradicts the observed terminal page; totals on preflight and final bound-credential recheck are both enforced. Nonempty deletion, spending and production remain blocked. D-1 IN_PROGRESS.
+
 - **D-1av PR #95 — destructive storage inventory consistency:** empty-only project deletion now inspects both `storageConnections` and legacy `stores` when both are present; a nonempty or malformed secondary inventory refuses DELETE rather than allowing one empty alias to conceal data. D-1 remains IN_PROGRESS; independently owner-gated privileged roles and nonempty deletion remain disabled.
 
 - **D-1au PR #94 — canonical Git import identity:** authenticated repository search now treats `fullName` as authoritative when present; a colliding `slug` cannot override another repository identity before a potentially metered Git project creation. Scope and $0 default preserved; D-1 IN_PROGRESS.
