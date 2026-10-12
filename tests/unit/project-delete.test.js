@@ -18,7 +18,8 @@ function fixture(){
     requestReplayStore:()=>({
       claim:async({key})=>replay.has(key)?
         {state:'completed',result:replay.get(key)}:{state:'claimed',claimId:key},
-      complete:async({key,result})=>{replay.set(key,result);}
+      complete:async({key,result})=>{replay.set(key,result);},
+      release:async()=>{}
     })
   };
   const call=(args=request,c=connection)=>dispatchReadOnlyTool({registry,
@@ -51,8 +52,29 @@ describe('D-1m destructive empty-project deletion',()=>{
     expect(f.fake.calls.find(x=>x.path==='/v7/deployments').query.projectId).toBe(project.id);
     expect(f.fake.calls.every(x=>x.query.teamId==='team_FAKE')).toBe(true);
     expect(f.replay.size).toBe(2);
+    expect(loadToken).toHaveBeenCalledTimes(3);
     expect(f.audits).toHaveLength(1);
     f.fake.verify();
+  });
+  it('refuses a scope rotation before irreversible DELETE and frees the safe retry claim',async()=>{
+    const f=fixture();f.empty();
+    loadToken.mockResolvedValueOnce(token).mockResolvedValueOnce({
+      token:'vcp_FAKE_project_rotated',account:{...token.account,scope:'project',project_id:project.id}
+    });
+    const result=parse(await f.call());
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(loadToken).toHaveBeenCalledTimes(2);
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+  });
+  it('keeps hasDeployments a conservative denial even with a complete zero-count deployment page',async()=>{
+    const f=fixture();f.projectRule.resolves({...project,hasDeployments:true});
+    f.domainRule.resolves({domains:[],pagination:{next:null}});
+    f.envRule.resolves({envs:[],pagination:{next:null}});
+    const result=parse(await f.call({...request,dryRun:true,confirm:false}));
+    expect(result.status).toBe('preview');
+    expect(result.preview).toContain('deployments: 0');
+    expect(result.preview).toContain('NOT ELIGIBLE');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
   });
   it('previews irreversible zero-count impact but does not DELETE without confirmation',async()=>{
     for(const args of [{...request,confirm:false},{...request,confirm:false,dryRun:true}]){
@@ -156,7 +178,7 @@ describe('D-1m destructive empty-project deletion',()=>{
       .resolves({deployments:[],pagination:{next:null}})
       .resolves({deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null}});
     const result=parse(await f.call());
-    expect(result.status).toBe('outcome_unknown');
+    expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
   });
   it('rejects hidden page cursors and unknown env response',async()=>{
@@ -194,7 +216,7 @@ describe('D-1m destructive empty-project deletion',()=>{
     f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
     f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
     const result=parse(await f.call());
-    expect(result.status).toBe('outcome_unknown');
+    expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
   });
   it('fails confirmation if the project remains present after provider accepted DELETE',async()=>{

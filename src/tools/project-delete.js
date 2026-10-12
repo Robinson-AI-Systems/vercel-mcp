@@ -1,6 +1,6 @@
 // D-1m: irreversible deletion is restricted to independently inspected,
 // provably empty projects; other project deletion remains unimplemented.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -43,8 +43,8 @@ function countComplete(reply,key){
   return rows.length;
 }
 // No raw provider resource rows or secret values leave this function.
-async function inspect(ctx,selector){
-  const {client,account}=await readProvider(ctx);
+async function inspect(ctx,selector,bound){
+  const {client,account}=bound??await readProvider(ctx);
   if(!['team','full'].includes(account.scope))
     throw new TypeError('Only authenticated team accounts may delete projects');
   const row=await client.request('projects_get',{path:{idOrName:selector}});
@@ -116,10 +116,15 @@ const deletion=defineWrite({
     if(!before.empty)throw new TypeError('Nonempty projects cannot be deleted');
     // Narrow race window: immediately repeat every authoritative GET and
     // refuse if identity, enumeration or any resource count changed.
-    const fresh=await inspect(ctx,before.id);
-    if(fresh.id!==before.id||fresh.name!==before.name||!fresh.empty)
-      throw new TypeError('Deletion impact changed since confirmation');
     const provider=await writeProvider(ctx);
+    await requirePreDispatch(async()=>{
+      // Inventory proof and DELETE use one bound token/team even if the owner
+      // rotates the account credential during the potentially slow inventory.
+      const client={request:(id,params)=>provider.read(id,params)};
+      const fresh=await inspect(ctx,before.id,{client,account:provider.account});
+      if(fresh.id!==before.id||fresh.name!==before.name||!fresh.empty)
+        throw new TypeError('Deletion impact changed since confirmation');
+    });
     return provider.write('projects_delete',{path:{idOrName:before.id}},{
       requestKey,tool:'vercel_project_delete',shapeResult:()=>({accepted:true})
     });
