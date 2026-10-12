@@ -4,6 +4,9 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC #127 — atomic batch intent and mid-batch pass revocation:** HTTPS batches now execute the exact immutable preflighted call snapshot, not a second mutable request body. Between each provider read, check that the original preview-only pass still exists, is unexpired/unrevoked and has the identical account and area scope. Revocation/expiry/scope changes stop remaining calls without exposing partial results. Adversarial tests only; D-4 hosted acceptance, money and production remain inactive.
+
+
 - **RTC #126 — byte-bounded discovery:** GET tool lists now paginate to an exact 8 KiB JSON envelope even for many large, authorized schemas. Direct lookup no longer depends on the first catalog page; oversized single descriptors fail closed rather than returning large replies. Offline adversarial tests; no new authority, production, hosting, money or deployed D-4 proof. Next: RTC response and multi-call integrity work.
 
 
