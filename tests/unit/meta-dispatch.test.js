@@ -11,8 +11,10 @@ function fixture(){
   const custom={tools:[
     {name:'vercel_fixture_read',writes:false,profiles:['read_only','everyday','full'],
       description:'Fixture read',inputSchema:{type:'object',properties:{}}},
-    {name:'vercel_fixture_write',writes:true,profiles:['full'],localAdmin:false,
-      description:'Fixture write',inputSchema:{type:'object',properties:{}}}
+    // Deliberate non-provider owner fixture: unauthenticated arbitrary routine
+    // handlers are now rejected by mergeNamespaces at construction time.
+    {name:'vercel_fixture_write',writes:true,profiles:['full'],localAdmin:true,
+      description:'Fixture blocked owner write',inputSchema:{type:'object',properties:{}}}
   ],handlers:{vercel_fixture_read:read,vercel_fixture_write:write}};
   const registry=mergeNamespaces([custom,metaTools]);
   const call=(name,args,connection=conn)=>dispatchReadOnlyTool({
@@ -28,7 +30,7 @@ describe('C-2b guarded meta invocation',()=>{
     expect(f.read).toHaveBeenCalledTimes(1);
     expect(listMcpTools(f.registry,conn).map(x=>x.name)).toContain('vercel_call');
   });
-  it('denies hidden/undeclared writes and recursive meta calls',async()=>{
+  it('denies hidden owner writes and recursive meta calls',async()=>{
     const f=fixture();
     for(const name of ['vercel_fixture_write','vercel_call','vercel_batch','vercel_missing']){
       const reply=await f.call('vercel_call',{name,args:{confirm:true}});
