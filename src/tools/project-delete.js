@@ -40,6 +40,16 @@ function countComplete(reply,key){
     reply.pagination.next!==null||reply.pagination.hasNext===true||
     reply.pagination.hasMore===true||reply.hasMore===true)
     throw new TypeError('Cannot prove complete '+key+' inventory');
+  // A terminal cursor alone is not proof of zero resources if the provider
+  // simultaneously reports a larger total. Refuse contradictory or malformed
+  // totals rather than treating pagination uncertainty as safe to delete.
+  for(const total of [reply.total,reply.pagination.total]){
+    if(total===undefined||total===null)continue;
+    const parsed=typeof total==='string'&&/^(0|[1-9][0-9]*)$/.test(total)?
+      Number(total):total;
+    if(!Number.isSafeInteger(parsed)||parsed!==rows.length)
+      throw new TypeError('Contradictory '+key+' inventory total');
+  }
   return rows.length;
 }
 // No raw provider resource rows or secret values leave this function.
@@ -76,15 +86,11 @@ async function inspect(ctx,selector,bound){
   const deploymentPage=await client.request('deployments_list',{
     query:{projectId:row.id,limit:100}
   });
-  if(!Array.isArray(deploymentPage?.deployments)||
-    !deploymentPage.pagination||deploymentPage.pagination.next!==null||
-    deploymentPage.pagination.hasNext===true||
-    deploymentPage.pagination.hasMore===true||deploymentPage.hasMore===true||
-    deploymentPage.deployments.length>100||
-    deploymentPage.deployments.some(item=>!item||item.projectId!==row.id))
-    throw new TypeError('Cannot prove complete project deployment inventory');
+  const deploymentCount=countComplete(deploymentPage,'deployments');
+  if(deploymentPage.deployments.some(item=>!item||item.projectId!==row.id))
+    throw new TypeError('Cannot prove scoped project deployment inventory');
   const inventory={
-    deployments:deploymentPage.deployments.length,
+    deployments:deploymentCount,
     git:row.link!=null?1:0,crons:cron.length,storageConnections:storageCount,
     domains:countDomains,envVariables:countEnvs
   };
