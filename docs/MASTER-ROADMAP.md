@@ -4,7 +4,13 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Next:** D-1 — projects, members, crons and Git using the pinned Vercel API transport and existing guards. Batch C completed through PR #46 (C-1 handles/views and C-2 scoped discovery, dispatch and tokenizer-enforced budgets). B-8 owner approvals stay independent.
+**Next:** D-1 finite completion/acceptance reconciliation (IN-07/IN-08 already
+answered), in parallel with the approved D-2 *read-only* early-start slice.
+D-1 stays IN_PROGRESS until operation-level evidence is audited; external
+provider execution is not implied by CI. D-2's read exception is recorded
+in `work-index.json` and D-1 PR #66. The permanent `revisit` rule prevents
+owner-answered cards from being forgotten. All owner approvals, production
+and payment restrictions remain unchanged.
 A-1 through A-6 and B-1 through B-8 are merged (B-8 completed #40). The official OpenAPI remains pinned to 2026-10-11.
 Use [implementation guidance](implementation-guidance/README.md) for current helper paths, recipes and the B-8b worked
 example when writing the JIT card. No live database, token or deployment is configured; owner gates remain unchanged.

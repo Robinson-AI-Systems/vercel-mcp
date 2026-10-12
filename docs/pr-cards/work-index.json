@@ -404,7 +404,10 @@
         "D-1"
       ],
       "readiness": "READY",
-      "ownerInputs": [],
+      "ownerInputs": [
+        "IN-07",
+        "IN-08"
+      ],
       "pr": [
         47,
         48,
@@ -475,7 +478,19 @@
         113,
         114,
         115
-      ]
+      ],
+      "revisit": {
+        "reason": "IN-07 and IN-08 are answered but D-1 engineering completion and real provider acceptance were not reconciled.",
+        "trigger": "owner-input-resolved",
+        "ownerInputRefs": [
+          "IN-07",
+          "IN-08"
+        ],
+        "resolution": "IN-07 implemented in #107 and IN-08 fixed-price policy through #119; metered and recurring dispatch remain forbidden without provider-enforced hard ceilings. Owner answers do not prove real service acceptance.",
+        "owner": "next Vercel MCP D-1 implementer",
+        "checkpoint": "first substantive PR after #130; check at every session start until reconciled",
+        "nextAction": "Publish finite D-1 operation/acceptance matrix with implemented, unsupported, owner-blocked, externally unverified; close only verified code acceptance, preserve all safeguards and assign remaining gates."
+      }
     },
     {
       "id": "D-2",
@@ -493,7 +508,14 @@
         "D-2"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "earlyReadException": {
+        "prerequisite": "D-1",
+        "scope": "read_only",
+        "evidence": "D-1 card PR #66 explicitly permits D-2 reads independent of owner-only blocked D-1 operations",
+        "nextAction": "Write the D-2 card from approved Batch D and implement scoped deployment list/get reads with real pinned operations and tests",
+        "restrictions": "No D-2 writes or production changes; provider authorization and externally connected acceptance remain independent gates"
+      }
     },
     {
       "id": "D-3",

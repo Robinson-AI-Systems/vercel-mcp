@@ -56,6 +56,26 @@ card; read only that recipe. It maps existing code and proposed work without cha
     API call is blocked, give the exact verified state and recovery action in the handoff now;
     never silently wait or report pending checks as passed.
 
+## Blocked work must return to the roadmap (all future cards)
+
+A blocked or incomplete card is **not** postponed indefinitely. Before switching to another
+card, put a machine-validated `revisit` entry in `docs/pr-cards/work-index.json`:
+reason, exact owner/dependency/external trigger, named next implementer, next action,
+and a concrete checkpoint (normally the next substantive PR/session start).
+The matching STATUS/owner-input rows must identify what is actually answered,
+what code is finished, what is intentionally unsupported, and what still lacks
+external acceptance. Answered owner decisions **must never remain listed as a
+current owner-input blocker**; resume the applicable card or preserve its verified
+remaining work with an explicit checkpoint. Do not clear a card merely because
+an owner approved a policy. Do not defer indefinitely by inventing hardening PRs.
+
+Before picking a new feature, reconcile the work queue against the owner-input
+ledger and the predecessor handoff; follow a documented read-only early-start
+exception when a separate owner-only gate blocks writes (D-2 after D-1 is the
+current example). `npm run check` enforces revisit records and rejects stale
+owner-blocked classifications. Never weaken production, spending or data guards
+to satisfy the queue.
+
 ## What this is
 
 **Robinson Vercel MCP** is a hosted MCP server (Vercel + Neon) that lets Chris's AI agents operate his Vercel teams

@@ -32,6 +32,13 @@ GitHub only as git commits pushed to an `ai/*` branch. Never copy source files t
 1. `git fetch origin && git status -sb && git log --oneline -5`; `npm ci` once per checkout (Node 24 in CI; Node 22+
    works locally — npm only warns about `engines`). Sanity: `npm run check && npm test` should pass on a clean `main`.
 2. `sed -n '1,40p' docs/STATUS.md` → the **Next** section names the card.
+   **Before selecting that card**, inspect every IN_PROGRESS/BLOCKED entry with
+   `revisit` in `docs/pr-cards/work-index.json` and cross-check the current
+   `docs/OWNER-INPUTS.md`. An answered owner decision is a resume trigger,
+   not permission to leave its card parked. Execute the earliest due substantive
+   action or record a specific still-open acceptance gate and the next checkpoint.
+   Check documented read-only dependency exceptions before assuming a blocked
+   write card also blocks independent reads; run `node scripts/validate-work-queue.mjs`.
 3. Resume note? `ls docs/pr-cards/*.progress.md 2>/dev/null` — if your card has one, continue from its "Next step".
    Do not restart work it lists as done.
 4. Read your card (`docs/pr-cards/<ID>.md`). If the roadmap says JIT (no card yet), write it first from the design
