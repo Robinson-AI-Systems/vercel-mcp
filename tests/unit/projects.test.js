@@ -53,6 +53,24 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(fake.calls[0].query).toMatchObject({teamId:'team_ALPHA',limit:'10'});
     expect(fake.calls[0].params.idOrName).toBe('prj_DEMO');
   });
+  it('redacts credential-shaped project member identities and display fields',async()=>{
+    const fake=makeFakeVercel();
+    const secret='vcp_FAKE_sensitive_member';
+    fake.when('GET','/v1/projects/{idOrName}/members').resolves({
+      members:[{uid:secret,email:'github_pat_FAKE_mail',name:'sk_test_FAKE_name',
+        role:'xoxb-FAKE_role',createdAt:1700000000000},
+      {uid:'user_SAFE',email:'safe@example.test',name:'Safe',role:'PROJECT_VIEWER'}],
+      pagination:{next:null}
+    });
+    const result=parse(await call('vercel_project_list_members',
+      {project:'prj_DEMO',limit:10},db,fake.fetch));
+    expect(result.members[0]).toMatchObject({id:null,email:null,name:null,role:null});
+    expect(result.members[1]).toMatchObject({id:'user_SAFE',email:'safe@example.test',
+      name:'Safe',role:'PROJECT_VIEWER'});
+    expect(JSON.stringify(result)).not.toMatch(/vcp_FAKE|github_pat_FAKE|sk_test_FAKE|xoxb-FAKE/);
+    expect(fake.calls.map(x=>x.method)).toEqual(['GET']);
+    fake.verify();
+  });
   it('normalizes callable member continuation and returns a useful follow-up',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v1/projects/{idOrName}/members').resolves({members:[

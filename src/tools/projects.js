@@ -29,7 +29,7 @@ function pageCursor(reply,rows,limit){
   return numeric;
 }
 const safeMemberText=(value,max=320)=>typeof value==='string'&&value.length<=max&&
-  !/[\x00-\x1f\x7f]/.test(value)?value:null;
+  !/[\x00-\x1f\x7f]/.test(value)&&!credentialLike(value)?value:null;
 // Project list fields share the same strict projection as detailed reads.
 // Provider-returned aliases may be arbitrary URLs; never reflect credentials,
 // query strings, fragments or control characters in a read result.
