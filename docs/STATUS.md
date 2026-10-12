@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1k grouped project traffic lifecycle (#58):** production-confirmed pause/unpause with scoped before/after Boolean paused status and no-op replay protection. Full-profile access conservative for resuming metered service. Next independently gated delete/transfer and build-resource spend; IN-07/08 pending, production inactive.
+
 - **D-1j grouped project configuration (#57):** add build/install/dev/ignore commands and root/output directories to the single guarded project PATCH; values never enter previews/audits, existing live-status and read-back checks reused. Next D-1 lifecycle/spend units remain gated; production inactive.
 
 - **PR #56 security/throughput baseline:** resolve unresolved #51 trust-origin, per-mutation transport replay and write-only MCP classification findings with adversarial tests. Group compatible D-1 settings changes in later PRs, preserving approval and risk boundaries. IN-07/IN-08 pending; no production activation.

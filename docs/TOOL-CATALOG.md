@@ -81,8 +81,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_project_update_settings` | Rename/framework plus grouped build/install/dev/ignore commands and relative root/output directories, with protected targets and independent verification; paid resources remain separate | Cp | B O | E | y | D-1 (partial #53) |
 | `vercel_project_set_build_resources` | Build machine type, build concurrency, function default memory/duration/region, fluid compute (each can raise the bill) | $ Cp | O | F | y | D-1 |
 | `vercel_project_delete` | Delete a project and all its deployments (cannot be undone; refused for protected and profiled projects) | D PR | O | F | y | D-1 |
-| `vercel_project_pause` | Stop serving the project's production traffic (visitors see a "paused" error) | PR | O Op | F | y | D-1 |
-| `vercel_project_unpause` | Resume a paused project | PR | O Op | E | y | D-1 |
+| `vercel_project_pause` | Guarded pause of project production traffic; authenticated project state before and after, confirmation, production connection | PR | O Op | F | y | D-1 (built #58) |
+| `vercel_project_unpause` | Guarded production resumption; authenticated state, full-profile production confirmation, metered usage warning | PR | O Op | F | y | D-1 (built #58) |
 | `vercel_project_transfer` | Start moving a project to another team (the transfer code is shown once on the setup page) | D PR 1x | O | F | y | D-1 |
 | `vercel_project_list_members` | Project-level members and their project roles | — | O | R | — | D-1 (built #48) |
 | `vercel_project_add_member` | Give an existing team user a project role by UID (no new seat or team invite) | A | O | F | — | D-1 (built #54 UID-only) |
