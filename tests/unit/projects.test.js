@@ -85,6 +85,37 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(JSON.stringify(data)).not.toContain('private');
     expect(JSON.stringify(data)).not.toContain('never-output');
   });
+  it('provides bounded project diagnostics without copying nested credentials',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_DEMO',name:'demo',
+      hasDeployments:true,pauseStatus:{status:'PAUSED',token:'FAKE_INTERNAL'},
+      commandForIgnoringBuildStep:'node scripts/ignore.js',
+      link:{type:'github',repo:'example/demo',productionBranch:'main',accessToken:'FAKE_SECRET'},
+      resourceConfig:{buildMachineType:'enhanced',maxConcurrentBuilds:2,
+        fluid:true,privateKey:'FAKE_SECRET',defaultRegions:['iad1','fra1']},
+      latestProductionDeployments:[{id:'dpl_FAKE001',readyState:'READY',createdAt:1700000000000,
+        token:'FAKE_SECRET'}]});
+    const data=parse(await call('vercel_project_get',{project:'prj_DEMO'},db,fake.fetch));
+    expect(data).toMatchObject({ignoreBuildStep:'node scripts/ignore.js',
+      hasDeployments:true,pauseState:'PAUSED',
+      git:{type:'github',repo:'example/demo',productionBranch:'main'},
+      resourceConfig:{buildMachineType:'enhanced',maxConcurrentBuilds:2,fluid:true,
+        defaultRegions:['iad1','fra1']},
+      latestProduction:[{id:'dpl_FAKE001',state:'READY',createdAt:1700000000000}]});
+    expect(JSON.stringify(data)).not.toMatch(/privateKey|accessToken|FAKE_SECRET|FAKE_INTERNAL/);
+  });
+  it('does not echo malformed provider nested values and limits arrays',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_DEMO',name:'demo',
+      resourceConfig:{defaultRegions:Array.from({length:80},(_,i)=>'r'+i),
+        buildMachineType:'value'+String.fromCharCode(10)+'unsafe',maxConcurrentBuilds:-9},
+      latestProductionDeployments:Array.from({length:30},(_,i)=>({id:'dpl_'+i}))});
+    const data=parse(await call('vercel_project_get',{project:'prj_DEMO'},db,fake.fetch));
+    expect(data.latestProduction).toHaveLength(5);
+    expect(data.resourceConfig.defaultRegions).toHaveLength(12);
+    expect(data.resourceConfig).not.toHaveProperty('buildMachineType');
+    expect(data.resourceConfig).not.toHaveProperty('maxConcurrentBuilds');
+  });
   it('avoids team enumeration for a project-scoped connection',async()=>{
     loadToken.mockResolvedValue(fixture('project'));
     const fake=makeFakeVercel();

@@ -21,6 +21,30 @@ export function projectSummary(row){
     nodeVersion:row.nodeVersion??null
   };
 }
+// Full project detail exposes only explicitly selected, bounded metadata. Do not
+// reflect arbitrary provider objects or URLs that can contain a credential.
+const textField=(value,max=256)=>typeof value==='string'&&value.length<=max&&
+  !/[\x00-\x1f\x7f]/.test(value)?value:null;
+const projectVersion=row=>({
+  id:textField(row?.id,128),state:textField(row?.readyState??row?.state,40),
+  createdAt:Number.isSafeInteger(row?.createdAt)?row.createdAt:null,
+  target:row?.target==='production'?'production':null
+});
+const resourceView=raw=>{
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+  const keys=['buildMachineType','buildMachine','buildCommand','maxConcurrentBuilds',
+    'functionDefaultMemoryType','functionDefaultTimeout','fluid',
+    'defaultRegions','elasticConcurrencyEnabled'];
+  const view={};
+  for(const key of keys){
+    const value=raw[key];
+    if(typeof value==='boolean'||(typeof value==='number'&&Number.isSafeInteger(value)&&value>=0)||
+      (typeof value==='string'&&textField(value,100)!==null))view[key]=value;
+    else if(key==='defaultRegions'&&Array.isArray(value))
+      view[key]=value.slice(0,12).filter(x=>textField(x,50)!==null);
+  }
+  return view;
+};
 export const projectsTools={
   tools:[
     {name:'vercel_project_list',writes:false,profiles:PROFILES,area:'projects',
@@ -95,7 +119,20 @@ export const projectsTools={
         rootDirectory:row.rootDirectory??null,
         lastProductionAt:row.latestProductionDeployments?.[0]?.createdAt??null,
         domainsCount:Array.isArray(row.domains)?row.domains.length:null,
-        cronsCount:Array.isArray(row.crons?.definitions)?row.crons.definitions.length:null});
+        cronsCount:Array.isArray(row.crons?.definitions)?row.crons.definitions.length:null,
+        ignoreBuildStep:textField(row.commandForIgnoringBuildStep),
+        // The Vercel SDK/project body may omit these fields; null is unknown.
+        hasDeployments:typeof row.hasDeployments==='boolean'?row.hasDeployments:null,
+        pauseState:['PAUSED','UNPAUSED'].includes(row.pauseStatus?.status)?
+          row.pauseStatus.status:null,
+        git:row.link&&typeof row.link==='object'?{
+          type:textField(row.link.type,40),
+          repo:textField(row.link.repo,201),
+          productionBranch:textField(row.link.productionBranch,128)
+        }:null,
+        resourceConfig:resourceView(row.resourceConfig),
+        latestProduction: Array.isArray(row.latestProductionDeployments)?
+          row.latestProductionDeployments.slice(0,5).map(projectVersion):null});
     }
   }
 };

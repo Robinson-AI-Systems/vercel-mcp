@@ -76,7 +76,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
 | `vercel_project_list` | Projects in the team: name, framework, production URL, last production deploy, paused or not | — | B O Op | R | — | D-1 (built #47) |
-| `vercel_project_get` | One project: framework, commands, root directory, Node version, Git repo and production branch, protection summary, domains count, crons | — | B O Op | R | y | D-1 (built #47) |
+| `vercel_project_get` | One project: framework, commands, root directory, Node version, Git repo and production branch, protection summary, domains count, crons | — | B O Op | R | y | D-1 (built #47; diagnostics #71) |
 | `vercel_project_create` | Create empty unlinked projects at $0, or Git-linked imports after exact Vercel integration lookup, owner positive spend limit and production confirmation | $ Cp P | B O | E F | — | D-1 (built #65) |
 | `vercel_project_update_settings` | Rename/framework plus grouped build/directory overrides (max 256 chars, null resets to defaults), guarded and independently verified; paid resources separate | Cp | B O | E | y | D-1 (partial #53) |
 | `vercel_project_set_build_resources` | Build machine, concurrency and function compute options (billable); guarded resourceConfig PATCH uses owner-stored account limit, fails at $0, production confirmation and independent read-back | $ Cp | O | F | y | D-1 (built #64) |
