@@ -19,6 +19,28 @@ the Stripe MCP or the Google Workspace MCP** (A-1 records the source commit).
 | Owner-only | production enabling, buying, a default that changes spend limits or protected resources | keep the gate and its `IN-xx`; never pretend it is done |
 | Resolved blocker, unfinished code | IN-07/IN-08 answered while D-1 remains IN_PROGRESS | retain the card, record the resolution and the next actionable checkpoint in work-index; do not silently leave it blocked or equate approval with acceptance |
 
+## Outcome and acceptance rules across every PR/batch
+
+Before choosing work, reconcile newly answered IN-xx owner decisions and
+changes to dependency merge state, CI, hosting, provider or credentials.
+Use `node scripts/validate-work-queue.mjs --eligible` and reconcile due
+work rather than letting postponed cards disappear. Every deferred card's
+`revisit` must name its exact missing evidence/decision, dependencies,
+eligibility condition, responsible owner, next action and checkpoint.
+A resolved trigger enters the eligible queue without re-asking the owner;
+the implementing agent still verifies the remaining actual acceptance.
+
+For each active milestone, keep a compact acceptance matrix separating
+implementation, meaningful local/CI proof, deployed HTTPS behavior,
+authenticated custom MCP, Hub real routes/revocation and intentionally
+unsupported operations. A PR merges only after its own code/review gates;
+a milestone closes only when the distinct required criteria are met.
+Five substantive PRs is the normal planning batch size, not a quality
+metric or a license to pad. Incorporate this process into substantive
+implementation PRs, not dedicated docs-only PRs. At handoff summarize
+capability advanced, what was genuinely proven, remaining blockers and
+the next eligible step.
+
 ## A. Start of every PR (one bounded pass, ~10 minutes)
 
 1. Record: current `main` SHA, the predecessor's merged SHA, the card's "Baseline inspected" SHA.
@@ -54,7 +76,7 @@ unless the PR description says "Docs-update: not needed — <reason>".
    keep a validated revisit trigger/checkpoint; distinguish answered decision from
    implementation, external acceptance and intentionally unsupported operations.
 
-## C. End of every batch (one small docs PR)
+## C. End of every batch (reconcile in the last substantive PR)
 
 1. Every PLAN acceptance item for the batch checked with evidence; anything unproved stays open with an owner card.
 2. Living docs match the code.

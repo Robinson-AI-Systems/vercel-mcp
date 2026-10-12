@@ -13,6 +13,7 @@ describe('RTC 1 public manifest and scoped catalog',()=>{
     expect(m).toMatchObject({rtc:1,prefix:'vercel',devTools:false,
       counts:{tools:full.length}});
     expect(m.counts.writes).toBe(full.filter(x=>x.writes).length);
+    expect(m.modes).toContain('test');
     for(const tool of full){
       expect(tool.name).toMatch(/^vercel_/);
       expect(tool.description.length).toBeLessThanOrEqual(160);

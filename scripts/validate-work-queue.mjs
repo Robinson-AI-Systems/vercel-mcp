@@ -11,6 +11,22 @@ export function ownerInputStates(markdown) {
   return states;
 }
 
+export function dueWork(data, ownerStates) {
+  const statuses=new Map((data?.cards||[]).map(x=>[x.id,x.status]));
+  return (data?.cards||[]).filter(card=>{
+    const v=card.revisit;
+    if(!v||!['IN_PROGRESS','BLOCKED','WAITING_FOR_OWNER'].includes(card.status))return false;
+    const required=(card.dependencies||[]).filter(id=>
+      !(card.earlyReadException?.scope==='read_only'&&
+        card.earlyReadException.prerequisite===id));
+    if(required.some(id=>statuses.get(id)!=='MERGED'))return false;
+    if(v.trigger==='owner-input-resolved')
+      return v.ownerInputRefs?.length>0&&
+        v.ownerInputRefs.every(id=>ownerStates.get(id)==='answered');
+    return v.trigger==='next-implementation-slice';
+  }).map(card=>({id:card.id,nextAction:card.revisit.nextAction}));
+}
+
 export function validateWorkQueue(data, ownerStates) {
   const errors = [], cards = data?.cards;
   if (!Array.isArray(cards)) return ['Work index must contain cards'];
@@ -24,8 +40,11 @@ export function validateWorkQueue(data, ownerStates) {
       const next = card.revisit;
       if (!next || !filled(next.reason) || !filled(next.nextAction) ||
           !filled(next.owner) || !filled(next.checkpoint) ||
-          !triggers.has(next.trigger)) {
-        errors.push(card.id + ': unfinished work requires reason, owner, checkpoint, trigger and nextAction');
+          !triggers.has(next.trigger) || !filled(next.evidenceNeeded) ||
+          !filled(next.eligibilityCondition) ||
+          !Array.isArray(next.dependencies) ||
+          next.dependencies.some(id=>typeof id!=='string'||!(card.dependencies||[]).includes(id))) {
+        errors.push(card.id + ': unfinished work requires reason, evidenceNeeded, eligibilityCondition, dependencies, owner, checkpoint, trigger and nextAction');
         continue;
       }
       if (next.trigger === 'owner-input-resolved') {
@@ -68,5 +87,9 @@ if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).
   if (errors.length) {
     console.error(errors.join('\n'));
     process.exitCode = 1;
-  } else console.log('Blocked-work revisit and early-read exceptions OK');
+  } else {
+    console.log('Blocked-work revisit and early-read exceptions OK');
+    if(process.argv.includes('--eligible'))for(const due of dueWork(index,states))
+      console.log('ELIGIBLE '+due.id+': '+due.nextAction);
+  }
 }

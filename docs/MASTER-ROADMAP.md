@@ -4,13 +4,22 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Next:** D-1 finite completion/acceptance reconciliation (IN-07/IN-08 already
-answered), in parallel with the approved D-2 *read-only* early-start slice.
-D-1 stays IN_PROGRESS until operation-level evidence is audited; external
-provider execution is not implied by CI. D-2's read exception is recorded
-in `work-index.json` and D-1 PR #66. The permanent `revisit` rule prevents
-owner-answered cards from being forgotten. All owner approvals, production
-and payment restrictions remain unchanged.
+**Current user/developer outcome:** establish semantically isolated RTC
+TEST service identity for Hub D-4 without granting access to Vercel
+provider resources (PR #133), then advance useful scoped D-2 deployment
+reads/log diagnostics (approved read-only exception to D-1, PR #132).
+The D-1 operation/acceptance matrix is recorded in
+`docs/pr-cards/D-1-ACCEPTANCE.md`: IN-07/IN-08 were answered, but
+real service-connected acceptance remains unverified; D-1 is not falsely
+closed. After #133, D-2b logs/files diagnostics are the next eligible
+substantive outcome, while owner-authenticated hosted Hub TEST
+direct/relay/Sandbox/revocation remains a separately recorded external gate.
+
+**Rule:** five substantive PRs is a normal session boundary, not a
+milestone-completion condition. Prioritize real acceptance and usable
+capability; revisit blockers automatically when owner, dependency or
+environment evidence changes. Preserve all independent owner approvals,
+daily checked live promotion, disabled previews and $0 autonomous spend.
 A-1 through A-6 and B-1 through B-8 are merged (B-8 completed #40). The official OpenAPI remains pinned to 2026-10-11.
 Use [implementation guidance](implementation-guidance/README.md) for current helper paths, recipes and the B-8b worked
 example when writing the JIT card. No live database, token or deployment is configured; owner gates remain unchanged.

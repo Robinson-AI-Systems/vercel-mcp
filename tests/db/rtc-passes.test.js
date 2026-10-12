@@ -27,7 +27,20 @@ describe('RTC database-scoped credential lifecycle',()=>{
   expect((await db.authorizeRtcPass(a.token)).status).toBe('pass_revoked');
   expect(await db.revokeRtcPass({account:'team_FAKE',id:a.id})).toBe(false);
  });
- it('inspects valid pass scope without debit, and refuses revoked inspection',async()=>{
+ it('issues TEST service passes and refuses corrupted wider scopes',async()=>{
+    const test=await db.issueReadOnlyRtcPass({account:'team_FAKE',
+      mode:'test',hours:1,areas:['server']});
+    expect(await db.inspectRtcPass(test.token)).toMatchObject({
+      status:'ok',mode:'test',areas:['server']});
+    expect(await db.authorizeRtcPass(test.token)).toMatchObject({
+      status:'ok',mode:'test',areas:['server']});
+    await expect(db.issueReadOnlyRtcPass({account:'team_FAKE',
+      mode:'test',areas:['server','projects']})).rejects.toThrow();
+    await rawQuery("UPDATE rtc_passes SET areas='[\"server\",\"projects\"]'::jsonb WHERE pass_id=$1",[test.id]);
+    expect((await db.inspectRtcPass(test.token)).status).toBe('permission');
+    expect((await db.authorizeRtcPass(test.token)).status).toBe('permission');
+  });
+  it('inspects valid pass scope without debit, and refuses revoked inspection',async()=>{
    const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',hours:1,areas:['server']});
    expect(await db.inspectRtcPass(pass.token)).toMatchObject({
      status:'ok',account:'team_FAKE',areas:['server']});

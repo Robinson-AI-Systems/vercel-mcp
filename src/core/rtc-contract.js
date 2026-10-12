@@ -68,7 +68,7 @@ export function rtcManifest(registry,version='0.1.0'){
     counts:{tools:all.length,writes:all.filter(t=>t.writes).length,
       money:all.filter(t=>t.money).length},
     profiles:['read_only','everyday','full'],
-    listingModes:['catalog','compact'],modes:['preview','production'],devTools:false
+    listingModes:['catalog','compact'],modes:['preview','test','production'],devTools:false
   };
 }
 export function rtcOpenApi(){

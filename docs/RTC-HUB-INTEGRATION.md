@@ -30,7 +30,7 @@ The unit CI job installs the **reviewed** public Hub source and runs the hub's a
 
 ## D-4 real-world handoff (pending)
 
-Owner approved narrowly scoped read-only, non-production tests on 2026-10-12. The next authorized integration agent must independently verify an actually deployed, fixed HTTPS service origin and correct Vercel dynamic route resolution, then use owner setup to issue a short-lived read_only preview pass limited to `server` (or the exact required non-production area). Never paste a pass into chat, logs, code, query strings, CLI arguments or GitHub issues.
+Owner approved narrowly scoped read-only, non-production tests on 2026-10-12. The next authorized integration agent must independently verify an actually deployed, fixed HTTPS service origin and correct Vercel dynamic route resolution, then use owner setup to issue a short-lived read_only **TEST** pass limited to `server` for service identity; never substitute a Vercel preview pass for the Hub TEST gate. Never paste a pass into chat, logs, code, query strings, CLI arguments or GitHub issues.
 
 From a reviewed Hub checkout, configure protected `RTOOL_SERVERS=vercel=https://VERIFIED_ORIGIN` and protected `RTC_TEST_PASS` (plus `RTOOL_PASS_VERCEL` if required by CLI). Run `node scripts/agent-check.mjs --server vercel --read-tool vercel_whoami --pass-env RTC_TEST_PASS --expect-route direct --authorized-real-run`. Then prove a GitHub-only workspace relay route with exact scoped encrypted relay binding and `--expect-route relay`, and separately a Vercel Sandbox allow-listed direct run. Follow the Hub `docs/pr-cards/D-4.md` and `docs/AGENT-SETUP.md` for safeguards and route setup. Existing ordinary GitHub/Vercel connectors are NOT evidence of custom RTC routing.
 
@@ -40,12 +40,24 @@ Record each run's reviewed commit, UTC timestamp, runner environment, expected/o
 
 The server-side output projector, audit writer and repository secret scanner recognize RTC pass bearer material. The scanner rejects a real-shaped pass even if the text contains FAKE. Tests use generated in-memory test credentials and verify that no bearer is emitted in scanner diagnostics, tool output or audit metadata.
 
-## Identity-mode gap for Hub D-4 (still unresolved)
+## Semantically isolated RTC TEST identity (#133)
 
-D-2 implementation does **not** resolve this separate integration gate:
-the server issues scoped `preview` passes while Hub's newly tightened real
-owner-approved verifier requires verified `test` identity. It is not safe
-to relabel a preview account as test without distinct resource isolation
-and tested consumer authorization. No real TEST pass, Hub three-route
-read, or full RTC conformance is claimed. Resolve under a dedicated
-reviewed contract change with Hub-side coordination.
+The prior mismatch was a real authorization problem: Vercel preview
+credentials can read provider resources, while owner-approved Hub D-4
+requires `mode=test`. A new independently issued TEST pass is **service
+only**, with no Vercel API or account-resource access. Owner setup
+requires its own fresh authentication and confirmation; SQL enforces
+exactly `areas=['server']` and expiration, quota and revocation.
+HTTPS discovery, direct invoke and batch preflight allow only
+`vercel_whoami`, which returns the actual running RTC service identity
+without querying account rows, secrets or Vercel. All other tools fail
+closed. Preview passes still report preview and have their original
+separate scoped-read permissions.
+
+CI's fake pass and pinned local Hub tests prove this limited service
+identity compatibility and negative scope/mode boundaries. They do
+NOT prove a genuine nonproduction Vercel project, external provider
+reads, deployed HTTPS, actual owner TEST pass, real Hub direct/relay/
+Sandbox runs, post-revocation verification, or full RTC conformance.
+Those still need independently recorded evidence and owner-protected
+credentials. Do not provision paid resources or relax Hub checks.

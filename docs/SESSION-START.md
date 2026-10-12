@@ -24,6 +24,25 @@ Your session can end at any moment (the chat stops between actions), so the next
    - Review threads open → fix or answer each, then resolve.
 3. Continue from the resume note's "Next step". Only when nothing of yours is open: §1 and the next card.
 
+## Outcome selection — after open-PR recovery, before new development
+
+Identify the highest-priority **eligible milestone** and describe the
+practical capability and finite acceptance items it advances. Select
+coherent PRs around that result, not around hitting five PRs. Each card's
+progress must distinguish source implementation, meaningful tests,
+deployed endpoint evidence, authenticated custom-MCP behavior and the
+specific Hub direct/relay/Sandbox/revocation gates, if relevant. Do not
+substitute reference-server or fake-provider results for external proof.
+
+Run `node scripts/validate-work-queue.mjs --eligible` to surface
+revisit candidates after owner decisions or dependencies change. For any
+deferred item, require precise blocker, evidence needed, dependencies,
+eligibility condition, next action, owner and checkpoint. Reconsider at
+every session start/PR boundary and on relevant changed owner, CI or
+environment evidence. Documented D-2 read-only exceptions may progress
+without clearing unrelated D-1 owner/production gates. A five-PR batch
+is the normal stopping boundary but never a mandate to pad scope.
+
 ## 1. Find your place (2 minutes)
 
 Work happens in whatever workspace you were given (a cloud agent workspace, a Vercel Sandbox, a laptop). Code reaches
@@ -156,3 +175,17 @@ Do this immediately, before any more development or tool exploration. This appli
 5. If a check is pending, an endpoint unavailable or the session cannot finish: state exactly which SHA, PR,
    check or review is unverified and how the next session should recover. Do not claim a successful five-PR
    session, quietly disappear, or postpone the handoff waiting for a check to finish.
+
+## 8. Permanent continuation prompt contract
+
+At each normal five-PR boundary, or earlier on a genuine blocker, finish
+with a short self-contained copy-ready prompt containing repository name,
+verified main SHA and last substantive merge/handoff; the current
+**capability milestone**, remaining implementation and each separate
+external acceptance gate; exact next eligible card and due blocker
+rechecks; and instruction to verify current main/PRs/CI/reviews and follow
+`AGENTS.md`, `docs/SESSION-START.md`, roadmap, work index and owner decisions.
+Continue toward the next normal five-PR outcome batch without padding or
+weakening gates. Require the next agent to publish another permanent
+handoff and prompt of the same compact form. Keep detailed audit, test
+results and blocker history in repository docs/PR evidence, not the prompt.

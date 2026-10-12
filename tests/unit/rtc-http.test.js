@@ -48,6 +48,36 @@ describe('RTC 1 read-only HTTPS door',()=>{
     profile:'read_only',mode:'preview',areas:['server']});
   expect(f.db.authorizeRtcPass).toHaveBeenCalledOnce();
  });
+ it('TEST permits only service identity and denies all provider/area reads',async()=>{
+  const f=fixture(),test={...a,mode:'test',areas:['server']};
+  const identity=vi.fn(async()=>out({rtc:1,mode:'test',scope:'service_only',
+    providerAccess:false}));
+  f.registry.tools.push({name:'vercel_whoami',writes:false,area:'server',
+    profiles:['read_only'],description:'Service identity',
+    inputSchema:{type:'object',properties:{}}});
+  f.registry.handlers.vercel_whoami=identity;
+  f.db.inspectRtcPass.mockResolvedValue({...test,status:'ok'});
+  f.db.authorizeRtcPass.mockResolvedValue({...test,status:'ok'});
+  expect((await f.call('whoami')).body.result).toMatchObject({
+    mode:'test',profile:'read_only',areas:['server']});
+  expect((await f.call('list')).body.result.tools.map(x=>x.name))
+    .toEqual(['vercel_whoami']);
+  expect((await f.call('invoke','POST',{name:'vercel_whoami'},{})).code).toBe(200);
+  for(const name of ['vercel_fixture_read','vercel_fixture_write','vercel_hidden_read'])
+    expect((await f.call('invoke','POST',{name},{})).code).toBe(403);
+  expect((await f.call('batch','POST',{}, {calls:[
+    {name:'vercel_whoami',args:{}},{name:'vercel_fixture_read',args:{}}]})).code).toBe(403);
+  expect(identity).toHaveBeenCalledOnce();
+  expect(f.read).not.toHaveBeenCalled();
+  expect(f.mutate).not.toHaveBeenCalled();
+ });
+ it('rejects TEST pass records forged with broader provider areas',async()=>{
+  const f=fixture();
+  f.db.authorizeRtcPass.mockResolvedValueOnce({...a,mode:'test',
+    areas:['server','projects'],status:'ok'});
+  expect((await f.call('whoami')).code).toBe(401);
+  expect(f.read).not.toHaveBeenCalled();
+ });
  it('keeps expired, revoked and DB rate-limit failures distinct',async()=>{
   const f=fixture();
   for(const [state,status] of [['pass_expired',401],['pass_revoked',401],['rate_limited',429]]){

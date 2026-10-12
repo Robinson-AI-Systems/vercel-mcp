@@ -18,7 +18,7 @@ const db={
  async authorizeRtcPass(value){
    if(value!==pass)return {status:'permission'};
    return state==='ok'?{status:'ok',account:'team_FAKE',id:'pass_'+'b'.repeat(20),
-      profile:'read_only',mode:'preview',listing:'catalog',areas:['server']}:
+      profile:'read_only',mode:'test',listing:'catalog',areas:['server']}:
      {status:state};
  },
  async listVercelAccounts(){
@@ -30,7 +30,7 @@ const db={
  async getTodaySpendCents(){return 0;},
  async getResult(){return null;}
 };
-const door=rtcDoor({db,registry,env:{VERCEL_ENV:'preview'}});
+const door=rtcDoor({db,registry,env:{VERCEL_ENV:'test'}});
 function answer(res,status,data){
  res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});
  res.end(JSON.stringify(data));
@@ -86,7 +86,7 @@ try{
  const exit=await checkAgent({server:'vercel',readTool:'vercel_whoami',
    passEnv:'RTC_TEST_PASS',expectRoute:'direct',authorizedRealRun:true,
    env,reader,write:line=>log.push(JSON.parse(line))});
- if(exit!==0||log[0]?.route!=='direct'||log[0]?.code!=='verified'||allowedReads<1)
+ if(exit!==0||log[0]?.route!=='direct'||log[0]?.code!=='verified'||allowedReads!==0)
    throw new Error('Upstream CLI direct read-only route verification failed');
  const forbidden=await fetch(url+'/api/tools/vercel_project_create',{
    method:'POST',headers:{authorization:'Bearer '+pass,'content-type':'application/json'},
@@ -100,7 +100,7 @@ try{
  if(revoked.status!==401||(await revoked.json()).error?.code!=='pass_revoked')
    throw new Error('Revoked pass was not refused by HTTP door');
  console.log('RTC Hub pinned wire probes: public contract, OpenAPI, unauthorized requests PASS');
- console.log('RTC Hub CLI local direct: read-only scoped real-handler call PASS; write/refusal/revoke PASS');
+ console.log('RTC Hub CLI local direct: TEST service identity only PASS; write/refusal/revoke PASS');
  console.log('Full RTC write/pass-suite and hosted direct/relay/Sandbox routes are NOT certified');
 }finally{
  state='pass_revoked';

@@ -46,9 +46,21 @@ describe('RTC owner setup issue and revoke',()=>{
   const f=fixture(),res=await f.send(common);
   expect(res.statusCode).toBe(200);
   expect(f.db.issueReadOnlyRtcPass).toHaveBeenCalledExactlyOnceWith({
-   account:'team_FAKE',hours:24,areas:['server','projects']});
+   account:'team_FAKE',hours:24,areas:['server','projects'],mode:'preview'});
   expect(f.db.insertOneTimeSecret).toHaveBeenCalledOnce();
   expect(res.body).not.toContain(f.issued);
+ });
+ it('issues TEST only for service identity and refuses area/mode escalation',async()=>{
+  const f=fixture();
+  expect((await f.send({...common,mode:'test',areas:'server'})).statusCode).toBe(200);
+  expect(f.db.issueReadOnlyRtcPass).toHaveBeenCalledWith({
+    account:'team_FAKE',hours:24,areas:['server'],mode:'test'});
+  for(const bad of [
+    {...common,mode:'test',areas:'projects'},
+    {...common,mode:'test',areas:'server,projects'},
+    {...common,mode:'production',areas:'server'}
+  ])expect((await f.send(bad)).statusCode).toBe(400);
+  expect(f.db.issueReadOnlyRtcPass).toHaveBeenCalledTimes(1);
  });
  it('revokes only exact owner-scoped references after fresh reauthentication',async()=>{
   const f=fixture(),id='pass_'+'a'.repeat(20);
