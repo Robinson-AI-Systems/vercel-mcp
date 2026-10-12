@@ -38,6 +38,50 @@ describe('RTC database-scoped credential lifecycle',()=>{
 });
 
 describe('RTC cross-instance rate and revocation safety',()=>{
+ it('atomically reserves the full batch cost even across separate SQL connections',async()=>{
+   const second=new pg.Client({connectionString:url});
+   await second.connect();
+   try{
+     await second.query('SET search_path TO "'+schema+'"');
+     const query=async(strings,...values)=>{
+       let statement=strings[0];
+       for(let i=0;i<values.length;i++)statement+='
+   const second=new pg.Client({connectionString:url});
+   await second.connect();
+   try{
+     await second.query('SET search_path TO "'+schema+'"');
+     const query=async(strings,...values)=>{
+       let statement=strings[0];
+       for(let i=0;i<values.length;i++)statement+='$'+(i+1)+strings[i+1];
+       return (await second.query(statement,values)).rows;
+     };
+     const other=createDb(query);
+     const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server']});
+     const outcomes=await Promise.all(Array.from({length:80},(_,i)=>
+       (i%2?db:other).authorizeRtcPass(pass.token)));
+     expect(outcomes.filter(x=>x.status==='ok')).toHaveLength(60);
+     expect(outcomes.filter(x=>x.status==='rate_limited')).toHaveLength(20);
+     expect(await db.revokeRtcPass({account:'team_FAKE',id:pass.id})).toBe(true);
+     expect((await other.authorizeRtcPass(pass.token)).status).toBe('pass_revoked');
+   }finally{await second.end();}
+ });
+});
++(i+1)+strings[i+1];
+       return (await second.query(statement,values)).rows;
+     };
+     const other=createDb(query);
+     const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server']});
+     const results=await Promise.all(Array.from({length:15},(_,i)=>
+       (i%2?db:other).authorizeRtcPass(pass.token,6)));
+     expect(results.filter(x=>x.status==='ok')).toHaveLength(10);
+     expect(results.filter(x=>x.status==='rate_limited')).toHaveLength(5);
+     const rows=await rawQuery('SELECT window_count FROM rtc_passes WHERE pass_id=$1',[pass.id]);
+     expect(rows[0].window_count).toBe(60);
+     expect((await other.authorizeRtcPass(pass.token,1)).status).toBe('rate_limited');
+     expect((await other.authorizeRtcPass(pass.token,11)).status).toBe('permission');
+     expect((await other.authorizeRtcPass(pass.token,0)).status).toBe('permission');
+   }finally{await second.end();}
+ });
  it('shares the atomic 60-per-minute budget across independent DB sessions',async()=>{
    const second=new pg.Client({connectionString:url});
    await second.connect();

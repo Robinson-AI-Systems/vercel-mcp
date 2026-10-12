@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC pass batch quota #117:** POST `_batch` reserves its actual read-tool count in one PostgreSQL atomic counter update before any provider calls. Unauthenticated/invalid batches never dispatch; the default 60/minute pass budget cannot be multiplied by batching. Tests cover shared two-connection contention. No live service D-4 proof or production/spending permission.
+
 - **IN-08 policy hardening #116:** the owner approved fixed one-time paid actions only with separately authenticated one-use approvals; recurring amounts (including $0 up front) and unknown usage cannot be dispatched under a single grant without verifiable provider-side total cost enforcement. Legacy daily-limit advice no longer authorizes charges. No actual paid purchase, live provider write or production activation; metered D-1 remains disabled.
 
 - **RTC #115 — pinned Hub conformance/CLI offline integration:** CI's unit gate checks out reviewed public Hub SHA `e76b1f8bc76e4658f404263ee47a9edbcbeda625`, runs the upstream conformance suite and a real localhost wire route through this server's pass-authenticated HTTPS adapter and the hub's `agent-check` CLI. Test-only random read_only preview pass; refuse writes and confirm revoke; DB test proves shared rate limit across two connections. **NOT a hosted/live D-4 certification:** no real custom service URL/pass provisioned, nor GitHub relay or Sandbox verified; no new production or spend authority. D-1 remains IN_PROGRESS; handoff in docs/RTC-HUB-INTEGRATION.md.

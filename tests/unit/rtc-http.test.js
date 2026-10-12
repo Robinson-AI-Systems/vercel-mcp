@@ -69,6 +69,23 @@ describe('RTC 1 read-only HTTPS door',()=>{
   expect(f.read).toHaveBeenCalledOnce();
   expect(f.mutate).not.toHaveBeenCalled();
  });
+ it('atomically reserves one rate-limit unit for each batched provider read',async()=>{
+  const f=fixture();
+  const args={calls:Array.from({length:3},()=>({name:'vercel_fixture_read',args:{}}))};
+  const accepted=await f.call('batch','POST',{},args);
+  expect(accepted.code).toBe(200);
+  expect(f.db.authorizeRtcPass).toHaveBeenLastCalledWith(pass,3);
+  expect(f.read).toHaveBeenCalledTimes(3);
+  f.db.authorizeRtcPass.mockResolvedValueOnce({status:'rate_limited'});
+  const denied=await f.call('batch','POST',{},args);
+  expect(denied.code).toBe(429);
+  expect(denied.body.error.code).toBe('rate_limited');
+  expect(f.read).toHaveBeenCalledTimes(3);
+  expect(f.db.authorizeRtcPass).toHaveBeenLastCalledWith(pass,3);
+  const invalid=await f.call('batch','POST',{}, {calls:Array.from({length:11},()=>({name:'vercel_fixture_read'}))});
+  expect(invalid.code).toBe(400);
+  expect(f.db.authorizeRtcPass).toHaveBeenCalledTimes(2);
+ });
  it('preflights every batch member before any read can run',async()=>{
   const f=fixture();
   const denied=await f.call('batch','POST',{},{

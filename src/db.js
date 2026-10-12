@@ -58,18 +58,21 @@ export function createDb(query) {
     },
     // Single atomic DB update enforces a shared per-pass rolling minute limit.
     // Return only normalized scope and neutral status; never the bearer/hash.
-    async authorizeRtcPass(token) {
+    async authorizeRtcPass(token,units=1) {
+      // Each batch tool consumes one unit. Validate before touching SQL.
+      if(!Number.isInteger(units)||units<1||units>10)
+        return {status:'permission'};
       if(typeof token!=='string'||!/^rtc_pass_[A-Za-z0-9_-]{43}$/.test(token))
         return {status:'permission'};
       const digest=hashToken(token),run=getSql();
       const rows=await run`UPDATE rtc_passes SET
         window_count=CASE WHEN window_started<=now()-interval '1 minute'
-          THEN 1 ELSE window_count+1 END,
+          THEN ${units} ELSE window_count+${units} END,
         window_started=CASE WHEN window_started<=now()-interval '1 minute'
           THEN now() ELSE window_started END
         WHERE token_hash=${digest} AND revoked_at IS NULL
           AND expires_at>now() AND mode='preview' AND profile='read_only'
-          AND (window_started<=now()-interval '1 minute' OR window_count<60)
+          AND (window_started<=now()-interval '1 minute' OR window_count+${units}<=60)
         RETURNING pass_id,vercel_account,profile,mode,listing,areas`;
       if(rows.length===1){
         const row=rows[0];

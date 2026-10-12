@@ -8,7 +8,7 @@ This server remains independently usable over OAuth `/api/mcp`; no Toolkit Hub d
 Public: `GET /api/contract`, `GET /api/openapi.json`.
 Pass-only: `GET /api/whoami`, `GET /api/tools`, `GET /api/tools/{name}`,
 `POST /api/tools/{name}`, `POST /api/tools/_batch`, `GET /api/results/{handle}`.
-All tool calls share the existing MCP dispatcher. Read-only preview passes have explicit area restrictions; all paid, privileged, destructive and production operations remain forbidden through RTC. OAuth access/refresh tokens are rejected on the pass-only door. A one-time secret from signed-in owner setup gives the temporary pass; revocation is performed there. Pass scope/rate-limit and handle ownership are enforced by PostgreSQL, not process memory.
+All tool calls share the existing MCP dispatcher. Read-only preview passes have explicit area restrictions; all paid, privileged, destructive and production operations remain forbidden through RTC. OAuth access/refresh tokens are rejected on the pass-only door. A one-time secret from signed-in owner setup gives the temporary pass; revocation is performed there. Pass scope/rate-limit and handle ownership are enforced by PostgreSQL, not process memory. For `_batch`, the PostgreSQL rate counter atomically reserves the number of requested read tools (1–10) before any tool runs, so batching cannot multiply the pass's 60-read-units/minute quota. The same counter is shared by serverless instances.
 
 ## CI evidence and limitations
 
