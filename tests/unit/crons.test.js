@@ -51,6 +51,27 @@ describe('D-1d safe Vercel cron schedule reads',()=>{
     expect(JSON.stringify(result)).not.toContain(secret);
     expect(fake.calls.map(x=>x.method)).toEqual(['GET']);
   });
+  it('does not reveal encoded or multiply encoded cron credentials in MCP output',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:'prj_APP',crons:{definitions:[
+        {path:'/api/%76cp_FAKE_private',schedule:'%76cp_FAKE_secret'},
+        {path:'/api/%2576cp_FAKE_private',schedule:'%2576cp_FAKE_secret'},
+        {path:'/api/safe?redirect=%2576cp_FAKE_private',schedule:'0 0 * * *'},
+        {path:'/api/%2Fwrong',schedule:'0 0 * * *'},
+        {path:'/api/plain',schedule:'*/5 * * * *'}
+      ]}});
+    const result=parse(await call({project:'prj_APP'},fake));
+    expect(result.jobs.map(x=>x.path)).toEqual([
+      null,null,'/api/safe',null,'/api/plain'
+    ]);
+    expect(result.jobs.map(x=>x.scheduleUtc)).toEqual([
+      null,null,'0 0 * * *','0 0 * * *','*/5 * * * *'
+    ]);
+    expect(JSON.stringify(result)).not.toMatch(/%76cp|%2576cp|vcp_FAKE_private|vcp_FAKE_secret/);
+    expect(fake.calls.map(x=>x.method)).toEqual(['GET']);
+    fake.verify();
+  });
   it('rejects an untrusted credential-shaped project identifier in cron output',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v9/projects/{idOrName}').resolves({
