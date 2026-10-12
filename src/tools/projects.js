@@ -24,7 +24,7 @@ export function projectSummary(row){
 // Full project detail exposes only explicitly selected, bounded metadata. Do not
 // reflect arbitrary provider objects or URLs that can contain a credential.
 const textField=(value,max=256)=>typeof value==='string'&&value.length<=max&&
-  !/[\\x00-\\x1f\\x7f]/.test(value)?value:null;
+  !/[\x00-\x1f\x7f]/.test(value)?value:null;
 const projectVersion=row=>({
   id:textField(row?.id,128),state:textField(row?.readyState??row?.state,40),
   createdAt:Number.isSafeInteger(row?.createdAt)?row.createdAt:null,
