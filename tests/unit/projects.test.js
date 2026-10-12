@@ -31,6 +31,19 @@ describe('D-1a server-selected scoped project reads',()=>{
     expect(fake.calls[0].headers.authorization).toBe('Bearer [hidden]');
     expect(loadToken).toHaveBeenCalledWith(expect.objectContaining({accountId:'acct_ALPHA'}));
   });
+  it('does not expose nested encoded token text in project metadata',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v10/projects').resolves({
+      projects:[{id:'prj_SAFE',name:'%2576cp_FAKE_hidden',
+        link:{repo:'%76cp_FAKE_repo'},framework:'nextjs'}],
+      pagination:{next:null}});
+    const result=parse(await call('vercel_project_list',{},db,fake.fetch));
+    expect(result.projects[0].name).toBeNull();
+    expect(result.projects[0].gitRepo).toBeNull();
+    expect(JSON.stringify(result)).not.toMatch(/%2576cp|%76cp_FAKE/);
+    expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
+    fake.verify();
+  });
   it('reports unknown or contradictory project pause status without false assurance',async()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v10/projects').resolves({projects:[
