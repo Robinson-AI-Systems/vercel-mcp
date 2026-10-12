@@ -43,6 +43,25 @@ environment evidence. Documented D-2 read-only exceptions may progress
 without clearing unrelated D-1 owner/production gates. A five-PR batch
 is the normal stopping boundary but never a mandate to pad scope.
 
+## Blocker-resolution sweep (mandatory before early stop or deferral)
+
+Treat each blocker as **scoped to the affected operation or acceptance criterion**, not the repo.
+Inspect its actual error/contract; try an authorized code/config/dependency/API/docs fix,
+and verify it. Check the owner-input ledger first—never re-request an answered decision.
+Complete every safe, independently verifiable piece. If external evidence, owner permission,
+credentials or paid provisioning are genuinely missing, isolate that exact requirement,
+record the attempted remedies and the smallest missing external action in the existing
+work-index revisit fields, then inspect the **whole eligible roadmap and dependency graph**
+before switching to the next highest-priority substantive task. Respect documented
+read-only early-start exceptions. Revisit deferred work automatically at each PR boundary
+or whenever a trigger changes. Lack of one provider's response structure is not reason
+to stop unrelated code acceptance or another approved read.
+
+An early close-out is permissible only after documenting the exhausted independent
+eligible work or an exact execution limitation; preserve all security/production/spend gates.
+Count already merged PRs toward five, but never pad or claim mock/CI proof as real
+connected acceptance. See the canonical rule in AGENTS.md.
+
 ## 1. Find your place (2 minutes)
 
 Work happens in whatever workspace you were given (a cloud agent workspace, a Vercel Sandbox, a laptop). Code reaches
