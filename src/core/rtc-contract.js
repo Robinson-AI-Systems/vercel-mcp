@@ -18,6 +18,10 @@ export function rtcMetadata(tool,registered){
   const hasArea=Boolean(registered&&Object.hasOwn(registered,'area'));
   const scoped=!hasArea||(typeof registered.area==='string'&&AREA.test(registered.area));
   const writes=registered?.writes!==false||!scoped||
+    registered?.writeContract!==undefined||registered?.guardedWrite===true||
+    registered?.localAdmin===true||registered?.secretIn===true||
+    registered?.secretOut===true||
+    registered?.annotations?.destructiveHint===true||
     registered?.annotations?.readOnlyHint===false||
     tool?.annotations?.readOnlyHint===false||META_MUTATIONS.has(tool.name);
   const money=Boolean(registered?.writeContract?.spend);

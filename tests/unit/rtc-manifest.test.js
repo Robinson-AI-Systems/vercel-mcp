@@ -40,6 +40,14 @@ describe('RTC 1 public manifest and scoped catalog',()=>{
     }
     expect(rtcMetadata(tool,{writes:false})).toMatchObject({
       writes:false,area:'server',annotations:{readOnlyHint:true}});
+    for(const extra of [
+      {writeContract:{spend:true,production:true}},{guardedWrite:true},
+      {localAdmin:true},{secretIn:true},{secretOut:true},
+      {annotations:{destructiveHint:true}}
+    ]){
+      expect(rtcMetadata(tool,{writes:false,area:'server',...extra})).toMatchObject({
+        writes:true,annotations:{readOnlyHint:false}});
+    }
     expect(rtcMetadata(tool,{writes:false,area:'server'})).toMatchObject({
       writes:false,area:'server',annotations:{readOnlyHint:true}});
     expect(rtcMetadata({...tool,annotations:{readOnlyHint:false}},

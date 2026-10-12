@@ -8,7 +8,20 @@ export function visibleToProfile(tool, profile, { localOwnerTools = [] } = {}) {
   if (!PROFILES.includes(profile) || !tool || !Array.isArray(tool.profiles) ||
     !tool.profiles.includes(profile)) return false;
   // Every read is allowed only when explicitly declared. Unknown/missing writes fail closed.
-  if (tool.writes === false) return true;
+  // Explicitly safe reads cannot carry conflicting privileged declarations.
+  // This guards both MCP discovery and direct named invocation.
+  if (tool.writes === false) {
+    // The existing MCP meta delegate is an intentional special case: it
+    // always re-enters dispatchReadOnlyTool and never calls a raw handler.
+    // RTC separately marks this exact operation write-capable and excludes it.
+    const guardedDelegate=tool.name==='vercel_call'&&
+      tool.annotations?.readOnlyHint===false;
+    return tool.localAdmin!==true&&tool.guardedWrite!==true&&
+      tool.writeContract===undefined&&tool.secretIn!==true&&
+      tool.secretOut!==true&&
+      (tool.annotations?.readOnlyHint!==false||guardedDelegate)&&
+      tool.annotations?.destructiveHint!==true;
+  }
   if (tool.writes !== true || profile === 'read_only') return false;
   // Owner-only administration is never promoted to a routine write.
   if (tool.localAdmin === true) return profile === 'full' &&

@@ -14,6 +14,8 @@ Read-only discovery supports bounded cursor pagination: the numeric `next` offse
 
 The read-only HTTPS batch response is also bounded to 8 KiB. A valid batch of up to 10 individually sanitized reads whose aggregate exceeds the envelope budget is stored for 24 hours under the same account and pass-derived result owner, and a handle is returned for the paged result endpoint. Unknown storage outcomes fail closed; no write pass is introduced.
 
+Both OAuth MCP and RTC HTTPS refuse a tool falsely declaring itself read-only if it also carries writeContract, guardedWrite, localAdmin, secretIn/secretOut, destructiveHint:true or readOnlyHint:false. These contradictory declarations are not exposed on tool lists, and direct/batched invocation never calls their handlers.
+
 ## CI evidence and limitations
 
 The unit CI job installs the **reviewed** public Hub source and runs the hub's actual conformance tests against its reference fixture. The additional localhost end-to-end check invokes upstream `runConformance` for public manifest, OpenAPI and unauthenticated-denial checks and actual Hub `checkAgent` for read-only direct CLI invocation against **this server's** handlers. It tests denied write and revoked pass; DB tests exercise two independent SQL sessions. This proves a subset of RTC 1, **not** full conformance: the server intentionally does not grant full/write-enabled RTC passes, so upstream write/readback/full-catalog checks cannot yet certify the production service.
