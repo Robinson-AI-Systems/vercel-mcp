@@ -15,5 +15,6 @@ import {projectMemberTools} from './project-members.js';
 import {projectRemoveTools} from './project-member-remove.js';
 import {projectTrafficTools} from './project-traffic.js';
 import {projectDeleteTools} from './project-delete.js';
+import {projectTransferTools} from './project-transfer.js';
 
-export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools]);
+export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools]);

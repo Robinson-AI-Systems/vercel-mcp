@@ -16,6 +16,7 @@ export const OPS = Object.freeze({
   projects_unpause: Object.freeze({ method: 'POST', path: '/v1/projects/{projectId}/unpause' }),
   projects_domains_list: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}/domains' }),
   projects_env_list: Object.freeze({ method: 'GET', path: '/v10/projects/{idOrName}/env' }),
+  projects_transfer_request: Object.freeze({ method: 'POST', path: '/projects/{idOrName}/transfer-request' }),
   projects_delete: Object.freeze({ method: 'DELETE', path: '/v9/projects/{idOrName}' })
 });
 
