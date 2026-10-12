@@ -1,5 +1,7 @@
 # STATUS — current work, blockers and next action
 
+- **O-1 security settings (#146):** guarded privacy flags, verified commits, explicit secret-isolation policies and owner-only protection controls; loosening previews identify affected members/visitors. Strict provider PATCH validation, immutable scope/state recheck, durable replay and independent GET confirmation. SAML and email auto-join remain intentionally unsupported until lockout-safe owner evidence. Provider inventory recheck finds no vercel-mcp project; D-2 hosted connected evidence remains unavailable. No provider mutation, paid resource or activation.
+
 Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official API transport (PR #12) and A-5 owner setup (PRs #13–#15) are implemented, with all five post-merge CI checks green on `main`.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
