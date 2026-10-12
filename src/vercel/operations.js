@@ -3,6 +3,9 @@
 export const OPS = Object.freeze({
   user_get: Object.freeze({ method: 'GET', path: '/v2/user' }),
   teams_list: Object.freeze({ method: 'GET', path: '/v2/teams' }),
+  // Exact team ID comes only from the stored account, not the caller. This
+  // endpoint takes teamId in the path, not as a redundant query parameter.
+  teams_members_list: Object.freeze({ method: 'GET', path: '/v3/teams/{teamId}/members', teamScoped: false }),
   projects_list: Object.freeze({ method: 'GET', path: '/v10/projects' }),
   projects_get: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}' }),
   projects_members_list: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/members' }),

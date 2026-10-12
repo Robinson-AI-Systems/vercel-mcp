@@ -34,7 +34,7 @@ const scope=async(ctx,project)=>{
   const row=await bound.client.request('projects_get',{path:{idOrName:project}});
   if(typeof row?.id!=='string'||typeof row?.name!=='string')
     throw new TypeError('Project ownership cannot be verified');
-  return {client:bound.client,id:row.id,name:row.name};
+  return {client:bound.client,id:row.id,name:row.name,teamId:bound.account.team_id};
 };
 const members=async(client,project)=>{
   const page=await client.request('projects_members_list',{path:{idOrName:project},query:{limit:100}});
@@ -43,6 +43,21 @@ const members=async(client,project)=>{
     throw new TypeError('Member list is incomplete or unavailable; refuse mutation');
   return page.members;
 };
+// A project-only role can be assigned to an existing confirmed team
+// contributor, never used as a back door to invite a paid team seat.
+async function verifyEligibleTeamMember(client,teamId,uid){
+  const page=await client.request('teams_members_list',{
+    path:{teamId},query:{limit:100}
+  });
+  if(!Array.isArray(page?.members)||page.members.length>100||
+    !page.pagination||
+    (page.pagination.next!=null&&page.pagination.hasNext!==false)||
+    page.pagination.hasNext===true)
+    throw new TypeError('Cannot prove complete team membership; project grant refused');
+  const matches=page.members.filter(row=>row?.uid===uid);
+  if(matches.length!==1||matches[0].confirmed!==true||matches[0].role!=='CONTRIBUTOR')
+    throw new TypeError('A confirmed team contributor UID is required');
+}
 const context=({db,connection,env,fetchImpl})=>({
   db,connection,env,fetchImpl,shape:compact,
   audit:entry=>db.recordChange(entry),
@@ -59,6 +74,7 @@ const grant=defineWrite({
     const current=rows.find(row=>(row.uid??row.userId??row.id)===args.uid);
     if(current && current.role!==args.role)
       throw new TypeError('Member already has another project role; role changes need separate review');
+    if(!current)await verifyEligibleTeamMember(project.client,project.teamId,args.uid);
     // A completed replay must be reachable even after the first grant succeeded.
     // A new key with the same role becomes a verified idempotent no-op.
     return {project:project.id,name:project.name,uid:args.uid,role:args.role,

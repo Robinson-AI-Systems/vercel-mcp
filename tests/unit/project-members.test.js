@@ -25,6 +25,10 @@ function fixture(){
 }
 const parse=r=>JSON.parse(r.content[0].text);
 function reads(fake,after){
+  fake.when('GET','/v3/teams/{teamId}/members').resolves({
+    members:[{uid,role:'CONTRIBUTOR',confirmed:true}],
+    pagination:{next:null,hasNext:false}
+  });
   fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
   fake.when('GET','/v1/projects/{idOrName}/members')
     .resolves({members:[],pagination:{next:null}})
@@ -75,6 +79,25 @@ describe('D-1h project access grants',()=>{
       const r=parse(await f.call({project:name,uid,role,confirm:true}));
       expect(r.status).toBe('refused_by_guard');
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    }
+  });
+  it('refuses non-contributors, unconfirmed users, forged identities and incomplete teams without granting',async()=>{
+    for(const result of [
+      {members:[{uid,role:'OWNER',confirmed:true}],pagination:{next:null}},
+      {members:[{uid,role:'CONTRIBUTOR',confirmed:false}],pagination:{next:null}},
+      {members:[{uid:'other_FAKE',role:'CONTRIBUTOR',confirmed:true}],pagination:{next:null}},
+      {members:[{uid,role:'CONTRIBUTOR',confirmed:true}],pagination:{next:42}},
+      {members:[]}
+    ]){
+      const f=fixture();
+      f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+      f.fake.when('GET','/v1/projects/{idOrName}/members')
+        .resolves({members:[],pagination:{next:null}});
+      f.fake.when('GET','/v3/teams/{teamId}/members').resolves(result);
+      const data=parse(await f.call({project:name,uid,role,confirm:true}));
+      expect(data.status).toBe('refused_by_guard');
+      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+      expect(f.fake.calls.at(-1).params.teamId).toBe('team_FAKE');
     }
   });
   it('keeps project administrator grants behind independent owner authorization',async()=>{
