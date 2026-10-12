@@ -56,6 +56,37 @@ card; read only that recipe. It maps existing code and proposed work without cha
     API call is blocked, give the exact verified state and recovery action in the handoff now;
     never silently wait or report pending checks as passed.
 
+## Outcome-first milestone delivery and continuation (permanent)
+
+Every session begins by verifying live `main`, concurrent branches/open PRs,
+review threads, exact-head CI, owner answers and `docs/pr-cards/work-index.json`.
+Resolve demonstrated security/correctness/CI defects first. Select the
+**highest-priority eligible capability milestone** with explicit user-facing
+behavior and finite acceptance, not a count of PRs. Plan cohesive substantive
+PRs that materially deliver that outcome and satisfy the existing risk/size
+limits; five merged PRs are a normal **batch boundary**, never completion
+evidence or a reason to invent work. Stop earlier only for a real external
+gate, exhausted safe eligible work, or an explicit instruction; record why.
+
+Track separately **implemented code**, **local/CI tests**, **deployed HTTPS
+verification**, **authenticated custom-MCP acceptance**, and real Toolkit Hub
+**direct, private relay, Sandbox and revocation** runs when applicable.
+Passing mocks, reference conformance, build/configuration checks or ordinary
+provider connectors is not deployment/connected evidence. Do not close a
+milestone without its *actual* required acceptance; however, continue
+approved independent work while an external acceptance gate is pending.
+
+Every handoff and copy-ready next-thread prompt must name the actual
+verified `main` SHA, merged PRs, current milestone and outstanding criteria,
+next **eligible** action, due/deferred items and objective blockers. Direct
+the successor to this repo's authoritative workflow, cards and final PR's
+permanent handoff instead of repeating all rules. Tell them to recheck newly
+answered owner input, dependency merges and changed environments, preserve
+review/CI/hosting/production/spending gates, normally perform the next
+five-PR outcome-based batch and produce the same compact prompt. Keep
+detailed history/evidence in repo, not in an oversized continuation prompt.
+Do not create a separate documentation-only PR to maintain this workflow.
+
 ## Blocked work must return to the roadmap (all future cards)
 
 A blocked or incomplete card is **not** postponed indefinitely. Before switching to another
