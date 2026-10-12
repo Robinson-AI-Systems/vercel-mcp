@@ -1,0 +1,7 @@
+{
+  "repository": "Robinson-AI-Systems/vercel-mcp",
+  "requiredChecks": [
+    "release-policy",
+    "ci"
+  ]
+}
