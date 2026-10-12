@@ -225,7 +225,7 @@ describe('D-1f guarded project creation',()=>{
         mode:scenario==='preview'?'preview':'production'};
       const res=parse(await f.call({name:'demo-site',gitRepository:{
         type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},c));
-      expect(res.status).toBe('refused_by_guard');
+      expect(res.status).toBe(scenario==='zeroBudget'?'spend_limit':'refused_by_guard');
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     }
   });
