@@ -43,6 +43,17 @@ function reads(f,after=[leader]){
 }
 describe('D-1i guarded project member removal',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
+  it('never revokes by a membership row ID without a verified UID',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v2/user').resolves({user:{id:'user_FAKE_OWNER'}});
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({id:name,name:'demo'});
+    f.fake.when('GET','/v1/projects/{idOrName}/members').resolves({
+      members:[{id:uid,role:'PROJECT_VIEWER'},leader],pagination:{next:null}
+    });
+    const result=parse(await f.call(payload));
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+  });
   it('restricts discovery, direct invocation and production access',async()=>{
     const f=fixture();reads(f);
     expect(listMcpTools(registry,{profile:'full'}).map(t=>t.name)).toContain('vercel_project_remove_member');

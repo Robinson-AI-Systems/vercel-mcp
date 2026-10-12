@@ -4,7 +4,7 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {verifyEligibleTeamMember,completeMembers} from './project-member-safety.js';
+import {verifyEligibleTeamMember,completeMembers,verifiedUserUid} from './project-member-safety.js';
 
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const properties={
@@ -50,7 +50,7 @@ const revoke=defineWrite({
     if(typeof project?.id!=='string'||typeof project?.name!=='string')
       throw new TypeError('Project identity unavailable');
     const rows=await listMembers(client,project.id);
-    const user=rows.find(row=>(row.uid??row.userId??row.id)===args.uid);
+    const user=rows.find(row=>verifiedUserUid(row)===args.uid);
     // A successful DELETE makes the target absent. Permit completed-key
     // replay to reach the atomic store; a new key is a verified no-op.
     if(user && (!['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role)||rows.length<2))
@@ -94,7 +94,7 @@ const revoke=defineWrite({
     if(project?.id!==before.project||project?.name!==before.name)
       throw new TypeError('Project identity changed before role removal');
     const rows=await listMembers(client,before.project);
-    const user=rows.find(row=>(row.uid??row.userId??row.id)===before.uid);
+    const user=rows.find(row=>verifiedUserUid(row)===before.uid);
     if(rows.length<2||user?.role!==before.role||
       !['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role))
       throw new TypeError('Project role or last-member status changed before removal');
@@ -108,7 +108,7 @@ const revoke=defineWrite({
   async verify(_args,ctx,before){
     const {client}=await readProvider(ctx);
     const rows=await listMembers(client,before.project);
-    return {confirmed:!rows.some(row=>(row.uid??row.userId??row.id)===before.uid),
+    return {confirmed:!rows.some(row=>verifiedUserUid(row)===before.uid),
       project:before.project,member:before.uid};
   }
 });

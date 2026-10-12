@@ -4,7 +4,7 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {verifyEligibleTeamMember,completeMembers} from './project-member-safety.js';
+import {verifyEligibleTeamMember,completeMembers,verifiedUserUid} from './project-member-safety.js';
 
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 // Administrative project access is held for a separately authenticated owner
@@ -51,7 +51,7 @@ const grant=defineWrite({
     validate(args);
     const project=await scope(ctx,args.project);
     const rows=await members(project.client,project.id);
-    const current=rows.find(row=>(row.uid??row.userId??row.id)===args.uid);
+    const current=rows.find(row=>verifiedUserUid(row)===args.uid);
     if(current && current.role!==args.role)
       throw new TypeError('Member already has another project role; role changes need separate review');
     if(!current)await verifyEligibleTeamMember(project.client,project.teamId,args.uid);
@@ -87,7 +87,7 @@ const grant=defineWrite({
     // administrator may grant a role after preview. Do not overwrite an
     // elevated or concurrently assigned project role with a stale POST.
     const current=await members(client,before.project);
-    if(current.some(row=>(row.uid??row.userId??row.id)===before.uid))
+    if(current.some(row=>verifiedUserUid(row)===before.uid))
       throw new TypeError('Project membership changed before role grant');
     });
     return provider.write('projects_members_add',{
@@ -98,7 +98,7 @@ const grant=defineWrite({
   async verify(_args,ctx,before){
     const {client}=await readProvider(ctx);
     const rows=await members(client,before.project);
-    const found=rows.find(row=>(row.uid??row.userId??row.id)===before.uid);
+    const found=rows.find(row=>verifiedUserUid(row)===before.uid);
     return {confirmed:found?.role===before.role,
       project:before.project,member:before.uid};
   }

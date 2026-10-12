@@ -539,3 +539,5 @@ D-1ax (#97): `vercel_project_transfer` revalidates exact issuer team/account and
 D-1aw (#96): destructive `vercel_project_delete` requires pinned `pagination.count` and cross-checks declared root/pagination totals for domains, env vars and deployments against terminal page lengths before both deletion scans; contradictory totals refuse irreversible DELETE.
 
 <!-- D-1bb #101: Git discovery and metered Git import now share top-level authenticated gitAccount proof; no tool status or authorization change. -->
+
+D-1bc (#102): project access grant/removal now refuses membership-only IDs and requires proven user UIDs in every scoped inventory and execution-time recheck.
