@@ -228,3 +228,10 @@ python3 docs/pr-cards/validate-index.py
 2. `docs/DECISIONS.md` entry for any design decision; `docs/ROADMAP.md` for out-of-scope finds;
    `docs/GO-LIVE-CHECKLIST.md` for any new switch, token or owner step.
 3. Report to Chris in plain English: what changed, how it was verified, what he needs to decide (`IN-xx`), what is next.
+
+## Cohesive PR throughput (mandatory from D-1 security close-out)
+
+- Group adjacent operations **by safety boundary and reusable implementation pattern**, not one PR per endpoint. Prefer a complete related read family or a compatible set of guarded settings mutations with shared before/read-back fixtures. Never group destructive, owner-only, paid or production-sensitive changes with an unrelated operation merely to hit a size target.
+- Target approximately **450–800 changed production-code lines** only when the unit genuinely warrants them. The existing ~800-line hard stop and one-risk-area/migration constraints in PLAYBOOK still win. No padding, placeholders, invented endpoints or empty PRs. Five PRs means five quality gates, not five tiny features.
+- Within a group, reuse authorization, input validation, provider calls, independent read-back, replay and test fixtures. A guarded handler must use `bindGuardedWrite` around the matching `defineWrite`; no caller-written contract literal can authorize the registry. Transport replay identities must distinguish operation plus stable mutation parameters/discriminator.
+- Run focused tests once per cohesive group, consolidate related fixes before each CI push, and avoid duplicate discovery/commits. Never skip exact-head CI or defer a security review finding. See `docs/implementation-guidance/RECIPES.md` §7 and the grouped D-1 card. If REST-only, use the Actions CI fallback unchanged.

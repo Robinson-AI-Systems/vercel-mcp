@@ -48,6 +48,10 @@ docs, tests, logs, PR text or tool results; changing the Appliance Desk repo or 
 resources; widening default token, connection or pass permissions or the protected-resources defaults; committing to
 `main`; skipping, disabling or weakening tests.
 
+## Grouping rule before selecting the next card
+
+Select one cohesive, safety-compatible slice of related operations (not routinely one endpoint per PR). Follow AGENTS "Cohesive PR throughput", `docs/implementation-guidance/RECIPES.md` §7 and the current card. Target ~450–800 real production lines only when justified; preserve all hard caps, risk splits, owner gates, mandatory tests and exact-head CI. Reuse the `defineWrite`-bound handler, transport replay and shared fake-provider fixtures introduced by #56. Record operation mappings before editing; prefer one complete candidate and a reviewed CI cycle over per-endpoint pushes.
+
 ## 3. The work loop
 
 1. Branch `ai/<tool>/<topic>` from latest `main` (or the card's base).

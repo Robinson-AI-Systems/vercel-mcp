@@ -1,5 +1,6 @@
 // Enforce safety declarations against documented catalog risk marks.
 import { readFileSync } from 'node:fs';
+import { isGuardedWrite } from '../src/core/write.js';
 const WRITE_MARKS = new Set(['P', 'Cp', 'PR', 'C', 'D', '$', 'A', '1x']);
 export function catalogSafety(text) {
   const safety = new Map(), tick = String.fromCharCode(96);
@@ -29,6 +30,8 @@ export function checkWrites(tools, catalogText = '') {
       failures.push(name + ': catalog Safety mark disagrees with writes declaration');
     }
     if (!tool.writes) continue;
+    if (tool.guardedWrite === true && !isGuardedWrite(tool))
+      failures.push(name + ': untrusted defineWrite contract');
     const props = tool.inputSchema?.properties;
     if (!props?.dryRun || !props?.confirm) failures.push(name + ': write tool missing dryRun/confirm inputs');
     if (!tool.writeContract) {

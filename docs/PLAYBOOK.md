@@ -49,6 +49,9 @@ While implementing:
 
 ### Step 3a — PR size
 
+**Group work before writing code:** a PR should deliver a coherent set of compatible operations sharing the same risk domain, scope, validation, replay and independent read-back rules. Combine their tests into reusable fixtures. Aim for ~450–800 actual production lines when warranted; the hard ~800-line cap, ~15 production-file target, at-most-one-migration and one-risk-area limit remain authoritative. Never add filler, invent scope, or bundle unrelated owner/destructive/spend gates to increase line count. See `docs/implementation-guidance/RECIPES.md` §7.
+
+
 About 500 production lines (tests/docs not counted), about 15 production files, hard stop ~800 lines, at most one
 migration, one risk area (tokens / production / spend / guards / tools-of-one-area / doors). Measure before opening:
 

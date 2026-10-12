@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **PR #56 security/throughput baseline:** resolve unresolved #51 trust-origin, per-mutation transport replay and write-only MCP classification findings with adversarial tests. Group compatible D-1 settings changes in later PRs, preserving approval and risk boundaries. IN-07/IN-08 pending; no production activation.
+
 - **D-1i guarded project member removal (#55):** DELETE /v1/projects/{idOrName}/members/{uid} only for existing viewer/developer roles, explicit production/full connection and confirmation, server principal and admin/owner/final member denial, complete pagination required and independent no-membership read-back. Admin/owner removal intentionally deferred pending verified last-owner protection. Finish remaining D-1 project operations in #56 onward; IN-07/08 still pending, production inactive.
 
 - **D-1h guarded project member grant (#54):** POST /v1/projects/{idOrName}/members for an existing team UID only, no seat invites or paid operations, production/full connection required, access-widening declaration, preflight member existence and bounded page, independent member-role GET read-back, safe audit and replay. Next guarded member removal; production inactive and IN-07/08 outstanding.

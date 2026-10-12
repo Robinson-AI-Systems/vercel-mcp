@@ -1,4 +1,6 @@
 // Provider-neutral profile access checks: one predicate for discovery and direct invocation.
+import { isGuardedWrite } from './write.js';
+
 export const PROFILES = Object.freeze(['read_only', 'everyday', 'full']);
 const INTERNAL_FIELDS = new Set(['writes', 'profiles', 'localAdmin', 'writeContract', 'guardedWrite']);
 
@@ -14,8 +16,7 @@ export function visibleToProfile(tool, profile, { localOwnerTools = [] } = {}) {
   // Ordinary provider writes must opt in individually, prove defineWrite's
   // mandatory safety declarations and be permitted by the connection profile.
   // An unannotated future write stays invisible and uncallable.
-  return tool.guardedWrite === true && tool.writeContract?.production === true &&
-    tool.writeContract?.targets === true && ['everyday','full'].includes(profile);
+  return isGuardedWrite(tool) && ['everyday','full'].includes(profile);
 }
 
 export function listProfileTools(registry, profile, options = {}) {

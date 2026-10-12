@@ -22,6 +22,10 @@ describe('B-7 static write safety contracts', () => {
     const actual = readFileSync('docs/TOOL-CATALOG.md', 'utf8');
     expect(checkWrites(registry.tools, actual)).toEqual([]);
   });
+  it('rejects spoofed opt-in metadata lacking defineWrite origin', () => {
+    expect(checkWrites([{...write,guardedWrite:true}],catalog))
+      .toContain('vercel_sample_write: untrusted defineWrite contract');
+  });
   it('parses risk only from actual catalog rows', () => {
     expect(catalogSafety(catalog).get('vercel_sample_paid')).toBe('$ Cp A 1x');
     expect(catalogSafety('a description mentioning ' + tick + 'vercel_sample_paid' + tick)).toEqual(new Map());

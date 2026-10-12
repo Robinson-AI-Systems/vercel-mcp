@@ -1,5 +1,5 @@
 // D-1g: guarded project identity/framework settings, excluding paid build resources.
-import {defineWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -104,10 +104,9 @@ export const projectSettingsTools={
     inputSchema,writeContract:update.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{
-    async vercel_project_update_settings(args,ctx){
-      const result=await update.run(args,context(ctx));
-      return {isError:['refused_by_guard','outcome_unknown'].includes(result.status),
-        content:[{type:'text',text:JSON.stringify(result)}]};
-    }
+    vercel_project_update_settings:bindGuardedWrite(update,context,result=>({
+      isError:['refused_by_guard','outcome_unknown'].includes(result.status),
+      content:[{type:'text',text:JSON.stringify(result)}]
+    }))
   }
 };
