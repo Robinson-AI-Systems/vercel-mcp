@@ -4,6 +4,8 @@ Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **D-1j grouped project configuration (#57):** add build/install/dev/ignore commands and root/output directories to the single guarded project PATCH; values never enter previews/audits, existing live-status and read-back checks reused. Next D-1 lifecycle/spend units remain gated; production inactive.
+
 - **PR #56 security/throughput baseline:** resolve unresolved #51 trust-origin, per-mutation transport replay and write-only MCP classification findings with adversarial tests. Group compatible D-1 settings changes in later PRs, preserving approval and risk boundaries. IN-07/IN-08 pending; no production activation.
 
 - **D-1i guarded project member removal (#55):** DELETE /v1/projects/{idOrName}/members/{uid} only for existing viewer/developer roles, explicit production/full connection and confirmation, server principal and admin/owner/final member denial, complete pagination required and independent no-membership read-back. Admin/owner removal intentionally deferred pending verified last-owner protection. Finish remaining D-1 project operations in #56 onward; IN-07/08 still pending, production inactive.
