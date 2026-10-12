@@ -103,6 +103,8 @@ Protected-resource listings now include both global and team-scoped rules; the e
 
 ## Deployments: reads, logs and checks (`vercel_deploy_*`, `vercel_check_*`) — 10
 
+D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acceptance.mjs` (#143); it does not establish genuine provider response compatibility, deployed HTTPS, or Hub TEST acceptance.
+
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
 | `vercel_deploy_list` | Authenticated project-only deployments, bounded first page with honest cursor, state, target, Git commit/branch and safe metadata; state/environment/branch/commit and time filters built #138 | — | B Op | R | — | D-2 (read built #132) |
