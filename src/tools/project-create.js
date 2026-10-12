@@ -5,14 +5,14 @@ import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {CONFIG_SETTINGS,configFields,invalidProjectConfiguration,providerConfigBody} from './project-config-fields.js';
+import {CONFIG_SETTINGS,createConfigFields,invalidProjectConfiguration,providerConfigBody} from './project-config-fields.js';
 
 const NAME=/^[a-z0-9][a-z0-9-]{0,99}$/;
 // Framework options are validated by the pinned provider schema.
 const schema={type:'object',properties:{
   name:{type:'string',pattern:NAME.source,maxLength:100},
   framework:{type:'string',minLength:1,maxLength:100},
-  ...configFields,
+  ...createConfigFields,
   dryRun:{type:'boolean'},confirm:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}
 },required:['name'],additionalProperties:false};
