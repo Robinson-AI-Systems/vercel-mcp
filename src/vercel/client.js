@@ -1,6 +1,7 @@
 // Only API transport boundary. Tokens never appear in errors, logs or persisted results.
 import { createHash } from 'node:crypto';
 import { operation } from './operations.js';
+import {readBoundedRuntimeLogs} from './runtime-log-stream.js';
 import { validateRequest } from './openapi-validation.js';
 import { createDb } from '../db.js';
 
@@ -118,6 +119,8 @@ export function makeVercelClient({
   async function request(id, params = {}, options = {}) {
     const spec = operation(id);
     const method = spec.method;
+    if(options.streamLogs===true && (id!=='runtime_logs_get'||method!=='GET'))
+      throw new TypeError('Streaming is only available for runtime log reads');
     // Short read-only status polling must not inherit a 25s network stall.
     const timeoutMs = options.timeoutMs ?? 25000;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 25000 ||
@@ -159,12 +162,13 @@ export function makeVercelClient({
     }
     let response, envelope;
     for (let attempt = 0; attempt < 2; attempt++) {
+      const signal=AbortSignal.timeout(timeoutMs);
       try {
         response = await fetchImpl(url.toString(), {
           method, headers: { authorization: 'Bearer ' + token, accept: 'application/json',
             ...(params.body === undefined ? {} : { 'content-type': 'application/json' }) },
           ...(params.body === undefined ? {} : { body: JSON.stringify(params.body) }),
-          signal: AbortSignal.timeout(timeoutMs)
+          signal
         });
       } catch (cause) {
         if (attempt === 0 && RETRYABLE.has(method) && cause?.name !== 'TimeoutError' &&
@@ -172,6 +176,8 @@ export function makeVercelClient({
         throw error('outcome_unknown', 'Vercel request outcome needs read-back verification',
           { confirmed: null });
       }
+      if(response.ok && options.streamLogs===true)
+        return readBoundedRuntimeLogs(response,signal);
       try { envelope = response.status === 204 ? null : await response.json(); } catch { envelope = null; }
       if (response.ok) break;
       if (response.status === 429) {

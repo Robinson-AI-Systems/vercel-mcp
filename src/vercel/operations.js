@@ -9,6 +9,7 @@ export const OPS = Object.freeze({
   projects_list: Object.freeze({ method: 'GET', path: '/v10/projects' }),
   deployments_list: Object.freeze({ method: 'GET', path: '/v7/deployments' }),
   deployments_get: Object.freeze({ method: 'GET', path: '/v13/deployments/{idOrUrl}' }),
+  runtime_logs_get: Object.freeze({ method: 'GET', path: '/v1/projects/{projectId}/deployments/{deploymentId}/runtime-logs' }),
   deployments_events: Object.freeze({ method: 'GET', path: '/v3/deployments/{idOrUrl}/events' }),
   deployments_files_list: Object.freeze({ method: 'GET', path: '/v6/deployments/{id}/files' }),
   checks_runs_list: Object.freeze({ method: 'GET', path: '/v2/deployments/{deploymentId}/check-runs' }),
