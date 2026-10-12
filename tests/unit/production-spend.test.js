@@ -23,20 +23,20 @@ describe('B-1 fail-closed Vercel production classifiers', () => {
     expect(domainIsProduction({ gitBranch: 'feature' })).toBe(false);
     expect(domainIsProduction({ action: 'dns', gitBranch: 'feature' })).toBe(true);
     expect(domainIsProduction({})).toBe(true);
-  });  it('does not mistake a zero upfront recurring plan for an uncharged operation',()=>{
+  });
+});
+describe('B-1 conservative integer-cents spend guard', () => {
+  it('does not mistake a zero upfront recurring plan for an uncharged operation',()=>{
     const d={cents:0,recurring:true,description:'Ongoing project service'};
     expect(spendPreflight({declaration:d,spentTodayCents:0,spendLimitCents:99999,
       confirm:true})).toMatchObject({allowed:false,code:'provider_ceiling_required'});
   });
-
-});
-describe('B-1 conservative integer-cents spend guard', () => {
   it('formats USD and rejects invalid currency types', () => {
     expect(usd(1125)).toBe('$11.25 USD');
     expect(() => usd(0.5)).toThrow();
     expect(() => classifySpend({ cents: '100', description: 'x' })).toThrow();
   });
-  it('defaults to no spending; requires confirm and verified limits', () => {
+  it('defaults to no autonomous charge and requires a separately authenticated owner', () => {
     const declaration = { cents: 1125, recurring: false, description: 'Domain registration' };
     expect(spendPreflight({ declaration, spentTodayCents: 0, spendLimitCents: 0, confirm: true }).code)
       .toBe('owner_required');

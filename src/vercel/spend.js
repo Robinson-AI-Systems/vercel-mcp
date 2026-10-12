@@ -37,7 +37,7 @@ export function spendPreflight({ declaration, spentTodayCents, spendLimitCents, 
   return {allowed:true, code:'allowed', explanation:line};
 }
 
-// Shared account-bound policy adapter for any paid project write. No cost or
+// Legacy account-bound advisory adapter; never authorizes a charge. No cost or
 // account selection is accepted from MCP caller arguments.
 export function accountSpendGuard({db,account}){
   if(typeof account!=='string'||!account ||
