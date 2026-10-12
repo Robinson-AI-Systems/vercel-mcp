@@ -4,6 +4,8 @@ Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoint
 
 ## Next
 
+- **RTC #114 — read-only pass HTTPS dispatch:** added pass-authenticated `GET /api/whoami`, tool discovery/describe, read-only POST tool and bounded `_batch`, and account/pass-scoped result retrieval. All route executions delegate through the existing MCP dispatcher/secret-shaping pipeline; write/delegation and out-of-area operations are denied before provider reads. Revoked/expired/rate-limited pass statuses use RTC JSON error envelopes. No live test, no production, and no purchase enabled. Next: RTC conformance/CI and genuine D-4 route evidence.
+
 - **RTC #113 — independently owner-issued read-only passes:** authenticated production setup plus session CSRF/fresh passphrase can issue 1–720 hour passes scoped to preview and explicit areas, with SHA-256 bearer hashes in additive `rtc_passes`. Shared atomic database rate counter (60/min), targeted audited revocation and one-time encrypted secret display. No pass can authorize production, money or mutation; HTTPS consumption remains to be added in #114. No actual pass issued/live use.
 
 - **RTC 1 #112 — public contract and metadata:** read-only `GET /api/contract` and `GET /api/openapi.json` advertise correct operation names, safety flags, counts and modes without requiring credentials; metadata derives from actual guarded MCP registry. Delegated `vercel_call` is classified as write-capable. No HTTP pass access is enabled by a manifest alone. Follow-up: owner-issued read-only pass and authenticated HTTPS door. Production inactive; D-1 remains IN_PROGRESS.
