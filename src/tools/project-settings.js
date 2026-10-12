@@ -1,5 +1,5 @@
 // D-1g: guarded project identity/framework settings, excluding paid build resources.
-import {defineWrite,bindGuardedWrite} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -90,6 +90,18 @@ const update=defineWrite({
   },
   async apply(_args,ctx,before,requestKey){
     const provider=await writeProvider(ctx);
+    await requirePreDispatch(async()=>{
+      if(provider.account.scope==='project' && provider.account.project_id!==before.id)
+        throw new TypeError('Stored project token no longer covers the selected project');
+      const row=await provider.read('projects_get',{path:{idOrName:before.id}});
+      if(row?.id!==before.id||row?.name!==before.name||
+        (provider.account.scope==='project'&&row.id!==provider.account.project_id))
+        throw new TypeError('Project identity changed since the settings preview');
+      // A previously empty project can become live while a user is confirming.
+      // Never let an old preview authorization silently cover production.
+      if((row.hasDeployments!==false)!==before.live)
+        throw new TypeError('Project production classification changed since confirmation');
+    });
     return provider.write('projects_update',{
       path:{idOrName:before.id},body:{
         ...(before.changeName?{name:before.newName}:{}),

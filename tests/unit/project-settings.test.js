@@ -16,7 +16,8 @@ function fixture(){
         if(rows.has(key))return rows.get(key);
         rows.set(key,{state:'pending'});return {state:'claimed',claimId:'FAKE'};
       },
-      complete:async({key,result})=>rows.set(key,{state:'completed',result})
+      complete:async({key,result})=>rows.set(key,{state:'completed',result}),
+      release:async({key})=>rows.delete(key)
     })
   };
   const call=(args,c=connection)=>dispatchReadOnlyTool({registry,
@@ -29,14 +30,14 @@ describe('D-1g guarded project settings',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
   it('renames a non-live project with exact PATCH and independent GET verification',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before).resolves(before)
       .resolves({...before,name:'new-site'});
     f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({...before,name:'new-site'});
     const r=parse(await f.call({project:'prj_FAKE_OLD',name:'new-site',confirm:true}));
     expect(r).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','PATCH','GET']);
-    expect(f.fake.calls[1].body).toEqual({name:'new-site'});
-    expect(f.fake.calls[1].query.teamId).toBe('team_FAKE');
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','PATCH','GET']);
+    expect(f.fake.calls[2].body).toEqual({name:'new-site'});
+    expect(f.fake.calls[2].query.teamId).toBe('team_FAKE');
     expect(f.rows.size).toBe(2);
     f.fake.verify();
   });
@@ -45,13 +46,13 @@ describe('D-1g guarded project settings',()=>{
       installCommand:'npm ci --ignore-scripts',devCommand:'npm run dev:site',
       commandForIgnoringBuildStep:'git diff --quiet HEAD~1',
       outputDirectory:'dist/site',rootDirectory:'apps/site'};
-    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before).resolves(before)
       .resolves({...before,...change});
     f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({...before,...change});
     const result=parse(await f.call({project:before.id,...change,confirm:true}));
     expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','PATCH','GET']);
-    expect(f.fake.calls[1].body).toEqual(change);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','PATCH','GET']);
+    expect(f.fake.calls[2].body).toEqual(change);
     expect(JSON.stringify(result)).not.toContain('npm run build:site');
     expect(f.rows.size).toBe(2);
     f.fake.verify();
@@ -80,6 +81,33 @@ describe('D-1g guarded project settings',()=>{
       .toBe('refused_by_guard');
     f.fake.verify();
   });
+  it('refuses a setting update when the project becomes live after preview',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(before).resolves({...before,hasDeployments:true});
+    const result=parse(await f.call({project:before.id,framework:'vite',confirm:true,
+      requestKey:'liveSettingsRace01'}));
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
+    expect(f.rows.size).toBe(0);
+  });
+  it('refuses stale renamed projects or rotated out-of-scope write credentials',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(before).resolves({...before,name:'changed-externally'});
+    expect(parse(await f.call({project:before.id,framework:'vite',confirm:true,
+      requestKey:'renamedSettingsRace01'}))).toMatchObject({status:'refused_by_guard'});
+    expect(f.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+    const g=fixture();
+    loadToken.mockResolvedValueOnce(token).mockResolvedValueOnce({
+      token:'vcp_FAKE_rotated',account:{...token.account,scope:'project',project_id:'prj_OTHER'}
+    });
+    g.fake.when('GET','/v9/projects/{idOrName}').resolves(before);
+    const out=parse(await g.call({project:before.id,framework:'vite',confirm:true,
+      requestKey:'rotatedSettingsToken01'}));
+    expect(out).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(g.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+  });
   it('requires production mode for a project serving or possibly serving live traffic',async()=>{
     for(const live of [true,undefined]){
       const f=fixture();
@@ -92,12 +120,12 @@ describe('D-1g guarded project settings',()=>{
   });
   it('accepts the full pinned framework vocabulary and permits explicit null clearing',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(before).resolves(before)
       .resolves({...before,framework:'remix'});
     f.fake.when('PATCH','/v9/projects/{idOrName}').resolves({...before,framework:'remix'});
     const result=parse(await f.call({project:'prj_FAKE_OLD',framework:'remix',confirm:true}));
     expect(result.status).toBe('applied');
-    expect(f.fake.calls[1].body).toEqual({framework:'remix'});
+    expect(f.fake.calls[2].body).toEqual({framework:'remix'});
   });
   it('refuses mutation for absent confirmation or dry-run and blocks protected rename',async()=>{
     const f=fixture();
@@ -133,13 +161,13 @@ describe('D-1g guarded project settings',()=>{
     const old=Object.fromEntries(keys.map(key=>[key,key==='rootDirectory'?'apps/site':'custom']));
     const reset=Object.fromEntries(keys.map(key=>[key,null]));
     f.fake.when('GET','/v9/projects/{idOrName}')
-      .resolves({...before,...old}).resolves(before);
+      .resolves({...before,...old}).resolves({...before,...old}).resolves(before);
     f.fake.when('PATCH','/v9/projects/{idOrName}')
       .resolves({...before,...reset});
     const result=parse(await f.call({project:before.id,...reset,confirm:true}));
     expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','PATCH','GET']);
-    expect(f.fake.calls[1].body).toEqual(reset);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','PATCH','GET']);
+    expect(f.fake.calls[2].body).toEqual(reset);
     expect(f.rows.size).toBe(2);
     f.fake.verify();
   });
@@ -160,12 +188,12 @@ describe('D-1g guarded project settings',()=>{
       expect(over.fake.calls).toHaveLength(0);
       const good=fixture(),value='a'.repeat(256);
       good.fake.when('GET','/v9/projects/{idOrName}')
-        .resolves(before).resolves({...before,[key]:value});
+        .resolves(before).resolves(before).resolves({...before,[key]:value});
       good.fake.when('PATCH','/v9/projects/{idOrName}')
         .resolves({...before,[key]:value});
       const result=parse(await good.call({project:before.id,[key]:value,confirm:true}));
       expect(result).toMatchObject({status:'applied',confirmed:true});
-      expect(good.fake.calls[1].body).toEqual({[key]:value});
+      expect(good.fake.calls[2].body).toEqual({[key]:value});
       good.fake.verify();
     }
   });
