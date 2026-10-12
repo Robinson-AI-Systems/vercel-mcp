@@ -4,6 +4,7 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
+import {verifyEligibleTeamMember} from './project-member-safety.js';
 
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 // Administrative project access is held for a separately authenticated owner
@@ -43,21 +44,6 @@ const members=async(client,project)=>{
     throw new TypeError('Member list is incomplete or unavailable; refuse mutation');
   return page.members;
 };
-// A project-only role can be assigned to an existing confirmed team
-// contributor, never used as a back door to invite a paid team seat.
-async function verifyEligibleTeamMember(client,teamId,uid){
-  const page=await client.request('teams_members_list',{
-    path:{teamId},query:{limit:100}
-  });
-  if(!Array.isArray(page?.members)||page.members.length>100||
-    !page.pagination||
-    (page.pagination.next!=null&&page.pagination.hasNext!==false)||
-    page.pagination.hasNext===true)
-    throw new TypeError('Cannot prove complete team membership; project grant refused');
-  const matches=page.members.filter(row=>row?.uid===uid);
-  if(matches.length!==1||matches[0].confirmed!==true||matches[0].role!=='CONTRIBUTOR')
-    throw new TypeError('A confirmed team contributor UID is required');
-}
 const context=({db,connection,env,fetchImpl})=>({
   db,connection,env,fetchImpl,shape:compact,
   audit:entry=>db.recordChange(entry),
