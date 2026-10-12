@@ -52,6 +52,43 @@ describe('B-1 contract hardening', () => {
       expect(f.rows.size).toBe(0);
     }
   });
+  it('refuses a quote that changes after approval but before the provider write',async()=>{
+    for(const changed of [
+      {cents:476,recurring:false,description:'Fixture operation'},
+      {cents:475,recurring:true,description:'Fixture operation'},
+      {cents:475,recurring:false,description:'Changed provider quote'},
+      null
+    ]){
+      const f=sampleWrite({spend:true,cents:475});
+      let calls=0;
+      f.spec.spend=async()=>{
+        calls++;
+        if(calls===1)return {cents:475,recurring:false,description:'Fixture operation'};
+        if(changed===null)throw new Error('Provider quote unavailable');
+        return changed;
+      };
+      const owner=attachFakeOwnerPurchase(f.ctx);
+      const result=await f.tool.run({confirm:true,requestKey:'pricingRaceFAKE01'},f.ctx);
+      expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+      expect(result.reason).toMatch(/authorization or resource checks/i);
+      expect(owner.status).toBe('approved');
+      expect(f.provider).toHaveLength(0);
+      expect(f.rows.size).toBe(0);
+      expect(calls).toBe(2);
+    }
+  });
+  it('refuses a once-free operation that becomes chargeable before apply',async()=>{
+    const f=sampleWrite({spend:true,cents:0});
+    let calls=0;
+    f.spec.spend=async()=>({cents:++calls===1?0:125,
+      recurring:false,description:'Fixture operation'});
+    const outcome=await f.tool.run({confirm:true,requestKey:'zeroToPaidFAKE01'},f.ctx);
+    expect(outcome).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.provider).toHaveLength(0);
+    expect(f.rows.size).toBe(0);
+    expect(calls).toBe(2);
+    expect(f.audits).toHaveLength(0);
+  });
   it('binds owner purchase identity to account, meaningful args, description and exact quote',()=>{
     const a={account:'acct_FAKE',mode:'production',profile:'full'};
     const quote={cents:2000,recurring:false,description:'Vercel provider quote'};

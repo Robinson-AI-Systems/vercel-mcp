@@ -44,7 +44,13 @@ export function sampleWrite(options = {}) {
         rows.set(key, { state: 'pending' });
         return { state: 'claimed', claimId: 'claim_FAKE' };
       },
-      async complete({ key, result }) { rows.set(key, { state: 'completed', result }); }
+      async complete({ key, result }) { rows.set(key, { state: 'completed', result }); },
+      async release({key,claimId}){
+        if(claimId==='claim_FAKE'&&rows.get(key)?.state==='pending'){
+          rows.delete(key);return true;
+        }
+        return false;
+      }
     }
   };
   return { spec, tool: defineWrite(spec), ctx, provider, audits, rows };

@@ -51,7 +51,7 @@ export async function writePreflight(spec, args, ctx) {
   } catch {
     return { refused: refusal('A resource safety guard is unavailable') };
   }
-  let moneyLine=null,spendCents=null,purchase=null;
+  let moneyLine=null,spendCents=null,purchase=null,spendDeclaration=null;
   if(spec.risk?.spend){
     if(typeof spec.spend!=='function')
       return {refused:refusal('A declared provider price is required')};
@@ -62,6 +62,10 @@ export async function writePreflight(spec, args, ctx) {
         typeof spend.recurring!=='boolean')
         return {refused:refusal('Provider pricing is invalid or unavailable')};
       spendCents=spend.cents;
+      // Bind execution to the same fee declaration evaluated at preview.
+      // A nominally free write may become paid while the owner confirms.
+      spendDeclaration={cents:spend.cents,recurring:spend.recurring,
+        description:spend.description.trim()};
       // An initial $0 is not free if recurring charges can follow.
       if(spend.cents===0 && spend.recurring===false){
         if(typeof ctx.checkSpend!=='function')
@@ -100,5 +104,5 @@ export async function writePreflight(spec, args, ctx) {
     }
   }
   return { before, production, targets, summary, moneyLine, spendCents,
-    mode: production.production ? 'PRODUCTION' : 'PREVIEW',purchase };
+    mode: production.production ? 'PRODUCTION' : 'PREVIEW',purchase,spendDeclaration };
 }
