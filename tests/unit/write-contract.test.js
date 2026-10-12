@@ -49,6 +49,35 @@ describe('B-1 contract hardening', () => {
       purchaseFingerprint('vercel_domain_buy',{domain:'example.test'},a,
         {...quote,cents:2100}));
   });
+  it('never serves a prior completed write for a different payload sharing the same caller key',async()=>{
+    const f=sampleWrite(),requestKey='sharedIntentFake01';
+    const first=await f.tool.run({name:'first',requestKey,confirm:true},f.ctx);
+    const second=await f.tool.run({name:'second',requestKey,confirm:true},f.ctx);
+    expect(first.confirmed).toBe(true);
+    expect(second.confirmed).toBe(true);
+    expect(first.requestKey).not.toBe(second.requestKey);
+    expect(f.provider).toEqual(['first','second']);
+    expect((await f.tool.run({name:'second',requestKey,confirm:true},f.ctx))
+      .requestKey).toBe(second.requestKey);
+    expect(f.provider).toHaveLength(2);
+  });
+  it('denies dispatch when durable replay claiming throws',async()=>{
+    const f=sampleWrite();
+    f.ctx.replayStore.claim=async()=>{throw new Error('database unavailable')};
+    const result=await f.tool.run({confirm:true,requestKey:'claimFailureFake1'},f.ctx);
+    expect(result).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.provider).toHaveLength(0);
+  });
+  it('cannot reuse a consumed owner charge for changed arguments under one caller label',async()=>{
+    const f=sampleWrite({spend:true,cents:201});
+    attachFakeOwnerPurchase(f.ctx);
+    const key='samePurchaseFake1';
+    expect((await f.tool.run({name:'first',confirm:true,requestKey:key},f.ctx)).status)
+      .toBe('applied');
+    expect((await f.tool.run({name:'second',confirm:true,requestKey:key},f.ctx)).status)
+      .toBe('refused_by_guard');
+    expect(f.provider).toEqual(['first']);
+  });
   it('hashes only meaningful args and supports explicit caller keys', () => {
     const ctx = { account: 'fixture', mode: 'preview' };
     const a = writeRequestKey('fixture_update', { name: 'a', confirm: true }, ctx, 600000);
@@ -57,6 +86,7 @@ describe('B-1 contract hardening', () => {
     const override = writeRequestKey('fixture_update', { requestKey: 'owner_key_123' }, ctx, 600000);
     expect(override).toMatch(/^rmcp_scoped_[a-f0-9]{64}$/);
     expect(override).toBe(writeRequestKey('fixture_update', { requestKey: 'owner_key_123' }, ctx, 600000));
+    expect(override).not.toBe(writeRequestKey('fixture_update', { requestKey:'owner_key_123',name:'other' },ctx,600000));
     expect(override).not.toBe(writeRequestKey('fixture_update', { requestKey: 'owner_key_123' }, { ...ctx, account: 'another' }, 600000));
     expect(override).not.toBe(writeRequestKey('another_tool', { requestKey: 'owner_key_123' }, ctx, 600000));
     expect(() => writeRequestKey('fixture_update', { requestKey: '..' }, ctx)).toThrow();

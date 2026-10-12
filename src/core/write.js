@@ -26,7 +26,11 @@ export function writeRequestKey(name, args, connection, now = Date.now()) {
   if (args.requestKey !== undefined) {
     if (typeof args.requestKey !== 'string' ||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)) throw new TypeError('Invalid requestKey');
-    const scope = JSON.stringify([connection.account, connection.mode, name, args.requestKey]);
+    // The public idempotency label alone cannot replay a result for different
+    // meaningful arguments. Bind the durable claim to the canonical payload;
+    // the owner-approved purchase fingerprint independently binds its quote.
+    const scope = JSON.stringify([connection.account, connection.mode, name,
+      args.requestKey, canonical(args)]);
     return 'rmcp_scoped_' + createHash('sha256').update(scope).digest('hex');
   }
   const payload = JSON.stringify({
@@ -133,10 +137,16 @@ export function defineWrite(spec) {
       typeof ctx.replayStore?.complete !== 'function') {
       return refusal('Durable replay protection is unavailable');
     }
-    const claim = await ctx.replayStore.claim({
-      key: requestKey, account: ctx.connection.account,
-      mode: ctx.connection.mode, tool: spec.name, ttlMs: 600000
-    });
+    let claim;
+    try {
+      claim = await ctx.replayStore.claim({
+        key: requestKey, account: ctx.connection.account,
+        mode: ctx.connection.mode, tool: spec.name, ttlMs: 600000
+      });
+    } catch {
+      // An uncertain database claim must never initiate a provider mutation.
+      return refusal('Durable replay service unavailable; no provider write dispatched');
+    }
     if (claim?.state === 'completed') return claim.result;
     if (claim?.state !== 'claimed') return {
       status: 'outcome_unknown', confirmed: null, requestKey,
