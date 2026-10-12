@@ -29,6 +29,17 @@ describe('durable write audit with zero secret values', () => {
     expect(rows[0].before.targets[0].id).toBe('prj_FAKE');
     expect(rows[0].request_key).toBe('request_FAKE_123');
   });
+  it('stores exact cents for applied operations, but never charges a preview',async()=>{
+    const preview=await db.recordChange({...base,requestKey:'previewSpendFAKE',spendCents:450});
+    const applied=await db.recordChange({...base,requestKey:'appliedSpendFAKE',
+      dryRun:false,spendCents:450});
+    const rows=await rawQuery('SELECT id, spend_cents FROM change_log WHERE id IN ($1,$2) ORDER BY id',
+      [preview,applied]);
+    expect(rows[0].spend_cents).toBeNull();
+    expect(Number(rows[1].spend_cents)).toBe(450);
+    expect(await db.getTodaySpendCents('account_FAKE')).toBeGreaterThanOrEqual(450);
+    await expect(db.recordChange({...base,spendCents:-1})).rejects.toThrow(/Spend audit/);
+  });
   it('rejects nested secrets, credential strings and oversized output before insert', async () => {
     await expect(db.recordChange({ ...base, after: { token: 'fixture' } }))
       .rejects.toThrow(/sensitive field/);
@@ -37,6 +48,6 @@ describe('durable write audit with zero secret values', () => {
     await expect(db.recordChange({ ...base, summary: 'x'.repeat(9000) }))
       .rejects.toThrow(/8 KB/);
     const rows = await rawQuery('SELECT count(*)::integer AS count FROM change_log');
-    expect(rows[0].count).toBe(1);
+    expect(rows[0].count).toBe(3);
   });
 });

@@ -45,7 +45,7 @@ describe('B-1 conservative integer-cents spend guard', () => {
   it('does not silently approve unknown-cost operations', () => {
     const declaration = { cents: null, recurring: true, description: 'Usage-based service' };
     expect(spendPreflight({ declaration, spentTodayCents: 0, spendLimitCents: 0 }).code)
-      .toBe('needs_confirmation');
+      .toBe('spend_limit');
   });
   it('blocks unpriced usage at $0 and an already exhausted positive limit',()=>{
     const declaration={cents:null,recurring:true,description:'Build resource usage'};

@@ -24,6 +24,16 @@ describe('B-1 contract hardening', () => {
     expect((await f.tool.run({ confirm: true }, f.ctx)).status).toBe('outcome_unknown');
     expect(f.provider).toHaveLength(0);
   });
+  it('records provider-quoted cents only after a confirmed operation, never on preview',async()=>{
+    const f=sampleWrite({spend:true,cents:475,spendLimitCents:1200});
+    const preview=await f.tool.run({dryRun:true},f.ctx);
+    expect(preview.status).toBe('preview');
+    expect(f.audits[0]).toMatchObject({dryRun:true,spendCents:475});
+    const applied=await f.tool.run({confirm:true},f.ctx);
+    expect(applied.confirmed).toBe(true);
+    expect(f.audits[1]).toMatchObject({dryRun:false,spendCents:475});
+    expect(f.provider).toHaveLength(1);
+  });
   it('hashes only meaningful args and supports explicit caller keys', () => {
     const ctx = { account: 'fixture', mode: 'preview' };
     const a = writeRequestKey('fixture_update', { name: 'a', confirm: true }, ctx, 600000);
