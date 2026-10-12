@@ -50,7 +50,7 @@ describe('D-1f guarded project creation',()=>{
   it('creates once with server scope, independent verified read-back, and safe replay',async()=>{
     const f=fixture();
     f.fake.when('GET','/v9/projects/{idOrName}')
-      .rejects(404).resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+      .rejects(404).resolves({id:'prj_FAKE_NEW',name:'demo-site',framework:'nextjs'});
     f.fake.when('POST','/v11/projects')
       .resolves({id:'prj_FAKE_NEW',name:'demo-site',token:'should-never-expose'});
     const args={name:'demo-site',framework:'nextjs',confirm:true,requestKey:'projectFAKE01'};
@@ -63,6 +63,34 @@ describe('D-1f guarded project creation',()=>{
     expect(f.state.size).toBe(2);
     expect(f.audit).toHaveLength(1);
     f.fake.verify();
+  });
+  it('creates grouped nonspending build configuration and independently verifies every value',async()=>{
+    const f=fixture();
+    const body={name:'demo-site',framework:'remix',buildCommand:'npm run build:site',
+      installCommand:'npm ci --ignore-scripts',devCommand:'npm run dev:site',
+      commandForIgnoringBuildStep:'git diff --quiet HEAD~1',
+      rootDirectory:'apps/site',outputDirectory:'dist/site'};
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+      .resolves({id:'prj_FAKE_NEW',...body});
+    f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:body.name});
+    const result=parse(await f.call({...body,confirm:true}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST','GET']);
+    expect(f.fake.calls[1].body).toEqual(body);
+    expect(JSON.stringify(result)).not.toContain(body.buildCommand);
+    expect(JSON.stringify(f.audit)).not.toContain(body.installCommand);
+    f.fake.verify();
+  });
+  it('rejects dangerous paths and command control characters before I/O',async()=>{
+    const f=fixture();
+    for(const path of ['../root','/etc','dir//child','dir'+String.fromCharCode(92)+'child']){
+      const r=await f.call({name:'demo-site',rootDirectory:path,confirm:true});
+      expect(r.isError||parse(r).status==='refused_by_guard').toBe(true);
+    }
+    const r=await f.call({name:'demo-site',
+      buildCommand:'build'+String.fromCharCode(10)+'unsafe',confirm:true});
+    expect(r.isError||parse(r).status==='refused_by_guard').toBe(true);
+    expect(f.fake.calls).toHaveLength(0);
   });
   it('rejects protected names, malformed inputs, project-only credentials and existing projects',async()=>{
     const f=fixture();
