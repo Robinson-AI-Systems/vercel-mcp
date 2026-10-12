@@ -53,16 +53,16 @@ describe('D-1f guarded project creation',()=>{
   it('creates once with server scope, independent verified read-back, and safe replay',async()=>{
     const f=fixture();
     f.fake.when('GET','/v9/projects/{idOrName}')
-      .rejects(404).resolves({id:'prj_FAKE_NEW',name:'demo-site',framework:'nextjs'});
+      .rejects(404).rejects(404).resolves({id:'prj_FAKE_NEW',name:'demo-site',framework:'nextjs'});
     f.fake.when('POST','/v11/projects')
       .resolves({id:'prj_FAKE_NEW',name:'demo-site',token:'should-never-expose'});
     const args={name:'demo-site',framework:'nextjs',confirm:true,requestKey:'projectFAKE01'};
     const result=parse(await f.call(args));
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(JSON.stringify(result)).not.toContain('should-never-expose');
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST','GET']);
-    expect(f.fake.calls[1].query).toEqual({teamId:'team_FAKE'});
-    expect(f.fake.calls[1].body).toEqual({name:'demo-site',framework:'nextjs'});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','POST','GET']);
+    expect(f.fake.calls[2].query).toEqual({teamId:'team_FAKE'});
+    expect(f.fake.calls[2].body).toEqual({name:'demo-site',framework:'nextjs'});
     expect(f.state.size).toBe(2);
     expect(f.audit).toHaveLength(1);
     f.fake.verify();
@@ -73,13 +73,13 @@ describe('D-1f guarded project creation',()=>{
       installCommand:'npm ci --ignore-scripts',devCommand:'npm run dev:site',
       commandForIgnoringBuildStep:'git diff --quiet HEAD~1',
       rootDirectory:'apps/site',outputDirectory:'dist/site'};
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
       .resolves({id:'prj_FAKE_NEW',...body});
     f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:body.name});
     const result=parse(await f.call({...body,confirm:true}));
     expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST','GET']);
-    expect(f.fake.calls[1].body).toEqual(body);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','POST','GET']);
+    expect(f.fake.calls[2].body).toEqual(body);
     expect(JSON.stringify(result)).not.toContain(body.buildCommand);
     expect(JSON.stringify(f.audit)).not.toContain(body.installCommand);
     f.fake.verify();
@@ -116,16 +116,16 @@ describe('D-1f guarded project creation',()=>{
   });
   it('does not mutate when project read-back disagrees with the created identity',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
       .resolves({id:'prj_FAKE_OTHER',name:'unexpected'});
     f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:'demo-site'});
     const result=parse(await f.call({name:'demo-site',confirm:true,requestKey:'differentFAKE01'}));
     expect(result).toMatchObject({status:'applied',confirmed:false});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST','GET']);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','POST','GET']);
   });
   it('reports unknown read-back without retrying POST or falsely confirming',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(503);
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404).rejects(503);
     f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:'demo-site'});
     const result=parse(await f.call({name:'demo-site',confirm:true,requestKey:'unknownFAKE01'}));
     expect(result).toMatchObject({status:'applied',confirmed:null});
@@ -146,7 +146,7 @@ describe('D-1f guarded project creation',()=>{
   });
   it('refuses unknown write outcome and never retries a failed POST automatically',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404);
     f.fake.when('POST','/v11/projects').rejects(503);
     const result=parse(await f.call({name:'demo-site',confirm:true,requestKey:'failureFAKE01'}));
     expect(result.status).toBe('outcome_unknown');
@@ -177,13 +177,13 @@ describe('D-1f guarded project creation',()=>{
       }
       expect(f.fake.calls).toHaveLength(0);
       const value='a'.repeat(256);
-      f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+      f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
         .resolves({id:'prj_FAKE_NEW',name:'demo-site',[key]:value});
       f.fake.when('POST','/v11/projects')
         .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
       const result=parse(await f.call({name:'demo-site',[key]:value,confirm:true}));
       expect(result).toMatchObject({status:'applied',confirmed:true});
-      expect(f.fake.calls[1].body).toEqual({name:'demo-site',[key]:value});
+      expect(f.fake.calls[2].body).toEqual({name:'demo-site',[key]:value});
       f.fake.verify();
     }
   });
@@ -195,7 +195,7 @@ describe('D-1f guarded project creation',()=>{
       {id:'org_123',provider:'github',name:'Acme'}]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{id:42,fullName:'acme/site',private:true}]});
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
       .resolves({id:'prj_FAKE_NEW',name:'demo-site',link:{type:'github',repo:'acme/site'}});
     f.fake.when('POST','/v11/projects')
       .resolves({id:'prj_FAKE_NEW',name:'demo-site',token:'never-log'});
@@ -203,14 +203,14 @@ describe('D-1f guarded project creation',()=>{
       requestKey:'gitCreationFAKE01'};
     const result=parse(await f.call(args,{...connection,mode:'production',profile:'full'}));
     expect(result).toMatchObject({status:'applied',confirmed:true});
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET','GET','POST','GET']);
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET','GET','GET','POST','GET']);
     expect(f.fake.calls[0].query).toEqual({provider:'github'});
     expect(f.fake.calls[1].query).toEqual({provider:'github',namespaceId:'org_123',
       query:'site',teamId:'team_FAKE'});
     expect(f.fake.calls[3].query).toEqual({provider:'github'});
     expect(f.fake.calls[4].query).toMatchObject({provider:'github',namespaceId:'org_123',
       query:'site',teamId:'team_FAKE'});
-    expect(f.fake.calls[5].body).toEqual({name:'demo-site',gitRepository:{
+    expect(f.fake.calls[6].body).toEqual({name:'demo-site',gitRepository:{
       type:'github',repo:'acme/site'}});
     expect(JSON.stringify(result)).not.toContain('never-log');
     expect(f.audit).toHaveLength(1);
@@ -304,7 +304,7 @@ describe('D-1f guarded project creation',()=>{
     const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'org_123',provider:'github'}]);
     f.fake.when('GET','/v1/integrations/search-repo').resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
       .resolves({id:'prj_FAKE_NEW',name:'demo-site',link:{type:'github',repo:'acme/site'}});
     f.fake.when('POST','/v11/projects').resolves({id:'prj_FAKE_NEW',name:'demo-site'});
     const result=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
@@ -312,6 +312,35 @@ describe('D-1f guarded project creation',()=>{
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(loadToken).toHaveBeenCalledTimes(3);
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
+  });
+  it('refuses a concurrently claimed name using the POST credential',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .rejects(404).resolves({id:'prj_OTHER',name:'demo-site'});
+    const res=parse(await f.call({name:'demo-site',confirm:true,
+      requestKey:'nameRaceFAKE01'}));
+    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.audit).toHaveLength(0);
+  });
+  it('refuses paid Git import after a different actor claims the name',async()=>{
+    const f=fixture(20000),gitRepository={
+      type:'github',repo:'acme/site',namespaceId:'org_123'};
+    f.fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'org_123',provider:'github'}]);
+    f.fake.when('GET','/v1/integrations/search-repo')
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
+        repos:[{fullName:'acme/site'}]});
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .rejects(404).resolves({id:'prj_OTHER',name:'demo-site'});
+    const res=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
+      requestKey:'gitNameRaceFAKE01'},
+      {...connection,mode:'production',profile:'full'}));
+    expect(res).toMatchObject({status:'refused_by_guard',confirmed:false});
+    expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    expect(f.audit).toHaveLength(0);
   });
   it('refuses a mismatched root account before any metered Git import',async()=>{
     const linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
@@ -388,7 +417,7 @@ describe('D-1f guarded project creation',()=>{
       .resolves([{id:'org_123',provider:'github'}]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
-    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404)
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404).rejects(404)
       .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
     f.fake.when('POST','/v11/projects')
       .resolves({id:'prj_FAKE_NEW',name:'demo-site'});
