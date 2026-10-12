@@ -23,13 +23,31 @@ describe('D-1a server-selected scoped project reads',()=>{
       pagination:{next:'1700000000000'}});
     const result=parse(await call('vercel_project_list',{limit:5},db,fake.fetch));
     expect(result.projects).toEqual([{id:'prj_A',name:'demo',framework:'nextjs',
-      productionUrl:null,gitRepo:null,productionBranch:null,paused:false,nodeVersion:null}]);
+      productionUrl:null,gitRepo:null,productionBranch:null,paused:null,nodeVersion:null}]);
     expect(result.next).toBe(1700000000000);
     expect(result.complete).toBe(false);
     expect(JSON.stringify(result)).not.toContain('should-not-expose');
     expect(fake.calls[0].query).toMatchObject({teamId:'team_ALPHA',limit:'5'});
     expect(fake.calls[0].headers.authorization).toBe('Bearer [hidden]');
     expect(loadToken).toHaveBeenCalledWith(expect.objectContaining({accountId:'acct_ALPHA'}));
+  });
+  it('reports unknown or contradictory project pause status without false assurance',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v10/projects').resolves({projects:[
+      {id:'prj_UNKNOWN',name:'unknown'},
+      {id:'prj_CONFLICT',name:'conflict',paused:false,pauseStatus:{status:'PAUSED'}},
+      {id:'prj_PAUSED',name:'paused',pauseStatus:{status:'PAUSED'}},
+      {id:'prj_ACTIVE',name:'active',paused:false}
+    ],pagination:{next:null}});
+    fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:'prj_CONFLICT',name:'conflict',paused:true,pauseStatus:{status:'UNPAUSED'}
+    });
+    const listed=parse(await call('vercel_project_list',{},db,fake.fetch));
+    expect(listed.projects.map(row=>row.paused)).toEqual([null,null,true,false]);
+    const detail=parse(await call('vercel_project_get',{project:'prj_CONFLICT'},db,fake.fetch));
+    expect(detail).toMatchObject({paused:null,pauseState:null});
+    expect(fake.calls.every(x=>x.method==='GET')).toBe(true);
+    fake.verify();
   });
   it('pages project listing using only a safe numeric cursor',async()=>{
     const fake=makeFakeVercel();

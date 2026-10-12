@@ -41,6 +41,18 @@ function safeHostname(value){
     !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(value))return null;
   return value;
 }
+// A missing or conflicting pause flag is unknown, never 'not paused'.
+// The project APIs can supply status and boolean fields independently.
+function verifiedPaused(row){
+  const status=row?.pauseStatus?.status;
+  const flag=typeof row?.paused==='boolean'?row.paused:null;
+  if(status!==undefined&&status!==null){
+    if(status!=='PAUSED'&&status!=='UNPAUSED')return null;
+    const paused=status==='PAUSED';
+    return flag!==null&&flag!==paused?null:paused;
+  }
+  return flag;
+}
 export function projectSummary(row){
   if(!row || typeof row!=='object' || Array.isArray(row))throw new TypeError('Invalid project response');
   const alias=row.productionUrl??row.alias?.[0]?.alias??row.alias?.[0];
@@ -49,7 +61,7 @@ export function projectSummary(row){
     framework:safeProjectText(row.framework,100),productionUrl:safeHostname(alias),
     gitRepo:safeProjectText(row.link?.repo,201),
     productionBranch:safeProjectText(row.link?.productionBranch,128),
-    paused:row.pauseStatus?.status==='PAUSED'||row.paused===true,
+    paused:verifiedPaused(row),
     nodeVersion:safeProjectText(row.nodeVersion,32)
   };
 }
@@ -160,8 +172,7 @@ export const projectsTools={
         ignoreBuildStep:textField(row.commandForIgnoringBuildStep),
         // The Vercel SDK/project body may omit these fields; null is unknown.
         hasDeployments:typeof row.hasDeployments==='boolean'?row.hasDeployments:null,
-        pauseState:['PAUSED','UNPAUSED'].includes(row.pauseStatus?.status)?
-          row.pauseStatus.status:null,
+        pauseState:verifiedPaused(row)===null?null:verifiedPaused(row)?'PAUSED':'UNPAUSED',
         git:row.link&&typeof row.link==='object'?{
           type:textField(row.link.type,40),
           repo:textField(row.link.repo,201),

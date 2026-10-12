@@ -1,8 +1,10 @@
 # STATUS — current work, blockers and next action
 
-Updated 2026-10-11. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official API transport (PR #12) and A-5 owner setup (PRs #13–#15) are implemented, with all five post-merge CI checks green on `main`.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
+Updated 2026-10-12. **A-1 foundation, A-2 schema (PR #6), A-3 OAuth/MCP endpoints (PRs #7/#8), and A-4 official API transport (PR #12) and A-5 owner setup (PRs #13–#15) are implemented, with all five post-merge CI checks green on `main`.** No real Neon database has been created or initialized, no Vercel token has been added, and nothing is deployed or live.
 
 ## Next
+
+- **D-1as PR #92 — truthful project pause status:** project summaries and detail now distinguish unknown, contradictory and confirmed paused/unpaused metadata. Unknown never displays as safely running; provider read only, no traffic change. D-1 IN_PROGRESS.
 
 - **D-1ar PR #91 — verified member identity aliases:** project/team member pagination rejects conflicting provider `uid`/`userId` aliases before any project role grant or revocation. A distinct membership record `id` remains valid. Tested offline; privileged ADMIN/owner changes still disabled; D-1 IN_PROGRESS.
 
