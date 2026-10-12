@@ -50,7 +50,7 @@ describe('D-1f guarded project creation',()=>{
   it('creates once with server scope, independent verified read-back, and safe replay',async()=>{
     const f=fixture();
     f.fake.when('GET','/v9/projects/{idOrName}')
-      .rejects(404).resolves({id:'prj_FAKE_NEW',name:'demo-site'});
+      .rejects(404).resolves({id:'prj_FAKE_NEW',name:'demo-site',framework:'nextjs'});
     f.fake.when('POST','/v11/projects')
       .resolves({id:'prj_FAKE_NEW',name:'demo-site',token:'should-never-expose'});
     const args={name:'demo-site',framework:'nextjs',confirm:true,requestKey:'projectFAKE01'};
