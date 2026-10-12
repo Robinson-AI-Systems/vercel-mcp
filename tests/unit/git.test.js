@@ -34,6 +34,7 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
   });
   it('searches namespace repos and injects the stored teamId only',async()=>{
     const fake=makeFakeVercel();
+    fake.when('GET','/v1/integrations/git-namespaces').resolves([{id:'1234',provider:'github',name:'Acme'}]);
     fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
       {id:99,name:'web',private:true,defaultBranch:'main',accessToken:'secret'}]});
     expect(validateRequest('git_repos_search',{query:{teamId:'team_FAKE',provider:'github',namespaceId:'1234',query:'web'}})).toBe(true);
@@ -41,9 +42,39 @@ describe('D-1c scoped Git namespace/repository discovery',()=>{
       provider:'github',namespaceId:'1234',query:'web'},fake));
     expect(result.repositories).toEqual([{id:99,name:'web',fullName:null,url:null,
       private:true,defaultBranch:'main'}]);
-    expect(fake.calls[0].query).toMatchObject({
+    expect(fake.calls[0].query).toEqual({provider:'github'});
+    expect(fake.calls[1].query).toMatchObject({
       teamId:'team_FAKE',provider:'github',namespaceId:'1234',query:'web'});
     expect(JSON.stringify(result)).not.toContain('secret');
+  });
+  it('rejects inaccessible, ambiguous and absent namespaces before searching',async()=>{
+    for(const rows of [[],[{id:'ns_FAKE',provider:'github',isAccessRestricted:true}],
+      [{id:'ns_FAKE',provider:'github',requireReauth:true}],
+      [{id:'ns_FAKE',provider:'gitlab'}],
+      [{id:'ns_FAKE',provider:'github'},{id:'ns_FAKE',provider:'github'}]]){
+      const fake=makeFakeVercel();
+      fake.when('GET','/v1/integrations/git-namespaces').resolves(rows);
+      const result=await call('vercel_git_search_repos',{
+        provider:'github',namespaceId:'ns_FAKE',query:'demo'},fake);
+      expect(result.isError).toBe(true);
+      expect(fake.calls.map(x=>x.path)).toEqual(['/v1/integrations/git-namespaces']);
+    }
+  });
+  it('returns only bounded public Git metadata and refuses credential-bearing URLs',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('GET','/v1/integrations/git-namespaces')
+      .resolves([{id:'ns_FAKE',provider:'github',name:'Acme'}]);
+    fake.when('GET','/v1/integrations/search-repo').resolves({repos:[
+      {id:12,name:'web',fullName:'acme/web',url:'https://github.com/acme/web',private:true,token:'hidden'},
+      {id:13,name:'api',url:'https://github.com/acme/api?access_token=hidden',private:false},
+      {id:14,name:'unsafe',url:'https://user:pass@github.com/acme/api',private:false}
+    ]});
+    const result=parse(await call('vercel_git_search_repos',{
+      provider:'github',namespaceId:'ns_FAKE',query:'web'},fake));
+    expect(result.repositories.map(r=>r.url))
+      .toEqual(['https://github.com/acme/web',null,null]);
+    expect(JSON.stringify(result)).not.toMatch(/access_token|token|hidden|user:pass/);
+    expect(fake.calls).toHaveLength(2);
   });
   it('refuses project-scoped Git account enumeration, cross-team and forged args',async()=>{
     const fake=makeFakeVercel();
