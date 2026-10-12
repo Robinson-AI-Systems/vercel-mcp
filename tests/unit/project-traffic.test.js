@@ -38,7 +38,7 @@ describe('D-1k guarded project pause/unpause',()=>{
       const result=parse(await f.call(name,{project:before.id,confirm:true}));
       expect(result).toMatchObject({status:'applied',confirmed:true});
       expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','POST','GET']);
-      expect(f.fake.calls[1].path.projectId).toBe(before.id);
+      expect(f.fake.calls[1].params.projectId).toBe(before.id);
       expect(f.fake.calls[1].query.teamId).toBe('team_FAKE');
       expect(f.fake.calls[1].body).toBeUndefined();
       expect(f.completed.size).toBe(2);
