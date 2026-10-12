@@ -131,16 +131,19 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Update daily spend limit</button></form></section>' +
     '<section><h2>Temporary read-only RTC passes (Toolkit Hub)</h2>' +
-    '<p>Owner-created passes are limited to preview, read-only access, zero spending, ' +
-    '24 hours by default (maximum 720). Save the secret through the one-time reveal page; ' +
-    'no pass value appears in this form or in MCP. Other permissions remain unchanged.</p>' +
+    '<p>Preview passes can read owner-scoped Vercel areas; TEST is service ' +
+    'identity only with no provider resources. Both are read-only, zero-spend, ' +
+    'owner-revocable and expire within 720 hours (24 by default).</p>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="issue_rtc_pass">' +
     '<label>Account<select name="account" required>' + options + '</select></label>' +
-    '<label>Allowed areas, comma-separated (e.g. server,projects)' +
+    '<label>Pass mode<select name="mode" required>' +
+    '<option value="preview">Preview — scoped provider reads</option>' +
+    '<option value="test">TEST — service identity only</option></select></label>' +
+    '<label>Allowed areas, comma-separated (TEST requires server only)' +
     '<input name="areas" value="server" required></label>' +
     '<label>Lifetime in hours (1–720)<input name="hours" value="24" required></label>' +
-    '<label><input type="checkbox" name="confirm" value="yes" required>Issue one preview-only read-only pass</label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Issue one scoped read-only pass</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
     '<button type="submit">Issue read-only pass</button></form>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -298,19 +301,22 @@ export async function handleSetup(req, res, {
         return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
       if(params.action==='issue_rtc_pass'){
         const hours=Number(params.hours);
+        const mode=params.mode??'preview';
         const areas=typeof params.areas==='string'?params.areas.split(',').map(x=>x.trim()):[];
         const validAreas=new Set(['server',...registry.tools.map(x=>x.area).filter(Boolean)]);
         if(!Number.isInteger(hours)||hours<1||hours>720||!areas.length||
           areas.length>12||new Set(areas).size!==areas.length||
-          areas.some(x=>!validAreas.has(x)))
+          areas.some(x=>!validAreas.has(x))||
+          !['preview','test'].includes(mode)||
+          (mode==='test'&&(areas.length!==1||areas[0]!=='server')))
           return html(res,400,'Invalid pass','<p>Choose known areas and a short lifetime.</p>');
-        const issued=await db.issueReadOnlyRtcPass({account:params.account,hours,areas});
+        const issued=await db.issueReadOnlyRtcPass({account:params.account,hours,areas,mode});
         if(!issued)return html(res,409,'Unavailable','<p>Pass was not issued.</p>');
         const once=await oneTimeSecrets({db,env,now}).issue({
           account:params.account,kind:'rtc_pass',label:'Read-only RTC pass',
           value:issued.token,ttlMs:600000
         });
-        message='Read-only preview pass issued. Reference '+issued.id+
+        message='Read-only '+mode+' pass issued. Reference '+issued.id+
           '. Reveal the secret once using reference '+once.id+
           ' with the selected account; it is not shown in any tool result.';
       }else{
