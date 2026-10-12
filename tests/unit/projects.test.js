@@ -108,7 +108,7 @@ describe('D-1a server-selected scoped project reads',()=>{
     const fake=makeFakeVercel();
     fake.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_DEMO',name:'demo',
       resourceConfig:{defaultRegions:Array.from({length:80},(_,i)=>'r'+i),
-        buildMachineType:'value\\nunsafe',maxConcurrentBuilds:-9},
+        buildMachineType:'value'+String.fromCharCode(10)+'unsafe',maxConcurrentBuilds:-9},
       latestProductionDeployments:Array.from({length:30},(_,i)=>({id:'dpl_'+i}))});
     const data=parse(await call('vercel_project_get',{project:'prj_DEMO'},db,fake.fetch));
     expect(data.latestProduction).toHaveLength(5);
