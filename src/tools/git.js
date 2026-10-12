@@ -1,5 +1,6 @@
 // D-1c: bounded Git integration discovery via stored credentials only.
 import {readProvider} from '../vercel/provider.js';
+import {credentialLike} from '../core/util.js';
 import {verifyGitNamespace} from './git-identity.js';
 const PROFILES=['read_only','everyday','full'];
 const PROVIDERS=['github','gitlab','bitbucket'];
@@ -12,9 +13,9 @@ function preflight(args,keys){
 }
 // Never echo raw credential-bearing provider links or unbounded names.
 const safeLabel=(s,max=201)=>typeof s==='string'&&s.length<=max&&
-  !/[\x00-\x1f\x7f]/.test(s)?s:null;
+  !/[\x00-\x1f\x7f]/.test(s)&&!credentialLike(s)?s:null;
 function safeRepoUrl(value){
-  if(typeof value!=='string'||value.length>1024)return null;
+  if(typeof value!=='string'||value.length>1024||credentialLike(value))return null;
   try{
     const url=new URL(value);
     if(url.protocol!=='https:'||url.username||url.password||
@@ -29,14 +30,17 @@ async function verifyNamespace(client,provider,namespaceId){
 
 function namespaceSummary(row){
   if(!row||typeof row!=='object'||Array.isArray(row))throw new TypeError('Malformed Git namespace');
-  return {id:row.id??null,name:safeLabel(row.name),slug:safeLabel(row.slug),
-    provider:row.provider??null,ownerType:row.ownerType??null,
+  return {id:typeof row.id==='string'?safeLabel(row.id,128):
+      Number.isSafeInteger(row.id)&&row.id>=0?row.id:null,
+    name:safeLabel(row.name),slug:safeLabel(row.slug),
+    provider:PROVIDERS.includes(row.provider)?row.provider:null,
+    ownerType:safeLabel(row.ownerType,40),
     accessRestricted:row.isAccessRestricted===true || row.isAccessRestricted==='true',
     requiresReauthentication:row.requireReauth===true || row.requireReauth==='true'};
 }
 function repoSummary(row){
   if(!row||typeof row!=='object'||Array.isArray(row))throw new TypeError('Malformed Git repository');
-  return {id:Number.isSafeInteger(row.id)||typeof row.id==='string'&&row.id.length<=128?row.id:null,
+  return {id:Number.isSafeInteger(row.id)&&row.id>=0?row.id:safeLabel(row.id,128),
     name:safeLabel(row.name),fullName:safeLabel(row.fullName??row.slug),
     url:safeRepoUrl(row.url??row.html_url),private:typeof row.private==='boolean'?row.private:null,
     defaultBranch:safeLabel(row.defaultBranch??row.default_branch,128)};
