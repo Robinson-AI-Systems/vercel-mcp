@@ -11,7 +11,7 @@ const project={id:'prj_FAKE_EMPTY',name:'empty-site',hasDeployments:false,
 const request={project:project.id,expectedName:project.name,outsideApp:true,
   confirm:true,requestKey:'FAKE_empty_delete_key'};
 const parse=r=>JSON.parse(r.content[0].text);
-function fixture({deploymentResponse={deployments:[],pagination:{next:null}}}={}){
+function fixture({deploymentResponse={deployments:[],pagination:{next:null,count:0}}}={}){
   const fake=makeFakeVercel(),replay=new Map(),audits=[];
   const db={getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
     recordChange:async row=>audits.push(row),
@@ -31,8 +31,8 @@ function fixture({deploymentResponse={deployments:[],pagination:{next:null}}}={}
     .resolves(deploymentResponse);
   const deleteRule=fake.when('DELETE','/v9/projects/{idOrName}');
   const empty=()=>{projectRule.resolves(project);
-    domainRule.resolves({domains:[],pagination:{next:null}});
-    envRule.resolves({envs:[],pagination:{next:null}});};
+    domainRule.resolves({domains:[],pagination:{next:null,count:0}});
+    envRule.resolves({envs:[],pagination:{next:null,count:0}});};
   return {fake,call,projectRule,domainRule,envRule,deploymentRule,deleteRule,empty,audits,replay};
 }
 describe('D-1m destructive empty-project deletion',()=>{
@@ -44,8 +44,8 @@ describe('D-1m destructive empty-project deletion',()=>{
     ]){
       const f=fixture();
       f.projectRule.resolves({...project,...extra});
-      f.domainRule.resolves({domains:[],pagination:{next:null}});
-      f.envRule.resolves({envs:[],pagination:{next:null}});
+      f.domainRule.resolves({domains:[],pagination:{next:null,count:0}});
+      f.envRule.resolves({envs:[],pagination:{next:null,count:0}});
       const result=parse(await f.call());
       expect(result.status).toBe('refused_by_guard');
       expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
@@ -63,8 +63,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('requires full impact inspection twice, one DELETE and independent 404 proof',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project).rejects(404);
-    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
-    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
+    f.domainRule.resolves({domains:[],pagination:{next:null,count:0}}).resolves({domains:[],pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}}).resolves({envs:[],pagination:{next:null,count:0}});
     f.deleteRule.resolves(undefined,204);
     const result=parse(await f.call());
     expect(result).toMatchObject({status:'applied',confirmed:true});
@@ -91,8 +91,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   });
   it('keeps hasDeployments a conservative denial even with a complete zero-count deployment page',async()=>{
     const f=fixture();f.projectRule.resolves({...project,hasDeployments:true});
-    f.domainRule.resolves({domains:[],pagination:{next:null}});
-    f.envRule.resolves({envs:[],pagination:{next:null}});
+    f.domainRule.resolves({domains:[],pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}});
     const result=parse(await f.call({...request,dryRun:true,confirm:false}));
     expect(result.status).toBe('preview');
     expect(result.preview).toContain('deployments: 0');
@@ -113,8 +113,8 @@ describe('D-1m destructive empty-project deletion',()=>{
     const f=fixture();
     f.projectRule.resolves({...project,crons:{definitions:[{path:'/job',schedule:'0 0 * * *'}]},
       storageConnections:[{id:'store_FAKE',secret:'NEVER_OUTPUT'}]});
-    f.domainRule.resolves({domains:[{name:'demo.example'}],pagination:{next:null}});
-    f.envRule.resolves({envs:[{key:'API_KEY',value:'NEVER_OUTPUT'}],pagination:{next:null}});
+    f.domainRule.resolves({domains:[{name:'demo.example'}],pagination:{next:null,count:1}});
+    f.envRule.resolves({envs:[{key:'API_KEY',value:'NEVER_OUTPUT'}],pagination:{next:null,count:1}});
     const preview=parse(await f.call({...request,dryRun:true,confirm:false}));
     expect(preview).toMatchObject({status:'preview',dryRun:true});
     expect(preview.preview).toContain('NOT ELIGIBLE');
@@ -126,8 +126,8 @@ describe('D-1m destructive empty-project deletion',()=>{
     expect(JSON.stringify(preview)).not.toContain('NEVER_OUTPUT');
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     const g=fixture();g.projectRule.resolves({...project,storageConnections:[{id:'store_FAKE'}]});
-    g.domainRule.resolves({domains:[],pagination:{next:null}});
-    g.envRule.resolves({envs:[],pagination:{next:null}});
+    g.domainRule.resolves({domains:[],pagination:{next:null,count:0}});
+    g.envRule.resolves({envs:[],pagination:{next:null,count:0}});
     expect(parse(await g.call({...request,confirm:true})).status).toBe('refused_by_guard');
     expect(g.fake.calls.every(x=>x.method==='GET')).toBe(true);
   });
@@ -142,14 +142,33 @@ describe('D-1m destructive empty-project deletion',()=>{
         {[field]:[]},
         {[field]:[],pagination:{next:null,hasMore:true}},
         {[field]:[],pagination:{next:null,hasNext:true}},
-        {[field]:Array.from({length:101},(_,i)=>({id:'row'+i})),pagination:{next:null}}
+        {[field]:Array.from({length:101},(_,i)=>({id:'row'+i})),pagination:{next:null,count:0}}
       ]){
         const f=fixture();f.projectRule.resolves(project);
-        f.domainRule.resolves(field==='domains'?page:{domains:[],pagination:{next:null}});
-        f.envRule.resolves(field==='envs'?page:{envs:[],pagination:{next:null}});
+        f.domainRule.resolves(field==='domains'?page:{domains:[],pagination:{next:null,count:0}});
+        f.envRule.resolves(field==='envs'?page:{envs:[],pagination:{next:null,count:0}});
         const r=parse(await f.call());
         expect(r.status).toBe('refused_by_guard');
         expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+      }
+    }
+  });
+  it('requires pinned page count to match resource cardinality on every terminal list',async()=>{
+    for(const field of ['domains','envs','deployments']){
+      for(const count of [undefined,1,-1,'0']){
+        const pagination={next:null};
+        if(count!==undefined)pagination.count=count;
+        const page={[field]:[],pagination};
+        const f=fixture({deploymentResponse:field==='deployments'?
+          page:{deployments:[],pagination:{next:null,count:0}}});
+        f.projectRule.resolves(project);
+        f.domainRule.resolves(field==='domains'?page:
+          {domains:[],pagination:{next:null,count:0}});
+        f.envRule.resolves(field==='envs'?page:
+          {envs:[],pagination:{next:null,count:0}});
+        const result=parse(await f.call());
+        expect(result.status).toBe('refused_by_guard');
+        expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
       }
     }
   });
@@ -158,14 +177,14 @@ describe('D-1m destructive empty-project deletion',()=>{
       for(const total of [1,'1','not-a-count',-1]){
         for(const location of ['root','pagination']){
           const key=field;
-          const forged={[key]:[],pagination:{next:null}};
+          const forged={[key]:[],pagination:{next:null,count:0}};
           if(location==='root')forged.total=total;
           else forged.pagination.total=total;
           const f=fixture({deploymentResponse:field==='deployments'?
-            forged:{deployments:[],pagination:{next:null}}});
+            forged:{deployments:[],pagination:{next:null,count:0}}});
           f.projectRule.resolves(project);
-          f.domainRule.resolves(field==='domains'?forged:{domains:[],pagination:{next:null}});
-          f.envRule.resolves(field==='envs'?forged:{envs:[],pagination:{next:null}});
+          f.domainRule.resolves(field==='domains'?forged:{domains:[],pagination:{next:null,count:0}});
+          f.envRule.resolves(field==='envs'?forged:{envs:[],pagination:{next:null,count:0}});
           const result=parse(await f.call());
           expect(result.status).toBe('refused_by_guard');
           expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
@@ -177,8 +196,8 @@ describe('D-1m destructive empty-project deletion',()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project);
     f.domainRule.resolves({domains:[],total:0,pagination:{next:null,total:'0'}})
-      .resolves({domains:[],total:1,pagination:{next:null}});
-    f.envRule.resolves({envs:[],total:'0',pagination:{next:null}});
+      .resolves({domains:[],total:1,pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],total:'0',pagination:{next:null,count:0}});
     const result=parse(await f.call());
     expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
@@ -212,10 +231,10 @@ describe('D-1m destructive empty-project deletion',()=>{
   });
   it('refuses retained, ambiguous or cross-project deployment inventory even when project flags say empty',async()=>{
     for(const response of [
-      {deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null}},
+      {deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null,count:1}},
       {deployments:[],pagination:{next:42}},
       {deployments:[],pagination:{hasNext:true,next:null}},
-      {deployments:[{id:'dpl_FAKE',projectId:'prj_OTHER'}],pagination:{next:null}},
+      {deployments:[{id:'dpl_FAKE',projectId:'prj_OTHER'}],pagination:{next:null,count:1}},
       {deployments:[]}
     ]){
       const f=fixture();f.empty();
@@ -228,8 +247,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('refuses a deployment that appears between preview and final inventory recheck',async()=>{
     const f=fixture();f.empty();
     f.fake.when('GET','/v7/deployments')
-      .resolves({deployments:[],pagination:{next:null}})
-      .resolves({deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null}});
+      .resolves({deployments:[],pagination:{next:null,count:0}})
+      .resolves({deployments:[{id:'dpl_FAKE',projectId:project.id}],pagination:{next:null,count:1}});
     const result=parse(await f.call());
     expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
@@ -237,7 +256,7 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('rejects hidden page cursors and unknown env response',async()=>{
     for(const row of [{domains:[],pagination:{next:123}}, {domains:[],pagination:{hasMore:true}}]){
       const f=fixture();f.projectRule.resolves(project);f.domainRule.resolves(row);
-      f.envRule.resolves({envs:[],pagination:{next:null}});
+      f.envRule.resolves({envs:[],pagination:{next:null,count:0}});
       expect(parse(await f.call()).status).toBe('refused_by_guard');
       expect(f.fake.calls.some(x=>x.method==='DELETE')).toBe(false);
       f.fake.verify();
@@ -266,8 +285,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('refuses late inventory changes without ever calling DELETE',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves({...project,hasDeployments:true});
-    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
-    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
+    f.domainRule.resolves({domains:[],pagination:{next:null,count:0}}).resolves({domains:[],pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}}).resolves({envs:[],pagination:{next:null,count:0}});
     const result=parse(await f.call());
     expect(result.status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
@@ -275,8 +294,8 @@ describe('D-1m destructive empty-project deletion',()=>{
   it('fails confirmation if the project remains present after provider accepted DELETE',async()=>{
     const f=fixture();
     f.projectRule.resolves(project).resolves(project).resolves(project);
-    f.domainRule.resolves({domains:[],pagination:{next:null}}).resolves({domains:[],pagination:{next:null}});
-    f.envRule.resolves({envs:[],pagination:{next:null}}).resolves({envs:[],pagination:{next:null}});
+    f.domainRule.resolves({domains:[],pagination:{next:null,count:0}}).resolves({domains:[],pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}}).resolves({envs:[],pagination:{next:null,count:0}});
     f.deleteRule.resolves(undefined,204);
     const result=parse(await f.call());
     expect(result).toMatchObject({status:'applied',confirmed:false});

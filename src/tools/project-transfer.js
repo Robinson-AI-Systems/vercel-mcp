@@ -69,7 +69,7 @@ const transfer=defineWrite({
   },
   async apply(_args,ctx,before,requestKey){
     const vault=oneTimeSecrets({db:ctx.db,env:ctx.env});
-    const provider=await writeProvider(ctx);
+    const provider=await requirePreDispatch(()=>writeProvider(ctx));
     await requirePreDispatch(async()=>{
       // A transfer claim can hand off a project. Re-prove the exact target with
       // the credential/team that will issue the claim, not a preview-time token.

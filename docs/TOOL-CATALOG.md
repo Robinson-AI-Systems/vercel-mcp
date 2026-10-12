@@ -533,4 +533,4 @@ D-1au (#94): `vercel_project_create` Git imports require authoritative matching 
 
 D-1av (#95): destructive `vercel_project_delete` empty-only gate conservatively counts all supplied storage inventory aliases and refuses malformed aliases; nonempty deletion stays disabled.
 D-1ax (#97): `vercel_project_transfer` revalidates exact issuer team/account and immutable project ID/name immediately before requesting any owner-vaulted transfer code; rotated authority or renamed projects refuse.
-D-1aw (#96): destructive `vercel_project_delete` cross-checks declared root/pagination totals for domains, env vars and deployments against terminal page lengths before both deletion scans; contradictory totals refuse irreversible DELETE.
+D-1aw (#96): destructive `vercel_project_delete` requires pinned `pagination.count` and cross-checks declared root/pagination totals for domains, env vars and deployments against terminal page lengths before both deletion scans; contradictory totals refuse irreversible DELETE.

@@ -43,6 +43,11 @@ function countComplete(reply,key){
   // A terminal cursor alone is not proof of zero resources if the provider
   // simultaneously reports a larger total. Refuse contradictory or malformed
   // totals rather than treating pagination uncertainty as safe to delete.
+  // Vercel's pinned list schemas supply pagination.count as the actual page
+  // cardinality. Missing or conflicting counts cannot authorize deletion.
+  if(!Number.isSafeInteger(reply.pagination.count)||
+    reply.pagination.count!==rows.length)
+    throw new TypeError('Cannot prove '+key+' pagination count');
   for(const total of [reply.total,reply.pagination.total]){
     if(total===undefined||total===null)continue;
     const parsed=typeof total==='string'&&/^(0|[1-9][0-9]*)$/.test(total)?
