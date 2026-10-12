@@ -84,7 +84,8 @@ export async function writePreflight(spec, args, ctx) {
           description:spend.description.trim()};
         moneyLine=spend.description.trim()+': '+
           (spend.cents===null?'variable usage; a provider-enforceable total ceiling is required':
-            '+
+            String.fromCharCode(36)+(spend.cents/100).toFixed(2)+' USD'+
+            (spend.recurring?' per billing period; provider-enforceable total ceiling required':''))+
           '. Separately authenticated approval for this transaction is mandatory.';
       }
     }catch{
