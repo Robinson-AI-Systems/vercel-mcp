@@ -123,9 +123,10 @@ export async function checkConnectedAcceptance({
   if(phase==='after-revocation') {
     for(const pass of [testPass,previewPass].filter(Boolean)) {
       const reply=await call(origin,'/api/whoami',{fetchImpl,pass},401);
-      requireThat(reply?.ok===false&&
-        ['pass_revoked','pass_expired','permission'].includes(reply?.error?.code),
-        'revocation_not_independently_denied');
+      // A random invalid or merely expired pass also gets 401. Only the
+      // dedicated server-side revocation status proves this control worked.
+      requireThat(reply?.ok===false&&reply?.error?.code==='pass_revoked',
+        'revocation_not_independently_proven');
     }
     summary.revocationDenied=true;
     return summary;
