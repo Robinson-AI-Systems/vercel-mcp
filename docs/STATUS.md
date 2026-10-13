@@ -1,5 +1,7 @@
 # STATUS — current work, blockers and next action
 
+- **U-1 audited universal reads (#150):** seven real project feature-flag metadata GETs, indexed full-schema validation, selected-account project readback, scope override denial, bounded 64-KiB JSON transport and safe field projections. Secret/decrypt/sdk-key operations refused; curated reads redirect to their specific tool and unaudited families fail closed. No arbitrary write, credential, targeting values or provider acceptance. Next independent R-1 owner-reviewed pass proposals.
+
 ## Current gateway recovery disposition — 2026-10-12
 
 Owner requested cross-repository architecture/planning correction. Prioritize independently usable provider tools
