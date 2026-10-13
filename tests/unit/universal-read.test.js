@@ -69,7 +69,7 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    const f=fixture();
    f.api.when('GET','/v2/projects/{projectIdOrName}/feature-flags/flags')
      .resolves({data:[],pagination:{next:{toString:'unsafe'}}})
-     .resolves({data:[],pagination:{next:'unsafe\\nvalue'}})
+     .resolves({data:[],pagination:{next:'unsafe'+String.fromCharCode(10)+'value'}})
      .resolves({data:[],pagination:'unknown'});
    for(let i=0;i<3;i++)await expect(f.call(input)).rejects.toThrow(/pagination|cursor/);
    expect(f.api.calls).toHaveLength(6);
