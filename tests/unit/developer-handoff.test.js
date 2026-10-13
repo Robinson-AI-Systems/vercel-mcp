@@ -12,7 +12,7 @@ function fixture(){
  const store={async start(p){row={...p,expires_at:p.expires,status:'pending'};return true;},async find(state){return row?.state===state?row:null;},
   async codeProof(value){return value===code?{client_id:row.client_id,redirect_uri:origin+'/api/developer/connect',code_challenge:row.challenge,code_challenge_method:'S256'}:null;},
   async approve(_state,sealed){if(row.status!=='pending')return false;row.status='authorized';row.sealed_code=sealed;return true;},
-  async deny(){row.status='denied';},async poll(state,hash){if(row?.state!==state||row.poll_hash!==hash||row.delivered)return null;if(row.status!=='pending')row.delivered=true;return row;}};
+  async deny(){row.status='denied';},async poll(state,hash){if(row?.state!==state||row.poll_hash!==hash)return null;if(row.status!=='pending')row.delivered=true;return row;}};
  const handler=createHandoff({store,origin,getClient:async()=>({redirect_uris:[origin+'/api/developer/connect']})});
  return {handler,store,row:()=>row};
 }
@@ -31,7 +31,7 @@ describe('mobile developer OAuth handoff',()=>{
   const poll=response();await handler({method:'GET',query:{state:row().state},headers:{authorization:'Bearer '+secret}},poll);
   expect(poll.statusCode).toBe(200);expect(JSON.stringify(poll.data)).not.toContain(code);
   expect(privateDecrypt({key:keys.privateKey,oaepHash:'sha256',padding:constants.RSA_PKCS1_OAEP_PADDING},Buffer.from(poll.data.sealed_code,'base64url')).toString()).toBe(code);
-  const again=response();await handler({method:'GET',query:{state:row().state},headers:{authorization:'Bearer '+secret}},again);expect(again.statusCode).toBe(410);
+  const again=response();await handler({method:'GET',query:{state:row().state},headers:{authorization:'Bearer '+secret}},again);expect(again.statusCode).toBe(200);expect(again.data.sealed_code).toBe(poll.data.sealed_code);
  });
  it('rejects another requester, wrong proof and callback replay',async()=>{
   const {handler,row,store}=fixture();await handler({method:'POST',body:body(),headers:{}},response());
@@ -42,7 +42,17 @@ describe('mobile developer OAuth handoff',()=>{
  it('requires the exact registered callback and hides internal failures',async()=>{
   const {store}=fixture();const handler=createHandoff({store,origin,getClient:async()=>({redirect_uris:['https://attacker.example']})});
   const r=response();await handler({method:'POST',body:body(),headers:{}},r);expect(r.statusCode).toBe(400);expect(r.data.error).toBe('invalid_client');
-  const f=createHandoff({store,origin,getClient:async()=>{throw Error('SECRET');}});const fail=response();await f({method:'POST',body:body(),headers:{}},fail);expect(JSON.stringify(fail.data)).not.toContain('SECRET');
+  const f=createHandoff({store,origin,getClient:async()=>{throw Error('SECRET');}});const fail=response();await f({method:'POST',body:body(),headers:{}},fail);expect(fail.statusCode).toBe(503);expect(JSON.stringify(fail.data)).not.toContain('SECRET');
+ });
+ it('accepts native 32-character Google codes',async()=>{
+  const {handler,row,store}=fixture();await handler({method:'POST',body:body(),headers:{}},response());
+  store.codeProof=async()=>({client_id:row().client_id,redirect_uri:origin+'/api/developer/connect',code_challenge:challenge,code_challenge_method:'S256'});
+  const r=response();await handler({method:'GET',query:{state:row().state,code:'a'.repeat(32)},headers:{}},r);expect(r.statusCode).toBe(200);expect(row().status).toBe('authorized');
+ });
+ it('uses trusted client IP instead of caller forwarded headers',async()=>{
+  const {store}=fixture();let ip;store.start=async p=>{ip=p.ip;return true;};
+  const handler=createHandoff({store,origin,clientIp:()=> 'trusted',getClient:async()=>({redirect_uris:[origin+'/api/developer/connect']})});
+  await handler({method:'POST',body:body(),headers:{'x-forwarded-for':'spoof'}},response());expect(ip).toBe(createHash('sha256').update('trusted').digest('hex'));
  });
  it('rejects foreign fields, invalid keys, missing proof and invalid origins',()=>{
   expect(()=>validateStart({...body(),production:true})).toThrow();
