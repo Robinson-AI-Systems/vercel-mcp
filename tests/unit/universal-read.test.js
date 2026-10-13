@@ -220,6 +220,56 @@ describe('U-1 scope-verified documented metadata reads',()=>{
      params:{path:{projectIdOrName:'prj_OTHER'}}})).rejects.toThrow();
    expect(f.api.calls).toHaveLength(0);
  });
+ it('lists flag revision identities after independently verifying exact flag/project identity',async()=>{
+   const f=fixture();
+   f.api.when('GET',documentedRead('getFlag').path)
+     .resolves({id:'flag_1',projectId:'prj_ONE',environments:{private:true}});
+   f.api.when('GET',documentedRead('listFlagVersions').path)
+     .resolves({versions:[{id:'ver_1',flagId:'flag_1',revision:3,createdAt:123456,
+       data:{variants:[{value:'private variant'}]},message:'private message'}],
+       pagination:{next:'CURSOR_PAGE_2',debug:'private'}});
+   const value=await f.call({op:'listFlagVersions',
+     params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'}}});
+   expect(value.versions).toEqual([{id:'ver_1',flagId:'flag_1',revision:3,createdAt:123456}]);
+   expect(value.pagination.next).toBe('CURSOR_PAGE_2');
+   expect(JSON.stringify(value)).not.toMatch(/private variant|private message|"data"|"debug"/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
+   f.api.verify();
+ });
+ it('rejects a foreign/ambiguous flag before requesting revision history',async()=>{
+   const f=fixture();
+   f.api.when('GET',documentedRead('getFlag').path)
+     .resolves({id:'flag_2',projectId:'prj_ONE'})
+     .resolves({id:'flag_1',projectId:'prj_OTHER'});
+   for(let i=0;i<2;i++)await expect(f.call({op:'listFlagVersions',
+     params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'}}}))
+     .rejects.toThrow(/identity/);
+   expect(f.api.calls).toHaveLength(4);
+ });
+ it('refuses malformed, oversized, duplicate and out-of-flag version pages',async()=>{
+   const f=fixture();
+   f.api.when('GET',documentedRead('getFlag').path)
+     .resolves({id:'flag_1',projectId:'prj_ONE'});
+   const ver={id:'ver_1',flagId:'flag_1',revision:3,createdAt:1234};
+   f.api.when('GET',documentedRead('listFlagVersions').path)
+     .resolves({versions:[{...ver,flagId:'flag_2'}],pagination:{}})
+     .resolves({versions:[{...ver,revision:-1}],pagination:{}})
+     .resolves({versions:[ver,ver],pagination:{}})
+     .resolves({versions:Array.from({length:21},(_,i)=>({...ver,id:'ver_'+i})),pagination:{}})
+     .resolves({versions:[ver],pagination:'unsafe'});
+   for(let i=0;i<5;i++)await expect(f.call({op:'listFlagVersions',
+     params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'}}}))
+     .rejects.toThrow(/version|history/);
+   expect(f.api.calls).toHaveLength(15);
+ });
+ it('rejects revision history scope overrides before making provider calls',async()=>{
+   const f=fixture();
+   for(const args of [
+     {op:'listFlagVersions',params:{path:{projectIdOrName:'prj_OTHER',flagIdOrSlug:'flag_1'}}},
+     {op:'listFlagVersions',params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'},query:{teamId:'team_TWO'}}}
+   ])await expect(f.call(args)).rejects.toThrow();
+   expect(f.api.calls).toHaveLength(0);
+ });
  it('transport cannot use an indexed write or foreign team even when called directly',async()=>{
    const f=fixture(),client=makeVercelClient({token:'vcp_FAKE',account,fetchImpl:f.api.fetch});
    await expect(client.request('api:createFlag',{path:{projectIdOrName:'prj_ONE'}})).rejects.toThrow(/GET or HEAD/);
