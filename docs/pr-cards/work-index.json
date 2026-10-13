@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-12",
+  "updated": "2026-10-13",
   "order": [
     "A",
     "B",
@@ -539,11 +539,11 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "All ten read tools now have code and CI inventory evidence, but actual provider file response fields and owner-hosted service/Hub run acceptance remain unavailable.",
-        "nextAction": "Attempt a strictly authorized disposable non-production deployment file GET with actual response metadata through hosted scoped custom MCP; reconcile field names without guessing. Continue other approved roadmap work when environment is unavailable.",
-        "checkpoint": "At each PR/session boundary, and as soon as owner-hosted HTTPS, isolated token and disposable deployment are evidenced",
-        "evidenceNeeded": "Provider response field/encoding and connected owner-scoped custom MCP, authenticated Hub TEST direct, relay, Sandbox, revocation proof.",
-        "eligibilityCondition": "Local provider GET/status-safe read slices eligible after correct OpenAPI/transport evidence; real provider acceptance eligible only after owner-authorized deployed custom HTTPS origin, encrypted scoped token and revocation procedure.",
+        "reason": "All ten D-2 reads are implemented and CI-gated. Dedicated hosting and verified encrypted team credential now exist, but authenticated custom MCP, real file-content payload shape, live runtime logs and RTC direct/relay/Sandbox/revocation are unverified.",
+        "nextAction": "Request protected short-lived owner-issued read-only pass outside chat plus an owner-approved disposable nonproduction deployment ID; run real scoped D-2 file/log GETs and inspect sanitized acceptance. If unavailable, complete independent approved U-1/O-1/R-1 work.",
+        "checkpoint": "At every PR/session boundary and immediately when a secure pass and authorized nonproduction deployment become available",
+        "evidenceNeeded": "Dedicated hosting and verified team credential are satisfied. Still need service-issued scoped owner pass, authorized nonproduction deployment/file ID, actual provider field/encoding and independent direct/relay/Sandbox and post-revocation observations.",
+        "eligibilityCondition": "Real acceptance is eligible for secure owner-issued scoped pass + authorized nonproduction deployment; missing these affects external proof only, not independent approved implementations.",
         "dependencies": [
           "D-1"
         ]
@@ -1253,9 +1253,9 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Seven original project flag GETs plus team inventory, deployment counts, capacity and exact verified version chronology exist; U-1 universal reads/writes are not complete.",
-        "nextAction": "After exact-main validation, continue next approved independently auditable U-1 read family or eligible guarded O-1/R-1 contract; preserve D-2/Hub real connected gates and never create a fake deployment or universal write authority.",
-        "checkpoint": "Next session start and each next substantive PR; immediately on verified hosting/owner setup",
+        "reason": "Audited flag GETs and revision/capacity/flag reads exist; project team ownership now fails closed on missing or foreign accountId (#159 candidate). Remaining universal API families and connected acceptance are unfinished.",
+        "nextAction": "Verify connected provider project identity fields with owner-approved scoped nonproduction read; correct documented mismatches without widening scope. Continue next independently auditable universal GET family or approved O-1/R-1, never assume real RTC/D-2 proof from CI.",
+        "checkpoint": "After candidate #159 and every PR/session boundary; immediately when owner-issued scoped passes/nonproduction deployment evidence is available",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
         "dependencies": [
@@ -1286,10 +1286,10 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Narrow read-only owner-reviewed pass proposal and issuance implemented; full/write pass contracts, project restrictions, quota choices and genuine hosted acceptance remain.",
+        "reason": "Encrypted owner-reviewed pass lifecycle is implemented; dedicated service hosted and team credential connected, but live issuance, actual RTC service identity/denial/revocation remain unverified.",
         "nextAction": "Verify genuine deployed service and owner-protected TEST identity/read denial/revocation when available. Reconcile remaining R-1/R-2 choices; continue U-1 audited read policies and eligible owner capabilities independently.",
-        "checkpoint": "After #151 and every session/PR boundary or environment/owner change",
-        "evidenceNeeded": "Exact deployed revision, authorized service origin and secure owner-issued pass. Separate design/owner gates before broadening existing pass modes or quotas.",
+        "checkpoint": "Each session/PR boundary; immediately when protected service passes are issued",
+        "evidenceNeeded": "Secure owner-issued TEST service-only and optional preview area-scoped read-only passes (not in chat), real hosted direct/relay/Sandbox checks, and independently observed post-revocation denials.",
         "eligibilityCondition": "Read-only proposal code independently eligible on C-2; genuine hosted proof needs actual authorized setup. Wider modes require safety contract.",
         "dependencies": [
           "C-2"
