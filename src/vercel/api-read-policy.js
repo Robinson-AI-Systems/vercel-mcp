@@ -106,6 +106,23 @@ async function teamFlagPage(reply,client,account){
     ...page(reply,'listTeamFlagsV2'),capped:false,completeness:'unverified_provider_page',
     note:'Team-scoped provider flag metadata only; all returned projects separately verified; targeting and values withheld'};
 }
+// Provider flag-settings metadata includes capacity counters but also entities,
+// environments and targeting details. Expose only checked aggregate quantities.
+function flagSettingsSummary(reply,project){
+  if(!plain(reply)||reply.projectId!==project||typeof reply.enabled!=='boolean'||
+    !plain(reply.metadata))
+    throw new TypeError('Project flag settings identity or metadata unavailable');
+  const metadata={};
+  for(const field of ['activeFlagCount','archivedFlagCount','segmentCount','packSizeInBytes']){
+    const value=reply.metadata[field];
+    if(!Number.isSafeInteger(value)||value<0)
+      throw new TypeError('Unsafe provider flag capacity metric');
+    metadata[field]=value;
+  }
+  return {projectId:project,enabled:reply.enabled,metadata,
+    completeness:'provider_reported_metrics_only',
+    note:'Only provider-reported aggregate capacity; entity, environment, SDK keys and rule data withheld'};
+}
 // Deployment flag values and targeting are never returned. Correlate the
 // deployment status only after separately verifying a project-key connection,
 // exact deployment identity and the provider's project assignment.
@@ -156,5 +173,6 @@ export async function apiRead(args,ctx){
   if(current?.id!==project||current.accountId!==undefined&&current.accountId!==account.team_id)
     throw new TypeError('Project identity and selected team could not be verified');
   const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
+  if(row.op==='getFlagSettings')return flagSettingsSummary(reply,project);
   return shape(reply,project,account.team_id,row.op);
 }

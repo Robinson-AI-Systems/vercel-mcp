@@ -186,6 +186,40 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    ])await expect(f.call(args)).rejects.toThrow();
    expect(f.api.calls).toHaveLength(0);
  });
+ it('projects only the documented flag-capacity counters for a verified project',async()=>{
+   const f=fixture();f.api.when('GET',documentedRead('getFlagSettings').path)
+     .resolves({projectId:'prj_ONE',enabled:true,
+       metadata:{activeFlagCount:7,archivedFlagCount:2,segmentCount:3,packSizeInBytes:1280,
+         internal:'private'},
+       entities:[{id:'secret'}],environments:['private-env'],typeName:'settings'});
+   const value=await f.call({op:'getFlagSettings',params:{path:{projectIdOrName:'prj_ONE'}}});
+   expect(value).toMatchObject({projectId:'prj_ONE',enabled:true,
+     metadata:{activeFlagCount:7,archivedFlagCount:2,segmentCount:3,packSizeInBytes:1280}});
+   const serialized=JSON.stringify(value);
+   expect(serialized).not.toMatch(/"entities"|"environments"|"internal"|private-env|"typeName"/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET']);
+   f.api.verify();
+ });
+ it('rejects malformed, negative, fractional or out-of-project flag capacity data',async()=>{
+   const f=fixture(),path=documentedRead('getFlagSettings').path;
+   const valid={projectId:'prj_ONE',enabled:true,
+     metadata:{activeFlagCount:1,archivedFlagCount:2,segmentCount:3,packSizeInBytes:4}};
+   f.api.when('GET',path)
+     .resolves({...valid,projectId:'prj_TWO'})
+     .resolves({...valid,metadata:{...valid.metadata,activeFlagCount:-1}})
+     .resolves({...valid,metadata:{...valid.metadata,segmentCount:1.5}})
+     .resolves({...valid,metadata:{...valid.metadata,packSizeInBytes:'hidden'}})
+     .resolves({...valid,metadata:null});
+   for(let i=0;i<5;i++)await expect(f.call({op:'getFlagSettings',
+     params:{path:{projectIdOrName:'prj_ONE'}}})).rejects.toThrow(/metadata|metric/);
+   expect(f.api.calls).toHaveLength(10);
+ });
+ it('requires an exact stored project before requesting flag capacity settings',async()=>{
+   const f=fixture();
+   await expect(f.call({op:'getFlagSettings',
+     params:{path:{projectIdOrName:'prj_OTHER'}}})).rejects.toThrow();
+   expect(f.api.calls).toHaveLength(0);
+ });
  it('transport cannot use an indexed write or foreign team even when called directly',async()=>{
    const f=fixture(),client=makeVercelClient({token:'vcp_FAKE',account,fetchImpl:f.api.fetch});
    await expect(client.request('api:createFlag',{path:{projectIdOrName:'prj_ONE'}})).rejects.toThrow(/GET or HEAD/);
