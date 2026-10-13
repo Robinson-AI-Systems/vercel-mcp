@@ -78,3 +78,9 @@ test('real atomic git promotion, read-back and second same-day update refusal', 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('owner release schedule is 00:01 Denver with native DST handling', () => {
+  const workflow = readFileSync(new URL('../workflows/daily-live.yml', import.meta.url), 'utf8');
+  assert.equal((workflow.match(/^\s*- cron:/gm) || []).length, 1);
+  assert.match(workflow, /- cron: '1 0 \* \* \*'[^\n]*\n\s+timezone: America\/Denver\s*\n/);
+});
