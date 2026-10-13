@@ -37,6 +37,8 @@ function inputs(args){
   Object.values(query).forEach(v=>inspect(v));
   if(query.limit!==undefined&&(!Number.isInteger(query.limit)||query.limit<1||query.limit>20))
     throw new TypeError('Universal read page limit must be 1 through 20');
+  if(['listFlagSegments','getFlagSegment'].includes(row.op)&&query.withMetadata!==undefined&&query.withMetadata!==false)
+    throw new TypeError('Flag segment user metadata is not available through universal reads');
   if(row.op==='listTeamFlagsV2'){
     if(Object.keys(params.path).length)throw new TypeError('Team flag inventory has no project path override');
     query.limit??=5;
@@ -128,6 +130,42 @@ function flagRevisionSummary(reply,params,project){
     completeness:'unverified_provider_page',
     note:'Version identifiers and revision chronology only; flag values, author identities, message and targeting withheld'};
 }
+// Segments may carry explicit user identities, rules and targeting values.
+// These GETs reveal only exact project-bound segment identity and labels.
+// Slug-based GET results cannot be safely matched to the requested resource;
+// callers must use an exact segment ID from the scoped list.
+function segmentSummary(reply,params,project,op){
+  function item(row){
+    if(!plain(row)||typeof row.id!=='string'||!IDENT.test(row.id)||credentialLike(row.id)||
+      row.projectId!==project||(row.typeName!==undefined&&row.typeName!=='segment'))
+      throw new TypeError('Unverified provider flag segment identity or project');
+    const result={id:row.id,projectId:project};
+    for(const field of ['slug','label','description','createdAt','updatedAt'])
+      if(Object.hasOwn(row,field))result[field]=scalar(row[field]);
+    return result;
+  }
+  if(op==='getFlagSegment'){
+    const expected=params.path.segmentIdOrSlug;
+    if(typeof expected!=='string'||!IDENT.test(expected)||reply?.id!==expected)
+      throw new TypeError('Exact provider segment ID is required');
+    return {segment:item(reply),projectId:project,completeness:'exact_resource_identity',
+      note:'Segment targeting, user identities, membership and rules withheld'};
+  }
+  const rows=Array.isArray(reply)?reply:
+    plain(reply)&&Array.isArray(reply.segments)&&reply.data===undefined?reply.segments:
+    plain(reply)&&Array.isArray(reply.data)&&reply.segments===undefined?reply.data:null;
+  if(!rows||rows.length>20)
+    throw new TypeError('Unrecognized or oversized provider segment list');
+  const seen=new Set(),segments=rows.map(row=>{
+    const value=item(row);
+    if(seen.has(value.id))throw new TypeError('Duplicate provider segment identity');
+    seen.add(value.id);
+    return value;
+  });
+  return {projectId:project,segments,observedCount:segments.length,
+    completeness:'unverified_provider_page',
+    note:'First bounded provider segment page only; user identities, membership and targeting withheld'};
+}
 // Provider flag-settings metadata includes capacity counters but also entities,
 // environments and targeting details. Expose only checked aggregate quantities.
 function flagSettingsSummary(reply,project){
@@ -204,6 +242,10 @@ export async function apiRead(args,ctx){
   // inconsistent provider response cannot silently widen account authority.
   if(current?.id!==project||current?.accountId!==account.team_id)
     throw new TypeError('Project identity and selected team could not be verified');
+  if(row.op==='listFlagSegments'||row.op==='getFlagSegment'){
+    const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
+    return segmentSummary(reply,params,project,row.op);
+  }
   if(row.op==='listFlagVersions'){
     // Resolve the flag ID before even requesting its detailed revision history.
     const flagId=params.path.flagIdOrSlug;
