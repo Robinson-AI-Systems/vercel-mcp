@@ -23,7 +23,7 @@ export const universalTools={
       inputSchema:{type:'object',required:['op'],additionalProperties:false,properties:{
         op:{type:'string',maxLength:100},bodyField:{type:'string',maxLength:120}}},annotations:{readOnlyHint:true}}
     ,{name:'vercel_api_read',writes:false,area:'universal',profiles:['read_only','everyday','full'],
-      description:'Read audited project and team feature-flag summaries and segment identities with independent scope proof; values and secret operations refused.',
+      description:'Read independently verified flags, bounded team/project capacity and segments through audited GETs; exact IDs required for single flags; values and secrets refused.',
       inputSchema:{type:'object',required:['op','params'],additionalProperties:false,properties:{
         op:{type:'string',maxLength:100},params:{type:'object',additionalProperties:false,
           required:['path'],properties:{path:{type:'object'},query:{type:'object'}}}}},annotations:{readOnlyHint:true}}
