@@ -1358,5 +1358,19 @@
         "IN-06"
       ]
     }
-  ]
+  ],
+  "gatewayBoundary": {
+    "sharedCoreAdoption": "OPTIONAL_NOT_REQUIRED_FOR_RTC",
+    "serviceOwnership": [
+      "direct MCP",
+      "provider credentials",
+      "canonical schemas",
+      "guarded execution",
+      "durable state",
+      "approval",
+      "results"
+    ],
+    "gatewayOwnership": "Hub broker/routing/grant mapping; separately issued scoped service pass",
+    "acceptance": "Existing service-owned isolation and deployed TEST route/denial/revocation gates remain OPEN"
+  }
 }

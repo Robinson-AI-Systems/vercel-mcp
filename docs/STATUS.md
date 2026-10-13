@@ -1,5 +1,17 @@
 # STATUS — current work, blockers and next action
 
+## Current gateway recovery disposition — 2026-10-12
+
+Owner requested cross-repository architecture/planning correction. Prioritize independently usable provider tools
+and existing approved RTC/isolation acceptance; do not wait for K-3 publication or force internal code adoption.
+Hub agent owns fixed broker surface, registry, routing, grant mapping, cache, forwarding audit and scale testing.
+This service agent owns authenticated RTC/mode/resource isolation, original direct-MCP parity and safe deployed
+read/denial/revocation evidence. A public manifest, reference conformance or private-core rehearsal is not proof
+of actual hosted acceptance. Full provider roadmap and existing external gates remain; no card is closed here.
+Next: reconcile current implementation/concurrency and existing RTC acceptance gaps, obtain exact deployed
+revision and authorized short-lived read_only non-production pass securely, and run the supported harmless read
+and denials through Hub when available. Never alias preview to TEST without real isolation or expose credentials.
+
 - **U-1 API discovery (#148):** searchable finite pages over all 451 pinned Vercel operations and bounded request-schema descriptions, with explicit omitted fields and nested body inspection. Public metadata only, no provider I/O or authority grant. Tests inspect every operation budget. Next independently scope-verified GET transport; universal writes remain unimplemented.
 
 - **O-1 standard protection defaults (#147):** owner-only new-project preview authentication defaults with access-widening warnings, state fingerprint, immutable team and independent GET verification. Advanced paid protection and password material refused; existing password defaults require separate secret workflow. No real owner change. Next independent U-1 API discovery/schema, then scope-verified reads; O-1 retention/mappings remain subject to destructive/spend/lockout evidence.

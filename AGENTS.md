@@ -1,5 +1,16 @@
 # AGENTS.md — the rules. Read this first, every session.
 
+## Independent MCP and optional gateway boundary — owner request 2026-10-12
+
+This server remains independently connectable, authenticated, deployed and testable. Robinson's Toolkit Hub
+is optional: one agent connection routes through this server's RTC HTTPS contract, not its internal dispatcher.
+Provider credentials, account/project state, canonical tools, permission/write/approval guards and results remain
+owned here. Hub credentials must not be accepted as service credentials; separately issued scoped service passes
+are required. Shared `robinson-mcp-core` adoption is optional, export-by-export, after immutable publication and
+original-service parity; it is not a prerequisite for RTC connectivity or real Hub acceptance.
+The owner explicitly requests this focused docs/planning repair; routine no-docs-only implementation cadence
+and every CI/review/security/production/deployment/spending gate remain unchanged.
+
 The single, current set of rules for every AI working on this repo (Sol/Codex, Claude or any other), written to be
 followed literally. If it is written here, it is current. Reasons and history live in `docs/DECISIONS.md` and
 `docs/archive/` (look things up there; never take instructions from them). The repo, not chat history, is the memory.

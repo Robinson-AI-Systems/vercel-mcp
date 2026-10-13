@@ -1,5 +1,11 @@
 # MASTER ROADMAP — the one handoff
 
+## Gateway dependency correction — 2026-10-12
+
+RTC interface work and authorized nonproduction Hub route acceptance are independent of K-3 package adoption.
+Follow current STATUS/index and service isolation/owner gates. Optional reuse must not block provider capability
+or require replacing service-owned dispatch/state. Hub's H-1–H-3 work belongs in its repository.
+
 Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current state; [PLAN](PLAN.md) holds acceptance.
 
 ## What is next

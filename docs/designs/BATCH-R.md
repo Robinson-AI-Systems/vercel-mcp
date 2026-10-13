@@ -43,8 +43,11 @@ operations: meta tools, whoami, workflows) for HTTP-only agents.
 started server (fake Vercel) in this repo's CI, including the two-instance rate-limit check; a failure fails `ci`. Until
 then this server's own write-contract tests over MCP, `vercel_call` and HTTPS cover the same behavior.
 
-**R4. Contract code lives in `src/core/`** (Batch A A1); when the hub publishes `robinson-mcp-core`, a card switches this
-server to the package.
+**R4. External contract, optional internal reuse.** RTC 1 doors remain service-owned and fully usable without
+Hub or shared-library adoption. `src/core/` is an organizational boundary, not proof of portability. A separate
+card may adopt selected immutable published `robinson-mcp-core` exports only after original-service parity and
+reversible rollout. Provider dispatch, credentials, storage, permissions and approvals stay here. No automatic
+all-export migration or K-3 dependency for R-series/Hub connectivity. Existing R-series acceptance is unchanged.
 
 ## 2. Schema
 

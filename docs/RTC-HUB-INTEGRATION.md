@@ -61,3 +61,7 @@ reads, deployed HTTPS, actual owner TEST pass, real Hub direct/relay/
 Sandbox runs, post-revocation verification, or full RTC conformance.
 Those still need independently recorded evidence and owner-protected
 credentials. Do not provision paid resources or relax Hub checks.
+
+## Service-specific gateway recovery acceptance — 2026-10-12
+
+Current isolated TEST pass permits service identity only (`vercel_whoami`) and no Vercel provider account resources. It can prove limited RTC service connectivity, not real provider reads or full conformance. Preserve that distinction; a genuine isolated provider-resource TEST read needs its own service-owned contract and existing approvals. No paid project or manual deployment.
