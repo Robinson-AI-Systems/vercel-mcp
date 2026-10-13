@@ -115,7 +115,7 @@ describe('secure owner-operated connected evidence runner',()=>{
      {origin:origin+'/api/mcp'},
      {origin:origin+'?token=private'},
      {origin,previewPass,deployment},
-     {origin,previewPass,project,deployment:'dpl_bad'}
+     {origin,previewPass,project,deployment:'not-deployment'}
    ])await expect(checkConnectedAcceptance({...settings,fetchImpl:f.api}))
      .rejects.toBeInstanceOf(AcceptanceFailure);
    expect(f.api).not.toHaveBeenCalled();
