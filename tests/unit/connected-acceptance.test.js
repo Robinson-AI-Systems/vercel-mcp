@@ -8,7 +8,7 @@ const previewPass='rtc_pass_'+('B'.repeat(43));
 const project='prj_ONE123',deployment='dpl_ONE123',fileId='a'.repeat(40);
 const source='A harmless public test file.';
 const expectedSha256=createHash('sha256').update(source).digest('hex');
-function fixture({revoked=false,missingTeam=false,logRows=2,wrongFile=false}={}) {
+function fixture({revoked=false,invalidCode=null,missingTeam=false,logRows=2,wrongFile=false}={}) {
   const calls=[];
   const api=vi.fn(async(url,init)=>{
     const path=new URL(url).pathname+new URL(url).search;
@@ -22,7 +22,7 @@ function fixture({revoked=false,missingTeam=false,logRows=2,wrongFile=false}={})
       body={issuer:origin,authorization_endpoint:origin+'/api/oauth/authorize',
         token_endpoint:origin+'/api/oauth/token',code_challenge_methods_supported:['S256']};
     else if(!token||token==='Bearer not-a-pass'||revoked) {
-      status=401;body={ok:false,error:{code:revoked?'pass_revoked':'permission'}};
+      status=401;body={ok:false,error:{code:invalidCode??(revoked?'pass_revoked':'permission')}};
     }else if(path==='/api/whoami') {
       body={ok:true,result:token==='Bearer '+testPass?
         {mode:'test',profile:'read_only',areas:['server']}:
@@ -107,6 +107,13 @@ describe('secure owner-operated connected evidence runner',()=>{
    expect(evidence.revocationDenied).toBe(true);
    expect(f.calls.filter(row=>row.path==='/api/whoami')).toHaveLength(4);
    expect(f.calls.some(row=>row.path.includes('/api/tools/'))).toBe(false);
+ });
+ it('will not mistake invalid or expired passes for explicit owner revocation',async()=>{
+   for(const invalidCode of ['permission','pass_expired']){
+     const f=fixture({revoked:true,invalidCode});
+     await expect(checkConnectedAcceptance({origin,testPass,phase:'after-revocation',
+       fetchImpl:f.api})).rejects.toThrow('revocation_not_independently_proven');
+   }
  });
  it('denies insecure origins and unverified deployment scope without network I/O',async()=>{
    const f=fixture();
