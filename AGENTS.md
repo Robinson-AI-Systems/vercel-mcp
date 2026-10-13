@@ -123,6 +123,38 @@ including what was attempted and the smallest external action truly needed. Futu
 refer back to this authoritative rule and identify the next concrete outcome, unverified acceptance and due
 re-entry triggers, not just a PR quota.
 
+## Owner-assisted blocker recovery and PR alignment — permanent 2026-10-13 directive
+
+The normal session batch is five **substantive** merged PRs. When resuming at an
+unaligned PR number, adjust the current batch to finish on the next PR-number
+multiple of five (e.g. latest #158 → target #160); subsequent sessions finish
+at #165, #170, etc. Recheck actual numbering and concurrent PRs. Never pad,
+fragment work or relax acceptance/review gates to achieve numerical alignment.
+
+A missing owner-only credential, pass, permission, approval or external
+verification is not permission to silently end the session. First investigate
+the actual failure; attempt authorized code/configuration/API/CI repairs,
+inspect decisions and existing credentials, and complete independent eligible
+roadmap work. When progress still requires the owner, **ask in this same
+conversation** with an exact, plain-English, least-privileged action: where to
+click/configure, how to confirm, why it is needed, the affected PR/acceptance
+gate, and whether it entails secrets, spending, elevated access or production.
+Never ask for passwords, passes or tokens in chat. Clearly label what the
+agent can repair itself. After the owner completes the action, reverify and
+**resume this same session**, keeping completed work. Do not issue a premature
+continuation prompt as a substitute for an actionable owner request.
+
+When no authorized independent work remains, give an "Action Required to Resume"
+report with actual merged/open PR count and target, exact blocker and observed
+evidence, exact owner action, and immediate verification/implementation on
+re-entry. Only normal-close and issue a compact next-session prompt after the
+assigned work is complete, the owner explicitly says stop, or work is truly
+impossible and the owner declines/cannot supply the required action.
+All next-session prompts must preserve the five-substantial-PR normal batch,
+multiple-of-five ending, scoped investigation/independent work, direct owner
+escalation and same-conversation recovery. Never fabricate provider,
+deployment, release, authenticated routing or revocation acceptance.
+
 ## Blocked work must return to the roadmap (all future cards)
 
 A blocked or incomplete card is **not** postponed indefinitely. Before switching to another
