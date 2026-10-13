@@ -29,7 +29,7 @@ Done: <acceptance → test names + exact-head CI>; successor inherits: <paths/co
 
 ## 2. Provider-read recipe
 
-**Existing anchor:** token probe and `tests/unit/vercel-client.test.js`; no area read tool is shipped yet.
+**Existing anchor:** token probe and `tests/unit/vercel-client.test.js`; D-2 deployment/check/team read families are registered; use current src/tools/index.js and their named tests.
 
 | Mapping | Existing concrete example |
 |---|---|
@@ -59,7 +59,7 @@ Focused existing regressions: `npx vitest run tests/unit/vercel-client.test.js t
 ## 3. Provider-write recipe
 
 **Existing anchor:** `src/core/write.js`, `write-preflight.js`, `tests/helpers/write-contract.js`.
-No production area write is wired through MCP yet. Keep the gateway fail-closed until its own tests pass.
+Provider writes are registered only through their reviewed guarded modules. Read current src/tools/index.js and native MCP tests; do not infer availability from this historical recipe.
 
 | Actual spec member | Required behavior |
 |---|---|

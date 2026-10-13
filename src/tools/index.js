@@ -1,4 +1,4 @@
-// The tool registry: every tool module is listed here (PLAYBOOK 4c). Empty until A-5 adds src/tools/server.js.
+// The tool registry: every tool module is listed here (PLAYBOOK 4c). Includes the currently implemented server and provider tool families.
 import { mergeNamespaces } from '../core/registry.js';
 import { serverTools } from './server.js';
 import { productionTools } from './production.js';
