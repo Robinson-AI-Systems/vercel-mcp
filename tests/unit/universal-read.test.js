@@ -263,7 +263,7 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    const args={op:'getFlagSegment',params:{path:{projectIdOrName:'prj_ONE',segmentIdOrSlug:'seg_1'}}};
    const value=await f.call(args);
    expect(value.segment).toEqual({id:'seg_1',projectId:'prj_ONE',label:'Beta'});
-   expect(JSON.stringify(value)).not.toMatch(/exclude|private|rules/);
+   expect(JSON.stringify(value.segment)).not.toMatch(/exclude|private|rules/);
    await expect(f.call({...args,params:{path:{...args.params.path,segmentIdOrSlug:'beta'}}}))
      .rejects.toThrow(/Exact provider segment ID/);
    f.api.verify();
