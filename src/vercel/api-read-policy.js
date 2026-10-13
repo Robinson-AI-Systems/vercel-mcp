@@ -8,7 +8,8 @@ import {credentialLike} from '../core/util.js';
 import {readProvider} from './provider.js';
 import {projectFor} from '../tools/deployments.js';
 const ALLOWED=new Set(['listFlags','listFlagsV2','getFlag','listFlagVersions',
-  'getFlagSettings','listFlagSegments','getFlagSegment','listTeamFlagsV2','getDeploymentFeatureFlags']);
+  'getFlagSettings','listFlagSegments','getFlagSegment','listTeamFlagsV2',
+  'listTeamFlagSettings','getDeploymentFeatureFlags']);
 const IDENT=/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 function plain(x){return x!==null&&typeof x==='object'&&!Array.isArray(x);}
 function inputs(args){
@@ -39,7 +40,7 @@ function inputs(args){
     throw new TypeError('Universal read page limit must be 1 through 20');
   if(['listFlagSegments','getFlagSegment'].includes(row.op)&&query.withMetadata!==undefined&&query.withMetadata!==false)
     throw new TypeError('Flag segment user metadata is not available through universal reads');
-  if(row.op==='listTeamFlagsV2'){
+  if(['listTeamFlagsV2','listTeamFlagSettings'].includes(row.op)){
     if(Object.keys(params.path).length)throw new TypeError('Team flag inventory has no project path override');
     query.limit??=5;
     if(!Number.isInteger(query.limit)||query.limit>5)
@@ -61,7 +62,7 @@ function projection(value,project,teamId){
 }
 // A Vercel flag list exposes an opaque continuation; never reflect arbitrary
 // pagination objects, and never infer completeness from a missing cursor.
-const PAGED=new Set(['listFlags','listFlagsV2','listFlagVersions','listTeamFlagsV2']);
+const PAGED=new Set(['listFlags','listFlagsV2','listFlagVersions','listTeamFlagsV2','listTeamFlagSettings']);
 function page(reply,op){
   if(!PAGED.has(op)||!Object.hasOwn(reply,'pagination'))return {};
   const pagination=reply.pagination;
@@ -107,6 +108,45 @@ async function teamFlagPage(reply,client,account){
   return {data:reply.data.map(row=>projection(row,row.projectId,account.team_id)),
     ...page(reply,'listTeamFlagsV2'),capped:false,completeness:'unverified_provider_page',
     note:'Team-scoped provider flag metadata only; all returned projects separately verified; targeting and values withheld'};
+}
+// Team-wide flag settings may contain raw entities, environments and SDK
+// configuration. Verify every project and expose only audited capacity totals.
+// Five rows at most, with five bounded independent project readbacks.
+async function teamSettingsPage(reply,client,account){
+  if(!plain(reply)||!Array.isArray(reply.data)||reply.data.length>5||
+    !plain(reply.pagination))
+    throw new TypeError('Unrecognized bounded team flag settings page');
+  const seen=new Set();
+  for(const row of reply.data){
+    if(!plain(row)||typeof row.projectId!=='string'||!IDENT.test(row.projectId)||
+      credentialLike(row.projectId)||seen.has(row.projectId)||
+      row.ownerId!==undefined&&row.ownerId!==account.team_id||
+      row.teamId!==undefined&&row.teamId!==account.team_id)
+      throw new TypeError('Unverified team flag settings project identity');
+    seen.add(row.projectId);
+  }
+  const projects=[...seen];
+  const proofs=await Promise.all(projects.map(id=>client.request('projects_get',
+    {path:{idOrName:id}},{timeoutMs:5000})));
+  for(const [i,id] of projects.entries()){
+    if(proofs[i]?.id!==id||proofs[i]?.accountId!==account.team_id)
+      throw new TypeError('Foreign team flag settings project');
+  }
+  const settings=reply.data.map(row=>{
+    if(typeof row.enabled!=='boolean'||!plain(row.metadata))
+      throw new TypeError('Missing team flag settings summary');
+    const metadata={};
+    for(const field of ['activeFlagCount','archivedFlagCount','segmentCount','packSizeInBytes']){
+      const value=row.metadata[field];
+      if(!Number.isSafeInteger(value)||value<0)
+        throw new TypeError('Invalid team flag capacity metric');
+      metadata[field]=value;
+    }
+    return {projectId:row.projectId,enabled:row.enabled,metadata};
+  });
+  return {settings,...page(reply,'listTeamFlagSettings'),observedProjects:settings.length,
+    completeness:'unverified_provider_page',
+    note:'Independently verified team projects; counts only, no environments, rules, SDK data or identities'};
 }
 // Version history contains full environments, variations and flag values.
 // Independently resolve an exact flag ID before listing versions and project
@@ -222,16 +262,17 @@ export async function apiRead(args,ctx){
   const {row,params}=inputs(args);
   validateRequest('api:'+row.op,{...params,
     // Indexed team inventory uses a path teamId, always supplied by the server.
-    path:row.op==='listTeamFlagsV2'?{teamId:'team_FAKE_validation'}:params.path,
-    query:row.op==='listTeamFlagsV2'?params.query:
+    path:['listTeamFlagsV2','listTeamFlagSettings'].includes(row.op)?{teamId:'team_FAKE_validation'}:params.path,
+    query:['listTeamFlagsV2','listTeamFlagSettings'].includes(row.op)?params.query:
       {...params.query,teamId:'team_FAKE_validation'}});
   const {client,account}=await readProvider(ctx);
   if(row.op==='getDeploymentFeatureFlags')return deploymentFlags(params,client,account);
-  if(row.op==='listTeamFlagsV2'){
+  if(['listTeamFlagsV2','listTeamFlagSettings'].includes(row.op)){
     if(!['team','full'].includes(account.scope))
       throw new TypeError('Team flag inventory requires an owner-reviewed team connection');
     const reply=await client.request('api:'+row.op,{path:{teamId:account.team_id},query:params.query},{timeoutMs:5000});
-    return teamFlagPage(reply,client,account);
+    return row.op==='listTeamFlagSettings'?teamSettingsPage(reply,client,account):
+      teamFlagPage(reply,client,account);
   }
   const project=projectFor({project:params.path.projectIdOrName},account);
   if(params.path.projectIdOrName!==project)throw new TypeError('Exact project ID is required');
