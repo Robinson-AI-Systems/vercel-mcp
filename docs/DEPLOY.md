@@ -134,7 +134,7 @@ is **not** part of normal CI and never provisions or mutates Vercel resources.
 5. **Revoke both temporary passes in authenticated owner setup**. With the
    same protected pass values still available privately, set
    `RTC_ACCEPTANCE_PHASE=after-revocation` and run the script again:
-   the previously valid passes must now be rejected with HTTP 401.
+   the previously valid passes must now be rejected with HTTP 401 **and** the explicit `pass_revoked` error code. Expiry or invalid credentials do not establish actual revocation.
    Remove the pass values from the execution environment immediately
    afterward. A revocation step without an independently observed denial
    is not verified revocation.
