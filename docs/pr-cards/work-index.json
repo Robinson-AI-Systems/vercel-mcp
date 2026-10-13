@@ -1242,14 +1242,15 @@
       "readiness": "READY",
       "ownerInputs": [],
       "pr": [
-        148
+        148,
+        150
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Public operation metadata implemented; scoped read transport and guarded universal writes remain.",
-        "nextAction": "Add indexed validated GET transport with secret exclusions and independently verified scope.",
-        "checkpoint": "After #148 and each session/PR boundary",
+        "reason": "All operation metadata and seven audited project flag metadata reads implemented; additional read policies and all guarded universal writes remain.",
+        "nextAction": "Expand reads only with demonstrated resource scope and output contracts; universal writes require hand-built exclusions, secret/spend/production/owner/replay/readback safety. R-1 pass proposals independently eligible.",
+        "checkpoint": "After #150 and every PR/session boundary",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
         "dependencies": [

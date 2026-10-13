@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { operation } from './operations.js';
 import { readBoundedJson } from './bounded-json.js';
 import {readBoundedRuntimeLogs} from './runtime-log-stream.js';
-import { validateRequest } from './openapi-validation.js';
+import { validateRequest,documentedRead } from './openapi-validation.js';
 import { createDb } from '../db.js';
 
 export const VERCEL_API_BASE = 'https://api.vercel.com';
@@ -118,7 +118,8 @@ export function makeVercelClient({
   if (baseUrl === VERCEL_API_BASE && base.protocol !== 'https:') throw new TypeError('Invalid Vercel API origin');
 
   async function request(id, params = {}, options = {}) {
-    const spec = operation(id);
+    const indexed=typeof id==='string'&&id.startsWith('api:');
+    const spec = indexed?documentedRead(id.slice(4)):operation(id);
     const method = spec.method;
     if(options.fileContent===true && (id!=='deployments_file_get'||method!=='GET'))
       throw new TypeError('Bounded file reads apply only to the pinned deployment file endpoint');
@@ -129,6 +130,8 @@ export function makeVercelClient({
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 25000 ||
         (method !== 'GET' && options.timeoutMs !== undefined))
       throw new TypeError('Invalid provider read timeout');
+    if(indexed&&params.path?.teamId!==undefined&&params.path.teamId!==account.team_id)
+      throw error('team_scope_mismatch','Documented read cannot address another team');
     const query = { ...params.query };
     if (query.teamId !== undefined && query.teamId !== account.team_id) {
       throw error('team_scope_mismatch', 'The operation cannot access a different Vercel team');
@@ -171,7 +174,7 @@ export function makeVercelClient({
           method, headers: { authorization: 'Bearer ' + token, accept: 'application/json',
             ...(params.body === undefined ? {} : { 'content-type': 'application/json' }) },
           ...(params.body === undefined ? {} : { body: JSON.stringify(params.body) }),
-          signal
+          signal, ...(indexed?{redirect:'error'}:{})
         });
       } catch (cause) {
         if (attempt === 0 && RETRYABLE.has(method) && cause?.name !== 'TimeoutError' &&
@@ -183,7 +186,8 @@ export function makeVercelClient({
         return readBoundedRuntimeLogs(response,signal);
       if(response.ok && options.fileContent===true)
         return readBoundedJson(response,signal,8192);
-      try { envelope = response.status === 204 ? null : await response.json(); } catch { envelope = null; }
+      if(indexed)envelope=response.status===204?null:await readBoundedJson(response,signal,65536);
+      else {try { envelope = response.status === 204 ? null : await response.json(); } catch { envelope = null; }}
       if (response.ok) break;
       if (response.status === 429) {
         const waitMs = parseWaitMs(response, envelope, now);

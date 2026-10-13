@@ -33,7 +33,26 @@ export function readOpenApi() {
   return spec;
 }
 
+export function documentedRead(op){
+  if(typeof op!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(op))
+    throw new TypeError('Invalid documented read operation');
+  const matches=[];
+  for(const [path,pathItem] of Object.entries(readOpenApi().paths))
+    for(const method of HTTP_METHODS){
+      const specOperation=pathItem[method];
+      if(specOperation?.operationId===op)matches.push({path,method:method.toUpperCase(),pathItem,specOperation});
+    }
+  if(matches.length!==1||!['GET','HEAD'].includes(matches[0].method))
+    throw new TypeError('Only an unambiguous documented GET or HEAD is allowed');
+  const row=matches[0];
+  // Team query is injected only where declared. A path-bound team is
+  // independently checked by the transport against the stored account.
+  row.teamScoped=[...(row.pathItem.parameters||[]),...(row.specOperation.parameters||[])]
+    .some(p=>p.in==='query'&&p.name==='teamId');
+  return row;
+}
 export function openApiOperation(id) {
+  if(typeof id==='string'&&id.startsWith('api:'))return documentedRead(id.slice(4));
   const { path, method } = operation(id);
   const doc = readOpenApi();
   const pathItem = doc.paths?.[path];
@@ -103,7 +122,7 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
   // Vercel uses teamId across endpoints (including user reads); do not permit
   // caller-supplied teamId to override the selected account's scope.
   for (const key of Object.keys(query)) {
-    if (!byKey.has('query:' + key) && key !== 'teamId') {
+    if (!byKey.has('query:' + key) && (key !== 'teamId'||id.startsWith('api:'))) {
       throw new TypeError('Unknown API query parameter: ' + key);
     }
   }
