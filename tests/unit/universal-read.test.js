@@ -50,6 +50,37 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    const r=await f.call(input);expect(r.flags).toHaveLength(20);expect(r.capped).toBe(true);
    expect(JSON.stringify(r)).not.toContain('private');
  });
+ it('returns provider-confirmed opaque flag cursors for a bounded follow-up page',async()=>{
+   const f=fixture();
+   f.api.when('GET','/v2/projects/{projectIdOrName}/feature-flags/flags')
+     .resolves({data:[{id:'flag_1',projectId:'prj_ONE',rules:['private']}],
+       pagination:{next:'CURSOR_2',internal:'do not forward'}})
+     .resolves({data:[{id:'flag_2',projectId:'prj_ONE'}],pagination:{next:null}});
+   const first=await f.call(input);
+   expect(first.data).toEqual([{id:'flag_1',projectId:'prj_ONE'}]);
+   expect(first.pagination).toEqual({next:'CURSOR_2',completeness:'provider_cursor_only'});
+   expect(JSON.stringify(first)).not.toContain('private');
+   expect(JSON.stringify(first)).not.toContain('internal');
+   const second=await f.call({...input,params:{...input.params,query:{cursor:first.pagination.next}}});
+   expect(second.pagination).toMatchObject({next:null});
+   expect(f.api.calls.at(-1).query).toEqual({cursor:'CURSOR_2',limit:'20',teamId:'team_ONE'});
+ });
+ it('rejects unsafe provider cursors and fails closed without reflecting them',async()=>{
+   const f=fixture();
+   f.api.when('GET','/v2/projects/{projectIdOrName}/feature-flags/flags')
+     .resolves({data:[],pagination:{next:{toString:'unsafe'}}})
+     .resolves({data:[],pagination:{next:'unsafe'+String.fromCharCode(10)+'value'}})
+     .resolves({data:[],pagination:'unknown'});
+   for(let i=0;i<3;i++)await expect(f.call(input)).rejects.toThrow(/pagination|cursor/);
+   expect(f.api.calls).toHaveLength(6);
+ });
+ it('does not invent a continuation when the provider omits pagination',async()=>{
+   const f=fixture();
+   f.api.when('GET','/v2/projects/{projectIdOrName}/feature-flags/flags').resolves({data:[{id:'flag_1'}]});
+   const value=await f.call(input);
+   expect(value.pagination).toBeUndefined();
+   expect(value.completeness).toBe('unverified_provider_page');
+ });
  it('transport cannot use an indexed write or foreign team even when called directly',async()=>{
    const f=fixture(),client=makeVercelClient({token:'vcp_FAKE',account,fetchImpl:f.api.fetch});
    await expect(client.request('api:createFlag',{path:{projectIdOrName:'prj_ONE'}})).rejects.toThrow(/GET or HEAD/);

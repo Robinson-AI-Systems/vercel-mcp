@@ -1243,14 +1243,15 @@
       "ownerInputs": [],
       "pr": [
         148,
-        150
+        150,
+        152
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "All operation metadata and seven audited project flag metadata reads implemented; additional read policies and all guarded universal writes remain.",
-        "nextAction": "Expand reads only with demonstrated resource scope and output contracts; universal writes require hand-built exclusions, secret/spend/production/owner/replay/readback safety. R-1 pass proposals independently eligible.",
-        "checkpoint": "After #150 and every PR/session boundary",
+        "reason": "Audited feature-flag GETs now preserve bounded documented list cursors; additional operation families and all guarded writes remain incomplete.",
+        "nextAction": "Expand only independently scoped safe read contracts with pinned schemas and identity readback, while verifying U-1c pagination on a genuine scoped provider response when an owner-hosted test environment exists.",
+        "checkpoint": "After #152, on every PR/session boundary and after secure provider/test-hosting setup",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
         "dependencies": [
