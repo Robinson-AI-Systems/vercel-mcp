@@ -1,6 +1,6 @@
 # DEPLOY — Owner guide to setting up Robinson Vercel MCP
 
-Status: **instructions only**. This repository has not been deployed, connected to a real database, or given a real Vercel token. Everything involving an account, subscription, deployment or real service requires your explicit approval.
+Status (2026-10-13): **initial hosting and owner credential setup verified**. The dedicated Vercel project is READY on the checked `live` revision, dedicated Neon schema initialized and an encrypted, team-scoped Robinson AI Systems credential stored. Public OAuth and RTC metadata respond over HTTPS; authenticated custom MCP, live D-2 provider file/log response, RTC direct/relay/Sandbox and revocation acceptance are still OPEN. Existing approved setup is not permission for additional provisioning, production writes or spending.
 
 This server has its own Vercel project and Neon database. It must never be installed into Appliance Desk or another existing business project. Start with a restricted Vercel team token and a preview/read-only connection; production writes require a separate approval and additional safety implementation.
 
@@ -26,7 +26,7 @@ Reference: [Neon deployment and pooled connection example](https://neon.com/blog
 
 1. Go to Vercel's Add New → Project / Import Git Repository flow, select `Robinson-AI-Systems/vercel-mcp` and the intended team.
 2. Use the project name `vercel-mcp`. The project is a plain Node.js (24.x), ES module Vercel Functions application, not Next.js; follow its committed `vercel.json` and `api/` structure. Do not copy it into any other project's root.
-3. Keep the production branch configured to `main`. Check Git integration and the preview/production environment settings before any deployment. Importing the repo can deploy automatically; ask for approval **before** importing.
+3. **For this repository use the checked `live` branch**, not `main`, as the Vercel production branch. The scheduled, guarded daily `main → live` promotion runs at 00:01 America/Denver. Automatic previews are disabled to control build cost. Do not manually deploy, promote or change this policy for a routine PR; an emergency needs separate explicit approval.
 4. Avoid installing any additional products, add-ons, integrations or paid services just to deploy this basic server.
 5. A custom domain is optional, not a prerequisite. Use an HTTPS URL for this project, not another app's domain.
 
@@ -87,9 +87,60 @@ Reference: [Claude's remote MCP custom connector guide](https://support.claude.c
 | OAuth origin/resource rejected | `PUBLIC_BASE_URL` must exactly match the externally reachable HTTPS origin. |
 | Team verification fails | Confirm team ID, intended key scope and whether the team is visible to the supplied token. Do not bypass the safe probe. |
 | Token decrypt fails | The original `TOKEN_ENCRYPTION_KEY` was changed, is invalid, or the ciphertext was tampered with. Stop; do not print encrypted/unencrypted keys. |
-| No tools displayed | Confirm OAuth connection mode/profile, and that A-5's two read-only tools are deployed from tested `main`. |
+| No tools displayed | Confirm OAuth connection mode/profile, selected account and scope; verify the published `live` revision separately from tested `main`. A public tool count is not proof of an authenticated session. |
 | Unexpected production capabilities | Disconnect and verify production mode remains disabled. Do not run commands that change a real resource. |
 
 The repository's CI (`npm run check`, unit tests, disposable database tests, and local Vercel emulator) is the normal offline validation. Actual read-only smoke testing is a later planned acceptance step; a real-team write test is restricted to the separately approved scratch project (IN-06, Batch X-2).
 
 **This document is not authorization to deploy, buy services, configure production, or use real provider tokens.** All owner approvals remain explicit.
+
+## 8. Protected read-only connected acceptance (owner/authorized runner)
+
+No pass, passphrase, project file bytes or provider credential should be copied
+into a chat, issue, PR, command argument, screenshot or CI output. This procedure
+is **not** part of normal CI and never provisions or mutates Vercel resources.
+
+1. Select an **owner-approved disposable nonproduction deployment** with a
+   harmless public UTF-8 file smaller than 2 KiB and runtime activity you
+   are authorized to examine. Identify its project ID, deployment ID and
+   bounded file ID using owner-authenticated read-only tools; avoid
+   Appliance Desk production, secrets and confidential files. Only use
+   a project the selected credential is allowed to inspect.
+2. In the authenticated
+   [Vercel MCP owner setup](https://vercel-mcp-liard.vercel.app/api/vercel/setup)
+   page, issue **two separate short-lived service passes** privately:
+   one `mode=test`, `areas=['server']` identity-only pass; one
+   `mode=preview` read-only `deployments` pass under the approved
+   selected account. Obtain them using the page's one-time reveal, never in
+   an AI transcript. If no authorized disposable deployment exists, run
+   public/TEST acceptance only; do not improvise a provider write or paid
+   deployment to manufacture evidence.
+3. In a trusted, private Node 24 checkout at the **exact verified
+   repository revision**, configure protected **environment variables**
+   `VERCEL_MCP_ORIGIN`, `RTC_TEST_PASS`, `RTC_PREVIEW_PASS`,
+   `RTC_APPROVED_PROJECT_ID`, `RTC_APPROVED_DEPLOYMENT_ID`;
+   optionally supply `RTC_APPROVED_FILE_ID` together with the locally
+   computed SHA-256 of the safe known file as `RTC_EXPECTED_FILE_SHA256`.
+   Do not echo these inputs, enable shell tracing or run on a public
+   untrusted CI runner. The required pass values are secrets; keep them in
+   your trusted private environment, not your shell command-line arguments.
+4. Run `node scripts/check-connected-acceptance.mjs`. It performs only
+   bounded HTTPS reads/negative authorization checks, refuses redirects,
+   validates exact scope, and prints safe limited result labels. A
+   `runtimeStreamObserved:false` or absent file digest means provider
+   acceptance is **partial**, not a success claim. Record timestamp,
+   exact **source and deployed commit**, approved nonproduction context,
+   exit code and safe evidence flags; do not include raw service replies.
+5. **Revoke both temporary passes in authenticated owner setup**. With the
+   same protected pass values still available privately, set
+   `RTC_ACCEPTANCE_PHASE=after-revocation` and run the script again:
+   the previously valid passes must now be rejected with HTTP 401 **and** the explicit `pass_revoked` error code. Expiry or invalid credentials do not establish actual revocation.
+   Remove the pass values from the execution environment immediately
+   afterward. A revocation step without an independently observed denial
+   is not verified revocation.
+
+This script proves only the checked host's direct RTC subset and provider
+reads actually executed. OAuth client login to original `/api/mcp`, true
+Toolkit Hub relay, Vercel Sandbox, and any unauthenticated-to-authenticated
+connection transition remain **separate** manual acceptance gates. A TEST
+pass **cannot** read Vercel provider data; never relabel preview as TEST.

@@ -65,3 +65,15 @@ credentials. Do not provision paid resources or relax Hub checks.
 ## Service-specific gateway recovery acceptance — 2026-10-12
 
 Current isolated TEST pass permits service identity only (`vercel_whoami`) and no Vercel provider account resources. It can prove limited RTC service connectivity, not real provider reads or full conformance. Preserve that distinction; a genuine isolated provider-resource TEST read needs its own service-owned contract and existing approvals. No paid project or manual deployment.
+
+## Hosted direct evidence runner — candidate #160
+
+The isolated owner-operated `scripts/check-connected-acceptance.mjs`
+covers public OAuth discovery and RTC metadata, anonymous denial,
+short-lived TEST identity and provider-read denial, preview deployment
+read-only proof, approved nonproduction D-2 runtime/file checks, and
+post-revocation 401. Never pass service credentials to the runner as
+CLI flags or store real passes in CI fixtures or repository files.
+See `docs/DEPLOY.md` §8. Its unit tests use fabricated bearer material;
+there is still **no** actual owner pass or genuine relay/Sandbox run
+recorded. A direct script success never counts as Hub route proof.
