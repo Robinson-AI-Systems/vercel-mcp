@@ -459,7 +459,7 @@ OpenAPI snapshot. The server never guesses an operation or a parameter.
 |---|---|---|---|---|---|---|
 | `vercel_api_search` | Find Vercel operations by plain words: method, path, one-line summary, and whether it reads, changes, spends or returns a secret | — | B O Op | R | — | U-1 (metadata built #148) |
 | `vercel_api_describe` | Parameters for one operation, trimmed to what matters, from the OpenAPI snapshot | — | B O Op | R | — | U-1 (metadata built #148) |
-| `vercel_api_read` | Only audited pinned feature-flag GETs: scoped project/team flags, version IDs, per-project and independently verified team capacity counts, deployment flag counts, and segment identities; raw targeting/secret operations refused | — | B O Op | R | — | U-1 (#150–#164; real connected proof pending) |
+| `vercel_api_read` | Audited pinned flags only: canonical exact-ID single flags, team/project inventories, bounded verified capacity, deployment counts, segment and revision identities; foreign ownership, raw targeting and secrets refused | — | B O Op | R | — | U-1 (#150–#165; real provider/RTC proof pending) |
 | `vercel_api_write` | Any POST/PUT/PATCH/DELETE operation through the full safety layer: always `confirm`; spend table; production detection; hand-built tools win | C (always) | B O Op | F | y | U-1 |
 
 How `vercel_api_write` stays safe (details `docs/designs/BATCH-U.md`): always `confirm`, supports `dryRun`; spend

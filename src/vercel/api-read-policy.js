@@ -38,7 +38,8 @@ function inputs(args){
   Object.values(query).forEach(v=>inspect(v));
   if(query.limit!==undefined&&(!Number.isInteger(query.limit)||query.limit<1||query.limit>20))
     throw new TypeError('Universal read page limit must be 1 through 20');
-  if(['listFlagSegments','getFlagSegment'].includes(row.op)&&query.withMetadata!==undefined&&query.withMetadata!==false)
+  if(['listFlagSegments','getFlagSegment','getFlag','listFlagVersions'].includes(row.op)&&
+    query.withMetadata!==undefined&&query.withMetadata!==false)
     throw new TypeError('Flag segment user metadata is not available through universal reads');
   if(['listTeamFlagsV2','listTeamFlagSettings'].includes(row.op)){
     if(Object.keys(params.path).length)throw new TypeError('Team flag inventory has no project path override');
@@ -151,17 +152,21 @@ async function teamSettingsPage(reply,client,account){
 // Version history contains full environments, variations and flag values.
 // Independently resolve an exact flag ID before listing versions and project
 // only the version identity, revision number and time metadata.
-function flagRevisionSummary(reply,params,project){
+function flagRevisionSummary(reply,params,project,teamId){
   const flagId=params.path.flagIdOrSlug;
   if(!plain(reply)||!Array.isArray(reply.versions)||reply.versions.length>20||
-    !plain(reply.pagination))
+    !plain(reply.pagination)||reply.projectId!==undefined&&reply.projectId!==project||
+    reply.flagId!==undefined&&reply.flagId!==params.path.flagIdOrSlug||
+    reply.teamId!==undefined&&reply.teamId!==teamId)
     throw new TypeError('Unrecognized bounded flag revision history');
   const seen=new Set(),versions=reply.versions.map(version=>{
     if(!plain(version)||version.flagId!==flagId||typeof version.id!=='string'||
       !IDENT.test(version.id)||credentialLike(version.id)||seen.has(version.id)||
       !Number.isSafeInteger(version.revision)||version.revision<0||
       typeof version.createdAt!=='number'||!Number.isFinite(version.createdAt)||
-      version.createdAt<0||version.createdAt>Number.MAX_SAFE_INTEGER)
+      version.createdAt<0||version.createdAt>Number.MAX_SAFE_INTEGER||
+      version.projectId!==undefined&&version.projectId!==project||
+      version.teamId!==undefined&&version.teamId!==teamId)
       throw new TypeError('Invalid or out-of-scope provider flag version');
     seen.add(version.id);
     return {id:version.id,flagId,revision:version.revision,createdAt:version.createdAt};
@@ -208,8 +213,9 @@ function segmentSummary(reply,params,project,op){
 }
 // Provider flag-settings metadata includes capacity counters but also entities,
 // environments and targeting details. Expose only checked aggregate quantities.
-function flagSettingsSummary(reply,project){
-  if(!plain(reply)||reply.projectId!==project||typeof reply.enabled!=='boolean'||
+function flagSettingsSummary(reply,project,teamId){
+  if(!plain(reply)||reply.projectId!==project||
+    reply.teamId!==undefined&&reply.teamId!==teamId||typeof reply.enabled!=='boolean'||
     !plain(reply.metadata))
     throw new TypeError('Project flag settings identity or metadata unavailable');
   const metadata={};
@@ -222,6 +228,17 @@ function flagSettingsSummary(reply,project){
   return {projectId:project,enabled:reply.enabled,metadata,
     completeness:'provider_reported_metrics_only',
     note:'Only provider-reported aggregate capacity; entity, environment, SDK keys and rule data withheld'};
+}
+// The provider's GET accepts slugs as aliases, but an alias alone does not
+// prove the exact resource requested. Require a canonical ID, project and
+// noncontradictory team identity before returning any flag metadata.
+function exactFlagSummary(reply,params,project,teamId){
+  const id=params.path.flagIdOrSlug;
+  if(typeof id!=='string'||!IDENT.test(id)||!plain(reply)||reply.id!==id||
+    reply.projectId!==project||reply.teamId!==undefined&&reply.teamId!==teamId)
+    throw new TypeError('Exact provider flag ID, project and team identity required');
+  return {...projection(reply,project,teamId),completeness:'exact_resource_identity',
+    note:'Exact flag identity and safe labels only; values, rules, user targeting and creator metadata withheld'};
 }
 // Deployment flag values and targeting are never returned. Correlate the
 // deployment status only after separately verifying a project-key connection,
@@ -294,12 +311,14 @@ export async function apiRead(args,ctx){
       throw new TypeError('Select an exact flag ID');
     const flag=await client.request('api:getFlag',{
       path:{projectIdOrName:project,flagIdOrSlug:flagId}},{timeoutMs:5000});
-    if(!plain(flag)||flag.id!==flagId||flag.projectId!==project)
-      throw new TypeError('Flag identity and project could not be verified');
+    if(!plain(flag)||flag.id!==flagId||flag.projectId!==project||
+      flag.teamId!==undefined&&flag.teamId!==account.team_id)
+      throw new TypeError('Flag identity, project or team could not be verified');
     const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
-    return flagRevisionSummary(reply,params,project);
+    return flagRevisionSummary(reply,params,project,account.team_id);
   }
   const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
-  if(row.op==='getFlagSettings')return flagSettingsSummary(reply,project);
+  if(row.op==='getFlagSettings')return flagSettingsSummary(reply,project,account.team_id);
+  if(row.op==='getFlag')return exactFlagSummary(reply,params,project,account.team_id);
   return shape(reply,project,account.team_id,row.op);
 }

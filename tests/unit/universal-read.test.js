@@ -343,6 +343,63 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    ])await expect(f.call({...args,params})).rejects.toThrow();
    expect(f.api.calls).toHaveLength(0);
  });
+ it('gets single flag metadata only after canonical ID, project and team proof',async()=>{
+   const f=fixture(),path=documentedRead('getFlag').path;
+   f.api.when('GET',path).resolves({id:'flag_1',projectId:'prj_ONE',
+     teamId:'team_ONE',name:'Checkout',variants:[{value:'private'}],
+     environments:{production:{rules:['secret']}},creator:{email:'private@example.com'}});
+   const result=await f.call({op:'getFlag',
+     params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'}}});
+   expect(result).toMatchObject({id:'flag_1',projectId:'prj_ONE',teamId:'team_ONE',name:'Checkout',
+     completeness:'exact_resource_identity'});
+   expect(JSON.stringify(result)).not.toMatch(/"variants"|"environments"|"creator"|private@example/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET']);
+   f.api.verify();
+ });
+ it('rejects ambiguous, missing, foreign and contradictory single-flag identities',async()=>{
+   const f=fixture(),path=documentedRead('getFlag').path;
+   f.api.when('GET',path)
+     .resolves({id:'flag_OTHER',projectId:'prj_ONE'})
+     .resolves({id:'flag_1'})
+     .resolves({id:'flag_1',projectId:'prj_OTHER'})
+     .resolves({id:'flag_1',projectId:'prj_ONE',teamId:'team_OTHER'});
+   const args={op:'getFlag',params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'}}};
+   for(let i=0;i<4;i++)await expect(f.call(args)).rejects.toThrow(/Exact provider flag ID/);
+   expect(f.api.calls).toHaveLength(8);
+ });
+ it('blocks unnecessary single-flag creator detail expansion and team overrides before IO',async()=>{
+   const f=fixture(),args={op:'getFlag',
+     params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'}}};
+   for(const params of [
+     {path:args.params.path,query:{withMetadata:true}},
+     {path:args.params.path,query:{teamId:'team_OTHER'}},
+     {path:args.params.path,query:{slug:'foreign'}},
+   ])await expect(f.call({...args,params})).rejects.toThrow();
+   expect(f.api.calls).toHaveLength(0);
+ });
+ it('rejects contradictory owner IDs inside exact project settings data',async()=>{
+   const f=fixture(),path=documentedRead('getFlagSettings').path;
+   f.api.when('GET',path).resolves({projectId:'prj_ONE',teamId:'team_OTHER',
+     enabled:true,metadata:{activeFlagCount:1,archivedFlagCount:0,
+       segmentCount:0,packSizeInBytes:1}});
+   await expect(f.call({op:'getFlagSettings',
+     params:{path:{projectIdOrName:'prj_ONE'}}})).rejects.toThrow(/identity|metadata/);
+   expect(f.api.calls).toHaveLength(2);
+ });
+ it('rejects foreign project/team identities returned inside flag revision pages',async()=>{
+   const f=fixture(),flagPath=documentedRead('getFlag').path;
+   const path=documentedRead('listFlagVersions').path;
+   f.api.when('GET',flagPath).resolves({id:'flag_1',projectId:'prj_ONE',teamId:'team_ONE'});
+   const version={id:'ver_1',flagId:'flag_1',revision:1,createdAt:123};
+   f.api.when('GET',path)
+     .resolves({versions:[version],projectId:'prj_OTHER',pagination:{}})
+     .resolves({versions:[{...version,teamId:'team_OTHER'}],pagination:{}})
+     .resolves({versions:[{...version,projectId:'prj_OTHER'}],pagination:{}});
+   for(let i=0;i<3;i++)await expect(f.call({op:'listFlagVersions',
+     params:{path:{projectIdOrName:'prj_ONE',flagIdOrSlug:'flag_1'}}}))
+     .rejects.toThrow(/version|history/);
+   expect(f.api.calls).toHaveLength(9);
+ });
  it('lists flag revision identities after independently verifying exact flag/project identity',async()=>{
    const f=fixture();
    f.api.when('GET',documentedRead('getFlag').path)

@@ -4,6 +4,8 @@
 
 # STATUS — current work, blockers and next action
 
+- **U-1 canonical flag identity (candidate #165):** single flag GET now refuses mismatched/absent flag or project ID and contradictory team, stops unnecessary expanded creator metadata and returns an audited safe projection only. Flag settings and revision pages reject conflicting project/team ownership. Fake HTTP regressions cover all paths; connected owner-provider acceptance remains open. #164 merged exact-head green. No provider mutations, production release or spending.
+
 - **U-1 verified team flag capacity (candidate #164):** new audited listTeamFlagSettings read verifies each of up to five provider project owners against the selected team before revealing only enabled status and aggregate flag/segment/byte counts. Project-only accounts and foreign/duplicate/oversized rows fail closed. No private entities or targeting returned. Fake HTTP tests are source verification only; owner-protected HTTPS/provider acceptance still OPEN. #163 merged after all exact-head checks. Production remains on separately checked live, with no manual release or spend.
 
 - **U-1 segment targeting privacy (candidate #163):** `listFlagSegments` and `getFlagSegment` now return only project-verified exact segment identifiers and safe labels, not segment membership, user identities or targeting conditions. Lists fail closed on foreign/duplicate/oversized identities; single GET requires exact segment ID. Fake provider CI only; real provider connected and RTC acceptance remain OPEN. #162 merged after required CI, adding selected-team project proof before deployment flag-status reads. No privilege or production changes.

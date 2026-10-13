@@ -1253,9 +1253,9 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Audited project/deployment/segment flag GETs merged #150–#163; candidate #164 adds verified team settings capacity reads. Remaining universal API families and connected acceptance are unfinished.",
-        "nextAction": "Reverify selected-team project identity through owner-approved nonproduction provider read and correct contract mismatches; continue approved independent U-1/O-1 capability work.",
-        "checkpoint": "After candidate #164 and every PR/session boundary; immediately when private owner acceptance evidence exists",
+        "reason": "Safe feature-flag GETs including scoped single flag/project/team ownership, segment identities and bounded capacity now implemented through candidate #165; no actual owner-authenticated provider or Hub acceptance and large portions of universal REST remain pending.",
+        "nextAction": "Secure private direct/preview TEST passes plus approved disposable nonproduction deployment to execute #160 runner and verify provider project/flag payload mapping; continue next substantive approved independent U-1/O-1 work while external evidence is unavailable.",
+        "checkpoint": "After #165 aligned session close-out and at every PR/session start; immediately upon owner-issued scoped passes and approved nonproduction evidence",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
         "dependencies": [
