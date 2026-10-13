@@ -192,7 +192,11 @@ export async function apiRead(args,ctx){
   const project=projectFor({project:params.path.projectIdOrName},account);
   if(params.path.projectIdOrName!==project)throw new TypeError('Exact project ID is required');
   const current=await client.request('projects_get',{path:{idOrName:project}});
-  if(current?.id!==project||current.accountId!==undefined&&current.accountId!==account.team_id)
+  // A team-scoped token may address many projects. A missing ownership field is
+  // not proof that the requested project belongs to the selected team.
+  // Require a positive exact team match for project keys as well, so one
+  // inconsistent provider response cannot silently widen account authority.
+  if(current?.id!==project||current?.accountId!==account.team_id)
     throw new TypeError('Project identity and selected team could not be verified');
   if(row.op==='listFlagVersions'){
     // Resolve the flag ID before even requesting its detailed revision history.
