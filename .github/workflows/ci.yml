@@ -61,8 +61,8 @@ jobs:
     timeout-minutes: 10
     services:
       postgres:
-        # ECR mirror of the official image: Docker Hub's anonymous pull limit broke Appliance Desk CI.
-        image: public.ecr.aws/docker/library/postgres:17
+        # Official pinned Postgres major; public ECR mirror exhausted its shared data quota.
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci-only-not-a-secret
