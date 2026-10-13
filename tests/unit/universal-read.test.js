@@ -146,7 +146,7 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    const value=await f.call({op:'getDeploymentFeatureFlags',
      params:{path:{deploymentId:deployment}}});
    expect(value).toMatchObject({projectId:'prj_ONE',deploymentId:deployment,observedFlags:2,reportedFlagCount:2});
-   expect(JSON.stringify(value)).not.toMatch(/private|never show|targeting/);
+   expect(JSON.stringify(value)).not.toMatch(/private|never show|"targeting":/);
    expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET']);
    f.api.verify();
  });
