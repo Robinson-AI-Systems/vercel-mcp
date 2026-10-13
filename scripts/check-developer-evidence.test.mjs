@@ -23,3 +23,9 @@ test('all layers must remain explicitly tracked once',()=>{
  const duplicate=doc(verified);duplicate.records.push(verified);assert.ok(validateEvidence(duplicate).length);
 });
 test('a provider read alone is partial proof, not full provider acceptance',()=>assert.ok(validateEvidence(doc({...verified,observations:['provider_readback']})).length));
+
+test('standalone MCP and bare RTC calls cannot close Hub acceptance',()=>{
+ assert.ok(validateEvidence(doc({...verified,layer:'hub'})).length);
+ assert.ok(validateEvidence(doc({...verified,layer:'hub',transport:'rtc_direct'})).length);
+ assert.deepEqual(validateEvidence(doc({...verified,layer:'hub',transport:'rtc_direct',observations:['hub_route_readback']})),[]);
+});

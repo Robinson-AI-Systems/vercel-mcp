@@ -29,7 +29,7 @@ export function handoffStore(query,{google=false}={}){
         ON CONFLICT(client_id) DO UPDATE SET state=EXCLUDED.state,challenge=EXCLUDED.challenge,
           poll_hash=EXCLUDED.poll_hash,public_key=EXCLUDED.public_key,ip_hash=EXCLUDED.ip_hash,
           expires_at=EXCLUDED.expires_at,created_at=now(),status='pending',sealed_code=NULL,last_poll_at=NULL,delivered_at=NULL
-          WHERE developer_oauth_handoffs.expires_at<=now() OR developer_oauth_handoffs.delivered_at IS NOT NULL
+          WHERE developer_oauth_handoffs.expires_at<=now()
         RETURNING state`,[p.state,p.client_id,p.challenge,p.poll_hash,p.public_key,p.ip,p.expires]);
       return rows.length===1;
     },

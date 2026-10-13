@@ -20,6 +20,7 @@ export function validateEvidence(document){
    if(!(row.layer==='deployed'?['deployment_api']:['native_mcp','rtc_direct','rtc_relay','rtc_sandbox']).includes(row.transport))errors.push('External proof needs an actual custom-service transport');
    if(!Array.isArray(row.observations)||!row.observations.length||row.observations.some(x=>typeof x!=='string'||!x.trim()))errors.push('External proof needs concrete observations');
    if(row.layer==='provider'&&['permitted_read','permitted_write','denied_resource_access','denied_identity_access','provider_readback'].some(x=>!row.observations.includes(x)))errors.push('Provider acceptance needs permitted read/write, resource/identity denial and provider readback');
+   if(row.layer==='hub'&&(!['rtc_direct','rtc_relay','rtc_sandbox'].includes(row.transport)||!row.observations.includes('hub_route_readback')))errors.push('Hub acceptance needs an actual Hub-mediated RTC route and readback');
    if(row.layer==='revocation'&&!row.observations.includes('same_credential_revoked_denial'))errors.push('A generic denial is not revocation proof');
   }
  }

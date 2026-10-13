@@ -22,15 +22,17 @@ describe('developer OAuth handoff persistence',()=>{
   expect(await store.poll(row.state,'wrong')).toBe(null);
   const delivered=await Promise.all([store.poll(row.state,hash),store.poll(row.state,hash)]);
   expect(delivered.filter(Boolean)).toHaveLength(2);expect(delivered[0]).toEqual(delivered[1]);expect(delivered.find(Boolean)).toEqual({status:'authorized',sealed_code:'FAKE_SEALED_CODE'});
-  expect(await store.start({...input(),state:'n'.repeat(43)})).toBe(true);
+  expect(await store.start({...input(),state:'n'.repeat(43)})).toBe(false);
+  expect(await store.poll(row.state,hash)).toEqual({status:'authorized',sealed_code:'FAKE_SEALED_CODE'});
  });
  it('atomically limits concurrent starts across distinct clients',async()=>{
   const results=await Promise.all(Array.from({length:25},(_,i)=>store.start({...input(),state:'concurrent_state_'+i,client_id:'concurrent_client_'+i,ip:'fresh-quota-ip'})));
   expect(results.filter(Boolean)).toHaveLength(10);
  });
  it('refuses expired requests and permits a new request after expiry',async()=>{
+  const active=(await rawQuery("SELECT state FROM developer_oauth_handoffs WHERE client_id='developer_test_client'"))[0].state;
   await rawQuery("UPDATE developer_oauth_handoffs SET expires_at=now()-interval '1 second'");
-  expect(await store.find('n'.repeat(43))).toBe(null);expect(await store.poll('n'.repeat(43),hash)).toBe(null);
+  expect(await store.find(active)).toBe(null);expect(await store.poll(active,hash)).toBe(null);
   expect(await store.start({...input(),state:'z'.repeat(43)})).toBe(true);
  });
 });

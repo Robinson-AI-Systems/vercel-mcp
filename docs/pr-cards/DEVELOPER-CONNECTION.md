@@ -47,3 +47,7 @@ Full provider acceptance includes permitted reads/writes, resource and identity 
 provider readback. Schema validity alone supplies none of these observations.
 
 Regression tests cover these failures; exact PR CI and real provider acceptance are separate.
+
+Follow-up review: completed handoffs remain immutable until expiry even if another process
+starts setup for the same client. Hub acceptance requires a Hub-mediated RTC route and
+its readback; standalone MCP initialization or a bare service RTC request is insufficient.
