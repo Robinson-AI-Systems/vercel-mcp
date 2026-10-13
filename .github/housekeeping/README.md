@@ -1,0 +1,7 @@
+# Owner-authorized Git housekeeping — October 13, 2026
+
+The owner requested full reconciliation of abandoned, duplicated and superseded Git work. This exact-repository manifest preserves all listed source tips under one non-production archive before retiring any branch. It protects open PR heads and bases, changed branch tips, main, live, and existing archives. Source deletion uses exact remote SHA leases. The archive keeps current main's file tree and original history as parents; **never merge it into main**.
+
+Merged PR source history, including squash-merged commits, is preserved. Closed historical drafts are superseded recovery evidence, not new product acceptance. Anonymous work with unique useful behavior must be reconciled on current main instead of replaying stale snapshots. Branch-level reasons and PR numbers are in plan.json. The retained service credentials and provider acceptance remain separate.
+
+The maintenance Action runs only after this checked PR merges into main, and refuses after October 15, 2026 UTC. No production deployment, credential access, provider data change or spending is performed. Its actual successful Action summary and independent remote branch readback are required before claiming cleanup complete. Three behavioral tests cover protected references, active/advanced branch retention, real Git archive ancestry and stale-lease deletion refusal. Do not weaken existing CI or merge gates.
