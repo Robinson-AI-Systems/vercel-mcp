@@ -106,6 +106,28 @@ async function teamFlagPage(reply,client,account){
     ...page(reply,'listTeamFlagsV2'),capped:false,completeness:'unverified_provider_page',
     note:'Team-scoped provider flag metadata only; all returned projects separately verified; targeting and values withheld'};
 }
+// Version history contains full environments, variations and flag values.
+// Independently resolve an exact flag ID before listing versions and project
+// only the version identity, revision number and time metadata.
+function flagRevisionSummary(reply,params,project){
+  const flagId=params.path.flagIdOrSlug;
+  if(!plain(reply)||!Array.isArray(reply.versions)||reply.versions.length>20||
+    !plain(reply.pagination))
+    throw new TypeError('Unrecognized bounded flag revision history');
+  const seen=new Set(),versions=reply.versions.map(version=>{
+    if(!plain(version)||version.flagId!==flagId||typeof version.id!=='string'||
+      !IDENT.test(version.id)||credentialLike(version.id)||seen.has(version.id)||
+      !Number.isSafeInteger(version.revision)||version.revision<0||
+      typeof version.createdAt!=='number'||!Number.isFinite(version.createdAt)||
+      version.createdAt<0||version.createdAt>Number.MAX_SAFE_INTEGER)
+      throw new TypeError('Invalid or out-of-scope provider flag version');
+    seen.add(version.id);
+    return {id:version.id,flagId,revision:version.revision,createdAt:version.createdAt};
+  });
+  return {projectId:project,flagId,versions,...page(reply,'listFlagVersions'),
+    completeness:'unverified_provider_page',
+    note:'Version identifiers and revision chronology only; flag values, author identities, message and targeting withheld'};
+}
 // Provider flag-settings metadata includes capacity counters but also entities,
 // environments and targeting details. Expose only checked aggregate quantities.
 function flagSettingsSummary(reply,project){
@@ -172,6 +194,18 @@ export async function apiRead(args,ctx){
   const current=await client.request('projects_get',{path:{idOrName:project}});
   if(current?.id!==project||current.accountId!==undefined&&current.accountId!==account.team_id)
     throw new TypeError('Project identity and selected team could not be verified');
+  if(row.op==='listFlagVersions'){
+    // Resolve the flag ID before even requesting its detailed revision history.
+    const flagId=params.path.flagIdOrSlug;
+    if(typeof flagId!=='string'||!IDENT.test(flagId))
+      throw new TypeError('Select an exact flag ID');
+    const flag=await client.request('api:getFlag',{
+      path:{projectIdOrName:project,flagIdOrSlug:flagId}},{timeoutMs:5000});
+    if(!plain(flag)||flag.id!==flagId||flag.projectId!==project)
+      throw new TypeError('Flag identity and project could not be verified');
+    const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
+    return flagRevisionSummary(reply,params,project);
+  }
   const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
   if(row.op==='getFlagSettings')return flagSettingsSummary(reply,project);
   return shape(reply,project,account.team_id,row.op);
