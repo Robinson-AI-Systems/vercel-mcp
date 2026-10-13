@@ -11,6 +11,37 @@ function assertToken(token) {
     /\s/.test(token)) throw new TypeError('A valid server-side token is required');
 }
 
+// Vercel may return a continuation even for a short final page. Follow it
+// instead of treating a cursor as a failed credential; never assume exhaustion.
+async function visibleRows(client, operation, field) {
+  const rows = [], ids = new Set();
+  let until;
+  for (let page = 0; page < 5; page++) {
+    const result = await client.request(operation, {
+      query: { limit: 100, ...(until === undefined ? {} : { until }) }
+    }, { timeoutMs: 5000 });
+    const items = result?.[field];
+    if (!Array.isArray(items) || items.length > 100) {
+      throw new Error('Could not confirm bounded token visibility');
+    }
+    for (const item of items) {
+      if (!safeId(item?.id) || ids.has(item.id)) {
+        throw new Error('Could not confirm unique token visibility');
+      }
+      ids.add(item.id);
+      rows.push(item);
+    }
+    const next = result?.pagination?.next;
+    if (next == null) return rows;
+    if (!Number.isSafeInteger(next) || next < 0 || !items.length ||
+        (until !== undefined && next >= until)) {
+      throw new Error('Token visibility is incomplete; review the connection in owner setup');
+    }
+    until = next;
+  }
+  throw new Error('Token visibility is incomplete; review the connection in owner setup');
+}
+
 // A Vercel API read can prove access to a team/project, not the token's
 // *complete* permission footprint. Never treat a successful read as proof
 // that writes are authorized. Batch B's independently enforced guards remain
@@ -26,18 +57,11 @@ export async function probeToken({ token, teamId, projectId = null, allowFull = 
     ...(fetchImpl ? { fetchImpl } : {}),
     ...(baseUrl ? { baseUrl } : {})
   });
-  const [identity, teamResponse, projectResponse] = await Promise.all([
+  const [identity, teams, projects] = await Promise.all([
     client.request('user_get'),
-    client.request('teams_list'),
-    client.request('projects_list', { query: { limit: 100 } })
+    visibleRows(client, 'teams_list', 'teams'),
+    visibleRows(client, 'projects_list', 'projects')
   ]);
-  const teams = teamResponse?.teams;
-  const projects = projectResponse?.projects;
-  // A single page cannot establish visibility. Never claim an exhaustive check
-  // when Vercel reports more results beyond this bounded three-GET probe.
-  if (teamResponse?.pagination?.next != null || projectResponse?.pagination?.next != null) {
-    throw new Error('Token visibility is incomplete; review the connection in owner setup');
-  }
   if (!identity?.user || !Array.isArray(teams) || !Array.isArray(projects)) {
     throw new Error('Could not confirm the token account and team access');
   }
