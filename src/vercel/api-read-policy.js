@@ -154,6 +154,12 @@ async function deploymentFlags(params,client,account){
   const deployment=params.path.deploymentId;
   if(typeof deployment!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(deployment))
     throw new TypeError('Select an exact deployment ID');
+  // A stored project key does not by itself prove the project still belongs
+  // to the selected team. Re-read both identities before deployment data.
+  const selected=await client.request('projects_get',
+    {path:{idOrName:project}},{timeoutMs:5000});
+  if(selected?.id!==project||selected?.accountId!==account.team_id)
+    throw new TypeError('Deployment selected project and team identity could not be verified');
   const current=await client.request('deployments_get',
     {path:{idOrUrl:deployment}},{timeoutMs:5000});
   if(!plain(current)||(current.uid!==undefined&&current.uid!==deployment)||

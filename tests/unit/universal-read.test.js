@@ -147,7 +147,25 @@ describe('U-1 scope-verified documented metadata reads',()=>{
      params:{path:{deploymentId:deployment}}});
    expect(value).toMatchObject({projectId:'prj_ONE',deploymentId:deployment,observedFlags:2,reportedFlagCount:2});
    expect(JSON.stringify(value)).not.toMatch(/private|never show|"targeting":/);
-   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET']);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
+   f.api.verify();
+ });
+ it('requires affirmative selected team ownership before any deployment-flag request',async()=>{
+   const f=fixture(),deployment='dpl_ABC123';
+   f.api.when('GET','/v9/projects/{idOrName}')
+     .resolves({id:'prj_ONE'})
+     .resolves({id:'prj_ONE',accountId:'team_OTHER'})
+     .resolves({id:'prj_ONE',accountId:'team_ONE'});
+   f.api.when('GET','/v13/deployments/{idOrUrl}')
+     .resolves({uid:deployment,projectId:'prj_ONE'});
+   f.api.when('GET',documentedRead('getDeploymentFeatureFlags').path)
+     .resolves({flags:[],status:{deploymentId:deployment,projectId:'prj_ONE',flagCount:0}});
+   const args={op:'getDeploymentFeatureFlags',params:{path:{deploymentId:deployment}}};
+   for(let i=0;i<2;i++)await expect(f.call(args)).rejects.toThrow(/team identity/);
+   expect(f.api.calls).toHaveLength(2);
+   expect(f.api.calls.every(x=>x.path==='/v9/projects/prj_ONE')).toBe(true);
+   expect((await f.call(args)).reportedFlagCount).toBe(0);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET','GET']);
    f.api.verify();
  });
  it('refuses deployment flag reads from team-only or foreign project credentials',async()=>{
@@ -162,7 +180,7 @@ describe('U-1 scope-verified documented metadata reads',()=>{
      .resolves({uid:deployment,projectId:'prj_OTHER'});
    await expect(f.call({op:'getDeploymentFeatureFlags',
      params:{path:{deploymentId:deployment}}})).rejects.toThrow(/identity/);
-   expect(f.api.calls).toHaveLength(1);
+   expect(f.api.calls).toHaveLength(2);
  });
  it('refuses mismatched deployment flag response status before projecting counts',async()=>{
    const f=fixture(),deployment='dpl_ABC123';
@@ -175,7 +193,7 @@ describe('U-1 scope-verified documented metadata reads',()=>{
        status:{deploymentId:deployment,projectId:'prj_ONE'}});
    for(let i=0;i<3;i++)await expect(f.call({op:'getDeploymentFeatureFlags',
      params:{path:{deploymentId:deployment}}})).rejects.toThrow(/status identity or bound/);
-   expect(f.api.calls).toHaveLength(6);
+   expect(f.api.calls).toHaveLength(9);
  });
  it('denies malformed deployment identifiers and query authority before provider I/O',async()=>{
    const f=fixture();
