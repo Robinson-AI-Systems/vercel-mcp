@@ -1267,14 +1267,29 @@
         "C-2"
       ],
       "card": "docs/pr-cards/R-1.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "passes",
       "budget": 400,
       "units": [
         "R-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "READY",
+      "ownerInputs": [],
+      "pr": [
+        151
+      ],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next Vercel MCP implementer",
+        "reason": "Narrow read-only owner-reviewed pass proposal and issuance implemented; full/write pass contracts, project restrictions, quota choices and genuine hosted acceptance remain.",
+        "nextAction": "Verify genuine deployed service and owner-protected TEST identity/read denial/revocation when available. Reconcile remaining R-1/R-2 choices; continue U-1 audited read policies and eligible owner capabilities independently.",
+        "checkpoint": "After #151 and every session/PR boundary or environment/owner change",
+        "evidenceNeeded": "Exact deployed revision, authorized service origin and secure owner-issued pass. Separate design/owner gates before broadening existing pass modes or quotas.",
+        "eligibilityCondition": "Read-only proposal code independently eligible on C-2; genuine hosted proof needs actual authorized setup. Wider modes require safety contract.",
+        "dependencies": [
+          "C-2"
+        ]
+      }
     },
     {
       "id": "R-2",

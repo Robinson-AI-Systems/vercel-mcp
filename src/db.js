@@ -48,16 +48,21 @@ export function createDb(query) {
       const token='rtc_pass_'+randomBytes(32).toString('base64url');
       const digest=hashToken(token),id='pass_'+digest.slice(0,20);
       const run=getSql();
-      const rows=await run`INSERT INTO rtc_passes
-        (pass_id,token_hash,vercel_account,mode,areas,expires_at)
+      // Issuance and its audit are one statement: a failed audit cannot
+      // leave behind an active undisclosed pass after an insertion.
+      const rows=await run`WITH issued AS (
+        INSERT INTO rtc_passes (pass_id,token_hash,vercel_account,mode,areas,expires_at)
         SELECT ${id},${digest},id,${mode},${JSON.stringify(areas)}::jsonb,
           now()+${hours} * interval '1 hour'
         FROM vercel_accounts WHERE id=${account}
-        RETURNING pass_id,expires_at`;
+        RETURNING pass_id,expires_at,vercel_account,mode
+      ), audited AS (
+        INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
+        SELECT vercel_account,mode,'vercel_owner_issue_read_only_pass',
+          'Owner issued scoped read-only RTC pass',FALSE,FALSE FROM issued
+        RETURNING id
+      ) SELECT pass_id,expires_at FROM issued`;
       if(rows.length!==1) return null;
-      await run`INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
-        VALUES (${account},${mode},'vercel_owner_issue_read_only_pass',
-          'Owner issued scoped read-only RTC pass',FALSE,FALSE)`;
       return {token,id,expiresAt:rows[0].expires_at};
     },
     // Single atomic DB update enforces a shared per-pass rolling minute limit.
@@ -362,6 +367,19 @@ export function createDb(query) {
           AND kind='owner_account_change' AND expires_at>now()
           AND viewed_at IS NULL LIMIT 1`;
       return rows[0] ?? null;
+    },
+
+    // Proposal metadata stays service-owned and encrypted; never returns a bearer.
+    async getRtcPassRequest({account,reference}) {
+      if(typeof account!=='string'||!/^[a-zA-Z0-9_/-]{3,256}$/.test(account)||
+        typeof reference!=='string'||!/^[0-9a-f-]{36}$/.test(reference))
+        throw new TypeError('Invalid pending pass lookup');
+      const run=getSql();
+      const rows=await run`SELECT id,vercel_account,kind,ciphertext,expires_at
+        FROM one_time_secrets WHERE id=${reference} AND vercel_account=${account}
+          AND kind='rtc_pass_request' AND expires_at>now()
+          AND viewed_at IS NULL LIMIT 1`;
+      return rows[0]??null;
     },
 
     /** Bounded account audit; never fetch raw before/after or replay data. */

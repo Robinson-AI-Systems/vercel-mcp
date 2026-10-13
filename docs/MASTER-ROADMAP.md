@@ -10,7 +10,7 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## What is next
 
-**Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), then independent U-1 discovery and scope-verified reads based on merged C-2. D-1/D-2 code acceptance is complete but genuine hosted/provider/Hub acceptance remains pending. No vercel-mcp project appeared in the authorized provider inventory recheck. Re-enter D-2 when an authorized disposable deployment, custom HTTPS service and stored scoped account become available. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
+**Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), independent U-1 discovery and seven scope-verified feature-flag metadata reads, plus R-1 owner-reviewed read-only pass requests based on merged C-2. D-1/D-2 code acceptance is complete but genuine hosted/provider/Hub acceptance remains pending. No vercel-mcp project appeared in the authorized provider inventory recheck. Re-enter D-2 when an authorized disposable deployment, custom HTTPS service and stored scoped account become available. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
 
 **Rule:** five substantive PRs is a normal session boundary, not a
 milestone-completion condition. Prioritize real acceptance and usable
