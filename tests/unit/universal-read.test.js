@@ -2,6 +2,7 @@ import {describe,it,expect,vi,beforeEach} from 'vitest';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
 import {apiRead} from '../../src/vercel/api-read-policy.js';
 import {makeVercelClient} from '../../src/vercel/client.js';
+import {documentedRead} from '../../src/vercel/openapi-validation.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 vi.mock('../../src/vercel/tokens.js',async m=>({...await m(),loadToken:vi.fn()}));
 const account={id:'acct_1',team_id:'team_ONE',scope:'project',project_id:'prj_ONE'};
@@ -80,6 +81,59 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    const value=await f.call(input);
    expect(value.pagination).toBeUndefined();
    expect(value.completeness).toBe('unverified_provider_page');
+ });
+ it('reads a bounded team flag inventory only after each project belongs to the stored team',async()=>{
+   const f=fixture();loadToken.mockResolvedValue({token:'vcp_FAKE',
+     account:{id:'acct_1',team_id:'team_ONE',scope:'team',project_id:null}});
+   const documented=documentedRead('listTeamFlagsV2');
+   f.api.when('GET',documented.path).resolves({
+     data:[{id:'flag_1',projectId:'prj_ONE',environments:{secrets:['hidden']}},
+       {id:'flag_2',projectId:'prj_TWO',rules:['never show']}],
+     pagination:{next:'CURSOR_NEXT',debug:'private'}});
+   f.api.when('GET','/v9/projects/{idOrName}')
+     .resolves({id:'prj_ONE',accountId:'team_ONE'})
+     .resolves({id:'prj_TWO',accountId:'team_ONE'});
+   const out=await f.call({op:'listTeamFlagsV2',params:{path:{}}});
+   expect(out.data).toEqual([{id:'flag_1',projectId:'prj_ONE'},{id:'flag_2',projectId:'prj_TWO'}]);
+   expect(out.pagination.next).toBe('CURSOR_NEXT');
+   expect(JSON.stringify(out)).not.toMatch(/hidden|never show|private/);
+   expect(f.api.calls[0].query).toMatchObject({limit:'5',teamId:'team_ONE'});
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
+   f.api.verify();
+ });
+ it('denies team-wide reads from project-only credentials and caller scope overrides',async()=>{
+   const f=fixture();
+   await expect(f.call({op:'listTeamFlagsV2',params:{path:{}}})).rejects.toThrow(/team connection/);
+   await expect(f.call({op:'listTeamFlagsV2',params:{path:{projectIdOrName:'prj_ONE'}}}))
+     .rejects.toThrow(/no project path/);
+   await expect(f.call({op:'listTeamFlagsV2',params:{path:{},query:{limit:6}}}))
+     .rejects.toThrow(/limited to five/);
+   await expect(f.call({op:'listTeamFlagsV2',params:{path:{},query:{teamId:'team_TWO'}}}))
+     .rejects.toThrow(/Team authority/);
+   expect(f.api.calls).toHaveLength(0);
+ });
+ it('refuses a foreign, missing or unverifiable project from team-wide flag results',async()=>{
+   const f=fixture();loadToken.mockResolvedValue({token:'vcp_FAKE',
+     account:{id:'acct_1',team_id:'team_ONE',scope:'team'}});
+   const documented=documentedRead('listTeamFlagsV2');
+   f.api.when('GET',documented.path)
+     .resolves({data:[{id:'a',projectId:'prj_TWO'}],pagination:{next:null}})
+     .resolves({data:[{id:'a',projectId:'prj_ONE',teamId:'team_TWO'}],pagination:{next:null}})
+     .resolves({data:[{id:'a'}],pagination:{next:null}});
+   f.api.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_TWO',accountId:'team_TWO'});
+   for(let i=0;i<3;i++)await expect(f.call({op:'listTeamFlagsV2',params:{path:{}}}))
+     .rejects.toThrow(/foreign project|identity/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET']);
+ });
+ it('refuses oversized or malformed team pages instead of silently truncating',async()=>{
+   const f=fixture();loadToken.mockResolvedValue({token:'vcp_FAKE',
+     account:{id:'acct_1',team_id:'team_ONE',scope:'team'}});
+   f.api.when('GET',documentedRead('listTeamFlagsV2').path)
+     .resolves({data:Array.from({length:6},(_,i)=>({id:'f_'+i,projectId:'prj_ONE'})),pagination:{next:null}})
+     .resolves({data:[],pagination:'missing'});
+   for(let i=0;i<2;i++)await expect(f.call({op:'listTeamFlagsV2',params:{path:{}}}))
+     .rejects.toThrow(/bounded team flag page/);
+   expect(f.api.calls).toHaveLength(2);
  });
  it('transport cannot use an indexed write or foreign team even when called directly',async()=>{
    const f=fixture(),client=makeVercelClient({token:'vcp_FAKE',account,fetchImpl:f.api.fetch});

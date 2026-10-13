@@ -1244,14 +1244,15 @@
       "pr": [
         148,
         150,
-        152
+        152,
+        153
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Audited feature-flag GETs now preserve bounded documented list cursors; additional operation families and all guarded writes remain incomplete.",
-        "nextAction": "Expand only independently scoped safe read contracts with pinned schemas and identity readback, while verifying U-1c pagination on a genuine scoped provider response when an owner-hosted test environment exists.",
-        "checkpoint": "After #152, on every PR/session boundary and after secure provider/test-hosting setup",
+        "reason": "Project and team-scoped metadata GETs plus bounded continuation code are implemented, but more audited families and all writes remain.",
+        "nextAction": "Review further approved U-1 GET families with independently proven resource identity; never enable arbitrary read/write dispatch or unverified provider shape. Re-enter hosted acceptance when isolated secure setup is available.",
+        "checkpoint": "After #153 and each PR/session boundary or changed hosting/account evidence",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
         "dependencies": [
