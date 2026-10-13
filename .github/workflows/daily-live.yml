@@ -36,7 +36,7 @@ jobs:
     if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
     needs: policy
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     permissions:
       contents: write
       checks: read
