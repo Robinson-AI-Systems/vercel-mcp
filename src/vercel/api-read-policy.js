@@ -52,7 +52,21 @@ function projection(value,project,teamId){
     throw new TypeError('Provider returned an out-of-scope resource');
   return Object.fromEntries(FIELDS.filter(k=>Object.hasOwn(value,k)).map(k=>[k,scalar(value[k])]));
 }
-function shape(reply,project,teamId){
+// A Vercel flag list exposes an opaque continuation; never reflect arbitrary
+// pagination objects, and never infer completeness from a missing cursor.
+const PAGED=new Set(['listFlags','listFlagsV2','listFlagVersions']);
+function page(reply,op){
+  if(!PAGED.has(op)||!Object.hasOwn(reply,'pagination'))return {};
+  const pagination=reply.pagination;
+  if(!plain(pagination))throw new TypeError('Malformed provider flag pagination');
+  const next=pagination.next;
+  if(next!==null&&next!==undefined&&(typeof next!=='string'||next.length<1||
+    next.length>256||/[\x00-\x1f\x7f]/.test(next)||credentialLike(next)))
+    throw new TypeError('Unsafe provider pagination cursor');
+  return {pagination:{next:typeof next==='string'?next:null,
+    completeness:'provider_cursor_only'}};
+}
+function shape(reply,project,teamId,op){
   if(Array.isArray(reply))return {items:reply.slice(0,20).map(x=>projection(x,project,teamId)),
     capped:reply.length>20,completeness:'unverified_provider_page'};
   if(!plain(reply))throw new TypeError('Unrecognized documented read response');
@@ -60,7 +74,7 @@ function shape(reply,project,teamId){
   for(const field of ['flags','segments','versions','items','data'])if(Array.isArray(reply[field]))
     base[field]=reply[field].slice(0,20).map(x=>projection(x,project,teamId));
   const lists=Object.values(reply).filter(Array.isArray);
-  return {...base,capped:lists.some(x=>x.length>20),completeness:'unverified_provider_page',
+  return {...base,...page(reply,op),capped:lists.some(x=>x.length>20),completeness:'unverified_provider_page',
     note:'Audited metadata fields only; values, targeting rules, identities and arbitrary provider output withheld'};
 }
 export async function apiRead(args,ctx){
@@ -73,5 +87,5 @@ export async function apiRead(args,ctx){
   if(current?.id!==project||current.accountId!==undefined&&current.accountId!==account.team_id)
     throw new TypeError('Project identity and selected team could not be verified');
   const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
-  return shape(reply,project,account.team_id);
+  return shape(reply,project,account.team_id,row.op);
 }
