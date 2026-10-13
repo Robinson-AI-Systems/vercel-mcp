@@ -1255,7 +1255,7 @@
         "owner": "next Vercel MCP implementer",
         "reason": "Audited flag GETs exist; #159 secures general project team identity and #162 candidate extends affirmative selected team ownership proof to deployment flag status. Other universal families and real connected acceptance remain incomplete.",
         "nextAction": "Verify connected provider project identity fields with owner-approved scoped nonproduction read; correct documented mismatches without widening scope. Continue next independently auditable universal GET family or approved O-1/R-1, never assume real RTC/D-2 proof from CI.",
-        "checkpoint": "After candidate #162 and every PR/session boundary; immediately when owner-issued scoped passes/nonproduction deployment evidence is available",
+        "checkpoint": "After candidate #163 and every PR/session boundary; immediately when owner-issued scoped passes/nonproduction deployment evidence is available",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
         "dependencies": [

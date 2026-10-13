@@ -238,6 +238,56 @@ describe('U-1 scope-verified documented metadata reads',()=>{
      params:{path:{projectIdOrName:'prj_OTHER'}}})).rejects.toThrow();
    expect(f.api.calls).toHaveLength(0);
  });
+ it('lists only bounded verified segment identities without user targeting or memberships',async()=>{
+   const f=fixture();
+   f.api.when('GET',documentedRead('listFlagSegments').path).resolves({segments:[
+     {id:'seg_1',projectId:'prj_ONE',typeName:'segment',label:'Beta users',
+       slug:'beta',createdBy:'user_private',usedByFlags:['flag_private'],
+       data:{include:{user:{id:[{value:'private_user'}]}},rules:[{rhs:'private-email'}]}},
+     {id:'seg_2',projectId:'prj_ONE',label:'Internal'}]});
+   const result=await f.call({op:'listFlagSegments',params:{path:{projectIdOrName:'prj_ONE'}}});
+   expect(result.segments).toEqual([
+     {id:'seg_1',projectId:'prj_ONE',label:'Beta users',slug:'beta'},
+     {id:'seg_2',projectId:'prj_ONE',label:'Internal'}]);
+   expect(result.observedCount).toBe(2);
+   expect(JSON.stringify(result)).not.toMatch(/private|include|usedByFlags|rules/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET']);
+   f.api.verify();
+ });
+ it('gets a segment only by exact ID, never by a matching slug assumption',async()=>{
+   const f=fixture();
+   f.api.when('GET',documentedRead('getFlagSegment').path)
+     .resolves({id:'seg_1',projectId:'prj_ONE',label:'Beta',
+       data:{exclude:{users:['private']}}})
+     .resolves({id:'seg_1',projectId:'prj_ONE',label:'Beta',data:{rules:['private']}});
+   const args={op:'getFlagSegment',params:{path:{projectIdOrName:'prj_ONE',segmentIdOrSlug:'seg_1'}}};
+   const value=await f.call(args);
+   expect(value.segment).toEqual({id:'seg_1',projectId:'prj_ONE',label:'Beta'});
+   expect(JSON.stringify(value)).not.toMatch(/exclude|private|rules/);
+   await expect(f.call({...args,params:{path:{...args.params.path,segmentIdOrSlug:'beta'}}}))
+     .rejects.toThrow(/Exact provider segment ID/);
+   f.api.verify();
+ });
+ it('refuses foreign, missing, duplicate and oversized segment inventories',async()=>{
+   const f=fixture();
+   f.api.when('GET',documentedRead('listFlagSegments').path)
+     .resolves({segments:[{id:'seg_1',projectId:'prj_OTHER'}]})
+     .resolves({segments:[{id:'seg_1'}]})
+     .resolves({segments:[{id:'seg_1',projectId:'prj_ONE'},{id:'seg_1',projectId:'prj_ONE'}]})
+     .resolves({segments:Array.from({length:21},(_,i)=>({id:'seg_'+i,projectId:'prj_ONE'}))})
+     .resolves({segments:[],data:[]});
+   for(let i=0;i<5;i++)await expect(f.call({op:'listFlagSegments',
+     params:{path:{projectIdOrName:'prj_ONE'}}})).rejects.toThrow(/segment/);
+   expect(f.api.calls).toHaveLength(10);
+ });
+ it('refuses segment metadata expansion and caller team overrides before provider IO',async()=>{
+   const f=fixture();
+   for(const args of [
+     {op:'listFlagSegments',params:{path:{projectIdOrName:'prj_ONE'},query:{withMetadata:true}}},
+     {op:'getFlagSegment',params:{path:{projectIdOrName:'prj_ONE',segmentIdOrSlug:'seg_1'},query:{teamId:'team_OTHER'}}}
+   ])await expect(f.call(args)).rejects.toThrow();
+   expect(f.api.calls).toHaveLength(0);
+ });
  it('lists flag revision identities after independently verifying exact flag/project identity',async()=>{
    const f=fixture();
    f.api.when('GET',documentedRead('getFlag').path)
