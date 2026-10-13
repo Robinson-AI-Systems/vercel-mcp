@@ -97,7 +97,8 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    expect(out.data).toEqual([{id:'flag_1',projectId:'prj_ONE'},{id:'flag_2',projectId:'prj_TWO'}]);
    expect(out.pagination.next).toBe('CURSOR_NEXT');
    expect(JSON.stringify(out)).not.toMatch(/hidden|never show|private/);
-   expect(f.api.calls[0].query).toMatchObject({limit:'5',teamId:'team_ONE'});
+   expect(f.api.calls[0].query).toMatchObject({limit:'5'});
+   expect(f.api.calls[0].params.teamId).toBe('team_ONE');
    expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
    f.api.verify();
  });

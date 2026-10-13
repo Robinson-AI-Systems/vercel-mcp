@@ -108,12 +108,16 @@ async function teamFlagPage(reply,client,account){
 }
 export async function apiRead(args,ctx){
   const {row,params}=inputs(args);
-  validateRequest('api:'+row.op,{...params,query:{...params.query,teamId:'team_FAKE_validation'}});
+  validateRequest('api:'+row.op,{...params,
+    // Indexed team inventory uses a path teamId, always supplied by the server.
+    path:row.op==='listTeamFlagsV2'?{teamId:'team_FAKE_validation'}:params.path,
+    query:row.op==='listTeamFlagsV2'?params.query:
+      {...params.query,teamId:'team_FAKE_validation'}});
   const {client,account}=await readProvider(ctx);
   if(row.op==='listTeamFlagsV2'){
     if(!['team','full'].includes(account.scope))
       throw new TypeError('Team flag inventory requires an owner-reviewed team connection');
-    const reply=await client.request('api:'+row.op,params,{timeoutMs:5000});
+    const reply=await client.request('api:'+row.op,{path:{teamId:account.team_id},query:params.query},{timeoutMs:5000});
     return teamFlagPage(reply,client,account);
   }
   const project=projectFor({project:params.path.projectIdOrName},account);
