@@ -1,5 +1,7 @@
 # STATUS — current work, blockers and next action
 
+- **U-1 flag capacity summary (#155):** documented project settings now return only checked flag/segment counts, package byte size and enabled state, after original project identity readback. Rule/environments/entities remain secret-safe and omitted. CI/offline only, no paid capacity change or real Vercel acceptance.
+
 - **U-1 deployment feature-flag status (#154):** a project-key read of documented deployment flags now independently verifies selected deployment/project ownership before returning only counts; raw flag values/rules and malformed identities are refused. Existing tool and connection authority unchanged. Offline fake-provider CI only; connected D-2/RTC evidence still pending.
 
 - **U-1 team-scoped feature flag inventory (PR #153):** adds documented team flag listing for explicit team/full stored connections with a five-row cap, per-project independent GET identity verification, fail-closed foreign project/identity outcomes and safe metadata/cursor projection. Fake-provider CI evidence only; full universal API coverage and owner-hosted provider/HUB acceptance remain outstanding.
