@@ -288,6 +288,61 @@ describe('U-1 scope-verified documented metadata reads',()=>{
    ])await expect(f.call(args)).rejects.toThrow();
    expect(f.api.calls).toHaveLength(0);
  });
+ it('reads safe team flag settings capacity with independent per-project ownership',async()=>{
+   const f=fixture();loadToken.mockResolvedValue({token:'vcp_FAKE',
+     account:{id:'acct_1',team_id:'team_ONE',scope:'team'}});
+   const path=documentedRead('listTeamFlagSettings').path;
+   const meta={activeFlagCount:4,archivedFlagCount:1,segmentCount:3,packSizeInBytes:512};
+   f.api.when('GET',path).resolves({data:[
+     {projectId:'prj_ONE',ownerId:'team_ONE',enabled:true,metadata:{...meta,internal:'hidden'},
+       entities:[{private:'user'}],environments:['prod-private']},
+     {projectId:'prj_TWO',ownerId:'team_ONE',enabled:false,metadata:meta}],
+     pagination:{next:'NEXT_OPAQUE',internal:'private cursor'}});
+   f.api.when('GET','/v9/projects/{idOrName}')
+     .resolves({id:'prj_ONE',accountId:'team_ONE'})
+     .resolves({id:'prj_TWO',accountId:'team_ONE'});
+   const out=await f.call({op:'listTeamFlagSettings',params:{path:{}}});
+   expect(out.settings).toEqual([{projectId:'prj_ONE',enabled:true,metadata:meta},
+     {projectId:'prj_TWO',enabled:false,metadata:meta}]);
+   expect(out.pagination.next).toBe('NEXT_OPAQUE');
+   expect(out.observedProjects).toBe(2);
+   expect(JSON.stringify(out)).not.toMatch(/prod-private|internal|private cursor|"entities"/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
+   expect(f.api.calls[0].params.teamId).toBe('team_ONE');
+   expect(f.api.calls[0].query.limit).toBe('5');
+   f.api.verify();
+ });
+ it('refuses foreign, duplicate and unsafe team settings before releasing counts',async()=>{
+   const f=fixture();loadToken.mockResolvedValue({token:'vcp_FAKE',
+     account:{id:'acct_1',team_id:'team_ONE',scope:'team'}});
+   const path=documentedRead('listTeamFlagSettings').path;
+   const meta={activeFlagCount:1,archivedFlagCount:1,segmentCount:1,packSizeInBytes:5};
+   const valid={projectId:'prj_ONE',enabled:true,metadata:meta};
+   f.api.when('GET',path)
+     .resolves({data:[{...valid,ownerId:'team_OTHER'}],pagination:{}})
+     .resolves({data:[valid,valid],pagination:{}})
+     .resolves({data:Array.from({length:6},(_,i)=>({...valid,projectId:'prj_'+i})),pagination:{}})
+     .resolves({data:[valid],pagination:{}})
+     .resolves({data:[{...valid,metadata:{...meta,packSizeInBytes:-1}}],pagination:{}});
+   f.api.when('GET','/v9/projects/{idOrName}')
+     .resolves({id:'prj_ONE',accountId:'team_OTHER'})
+     .resolves({id:'prj_ONE',accountId:'team_ONE'});
+   for(let i=0;i<5;i++)await expect(f.call({op:'listTeamFlagSettings',
+     params:{path:{}}})).rejects.toThrow(/settings|capacity|Foreign/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET','GET','GET','GET']);
+ });
+ it('denies project-only and caller team/settings bounds before provider IO',async()=>{
+   const f=fixture();
+   const args={op:'listTeamFlagSettings',params:{path:{}}};
+   await expect(f.call(args)).rejects.toThrow(/team connection/);
+   for(const params of [
+     {path:{projectIdOrName:'prj_ONE'}},
+     {path:{},query:{limit:6}},
+     {path:{},query:{teamId:'team_OTHER'}},
+     {path:{},query:{slug:'another-team'}}
+   ])await expect(f.call({...args,params})).rejects.toThrow();
+   expect(f.api.calls).toHaveLength(0);
+ });
  it('lists flag revision identities after independently verifying exact flag/project identity',async()=>{
    const f=fixture();
    f.api.when('GET',documentedRead('getFlag').path)
