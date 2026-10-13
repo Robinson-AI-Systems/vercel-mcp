@@ -1,3 +1,7 @@
+## CI PostgreSQL mirror reliability — 2026-10-13
+
+The identical public ECR PostgreSQL mirror failed Hub's source-SQL job before tests with toomanyrequests/Data limit exceeded. Use official postgres:17 for Vercel's isolated CI service as well; preserve healthchecks, real disposable DB tests, emulator, native guards and all CI gates. GitHub documents public Docker Hub pulls by hosted runners as exempt from pull limits: https://docs.github.com/en/actions/reference/limits#docker-hubs-rate-limit-for-github-actions. No provider or production operation. Exact-head and final-main CI remain required.
+
 ## Reusable developer OAuth and evidence boundary — 2026-10-13
 
 Owner authorized replacing repeated manual pass setup with renewable implementing-agent
