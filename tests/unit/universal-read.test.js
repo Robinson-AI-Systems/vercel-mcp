@@ -281,4 +281,25 @@ describe('U-1 scope-verified documented metadata reads',()=>{
      status:200,headers:{'content-type':'application/json','content-length':'65537'}})});
    await expect(client.request('api:listFlagsV2',{path:{projectIdOrName:'prj_ONE'}})).rejects.toThrow(/unsafe byte length/);
  });
+ it('requires affirmative project-team ownership on both team and project connections',async()=>{
+   const f=fixture(),path=documentedRead('listFlagsV2').path;
+   loadToken.mockResolvedValue({token:'vcp_FAKE',
+     account:{id:'acct_1',team_id:'team_ONE',scope:'team',project_id:null}});
+   f.api.when('GET','/v9/projects/{idOrName}')
+     .resolves({id:'prj_ONE'})
+     .resolves({id:'prj_ONE',accountId:'team_OTHER'})
+     .resolves({id:'prj_ONE',accountId:'team_ONE'});
+   f.api.when('GET',path).resolves({data:[{id:'flag_1',projectId:'prj_ONE'}]});
+   for(let i=0;i<2;i++)await expect(f.call(input)).rejects.toThrow(/selected team/);
+   expect(f.api.calls).toHaveLength(2); // foreign or missing proof must stop before feature-flag GET
+   expect((await f.call(input)).data).toEqual([{id:'flag_1',projectId:'prj_ONE'}]);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET']);
+   f.api.verify();
+   loadToken.mockResolvedValue({token:'vcp_FAKE',account});
+   const p=fixture();
+   p.api.when('GET','/v9/projects/{idOrName}').resolves({id:'prj_ONE'});
+   await expect(p.call(input)).rejects.toThrow(/selected team/);
+   expect(p.api.calls).toHaveLength(1);
+ });
+
 });
