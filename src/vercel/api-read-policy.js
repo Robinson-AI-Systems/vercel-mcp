@@ -8,7 +8,7 @@ import {credentialLike} from '../core/util.js';
 import {readProvider} from './provider.js';
 import {projectFor} from '../tools/deployments.js';
 const ALLOWED=new Set(['listFlags','listFlagsV2','getFlag','listFlagVersions',
-  'getFlagSettings','listFlagSegments','getFlagSegment','listTeamFlagsV2']);
+  'getFlagSettings','listFlagSegments','getFlagSegment','listTeamFlagsV2','getDeploymentFeatureFlags']);
 const IDENT=/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 function plain(x){return x!==null&&typeof x==='object'&&!Array.isArray(x);}
 function inputs(args){
@@ -106,6 +106,35 @@ async function teamFlagPage(reply,client,account){
     ...page(reply,'listTeamFlagsV2'),capped:false,completeness:'unverified_provider_page',
     note:'Team-scoped provider flag metadata only; all returned projects separately verified; targeting and values withheld'};
 }
+// Deployment flag values and targeting are never returned. Correlate the
+// deployment status only after separately verifying a project-key connection,
+// exact deployment identity and the provider's project assignment.
+async function deploymentFlags(params,client,account){
+  if(account.scope!=='project')throw new TypeError('Deployment flags require an exact project connection');
+  const project=projectFor({},account);
+  const deployment=params.path.deploymentId;
+  if(typeof deployment!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(deployment))
+    throw new TypeError('Select an exact deployment ID');
+  const current=await client.request('deployments_get',
+    {path:{idOrUrl:deployment}},{timeoutMs:5000});
+  if(!plain(current)||(current.uid!==undefined&&current.uid!==deployment)||
+    (current.id!==undefined&&current.id!==deployment)||
+    current.uid===undefined&&current.id===undefined||
+    current.projectId!==undefined&&current.projectId!==project||
+    current.project?.id!==undefined&&current.project.id!==project||
+    current.projectId===undefined&&current.project?.id===undefined)
+    throw new TypeError('Deployment and selected project identity could not be verified');
+  const reply=await client.request('api:getDeploymentFeatureFlags',params,{timeoutMs:5000});
+  if(!plain(reply)||!Array.isArray(reply.flags)||reply.flags.length>100||
+    !plain(reply.status)||reply.status.deploymentId!==deployment||
+    reply.status.projectId!==project)
+    throw new TypeError('Deployment flag status identity or bound is unverified');
+  return {projectId:project,deploymentId:deployment,observedFlags:reply.flags.length,
+    reportedFlagCount:Number.isSafeInteger(reply.status.flagCount)&&reply.status.flagCount>=0?
+      reply.status.flagCount:null,
+    completeness:'unverified_provider_page',
+    note:'Metadata counts only; deployment flag values, variations and targeting withheld'};
+}
 export async function apiRead(args,ctx){
   const {row,params}=inputs(args);
   validateRequest('api:'+row.op,{...params,
@@ -114,6 +143,7 @@ export async function apiRead(args,ctx){
     query:row.op==='listTeamFlagsV2'?params.query:
       {...params.query,teamId:'team_FAKE_validation'}});
   const {client,account}=await readProvider(ctx);
+  if(row.op==='getDeploymentFeatureFlags')return deploymentFlags(params,client,account);
   if(row.op==='listTeamFlagsV2'){
     if(!['team','full'].includes(account.scope))
       throw new TypeError('Team flag inventory requires an owner-reviewed team connection');

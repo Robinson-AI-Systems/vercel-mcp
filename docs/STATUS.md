@@ -1,5 +1,7 @@
 # STATUS — current work, blockers and next action
 
+- **U-1 deployment feature-flag status (#154):** a project-key read of documented deployment flags now independently verifies selected deployment/project ownership before returning only counts; raw flag values/rules and malformed identities are refused. Existing tool and connection authority unchanged. Offline fake-provider CI only; connected D-2/RTC evidence still pending.
+
 - **U-1 team-scoped feature flag inventory (PR #153):** adds documented team flag listing for explicit team/full stored connections with a five-row cap, per-project independent GET identity verification, fail-closed foreign project/identity outcomes and safe metadata/cursor projection. Fake-provider CI evidence only; full universal API coverage and owner-hosted provider/HUB acceptance remain outstanding.
 
 - **U-1 bounded feature-flag pagination (PR #152):** preserve safe `pagination.next` from documented flag list responses so subsequent pages can be requested. The existing exact account/project proof, official query validation, bounded response and secret-safe metadata projection run on every page. Missing cursors never imply a complete list; malformed cursors fail closed. CI test coverage added; no authenticated provider evidence, new write authority, deployment or spending. D-2 connected acceptance remains gated by IN-02/03 hosting and owner setup.

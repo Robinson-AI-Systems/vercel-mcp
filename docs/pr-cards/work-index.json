@@ -1245,14 +1245,15 @@
         148,
         150,
         152,
-        153
+        153,
+        154
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Project and team-scoped metadata GETs plus bounded continuation code are implemented, but more audited families and all writes remain.",
-        "nextAction": "Review further approved U-1 GET families with independently proven resource identity; never enable arbitrary read/write dispatch or unverified provider shape. Re-enter hosted acceptance when isolated secure setup is available.",
-        "checkpoint": "After #153 and each PR/session boundary or changed hosting/account evidence",
+        "reason": "Scoped project and team feature-flag metadata plus verified deployment flag status reads exist; universal writes and more safely auditable GET families remain.",
+        "nextAction": "Continue selectively audited API reads and identify any remaining independent scope/response contracts, without widening transport writes or connected acceptance claims.",
+        "checkpoint": "After #154, every PR/session boundary and re-entry of owner-authorized hosted provider testing",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
         "dependencies": [

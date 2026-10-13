@@ -136,6 +136,56 @@ describe('U-1 scope-verified documented metadata reads',()=>{
      .rejects.toThrow(/bounded team flag page/);
    expect(f.api.calls).toHaveLength(2);
  });
+ it('reads only scoped deployment flag status counts after provider deployment proof',async()=>{
+   const f=fixture(),deployment='dpl_ABC123';
+   f.api.when('GET','/v13/deployments/{idOrUrl}')
+     .resolves({uid:deployment,projectId:'prj_ONE'});
+   f.api.when('GET',documentedRead('getDeploymentFeatureFlags').path)
+     .resolves({flags:[{value:'private',targeting:{token:'never show'}},{}],
+       status:{deploymentId:deployment,projectId:'prj_ONE',flagCount:2}});
+   const value=await f.call({op:'getDeploymentFeatureFlags',
+     params:{path:{deploymentId:deployment}}});
+   expect(value).toMatchObject({projectId:'prj_ONE',deploymentId:deployment,observedFlags:2,reportedFlagCount:2});
+   expect(JSON.stringify(value)).not.toMatch(/private|never show|targeting/);
+   expect(f.api.calls.map(x=>x.method)).toEqual(['GET','GET']);
+   f.api.verify();
+ });
+ it('refuses deployment flag reads from team-only or foreign project credentials',async()=>{
+   const deployment='dpl_ABC123';
+   const f=fixture();loadToken.mockResolvedValue({token:'vcp_FAKE',
+     account:{id:'acct_1',team_id:'team_ONE',scope:'team'}});
+   await expect(f.call({op:'getDeploymentFeatureFlags',
+     params:{path:{deploymentId:deployment}}})).rejects.toThrow(/exact project connection/);
+   expect(f.api.calls).toHaveLength(0);
+   loadToken.mockResolvedValue({token:'vcp_FAKE',account});
+   f.api.when('GET','/v13/deployments/{idOrUrl}')
+     .resolves({uid:deployment,projectId:'prj_OTHER'});
+   await expect(f.call({op:'getDeploymentFeatureFlags',
+     params:{path:{deploymentId:deployment}}})).rejects.toThrow(/identity/);
+   expect(f.api.calls).toHaveLength(1);
+ });
+ it('refuses mismatched deployment flag response status before projecting counts',async()=>{
+   const f=fixture(),deployment='dpl_ABC123';
+   f.api.when('GET','/v13/deployments/{idOrUrl}')
+     .resolves({uid:deployment,projectId:'prj_ONE'});
+   f.api.when('GET',documentedRead('getDeploymentFeatureFlags').path)
+     .resolves({flags:[],status:{deploymentId:'dpl_WRONG',projectId:'prj_ONE'}})
+     .resolves({flags:[],status:{deploymentId:deployment,projectId:'prj_OTHER'}})
+     .resolves({flags:Array.from({length:101},()=>({})),
+       status:{deploymentId:deployment,projectId:'prj_ONE'}});
+   for(let i=0;i<3;i++)await expect(f.call({op:'getDeploymentFeatureFlags',
+     params:{path:{deploymentId:deployment}}})).rejects.toThrow(/status identity or bound/);
+   expect(f.api.calls).toHaveLength(6);
+ });
+ it('denies malformed deployment identifiers and query authority before provider I/O',async()=>{
+   const f=fixture();
+   for(const args of [
+     {op:'getDeploymentFeatureFlags',params:{path:{deploymentId:'not-a-deployment'}}},
+     {op:'getDeploymentFeatureFlags',params:{path:{deploymentId:'dpl_ABC123'},query:{slug:'someone'}}},
+     {op:'getDeploymentFeatureFlags',params:{path:{deploymentId:'dpl_ABC123'},query:{teamId:'team_OTHER'}}}
+   ])await expect(f.call(args)).rejects.toThrow();
+   expect(f.api.calls).toHaveLength(0);
+ });
  it('transport cannot use an indexed write or foreign team even when called directly',async()=>{
    const f=fixture(),client=makeVercelClient({token:'vcp_FAKE',account,fetchImpl:f.api.fetch});
    await expect(client.request('api:createFlag',{path:{projectIdOrName:'prj_ONE'}})).rejects.toThrow(/GET or HEAD/);
