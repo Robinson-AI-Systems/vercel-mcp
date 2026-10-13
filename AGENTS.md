@@ -1,4 +1,14 @@
 # AGENTS.md — the rules. Read this first, every session.
+## Mobile and tool-unavailable connection recovery
+
+Before treating absent private-plugin tools as an acceptance blocker, follow
+`docs/pr-cards/DEVELOPER-CONNECTION.md` → **Agent connection recovery when private plugin tools are absent**.
+Use this repository's own saved native OAuth connection through an authorized HTTPS-capable
+runner; identify its exact origin and service identity, then run purpose-specific acceptance.
+The owner's phone is not the execution runner. Missing tools in one chat do not establish
+expired provider authorization. Keep the protected checkpoint single-runner and preserve
+all operation, provider, production, spending and isolation gates.
+
 
 ## Product, builder and acceptance boundaries — owner correction 2026-10-13
 
