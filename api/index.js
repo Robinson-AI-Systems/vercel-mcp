@@ -9,7 +9,8 @@ export default function handler(req, res) {
     '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>Robinson Vercel MCP</title></head><body>' +
-    '<main><h1>Robinson Vercel MCP</h1><p>Status: setup required</p>' +
+    '<main><h1>Robinson Vercel MCP</h1><p>Status: hosted service endpoint</p>' +
+    '<p>Account connection and permissions are private; sign in through the authenticated setup page to inspect them. This public page does not certify live provider or RTC acceptance.</p>' +
     '<p>Registered tools: ' + registry.tools.length + '</p>' +
     '<p>Available by connection profile: read-only ' + counts.read_only +
     ' · everyday ' + counts.everyday + ' · full ' + counts.full + '</p>' +
