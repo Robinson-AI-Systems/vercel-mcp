@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "repository": "Robinson-AI-Systems/vercel-mcp",
+  "service": "robinson-vercel-mcp",
+  "records": [
+    {
+      "layer": "source",
+      "status": "verified",
+      "source": "repository_source"
+    },
+    {
+      "layer": "automated",
+      "status": "verified",
+      "source": "local_tests",
+      "observations": [
+        "developer handoff/client unit regressions",
+        "npm run check before final staging"
+      ]
+    },
+    {
+      "layer": "deployed",
+      "status": "unverified"
+    },
+    {
+      "layer": "custom_transport",
+      "status": "unverified"
+    },
+    {
+      "layer": "provider",
+      "status": "unverified"
+    },
+    {
+      "layer": "hub",
+      "status": "unverified"
+    },
+    {
+      "layer": "revocation",
+      "status": "unverified"
+    },
+    {
+      "layer": "cleanup",
+      "status": "unverified"
+    }
+  ]
+}

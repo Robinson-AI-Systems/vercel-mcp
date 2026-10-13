@@ -1,5 +1,27 @@
 # AGENTS.md — the rules. Read this first, every session.
 
+## Product, builder and acceptance boundaries — owner correction 2026-10-13
+
+This repository builds a full independently usable custom MCP integration. Do not narrow
+its production tool catalog, implemented operations or runtime profiles to match a temporary
+coding-agent test grant. The implementing agent is a separate principal: renewable developer
+OAuth may use full permissions for approved test fixtures while existing operation-specific
+money-out, spending, live activation, destructive data and resource-isolation gates still apply.
+Use `docs/pr-cards/DEVELOPER-CONNECTION.md` for the current mobile connection workflow.
+
+Standard ChatGPT/provider connectors may help inspect infrastructure or author/review code;
+those calls do NOT test this custom MCP. To claim custom acceptance, call this repository's
+actual deployed `/api/mcp` or its own RTC doors with its service-issued authorization, identify
+the exact deployed commit/origin, and record the actual read/write/denial/readback observations.
+A public contract, green CI, configured credentials, standard-connector success or a reference
+server cannot close custom transport, provider, Hub, revocation or cleanup acceptance.
+Keep those layers separate in `docs/developer-evidence.json`; `check:developer-evidence`
+rejects inadmissible provenance. Schema validation itself is not independent acceptance proof.
+Never ask the owner to copy IDs/passes for routine retests when a saved developer connection
+can perform the authorized operation. Reuse/refresh it; request new consent only for a revoked,
+expired underlying grant, a new provider credential or a genuinely additional permission.
+
+
 ## Independent MCP and optional gateway boundary — owner request 2026-10-12
 
 This server remains independently connectable, authenticated, deployed and testable. Robinson's Toolkit Hub
