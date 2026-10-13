@@ -20,6 +20,9 @@ describe('U-1 bounded public API discovery',()=>{
    expect(describeApi({op:row.op}).body.fields).toContain('saml');
    expect(describeApi({op:row.op}).note).toMatch(/Trimmed schema/);
  });
+ it('labels SDK-key credential reads as secret metadata consistently with runtime refusal',()=>{
+   expect(describeApi({op:'getSdkKeys'}).risk.secret).toBe(true);
+ });
  it('refuses unknown op, field, arguments and malicious selectors without I/O',async()=>{
    for(const v of [{op:'https://evil.example'},{op:'does_not_exist'},{op:'patchTeam',bodyField:'../secret'}])
      expect(()=>describeApi(v)).toThrow();
