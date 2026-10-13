@@ -180,31 +180,46 @@ commit and push them with the work, and say in one plain-English paragraph what 
 > Continue the Vercel MCP work. Read `docs/SESSION-START.md` and do §0 first: finish any open PR of yours (fix red
 > CI, then merge) before starting the next card. Then keep going card after card; stop only for a real blocker (§6).
 
-## 7. Mandatory session close-out after the fifth merge
+## 6a. Owner-assisted recovery and numerical alignment (AGENTS directive)
+
+Recheck the latest PR number at session start and at each merge. Normally
+complete five meaningful merges; an alignment session ends with the final PR
+number divisible by five. Treat the PR quota as a planning boundary only.
+Before any early handoff, reproduce/investigate each blocker, repair what is
+authorized, and continue every eligible independent item. For genuine owner-only
+gates, give the owner precise, least-privileged clicks/settings and safe
+completion evidence **in the current conversation** without soliciting secrets.
+Do not issue the next-session prompt instead of asking. After the owner acts,
+recheck and resume the **same** session from its actual open PR and CI state.
+When absolutely no eligible work remains, provide the Action Required to
+Resume details specified in AGENTS; no invented acceptance or premature
+handoff. Carry this directive into every continuation prompt.
+
+## 7. Mandatory session close-out after the aligned final merge
 
 Do this immediately, before any more development or tool exploration. This applies to REST-only sessions too.
 
-1. Fetch the live `main` ref and record its exact commit SHA. Verify the five session PRs are **merged**
+1. Fetch the live `main` ref and record its exact commit SHA. Verify the assigned session PRs are **merged**
    (not merely closed), including their exact last head SHAs and merge commits.
 2. For that new main SHA, retrieve the post-merge `push` workflow run and its individual `check`, `unit`,
    `db`, `emulate` and aggregate `ci` conclusions. Do not confuse PR-head CI with post-merge CI.
-3. List open PRs and the five PRs' review threads; any unresolved thread must be handled or reported precisely.
+3. List open PRs and the assigned PRs' review threads; any unresolved thread must be handled or reported precisely.
 4. Immediately send the user the final count, commit SHA, exact CI results, unresolved/owner gates, next card,
-   and a **short, copy-ready continuation prompt** pointing to repository documentation. Stop at five merges.
+   and a **short, copy-ready continuation prompt** pointing to repository documentation. Stop at the assigned aligned merge boundary.
 5. If a check is pending, an endpoint unavailable or the session cannot finish: state exactly which SHA, PR,
-   check or review is unverified and how the next session should recover. Do not claim a successful five-PR
+   check or review is unverified and how the next session should recover. Do not claim a successful complete
    session, quietly disappear, or postpone the handoff waiting for a check to finish.
 
 ## 8. Permanent continuation prompt contract
 
-At each normal five-PR boundary, or earlier on a genuine blocker, finish
+At each completed aligned batch boundary (normally five substantive PRs), or an explicit owner stop, finish
 with a short self-contained copy-ready prompt containing repository name,
 verified main SHA and last substantive merge/handoff; the current
 **capability milestone**, remaining implementation and each separate
 external acceptance gate; exact next eligible card and due blocker
 rechecks; and instruction to verify current main/PRs/CI/reviews and follow
 `AGENTS.md`, `docs/SESSION-START.md`, roadmap, work index and owner decisions.
-Continue toward the next normal five-PR outcome batch without padding or
+Continue toward the next five-substantial-PR outcome batch ending at the next PR multiple of five without padding or
 weakening gates. Require the next agent to publish another permanent
 handoff and prompt of the same compact form. Keep detailed audit, test
 results and blocker history in repository docs/PR evidence, not the prompt.
