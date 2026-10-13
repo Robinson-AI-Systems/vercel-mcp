@@ -31,3 +31,23 @@ reviewed deployment, initial owner consent and real provider/scratch acceptance 
 Read docs/reviews/2026-10-13-completion-recovery.md. Review the actual source/index
 before extending scope: preserve full product capability, isolate builder permission,
 use the native custom service for acceptance, and finish finite supported workflows.
+
+## Connection review corrections — 2026-10-13
+
+Authenticated polling retries return the same encrypted authorization code until the
+original request expires; native OAuth token exchange remains single use. The trusted
+service client-IP helper and atomic per-IP SQL counter enforce concurrent start quotas.
+Backend outages return retryable 503 instead of malformed-request 400. Native 32-character
+Google authorization codes are accepted, and its consent page retains the requested
+profile while leaving the final choice to the owner.
+
+Evidence must explicitly track all eight layers exactly once. Deployment-provider metadata
+can prove only deployment; runtime acceptance must use the actual custom-service transport.
+Full provider acceptance includes permitted reads/writes, resource and identity denial, and
+provider readback. Schema validity alone supplies none of these observations.
+
+Regression tests cover these failures; exact PR CI and real provider acceptance are separate.
+
+Follow-up review: completed handoffs remain immutable until expiry even if another process
+starts setup for the same client. Hub acceptance requires a Hub-mediated RTC route and
+its readback; standalone MCP initialization or a bare service RTC request is insufficient.

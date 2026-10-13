@@ -4,6 +4,7 @@ import {createHash,createPublicKey,publicEncrypt,constants,randomBytes} from 'no
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const random=()=>randomBytes(32).toString('base64url');
 const token=/^[A-Za-z0-9_-]{43}$/;
+const codePattern=/^[A-Za-z0-9_-]{32,128}$/;
 const clientPattern=/^[A-Za-z0-9_-]{8,128}$/;
 const profiles=new Set(['read_only','everyday','full']);
 export const callbackPath='/api/developer/connect';
@@ -18,7 +19,7 @@ export function validateStart(p){
     throw Error('invalid_request');
   return {...p,public_key:key.export({type:'spki',format:'pem'})};
 }
-export function createHandoff({store,origin,getClient,now=()=>Date.now()}){
+export function createHandoff({store,origin,getClient,clientIp=req=>req.socket?.remoteAddress||'unknown',now=()=>Date.now()}){
   const base=new URL(origin);
   if(base.protocol!=='https:'||base.origin!==origin||base.username||base.password)throw Error('invalid_origin');
   return async(req,res)=>{
@@ -30,11 +31,11 @@ export function createHandoff({store,origin,getClient,now=()=>Date.now()}){
     const page=(status,text)=>res.status(status).send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Developer connection</title></head><body><h1>Developer connection</h1><p>'+text+'</p></body></html>');
     try{
       if(req.method==='POST'){
-        const p=validateStart(req.body);
+        let p;try{p=validateStart(req.body);}catch{return json(400,{error:'invalid_request'});}
         const client=await getClient(p.client_id);
         if(!client?.redirect_uris?.includes(origin+callbackPath))return json(400,{error:'invalid_client'});
         const state=random(), expires=new Date(now()+600000);
-        const ip=digest(String(req.headers?.['x-forwarded-for']||req.socket?.remoteAddress||'unknown').split(',')[0].trim());
+        const ip=digest(String(clientIp(req)));
         if(!await store.start({...p,state,ip,expires}))return json(429,{error:'rate_limited'});
         const u=new URL('/api/oauth/authorize',origin);
         const q={client_id:p.client_id,redirect_uri:origin+callbackPath,response_type:'code',
@@ -49,8 +50,9 @@ export function createHandoff({store,origin,getClient,now=()=>Date.now()}){
       if(q.code!==undefined||q.error!==undefined){
         const row=await store.find(q.state);
         if(!row||new Date(row.expires_at).getTime()<=now())return page(410,'This connection request expired. Ask your agent for a new link.');
+        if(row.status==='authorized')return page(200,'This connection is already authorized. Return to your chat.');
         if(q.error!==undefined){await store.deny(q.state);return page(200,'Connection was not authorized. Return to your chat.');}
-        if(!token.test(q.code))return page(400,'The authorization response was invalid. No connection was saved.');
+        if(typeof q.code!=='string'||!codePattern.test(q.code))return page(400,'The authorization response was invalid. No connection was saved.');
         // Verify the native code, client, redirect and PKCE before accepting a callback.
         const proof=await store.codeProof(q.code);
         if(!proof||proof.client_id!==row.client_id||proof.redirect_uri!==origin+callbackPath||
@@ -67,6 +69,6 @@ export function createHandoff({store,origin,getClient,now=()=>Date.now()}){
       if(result.status==='pending')return json(202,{status:'authorization_pending'});
       if(result.status==='denied')return json(403,{error:'access_denied'});
       return json(200,{status:'authorized',sealed_code:result.sealed_code});
-    }catch{return json(400,{error:'invalid_request'});}
+    }catch{return json(503,{error:'developer_connection_unavailable'});}
   };
 }
