@@ -7,7 +7,7 @@ import { visibleToProfile, listProfileTools, profileToolCounts as countByProfile
 
 // Explicit local owner operations are the only writes permitted before the general gateway.
 const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
-  'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection'];
+  'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection', 'vercel_create_pass'];
 export const listMcpTools = (registry, connection) =>
   listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS })
     .filter(tool=>connection?.listing!=='compact' ||

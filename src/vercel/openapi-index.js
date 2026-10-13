@@ -27,7 +27,7 @@ function risk(row){
   const description=row.path+' '+row.op+' '+row.summary;
   return {changes:!['GET','HEAD'].includes(row.method),
     spends:/buy|purchase|renew|upgrade|credit|billing|plan|invoice|create.*(?:team|store|sandbox)|resourceconfig/i.test(description),
-    secret:/token|secret|credential|password|decrypt|auth.?code|signing|environment.?variable|\/env(?:\/|$)|bypass/i.test(description),
+    secret:/token|secret|credential|password|decrypt|auth.?code|signing|sdk.?key|environment.?variable|\/env(?:\/|$)|bypass/i.test(description),
     authorization:'Metadata only; invocation requires independently verified scope and safety policy'};
 }
 export const apiMetadata=row=>({op:row.op,method:row.method,path:row.path,summary:row.summary,risk:risk(row)});

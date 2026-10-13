@@ -8,6 +8,7 @@ import { storeToken, recheckStoredToken } from './tokens.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
+import {inspectPassRequest,consumePassRequest} from './pass-requests.js';
 import {registry} from '../tools/index.js';
 import { inspectOwnerAccountChange, consumeOwnerAccountChange,
   applyApprovedOwnerAccountChange } from './owner-approvals.js';
@@ -130,7 +131,14 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this account limit</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Update daily spend limit</button></form></section>' +
-    '<section><h2>Temporary read-only RTC passes (Toolkit Hub)</h2>' +
+    '<section><h2>Review an agent pass request</h2>' +
+    '<p>Review the exact read-only scope before issuing a pass. Agents cannot approve their own requests.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="review_rtc_pass_request">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Pass request reference<input name="reference" required autocomplete="off"></label>' +
+    '<button type="submit">Review requested pass</button></form></section>' +
+    '<section><h2>Temporary read-only RTC passes</h2>' +
     '<p>Preview passes can read owner-scoped Vercel areas; TEST is service ' +
     'identity only with no provider resources. Both are read-only, zero-spend, ' +
     'owner-revocable and expire within 720 hours (24 by default).</p>' +
@@ -287,7 +295,53 @@ export async function handleSetup(req, res, {
   const accounts = await db.listVercelAccounts();
   try {
     let message;
-    if (params.action === 'issue_rtc_pass' || params.action === 'revoke_rtc_pass') {
+    if(params.action==='review_rtc_pass_request'||params.action==='approve_rtc_pass_request'){
+      if(env.VERCEL_ENV!=='production'||!accounts.some(x=>x.id===params.account))
+        return html(res,403,'Permission denied','<p>Owner production setup session required.</p>');
+      const knownAreas=['server',...new Set(registry.tools.filter(t=>t.writes===false).map(t=>t.area).filter(Boolean))];
+      const request=await inspectPassRequest({db,env,account:params.account,reference:params.reference,knownAreas,now});
+      if(!request)return html(res,409,'Unavailable','<p>Request expired, missing, or belongs to another account.</p>');
+      if(params.action==='review_rtc_pass_request')
+        return html(res,200,'Review read-only pass',
+          '<p>No pass has been issued. Read-only '+escapeHtml(request.mode)+'; '+request.hours+
+          ' hours; areas: '+escapeHtml(request.areas.join(', '))+'. No spending or writes. TEST is service identity only.</p>'+
+          '<form method="post">'+csrfInput(session.csrf)+
+          '<input type="hidden" name="action" value="approve_rtc_pass_request">'+
+          '<input type="hidden" name="account" value="'+escapeHtml(params.account)+'">'+
+          '<input type="hidden" name="reference" value="'+escapeHtml(params.reference)+'">'+
+          '<label><input type="checkbox" name="confirm" value="yes" required>Issue this exact read-only pass</label>'+
+          '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>'+
+          '<button type="submit">Approve and issue pass</button></form>');
+      if(params.confirm!=='yes')return html(res,403,'Permission denied','<p>Explicit confirmation required.</p>');
+      const proof=await evaluateLogin({ip:clientIp(req),supplied:String(params.passphrase||''),
+        expected:env.ADMIN_PASSPHRASE,store:db});
+      if(proof.status==='locked'){
+        res.setHeader('Retry-After','900');return html(res,429,'Permission denied','<p>Too many attempts.</p>');
+      }
+      if(proof.status!=='ok')return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
+      const approved=await consumePassRequest({db,env,account:params.account,reference:params.reference,knownAreas,now});
+      if(!approved||JSON.stringify(approved)!==JSON.stringify(request))
+        return html(res,409,'Unavailable','<p>Request changed, expired, or was already consumed.</p>');
+      const issued=await db.issueReadOnlyRtcPass({account:approved.account,
+        mode:approved.mode,hours:approved.hours,areas:approved.areas});
+      if(!issued)return html(res,409,'Unavailable','<p>Pass was not issued; request is consumed.</p>');
+      let once;
+      try{
+        const verifiedPass=await db.inspectRtcPass(issued.token);
+        if(verifiedPass?.status!=='ok'||verifiedPass.id!==issued.id||verifiedPass.account!==approved.account||
+          verifiedPass.profile!=='read_only'||verifiedPass.mode!==approved.mode||
+          JSON.stringify(verifiedPass.areas)!==JSON.stringify(approved.areas))
+          throw new TypeError('Pass scope was not independently verified');
+        once=await oneTimeSecrets({db,env,now}).issue({account:approved.account,
+          kind:'rtc_pass',label:'Owner-approved read-only pass',value:issued.token,ttlMs:600000});
+      }catch{
+        // No bearer reaches output when scope readback or delivery is uncertain.
+        await db.revokeRtcPass({account:approved.account,id:issued.id});
+        return html(res,409,'Unavailable','<p>Pass verification or one-time delivery failed; inspect revocation before retrying.</p>');
+      }
+      message='Owner-approved read-only '+approved.mode+' pass issued. Reference '+issued.id+
+        '. Reveal it once with secret reference '+once.id+'. This request cannot be reused.';
+    } else if (params.action === 'issue_rtc_pass' || params.action === 'revoke_rtc_pass') {
       if(env.VERCEL_ENV!=='production'||params.confirm!=='yes'||
         !accounts.some(x=>x.id===params.account))
         return html(res,403,'Permission denied','<p>Owner production setup session and confirmation required.</p>');
