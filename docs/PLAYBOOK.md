@@ -79,7 +79,7 @@ Vercel token (`vcp_…`, `vci_…`, `vca_…`, `vercel_blob_rw_…`), Stripe key
 | You changed | Run |
 |---|---|
 | Any tool | `npx vitest run tests/unit/<area>.test.js tests/unit/write-contract.test.js` |
-| A Vercel call | `npx vitest run tests/unit/request-shapes.test.js` (validates recorded requests against the snapshot) and, when `emulate` covers it, `npm run test:emulate -- tests/emulate/<area>.test.js` (`scripts/emulate.sh` starts `emulate@<pinned>` on `localhost:4000` and stops it) |
+| A Vercel call | `npx vitest run tests/unit/vercel-client.test.js tests/unit/openapi-validate.test.js tests/unit/openapi-snapshot.test.js` (validates recorded requests against the snapshot) and, when `emulate` covers it, `npm run test:emulate -- tests/emulate/<area>.test.js` (`scripts/emulate.sh` starts `emulate@<pinned>` on `localhost:4000` and stops it) |
 | SQL / `src/db.js` | `npm run test:db -- tests/db/<file>.test.js` (`scripts/local-postgres-test.sh`: disposable **localhost** Postgres, never Neon). If no Postgres binaries exist in your workspace, push and let CI run it; say so in the PR |
 | A door (HTTPS API, `vercel_call`) | `npx vitest run tests/doors/` |
 | Listing or descriptions | `node scripts/check-budgets.mjs --print` |
