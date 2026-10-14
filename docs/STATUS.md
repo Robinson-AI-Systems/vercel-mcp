@@ -1,3 +1,7 @@
+## E-1 exact preview-branch Config copy — PR #184 candidate (2026-10-14)
+
+Native `vercel_env_copy` now accepts strictly validated source/destination preview branch selectors, checks exact source branch and revision before and immediately prior to dispatch, emits Vercel's branch-scoped create body, and independently verifies destination branch binding plus value equality. Existing ordinary copy remains compatible; same-target/branch duplicate, cross-target misuse, malformed selectors, Secret/credential sources, production-linked source, custom env, unverified project, replay and production guards remain refused. Fake HTTP tests cover positive copy, branch drift and mismatched readback. No live value or production mutation; native disposable acceptance stays queued at its exact source revision. Release readiness and provider acceptance are separate.
+
 ### Workflow maintenance handoff — owner publication approved
 
 New offline session utility: eight behavioral tests passed, including actual Git ancestry, partial releases, unknown/failed deployments, rollback, dependency gating, invalid queues, PR alignment and bounded output. All repository queues validate. Existing source/status evidence is preserved; no provider acceptance or release was performed. Owner explicitly approved publication on October 14; publish the reviewed maintenance branch, require exact-head CI/reviews, and merge only when those gates pass. No extra production release is authorized by this approval. Full broad application suites on the shared runner were interrupted after resource/time-limit failures; do not claim them passed. Existing exact-head remote CI/review gates must pass before any main merge.
@@ -35,6 +39,17 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Existing ledger/card remains authoritative; current live/provider acceptance must be reconciled at session start. Seed revision conservatively includes reviewed current main."
+  },
+  {
+    "id": "VERCEL-E1-BRANCH-COPY",
+    "priority": 3,
+    "requiredRevision": "e844591a607af7c7a322aefbce5f1549302bf612",
+    "task": "Prove exact preview-branch Config copy on authorized disposable Vercel project via custom MCP, including mismatched branch denial, value-hidden output, independent destination branch/readback, and exact cleanup",
+    "procedure": "docs/pr-cards/E-1.md",
+    "gates": "Fresh independently verified READY source ancestry; owner-authorized scratch project/branch; guarded nonproduction write permission; no autonomous spend or production mutation",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Branch-aware code and fake-provider tests proposed for PR #184; not yet deployed or accepted. October 14 production deployment source SHA not exposed by sanitized read."
   }
 ]
 ```
