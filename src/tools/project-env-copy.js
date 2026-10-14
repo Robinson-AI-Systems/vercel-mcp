@@ -1,5 +1,5 @@
 // E-1: server-side Config-only promotion between an authenticated project's
-// ordinary non-branch environments. No raw source value ever enters a result,
+// ordinary and exactly verified preview-branch environments. No raw source value ever enters a result,
 // preview, audit or durable replay record.
 import {timingSafeEqual} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
@@ -11,6 +11,7 @@ import {envMeta,scoped,verifiedCreatedEnvId} from './project-env-write.js';
 
 const PROJECT=/^prj_[A-Za-z0-9_-]{3,124}$/;
 const ID=/^[A-Za-z0-9_-]{6,128}$/;
+const BRANCH=/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/;
 const KEY=/^[A-Za-z_][A-Za-z0-9_]{0,255}$/;
 const NONPROD=new Set(['preview','development']);
 const ALL=new Set(['production','preview','development']);
@@ -20,8 +21,10 @@ const props={
   sourceKey:{type:'string',pattern:KEY.source},
   sourceUpdatedAt:{type:'integer',minimum:1},
   sourceTarget:{type:'string',enum:['preview','development']},
+  sourceGitBranch:{type:'string',pattern:BRANCH.source,maxLength:128},
   destinationKey:{type:'string',pattern:KEY.source},
   destinationTarget:{type:'string',enum:['preview','development','production']},
+  destinationGitBranch:{type:'string',pattern:BRANCH.source,maxLength:128},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[A-Za-z0-9_-]{8,128}$'}
 };
@@ -35,7 +38,12 @@ function argsValid(a){
     !KEY.test(a.sourceKey??'')||!KEY.test(a.destinationKey??'')||
     !Number.isSafeInteger(a.sourceUpdatedAt)||a.sourceUpdatedAt<1||
     !NONPROD.has(a.sourceTarget)||!ALL.has(a.destinationTarget)||
-    (a.destinationKey===a.sourceKey&&a.destinationTarget===a.sourceTarget)||
+    [a.sourceGitBranch,a.destinationGitBranch].some(b=>b!==undefined&&
+      (typeof b!=='string'||b.length>128||!BRANCH.test(b)||b.split('/').includes('..')))||
+    (a.sourceGitBranch!==undefined&&a.sourceTarget!=='preview')||
+    (a.destinationGitBranch!==undefined&&a.destinationTarget!=='preview')||
+    (a.destinationKey===a.sourceKey&&a.destinationTarget===a.sourceTarget&&
+      (a.sourceGitBranch??null)===(a.destinationGitBranch??null))||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
     throw new TypeError('Exact Config copy source and destination required');
@@ -45,7 +53,8 @@ function source(row,project,args){
   if(m.id!==args.sourceId||m.key!==args.sourceKey||
     m.updatedAt!==args.sourceUpdatedAt||m.kind!=='Config'||
     !m.targets.includes(args.sourceTarget)||m.targets.includes('production')||
-    row.gitBranch!=null)
+    (row.gitBranch??null)!==(args.sourceGitBranch??null)||
+    (row.gitBranch!=null&&(m.targets.length!==1||m.targets[0]!=='preview')))
     throw new TypeError('Source Config identity, revision or preview/dev target not proven');
   // Existing plain variables can contain secrets despite their kind. Never
   // promote credential-shaped material even when the caller requests Config.
@@ -71,11 +80,15 @@ const copy=defineWrite({
     return {project:args.project,teamId:account.team_id,
       sourceId:args.sourceId,sourceKey:args.sourceKey,
       sourceUpdatedAt:args.sourceUpdatedAt,sourceTarget:args.sourceTarget,
-      destinationKey:args.destinationKey,destinationTarget:args.destinationTarget};
+      sourceGitBranch:args.sourceGitBranch??null,
+      destinationKey:args.destinationKey,destinationTarget:args.destinationTarget,
+      destinationGitBranch:args.destinationGitBranch??null};
   },
   async preview(_a,_ctx,b){
-    return 'Copy Config '+b.sourceKey+' from '+b.sourceTarget+' to '+
-      b.destinationKey+' in '+b.destinationTarget+' for '+b.project+
+    return 'Copy Config '+b.sourceKey+' from '+b.sourceTarget+
+      (b.sourceGitBranch?' (exact preview branch)':'')+' to '+
+      b.destinationKey+' in '+b.destinationTarget+
+      (b.destinationGitBranch?' (exact preview branch)':'')+' for '+b.project+
       '; values hidden, destination is create-only; only new deployments consume changes';
   },
   async production(_a,_ctx,b){
@@ -102,7 +115,8 @@ const copy=defineWrite({
     });
     return provider.write('project_env_create',{
       path:{idOrName:b.project},body:{
-        key:b.destinationKey,value,type:'plain',target:[b.destinationTarget]
+        key:b.destinationKey,value,type:'plain',target:[b.destinationTarget],
+        ...(b.destinationGitBranch?{gitBranch:b.destinationGitBranch}:{})
       }
     },{requestKey,tool:'vercel_env_copy',shapeResult:raw=>{
       return {id:verifiedCreatedEnvId(raw,b.destinationKey)};
@@ -120,7 +134,8 @@ const copy=defineWrite({
         path:{idOrName:b.project,id:applied.id}});
       const to=envMeta(raw,b.project);
       if(to.id!==applied.id||to.key!==b.destinationKey||to.kind!=='Config'||
-        to.targets.length!==1||to.targets[0]!==b.destinationTarget)
+        to.targets.length!==1||to.targets[0]!==b.destinationTarget||
+        (raw.gitBranch??null)!==b.destinationGitBranch)
         return {confirmed:false};
       if(typeof raw.value!=='string')return {confirmed:null};
       const l=Buffer.from(from.value),r=Buffer.from(raw.value);
@@ -133,7 +148,7 @@ const output=r=>({isError:['refused_by_guard','outcome_unknown'].includes(r.stat
 export const projectEnvCopyTools={
   tools:[{name:'vercel_env_copy',writes:true,guardedWrite:true,
     profiles:['everyday','full'],area:'env',
-    description:'Server-side, value-hidden Config copy between ordinary targets in the same verified project; no overwrite.',
+    description:'Value-hidden Config copy across exact ordinary or preview-branch targets in one verified project; create-only.',
     inputSchema,writeContract:copy.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{vercel_env_copy:bindGuardedWrite(copy,context,output)}
