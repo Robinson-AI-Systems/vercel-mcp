@@ -26,7 +26,7 @@ test('owner-only missed-schedule recovery cannot bypass Denver time or repo scop
   const repo='example/repo';
   const env={GITHUB_REPOSITORY:repo,GITHUB_REF:'refs/heads/main',
     GH_TOKEN:'fixture',GITHUB_EVENT_NAME:'workflow_dispatch',
-    GITHUB_ACTOR:'christcr2012',RECOVER_MISSED_DAILY:'true'};
+    GITHUB_ACTOR:'christcr2012', GITHUB_TRIGGERING_ACTOR:'christcr2012',RECOVER_MISSED_DAILY:'true'};
   const before=new Date('2026-10-14T06:00:00Z');
   const after=new Date('2026-10-14T06:01:00Z');
   assert.equal(denverMinute(before),0);
@@ -126,13 +126,67 @@ test('real atomic git promotion, read-back and second same-day update refusal', 
   }
 });
 
-test('00:01 Denver primary and staggered retries share guarded daily marker', () => {
-  const workflow=readFileSync(new URL('../workflows/daily-live.yml', import.meta.url), 'utf8');
-  const matches=[...workflow.matchAll(/^\s+- cron: '(\d+ 0 \* \* \*)'\n\s+timezone: America\/Denver\s*$/gm)];
-  assert.deepEqual(matches.map(m=>m[1]),[
-    '1 0 * * *','13 0 * * *','29 0 * * *','47 0 * * *'
-  ]);
-  assert.match(workflow,/recover_missed_daily:/);
-  assert.match(workflow,/github.actor == 'christcr2012'/);
-  assert.match(workflow,/RECOVER_MISSED_DAILY:/);
+test('bounded schedule backups preserve midnight, daily marker and owner recovery', () => {
+  const workflow = readFileSync(new URL('../workflows/daily-live.yml', import.meta.url), 'utf8');
+  const crons = [...workflow.matchAll(/cron: '([^']+)'/g)].map(m => m[1]);
+  assert.deepEqual(crons, ['1 0 * * *', '17 0 * * *', '17 1 * * *', '37 5 * * *', '43 12 * * *']);
+  assert.equal((workflow.match(/timezone: America\/Denver/g) || []).length, 4);
+  assert.match(workflow, /recover_missed_daily:/);
+  assert.match(workflow, /default: false/);
+  assert.match(workflow, /github.actor == 'christcr2012'/);
+  assert.match(workflow, /RECOVER_MISSED_DAILY:/);
+  assert.match(workflow, /cancel-in-progress: false/);
+});
+test('recovery requires explicit owner, expected repository, main and elapsed midnight', async () => {
+  const { authorizedReleaseInvocation } = await import('./promote-live.mjs');
+  const env = { GITHUB_REPOSITORY: 'example/repo', GITHUB_REF: 'refs/heads/main',
+    GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_ACTOR: 'christcr2012', GITHUB_TRIGGERING_ACTOR: 'christcr2012',
+    RECOVER_MISSED_DAILY: 'true', GH_TOKEN: 'fixture' };
+  const time = new Date('2026-10-14T11:00:00Z');
+  assert.equal(authorizedReleaseInvocation(env, 'example/repo', time), true);
+  for (const change of [{ GITHUB_TRIGGERING_ACTOR: 'other' }, { GITHUB_TRIGGERING_ACTOR: undefined }, { GITHUB_ACTOR: 'other' }, { RECOVER_MISSED_DAILY: 'false' },
+    { RECOVER_MISSED_DAILY: undefined }, { GITHUB_REF: 'refs/heads/live' },
+    { GITHUB_REPOSITORY: 'other/repo' }, { GITHUB_EVENT_NAME: 'push' },
+    { GH_TOKEN: '' }])
+    assert.equal(authorizedReleaseInvocation({ ...env, ...change }, 'example/repo', time), false);
+  assert.equal(authorizedReleaseInvocation(env, 'example/repo', new Date('2026-10-14T06:00:00Z')), false);
+  assert.equal(authorizedReleaseInvocation(env, 'example/repo', new Date('2026-12-14T07:00:00Z')), false);
+  assert.equal(authorizedReleaseInvocation(env, 'example/repo', new Date('2026-12-14T07:01:00Z')), true);
+  assert.equal(authorizedReleaseInvocation({ ...env, GITHUB_EVENT_NAME: 'schedule' }, 'example/repo', time), true);
+});
+
+test('successful no-change run records a receipt and suppresses later development', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'release-no-change-'));
+  const cwd = process.cwd(), fetchBefore = globalThis.fetch;
+  const tokenKey = 'GH_TOKEN';
+  const keys = ['GITHUB_REPOSITORY', 'GITHUB_REF', 'GITHUB_EVENT_NAME', tokenKey];
+  const before = keys.map(k => process.env[k]);
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: 'pipe' }).trim();
+  try {
+    git('init', '--bare', join(dir, 'remote.git'));
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Release test');
+    git('remote', 'add', 'origin', join(dir, 'remote.git'));
+    writeFileSync(join(dir, 'fixture.txt'), 'initial');
+    git('add', 'fixture.txt'); git('commit', '-m', 'initial');
+    git('push', 'origin', 'main', 'main:live');
+    const original = git('rev-parse', 'HEAD');
+    Object.assign(process.env, { GITHUB_REPOSITORY: 'example/repo',
+      GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'schedule', [tokenKey]: 'fixture' });
+    process.chdir(dir);
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ total_count: 1,
+      check_runs: [{ ...good, head_sha: original }] }) });
+    const policy = { repository: 'example/repo', requiredChecks: ['ci'] };
+    await run(policy, { attempts: 1 });
+    assert.equal(git('ls-remote', 'origin', 'refs/tags/live-promotion/' + denverDay()).split(/\s+/)[0], original);
+    writeFileSync(join(dir, 'fixture.txt'), 'later development');
+    git('commit', '-am', 'later'); git('push', 'origin', 'main');
+    await run(policy, { attempts: 1 });
+    assert.equal(git('ls-remote', 'origin', 'refs/heads/live').split(/\s+/)[0], original);
+  } finally {
+    process.chdir(cwd); globalThis.fetch = fetchBefore;
+    keys.forEach((key, i) => { if (before[i] === undefined) delete process.env[key]; else process.env[key] = before[i]; });
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

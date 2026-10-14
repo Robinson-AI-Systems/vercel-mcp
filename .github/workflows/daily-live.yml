@@ -1,20 +1,21 @@
 name: Daily live policy
 on:
   schedule:
-    # Primary Denver 00:01; retries tolerate dropped GitHub schedule events.
-    # Atomic daily marker ensures no duplicate promotion.
+    # Primary Denver midnight release, with bounded missed-event recovery.
+    # The UTC backup also avoids relying exclusively on timezone triggers.
     - cron: '1 0 * * *'
       timezone: America/Denver
-    - cron: '13 0 * * *'
+    - cron: '17 0 * * *'
       timezone: America/Denver
-    - cron: '29 0 * * *'
+    - cron: '17 1 * * *'
       timezone: America/Denver
-    - cron: '47 0 * * *'
+    - cron: '37 5 * * *'
       timezone: America/Denver
+    - cron: '43 12 * * *'
   workflow_dispatch:
     inputs:
       recover_missed_daily:
-        description: 'Owner-only checked recovery after missed 00:01 Denver schedule'
+        description: 'Owner-only checked recovery of a missed daily release'
         type: boolean
         required: true
         default: false
@@ -51,7 +52,7 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'schedule' ||
-       (github.event_name == 'workflow_dispatch' && inputs.recover_missed_daily == true && github.actor == 'christcr2012'))
+       (github.event_name == 'workflow_dispatch' && inputs.recover_missed_daily == true && github.actor == 'christcr2012' && github.triggering_actor == 'christcr2012'))
     needs: policy
     runs-on: ubuntu-24.04
     timeout-minutes: 15
