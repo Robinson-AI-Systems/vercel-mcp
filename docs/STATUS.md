@@ -1,3 +1,7 @@
+## E-2 read-only shared/custom environment metadata — candidate PR #194
+
+Added team-scoped metadata-only shared-variable list and project-scoped custom-environment inventory, pinned provider GETs and independent exact project/team checks, strict row projection omitting any values or digests, bounded pagination and duplicate/out-of-scope denial. Fake-provider unit tests only; checked production acceptance must wait for a daily/manual release and genuine custom-MCP calls. Five approved E-2 writes still pending, no values retrieved or provider mutation. D-3 paid deploy acceptance remains separately blocked by IN-08 provider enforceable total-cost ceiling plus authenticated independent owner grant. Production stays OFF and autonomous spending $0.
+
 ### Owner-requested throughput measurement update — October 14, 2026
 
 Focused maintenance: 400–800 changed production lines and 2–5 completely
@@ -114,7 +118,7 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "status": "PENDING",
     "lastEvidence": "Dual-project code and defensive fake-provider tests proposed PR #185; no real provider write, TEST proof or deployed source attestation."
   },
-{
+  {
     "id": "VERCEL-D2-RUNTIME-LOGS",
     "priority": 2,
     "requiredRevision": "b19efea95be5e552ee5232770342e1ebabd2d23a",
@@ -124,6 +128,17 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "2026-10-14: provider independently verified READY production at 5650873; native deployment detail and scoped preview env metadata read succeeded using exact provider project ID. Native bounded runtime-log GET still unknown_error; independent standard-provider log view found no matching rows but is not custom acceptance. Candidate b19efea95be5e552ee5232770342e1ebabd2d23a shortens stream budget and safely classifies malformed frames; requires exact-head CI and later checked source deployment, then native retest. Neither empty results nor real log protocol accepted."
+  },
+  {
+    "id": "VERCEL-E2-METADATA",
+    "priority": 5,
+    "requiredRevision": "36afa99779ed37983f2dea09ff5d42ce23869909",
+    "task": "Authenticate native read-only selected-team shared-variable and exact-project custom-environment metadata through this custom MCP; prove safe field projection, provider response/pagination boundaries and no value disclosure",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Verified READY production ancestry, own service-issued authorization, selected-team/test project grants; no provider writes or disclosure of values",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source fake-provider E-2 unit tests on PR #194; not a deployed or real-provider acceptance pass"
   }
 ]
 ```

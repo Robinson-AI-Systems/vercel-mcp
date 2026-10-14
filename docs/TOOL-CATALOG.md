@@ -166,10 +166,10 @@ names, targets, kind (Config/Secret), branch and dates come out.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_shared_env_list` | Team-level shared variables and which projects they are linked to (never values) | — | O Op | R | — | E-2 |
+| `vercel_shared_env_list` | Selected team bounded shared-variable names, kinds, links and targets, with provider cursor; never values/digests or falsely complete inventory | — | O Op | R | — | E-2 (metadata code #194 candidate; native provider pending) |
 | `vercel_shared_env_set` | Create or change a shared variable and its project links | Cp | O | F | y | E-2 |
 | `vercel_shared_env_delete` | Delete a shared variable, or unlink it from one project | D Cp | O | F | y | E-2 |
-| `vercel_environment_list` | Custom environments of a project (e.g. staging) with branch tracking and domains | — | B O | R | — | E-2 |
+| `vercel_environment_list` | Project-verified bounded custom environment slugs, branch rules, timestamps and domain count; no secrets or domain proofs | — | B O | R | — | E-2 (metadata code #194 candidate; native provider pending) |
 | `vercel_environment_create` | Add a custom environment (branch rule, copy variables from another environment) | P | B O | E | — | E-2 |
 | `vercel_environment_update` | Change a custom environment's name, branch rule or description | P | B O | E | — | E-2 |
 | `vercel_environment_delete` | Remove a custom environment | D | O | F | y | E-2 |
