@@ -19,7 +19,7 @@ function assert(args,keys){
   if(args.target!==undefined&&!TARGETS.has(args.target))
     throw new TypeError('Invalid target');
   if(args.gitBranch!==undefined&&(typeof args.gitBranch!=='string'||
-      !BRANCH.test(args.gitBranch)))
+      (!BRANCH.test(args.gitBranch)||args.gitBranch.split('/').includes('..'))))
     throw new TypeError('Invalid preview branch');
   if(args.gitBranch!==undefined&&args.target!==undefined&&args.target!=='preview')
     throw new TypeError('Git branch filters require preview target');
@@ -135,7 +135,7 @@ export const projectEnvReadTools={
       const x=await inventory(ctx,args);
       const names=[...new Set(x.items.map(row=>row.key))].sort();
       return response({project:x.project,target:args.target??null,gitBranch:args.gitBranch??null,
-        example:names.map(key=>key+'=').join('\\n'),names,
+        example:names.map(key=>key+'=').join(String.fromCharCode(10)),names,
         hasValues:false,complete:false,capped:x.capped,
         note:'Names only. Values are intentionally omitted; provider page completeness has not been proven.'});
     }
