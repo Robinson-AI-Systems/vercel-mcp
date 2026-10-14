@@ -80,9 +80,10 @@ use required exact-head Actions evidence for execution they cannot perform local
 Do not invent commands, relax coverage or merge gates, or rerun unchanged passing checks
 unless changes or new evidence invalidate them. Live proof remains in the release queue.
 
-Use `npm run check`, affected unit tests and the request-shapes suite for
-provider calls; use `test:emulate` where it covers that operation and `test:db`
-for DB changes. Pin operation versions rather than inventing accepted parameters.
+Use `npm run check` and affected unit tests. For provider request shapes run
+`npx vitest run tests/unit/vercel-client.test.js tests/unit/openapi-validate.test.js
+ tests/unit/openapi-snapshot.test.js` (one command); use `test:emulate` where it
+covers the operation and `test:db` for DB changes. Pin operation versions.
 
 **PR merge readiness and product acceptance are separate.** A safe implementation PR
 may merge with deployment-dependent proof queued, when all pre-merge gates pass and

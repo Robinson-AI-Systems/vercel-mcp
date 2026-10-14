@@ -53,8 +53,8 @@ Done: <acceptance → test names + exact-head CI>; successor inherits: <paths/co
 
 Focused existing regressions: `npx vitest run tests/unit/vercel-client.test.js tests/unit/openapi-validate.test.js
  tests/unit/registry.test.js tests/unit/profiles.test.js` (one shell line). Add the new area test file to the card.
-`tests/unit/request-shapes.test.js` in PLAYBOOK is a target path, **absent** today; existing shape tests use
-`tests/unit/openapi-validate.test.js`. Emulate only operations it supports, not invented mock success.
+PLAYBOOK and SESSION-START name the existing `tests/unit/openapi-validate.test.js`
+request-shape regression, alongside client and snapshot tests. Emulate only operations it supports, not invented mock success.
 
 ## 3. Provider-write recipe
 
