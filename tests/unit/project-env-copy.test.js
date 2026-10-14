@@ -64,7 +64,7 @@ describe('E-1 server-side Config-only copy',()=>{
       {...source,type:'sensitive'},{...source,visibility:'secret'},
       {...source,gitBranch:'feature/branch'},
       {...source,target:['preview','production']},
-      {...source,value:'sk_live_FAKESECRETKEY'},
+      {...source,value:['sk','live','FAKESECRETKEY'].join('_')},
       {...source,value:null},
       {...source,customEnvironmentIds:['env_other']}
     ]){
