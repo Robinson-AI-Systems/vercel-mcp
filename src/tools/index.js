@@ -19,6 +19,7 @@ import {projectTransferTools} from './project-transfer.js';
 import {projectResourcesTools} from './project-resources.js';
 import {deploymentReadTools} from './deployments.js';
 import {deploymentCancelTools} from './deployment-cancel.js';
+import {deploymentDeleteTools} from './deployment-delete.js';
 import {checksReadTools} from './checks.js';
 import {projectEnvReadTools} from './project-env-reads.js';
 import {teamReadTools} from './teams.js';
