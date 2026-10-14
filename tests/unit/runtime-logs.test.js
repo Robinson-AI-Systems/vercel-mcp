@@ -54,7 +54,7 @@ describe('D-2 project-verified bounded runtime logs',()=>{
    const fetch=async(url,init)=>{
      if(new URL(url).pathname.includes('/runtime-logs')){
        requestedAccept=init.headers.accept;
-       return new Response(JSON.stringify(log())+'\\n',{
+       return new Response(JSON.stringify(log())+'\n',{
          headers:{'content-type':'application/stream+json'}});
      }
      return original(url,init);
