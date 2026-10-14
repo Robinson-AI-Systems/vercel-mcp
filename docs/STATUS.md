@@ -1,3 +1,7 @@
+## E-1 bounded batch environment workflows — candidate PR #180
+
+The native guarded create-only set-many operation batches 2–10 Config or privately supplied/generated Secret keys into one Vercel POST, with no upsert and individual readbacks. The guarded delete-many operation verifies 2–10 exact IDs/keys/revisions and uses the published one-request batch DELETE with individual 404 confirmation. Both enforce project identity, protected/app and production policy, replay, confirmation, fresh pre-dispatch state and no values in outputs/audits. Provider partial/ambiguous reports are outcome_unknown, not invented success. No actual provider write or production activation was performed. Branch/custom/cross-project Config copy and live disposable acceptance remain pending.
+
 ## E-1 scoped server-side Config copy — candidate PR #179
 
 Provider compatibility: verified current Vercel POST create envelope can contain `created` and per-item `failed`; #179 also repairs the #178 create-result normalization and rejects partial provider successes rather than claiming confirmed writes.
