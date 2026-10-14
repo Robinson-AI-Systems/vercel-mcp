@@ -75,7 +75,8 @@ const remove=defineWrite({
   async apply(_args,ctx,before,requestKey){
     const provider=await writeProvider(ctx);
     await requirePreDispatch(async()=>{
-      if(provider.account.team_id!==before.teamId)
+      if(provider.account.team_id!==before.teamId||
+         provider.account.scope==='project'&&provider.account.project_id!==before.project)
         throw new TypeError('Selected team changed');
       const fresh=await provider.read('deployments_get',{path:{idOrUrl:before.id}});
       prove(fresh,before);
