@@ -665,15 +665,16 @@
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [],
       "pr": [
-        194
+        194,
+        197
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-2 implementer",
-        "reason": "Metadata reads merged #194; guarded custom environment create/update/delete source candidate pending exact-head CI, main merge and native provider acceptance. Shared variable mutations remain unimplemented.",
-        "nextAction": "Finish and merge guarded custom-environment lifecycle after exact-head tests/review; then implement shared-variable set/unlink/delete with production-linked classification and private values, following E-2. Catch up native acceptance on next checked release.",
-        "checkpoint": "Candidate custom environment lifecycle exact-head CI/review; next substantive shared variable roadmap slice and checked release",
-        "evidenceNeeded": "Exact-head CI, API-shape and security tests for new guarded custom environment handlers; independent native TEST create/update/delete with readback, nonproduction and protected denials plus clean fixture removal",
+        "reason": "E-2 metadata reads #194 and guarded custom lifecycle #197 merged; shared-variable four-mode set/unlink/delete source candidate needs exact-head CI/main merge. Owner-scoped live acceptance requires separately verified checked release and TEST fixtures.",
+        "nextAction": "Complete and merge guarded E-2 shared-variable lifecycle only after exact-head checks and review; advance to next eligible E-3 Global Config design in roadmap order. Independently revisit native E-1/E-2 acceptance after checked live release and owner-granted TEST fixtures.",
+        "checkpoint": "Exact-head shared-variable candidate PR, next E-3 roadmap work and checked production release",
+        "evidenceNeeded": "Approved four-mode shared variable CI and real TEST provider set/update/unlink/delete with exact scope, values hidden, complete inventory, independent readback and cleanup",
         "eligibilityCondition": "Code/fake tests eligible now; owner-signed TEST fixture plus release required only for genuine acceptance",
         "dependencies": [
           "E-1"

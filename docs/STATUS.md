@@ -1,3 +1,21 @@
+## E-2 guarded shared variable lifecycle — source candidate, native acceptance pending
+
+Four adjoining approved E-2 operations: selected-team preview-only shared Config/Secret
+creation, exact-revision replacement, targeted unlink, and linkless destructive
+removal. Owner-scoped connected team/project, complete bounded team inventory,
+unchanged revision, owner/team links, target classification and absence of
+custom environment links must all be independently verified. Production-linked
+or incompletely enumerated variables fail closed. Secret bytes come only from
+owner pending input or 32-byte cryptographic generation; Config values must
+not look like credentials; values never enter results, audits or readbacks.
+Pre-dispatch rereads, full-profile destructive removal, protected-resource/app
+guards, explicit confirmation, durable replay and precise provider response
+shaping remain mandatory. Shared operations never redeploy or activate production.
+This is a source/fake-provider candidate, NOT tested against a real selected
+Vercel account or granted permission to mutate one. Exact-head CI/review, main
+merge, checked release and separate TEST fixture acceptance remain required.
+No spending, production switch or real provider write.
+
 ## E-2 custom environment lifecycle — guarded source candidate, genuine acceptance open
 
 Three adjoining approved E-2 slices now implement actual pinned Vercel create,
@@ -190,6 +208,39 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Guarded source implementation and fake HTTP tests only; no provider mutations, no owner fixture approval inferred"
+  },
+  {
+    "id": "VERCEL-E2-SHARED-CREATE",
+    "priority": 5,
+    "requiredRevision": "01897f3dcadd8df3ec40960ad2d445f269cf4802",
+    "task": "Check actual native selected-team preview shared variable creation with private value hidden, exact project link and independent metadata-only readback",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Checked READY production source, custom MCP OAuth team scope, explicitly approved owner disposable TEST fixture, nonproduction only, full-profile deletion, protected/app guards, complete cleanup and never reveal values",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source and fake provider tests only; real provider mutation was not attempted."
+  },
+  {
+    "id": "VERCEL-E2-SHARED-UPDATE",
+    "priority": 5,
+    "requiredRevision": "01897f3dcadd8df3ec40960ad2d445f269cf4802",
+    "task": "Check native shared Config and Secret replacement using exact ID/key/revision, including stale and production-linked denial without revealing values",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Checked READY production source, custom MCP OAuth team scope, explicitly approved owner disposable TEST fixture, nonproduction only, full-profile deletion, protected/app guards, complete cleanup and never reveal values",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source and fake provider tests only; real provider mutation was not attempted."
+  },
+  {
+    "id": "VERCEL-E2-SHARED-UNLINK-DELETE",
+    "priority": 5,
+    "requiredRevision": "01897f3dcadd8df3ec40960ad2d445f269cf4802",
+    "task": "Check native selected-project unlink, linkless full-profile permanent removal and complete selected-team readback using owner-confirmed disposable fixtures",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Checked READY production source, custom MCP OAuth team scope, explicitly approved owner disposable TEST fixture, nonproduction only, full-profile deletion, protected/app guards, complete cleanup and never reveal values",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source and fake provider tests only; real provider mutation was not attempted."
   }
 ]
 ```
