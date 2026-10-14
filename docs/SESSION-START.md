@@ -32,7 +32,7 @@ State its observable result and finite acceptance before editing. Read only its 
 code seams, design sections and fixtures; reuse existing helpers and task/packet tools.
 Group compatible adjacent roadmap slices into a complete usable workflow,
 including callers, real integration and tests. Plan a suitable coherent PR
-around ~500–800 production lines plus tests; this is advisory and not a
+around 400–800 changed production lines plus tests; this is advisory and not a
 reason to pad a smaller valid outcome or fragment a larger one. Explicitly
 list included slice IDs and acceptance criteria before writing code. Larger
 cohesive PRs require extra integration/risk/verification coverage. Preserve actual
@@ -137,6 +137,21 @@ changes reopen affected proof. NEVER copy credentials/private fixture IDs into t
 
 ## 5. Checkpoint and finish
 
+**Remaining-work visibility.** Run `npm run session:status` for current
+roadmap counts and unfinished IDs in approved order alongside the separate
+release acceptance queue. Counts describe the existing index/ledger's coarse
+units, not fine-grained PR slices, time estimates or live acceptance.
+Record actual completed slices and remaining engineering in existing cards
+and handoffs; never promote an incomplete card to improve the numbers.
+Follow the designated roadmap order rather than the milestone in an old handoff.
+
+At each PR handoff record production additions/deletions (excluding tests,
+docs, generated files, fixtures and formatting), completed slice IDs and
+acceptance evidence. Evaluate 400–800 production lines and 2–5 complete slices
+per PR on rolling averages over the latest five merged implementation PRs;
+unrecorded historical measurements stay unknown, never invented.
+
+
 Keep a short progress note on interrupted branches: head, done/proof, one next action,
 CI/review state, successor and exact blocker. Diagnose and attempt authorized remedies
 before deferring; isolate the operation and continue approved independent work. Limited
@@ -144,7 +159,7 @@ release frequency is planned queued acceptance, never a project-wide stop.
 
 Normal implementation sessions complete as many fully verified, cohesive roadmap
 slices as fit a safe, recoverable chat context. A suitable PR may integrate
-several adjacent small slices (typically targeting ~500–800 production lines
+several adjacent small slices (typically targeting 400–800 changed production lines
 plus tests), but contracts, review risk and end-to-end behavior determine size;
 a complete smaller slice or a safe larger slice is legitimate. No fixed
 number of PRs, five-PR cadence, next-multiple alignment, or filler quota.

@@ -1,3 +1,19 @@
+### Owner-requested throughput measurement update — October 14, 2026
+
+Focused maintenance: 400–800 changed production lines and 2–5 completely
+integrated slices per substantive PR on rolling averages, with evidence-backed
+exceptions and no padding. Existing session tooling now reports remaining
+coarse roadmap units and IDs without conflating them with PR slices or live
+acceptance. Source/CI/deployed/provider evidence remains separate.
+No provider operation, release, approval or safety gate is changed.
+
+Verification: all 61 focused session-tool tests passed locally across the five
+updated repositories, including real disposable Git ancestry, unchanged queues,
+partial/review/blocked/optional/planned counts, duplicate/unknown status rejection
+and Google native-ledger parsing. Each actual index/ledger also loaded successfully.
+Required exact-head Actions gates and reviews must pass before merge; this note
+claims no deployed or genuine external-provider acceptance.
+
 ## October 14 — owner-approved outcome-sized development workflow
 
 The owner retired five-PR session quotas and multiple-of-five PR boundaries.
