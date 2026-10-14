@@ -47,7 +47,8 @@ describe('D-3 guarded preview deployment cancellation',()=>{
    const first=result(await f.call(args));
    expect(first).toMatchObject({status:'applied',mode:'PREVIEW',confirmed:true});
    expect(result(await f.call(args))).toEqual(first);
-   expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','PATCH','GET']);
+   expect(f.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(1);
+   expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','PATCH','GET','GET','GET']);
    expect(f.fake.calls[3].path).toBe('/v12/deployments/'+deployment+'/cancel');
    expect(f.fake.calls[3].query.teamId).toBe('team_FAKE');
    expect(f.fake.calls[3].body).toBeUndefined();
@@ -93,9 +94,9 @@ describe('D-3 guarded preview deployment cancellation',()=>{
      const x=await f.call(args);
      expect(x.isError||result(x).status==='refused_by_guard').toBe(true);
    }
-   const x=result(await f.call({deployment,confirm:true},
-     {...connection,profile:'read_only'}));
-   expect(x.status).toBe('refused_by_guard');
+   const denied=await f.call({deployment,confirm:true},
+     {...connection,profile:'read_only'});
+   expect(denied.isError).toBe(true);
    expect(f.fake.calls).toHaveLength(0);
  });
  it('does not claim confirmation when GET readback remains building',async()=>{
