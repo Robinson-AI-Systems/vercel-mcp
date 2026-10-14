@@ -56,6 +56,23 @@ describe('D-2 project-bound build diagnostics and file tree',()=>{
    expect(JSON.stringify(x)).not.toContain('NEVER_READ');
    f.verify();
  });
+ it('reports optional file-tree 404 as unavailable, never as an empty or missing deployment',async()=>{
+   const f=makeFakeVercel();
+   f.when('GET','/v13/deployments/{idOrUrl}').resolves({uid:deploy,projectId:project});
+   f.when('GET','/v6/deployments/{id}/files').rejects(404);
+   const result=await invoke('vercel_deploy_list_files',{deployment:deploy},f);
+   expect(result.isError).not.toBe(true);
+   expect(body(result)).toMatchObject({project,deployment:deploy,
+     availability:'not_exposed',complete:false,files:[],scanned:0});
+   expect(f.calls.map(x=>x.method)).toEqual(['GET','GET']);
+   // Authentication failures and server faults must not become "not exposed".
+   for(const status of [401,403,500]){
+     const denied=makeFakeVercel();
+     denied.when('GET','/v13/deployments/{idOrUrl}').resolves({uid:deploy,projectId:project});
+     denied.when('GET','/v6/deployments/{id}/files').rejects(status);
+     expect((await invoke('vercel_deploy_list_files',{deployment:deploy},denied)).isError).toBe(true);
+   }
+ });
  it('refuses changed deployment identity before any log/file request',async()=>{
    for(const op of ['vercel_deploy_get_build_logs','vercel_deploy_list_files']){
      const f=makeFakeVercel();
