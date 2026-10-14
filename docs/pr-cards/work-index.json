@@ -570,15 +570,16 @@
         173,
         175,
         191,
-        192
+        192,
+        193
       ],
       "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
       "externalAcceptance": "NOT_VERIFIED",
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-3 implementer",
-        "reason": "D-3 cancellation/deletion + guarded redeploy and exact linked-GitHub commit creation source now implemented (#191/#192), but metered build dispatch remains explicitly refused under IN-08 without provider-enforceable owner-approved ceiling. Files deployment unimplemented.",
-        "nextAction": "Continue D-3 2MiB bounded inline/upload-from-files workflow with provider request contract and unsafe-name/secret refusals; keep provider builds disabled pending per-transaction enforceable cost cap and independent owner approval, and queue exact deployment/cleanup acceptance.",
+        "reason": "All five D-3 tool source paths now implemented (#173/#175/#191/#192/#193 candidate); new redeploy, Git and bounded UTF-8 files builds require unbounded provider costs so confirmed execution is fail-closed under IN-08. No live build/provider acceptance claimed.",
+        "nextAction": "After exact-head #193 CI, keep D-3 file/Git/redeploy charged test acceptance queued for a genuine Vercel-enforceable per-operation total spending cap, separately independently approved owner grant and authorized disposable fixtures. Continue eligible non-billable approved roadmap reads and denial checks.",
         "checkpoint": "At each substantive D-3 PR boundary and on provision of isolated scratch project per IN-06",
         "evidenceNeeded": "An owner-approved disposable preview deployment (ERROR or CANCELED) with independent proof of empty aliases, a narrow team/project credential and post-deletion 404; test production/foreign denials and preserve $0 spending. Separate cost approval required for metered creation/redeploy.",
         "eligibilityCondition": "Implementation and fake provider regression are eligible immediately; genuine cancellation requires an approved disposable in-progress preview, while metered write activation remains separately gated by IN-08.",

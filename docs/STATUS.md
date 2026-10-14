@@ -1,3 +1,7 @@
+## D-3 bounded SHA-1 file uploads and deploy manifest — candidate PR #193, NOT provider accepted
+
+Code validates safe UTF-8 text file paths/content, strict 2 MiB sum, SHA-1 digests and up to four files. Pinned raw uploads use immutable token/team/digest headers and per-file durable replay; manifest deployment uses safe SHA/size references, exact project/production classification and independent readback. IN-08 still fail-closes all confirmed builds before any upload or POST without independent enforceable provider total cost ceiling and separately authenticated owner purchase approval. Fake-provider tests exercise headers, bytes, rejected payloads and no-provider-write denial. Real deployment and fixture cleanup are queued; do not claim end-to-end paid acceptance. All five D-3 source tool paths implemented at this bounded scope; production OFF, autonomous spend $0.
+
 ## D-3 exact linked GitHub commit create — candidate #192 (not released/provider accepted)
 
 Code creates safely scoped GitHub source requests only after independent Vercel project link read (team, project, name, repository), exact caller ref/SHA, protected/app/production guard and transaction controls; independent returned-deployment identity/readback validation specified. No provider create performed: metered charge unbounded so confirmed calls fail closed at IN-08 before POST. Enforceable provider ceiling and independent owner grant required for genuine usage acceptance. Scratch fixture and checked release remain queued. D-3 files creation still to be implemented.

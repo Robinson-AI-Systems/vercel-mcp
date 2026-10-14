@@ -230,6 +230,48 @@ export function makeVercelClient({
     return envelope;
   }
 
+  // Vercel file uploads use raw octet-stream rather than the ordinary JSON
+  // requestBody contract. The operation path, team scope and SHA-1 digest are
+  // server-owned; callers cannot supply arbitrary upstream headers or URLs.
+  async function uploadFile({sha,bytes},{requestKey:logicalKey,tool,mode='preview'}={}) {
+    const pinned=operation('deployments_file_upload');
+    if(pinned.method!=='POST'||pinned.path!=='/v2/files' ||
+      !Buffer.isBuffer(bytes)||bytes.length<1||bytes.length>2097152||
+      typeof sha!=='string'||!/^[0-9a-f]{40}$/.test(sha)||
+      createHash('sha1').update(bytes).digest('hex')!==sha)
+      throw new TypeError('Invalid SHA-1 or bounded file bytes');
+    if(typeof logicalKey!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(logicalKey)||
+      tool!=='vercel_deploy_create_from_files'||
+      !['preview','production'].includes(mode)||
+      !replayStore?.claim||!replayStore?.complete)
+      throw error('write_guard_unavailable','Durable scoped upload replay is required');
+    const key=logicalKey;
+    const claimed=await replayStore.claim({key,account:account.id,mode,tool,ttlMs:TEN_MINUTES});
+    if(claimed?.state==='completed')return claimed.result;
+    if(claimed?.state!=='claimed')
+      throw error('request_in_progress','Unknown previous file-upload outcome',{confirmed:null});
+    const url=new URL(pinned.path,base);
+    url.searchParams.set('teamId',account.team_id);
+    let response;
+    try {
+      response=await fetchImpl(url.toString(),{
+        method:'POST',headers:{authorization:'Bearer '+token,
+          accept:'application/json','content-type':'application/octet-stream',
+          'x-vercel-digest':sha,'content-length':String(bytes.length)},
+        body:bytes,signal:AbortSignal.timeout(3500),redirect:'error'
+      });
+    } catch {
+      throw error('outcome_unknown','File upload result requires provider read-back',{confirmed:null});
+    }
+    // No upload response body, status text, request bytes or provider message
+    // is ever serialized or persisted. A non-2xx may already have uploaded.
+    if(response.status!==200&&response.status!==204)
+      throw error('outcome_unknown','File upload not independently confirmed',{confirmed:null});
+    const result={sha,size:bytes.length,uploaded:true};
+    await replayStore.complete({key,claimId:claimed.claimId,result});
+    return result;
+  }
+
   async function paginate(id, params = {}, { max = 100 } = {}) {
     if (!Number.isSafeInteger(max) || max < 1 || max > 10000) throw new TypeError('Invalid pagination cap');
     if (!READS.has(operation(id).method)) throw new TypeError('Pagination requires a read operation');
@@ -250,5 +292,5 @@ export function makeVercelClient({
     }
     return { items, capped: true };
   }
-  return { request, paginate };
+  return { request, paginate, uploadFile };
 }

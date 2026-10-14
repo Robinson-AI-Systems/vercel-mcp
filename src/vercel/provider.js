@@ -52,6 +52,16 @@ export async function writeProvider(ctx){
         throw new TypeError('Read-back cannot mutate resources');
       return client.request(id,params);
     },
+    uploadFile({sha,bytes},{requestKey,tool}={}){
+      if(tool!=='vercel_deploy_create_from_files'||
+        typeof requestKey!=='string'||
+        !Buffer.isBuffer(bytes)||bytes.length>2097152)
+        throw new TypeError('Guarded deployment file upload requires a stable owner transaction');
+      return client.uploadFile({sha,bytes},{
+        requestKey:transportReplayKey(requestKey,'deployments_file_upload',
+          {sha,size:bytes.length}),tool,mode:ctx.connection.mode
+      });
+    },
     write(id,params,{requestKey,tool,shapeResult,mutationId}={}){
       if(['GET','HEAD'].includes(operation(id).method) ||
         typeof tool!=='string' || !/^vercel_[a-z0-9_]+$/.test(tool) ||
