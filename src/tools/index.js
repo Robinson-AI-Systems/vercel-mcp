@@ -18,6 +18,7 @@ import {projectDeleteTools} from './project-delete.js';
 import {projectTransferTools} from './project-transfer.js';
 import {projectResourcesTools} from './project-resources.js';
 import {deploymentReadTools} from './deployments.js';
+import {projectEnvReadTools} from './project-env-reads.js';
 import {checksReadTools} from './checks.js';
 import {teamReadTools} from './teams.js';
 import {passProposalTools} from './pass-proposals.js';
@@ -26,4 +27,4 @@ import {teamDefaultProtectionTools} from './team-default-protection.js';
 import {teamSecurityWriteTools} from './team-security-write.js';
 import {teamProfileWriteTools} from './team-profile-write.js';
 
-export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, checksReadTools, teamReadTools, teamProfileWriteTools, teamSecurityWriteTools, teamDefaultProtectionTools, universalTools, passProposalTools]);
+export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, checksReadTools, projectEnvReadTools, teamReadTools, teamProfileWriteTools, teamSecurityWriteTools, teamDefaultProtectionTools, universalTools, passProposalTools]);
