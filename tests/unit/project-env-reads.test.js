@@ -113,8 +113,19 @@ describe('E-1 explicit environment drift comparison',()=>{
    expect(result.comparisons).toEqual([{key:'API_BASE_URL',status:'same'}]);
    expect(result).toMatchObject({hasValues:false,hasDigests:false,complete:false});
    expect(JSON.stringify(result)).not.toContain(secret);
-   expect(JSON.stringify(result)).not.toContain('digest');
+   expect(JSON.stringify(result)).not.toMatch(/[a-f0-9]{64}/i);
    expect(f.fake.calls.filter(x=>x.path.includes('/env/env_FAKE_ALPHA'))).toHaveLength(2);
+ });
+ it('distinguishes changed Config values while keeping both values private',async()=>{
+   const f=fixture();
+   f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
+     .resolves({...rows[0],value:'before_FAKE_private'})
+     .resolves({...rows[0],value:'after_FAKE_private'});
+   const result=parse(await f.call('vercel_env_compare',{
+     left:{target:'production'},right:{target:'production'},keys:['API_BASE_URL']}));
+   expect(result.comparisons).toEqual([{key:'API_BASE_URL',status:'different'}]);
+   expect(JSON.stringify(result)).not.toContain('before_FAKE_private');
+   expect(JSON.stringify(result)).not.toContain('after_FAKE_private');
  });
  it('classifies secret kinds without reading their values',async()=>{
    const f=fixture();
