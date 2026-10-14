@@ -190,7 +190,14 @@ export function makeVercelClient({
           bytesRead:0,received:0,cutoff:'no_content',complete:false,
           reason:'Provider returned no content; runtime log window completeness is unknown'
         }};
-        return readBoundedRuntimeLogs(response,signal);
+        // A live stream can remain open with no events. Never translate
+        // unreadable upstream framing into a successful empty log window.
+        try {
+          return await readBoundedRuntimeLogs(response,signal);
+        } catch {
+          throw error('runtime_log_stream_invalid',
+            'Runtime log stream could not be safely decoded', { status: response.status });
+        }
       }
       if(response.ok && options.fileContent===true)
         return readBoundedJson(response,signal,8192);

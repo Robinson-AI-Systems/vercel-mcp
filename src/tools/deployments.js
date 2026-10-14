@@ -265,7 +265,7 @@ export const deploymentReadTools={
       const {client,project}=await scopedDeployment(args,ctx,{timeoutMs:4000});
       const received=await client.request('runtime_logs_get',{
         path:{projectId:project,deploymentId:args.deployment}
-      },{streamLogs:true,timeoutMs:6000});
+      },{streamLogs:true,timeoutMs:2500});
       let matched=0,inWindow=0;
       const levels={error:0,warning:0,info:0,fatal:0,debug:0,other:0};
       const statuses={};

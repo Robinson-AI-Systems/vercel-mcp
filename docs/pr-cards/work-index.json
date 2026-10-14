@@ -539,8 +539,8 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-2 Vercel MCP implementer",
-        "reason": "Ten D-2 reads implemented; hosted direct acceptance runner is available in candidate #160, but no owner-issued pass, authorized disposable nonproduction deployment, actual file response fields or runtime-log observations have been recorded.",
-        "nextAction": "Run scripts/check-connected-acceptance.mjs in trusted protected environment after owner issues separately scoped TEST and preview passes and identifies approved disposable deployment/file digest; verify unauthorized denial, actual provider bytes/log rows, owner revocation and post-revocation HTTP 401. Continue independent U-1/O-1/R-1 meanwhile.",
+        "reason": "Read diagnostics are code-implemented; October 14 current READY custom-MCP runtime stream still returns unclassified error with valid deployment identity. Candidate bounded stream/error diagnosis needs CI, checked release, and genuine native/provider proof.",
+        "nextAction": "After exact-head CI and checked deployed source b19efea95be5e552ee5232770342e1ebabd2d23a, retry the native runtime-log GET with exact project ID/deployment; distinguish typed protocol failure, bounded no-events and actual logs. Keep separate owner-authorized disposable file/runtime/provider, denial, revocation and Hub acceptance open.",
         "checkpoint": "Immediately on owner-issued scoped passes + approved nonproduction deployment and at next PR/session boundary",
         "evidenceNeeded": "Public origin and deployment verified; still need protected TEST and preview pass, approved nonproduction project/deployment and harmless file/digest, actual provider file/log responses, independent revoked-pass denial, original OAuth MCP and Hub direct/relay/Sandbox evidence.",
         "eligibilityCondition": "Real acceptance is eligible for secure owner-issued scoped pass + authorized nonproduction deployment; missing these affects external proof only, not independent approved implementations.",
