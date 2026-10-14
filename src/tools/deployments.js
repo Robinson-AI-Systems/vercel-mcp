@@ -338,7 +338,20 @@ export const deploymentReadTools={
     async vercel_deploy_list_files(args,ctx){
       validateArgs(args,['project','deployment']);
       const {client,project}=await scopedDeployment(args,ctx);
-      const files=await client.request('deployments_files_list',{path:{id:args.deployment}});
+      let files;
+      try {
+        files=await client.request('deployments_files_list',{path:{id:args.deployment}});
+      } catch(error) {
+        // A verified Git-created deployment may have no retrievable uploaded
+        // source tree at this optional Vercel endpoint. Do not imply that the
+        // independently verified deployment disappeared, or that it is empty.
+        // 401/403/5xx remain errors; no alternative source or secret is read.
+        if(error?.status!==404)throw error;
+        return asText({project,deployment:args.deployment,
+          files:[],scanned:0,more:false,complete:false,
+          availability:'not_exposed',
+          note:'Vercel did not expose a source file tree for this verified deployment. Git-built deployments may not provide one; zero returned paths does not establish an empty deployment'});
+      }
       return asText({project,deployment:args.deployment,...safeFileTree(files)});
     },
     async vercel_deploy_list(args,ctx){
