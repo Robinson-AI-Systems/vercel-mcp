@@ -20,7 +20,7 @@ provider/security/owner gates remain binding.
 ## Efficient release-aware execution — owner instruction 2026-10-14
 
 [SESSION-START](docs/SESSION-START.md) is the consolidated session procedure;
-`npm run session:status` prints the read-only release acceptance queue and PR boundary.
+`npm run session:status` prints the read-only release acceptance queue and remaining-roadmap summary.
 Its workflow/cadence/merge-versus-live-proof rules supersede older conflicting procedural
 wording below, but never override explicit safety or pre-merge owner/card gates.
 Use substantial cohesive outcomes; numeric production-line targets are advisory rather
@@ -28,6 +28,53 @@ than artificial hard caps. Full mandatory checks run before publication, with fo
 checks during development. Product acceptance stays open until real evidence passes.
 The owner explicitly authorized this cross-repository guidance/tooling optimization;
 routine implementation sessions still prohibit filler/documentation-only PRs.
+
+## Roadmap-throughput and context-safe execution — owner correction 2026-10-14
+
+**Completion outranks PR count.** The goal is completed, usable, safely proven product
+functionality, not GitHub activity. Each PR must integrate at least one whole eligible
+roadmap slice; package multiple adjacent small slices from the same approved parent
+outcome when their contract, risk, callers, integration and tests belong together.
+Target **400–800 changed production-code lines per substantive PR on average**
+and **2–5 fully completed roadmap slices per substantive PR on average**,
+measured over the latest five merged implementation PRs when available.
+These are planning averages, not hard bounds or a reason to pad code, split
+coherent outcomes or bundle unrelated risks. Count production source changes
+only, excluding tests, documentation, generated files, fixtures and formatting.
+Record actual source additions/deletions and completed slice IDs with their
+acceptance evidence in each PR/handoff. Missing historical measurements stay
+unknown. A helper is not a completed slice; eligible engineering and pre-merge
+checks must be finished. Deployed/provider acceptance remains separately open.
+Explain legitimate smaller safety fixes and larger inseparable outcomes.
+
+**No fixed PR count or multiple-of-five boundary.** Older directions elsewhere
+requiring five or ten PRs or PR-number alignment are superseded. Do not invent
+small PRs or pad changes to satisfy a number. Spend the chat's usable context
+on complete outcomes; after each merged PR, preserve an exact recoverable
+checkpoint (branch/head, card/slice coverage, focused and CI proof, open review,
+deployed/live versus source, pending acceptance and next action). Before starting
+another work unit, assess whether the remaining chat context can support its
+implementation, corrections, tests, merge and handoff. If not, finish a clean
+checkpoint instead of beginning work likely to be abandoned. Never use a
+continuation prompt instead of completing currently feasible work.
+
+**Remaining-work visibility.** Run `npm run session:status` for current
+roadmap counts and unfinished IDs in approved order alongside the separate
+release acceptance queue. Counts describe the existing index/ledger's coarse
+units (including separately listed planned/blocked/optional work), not fine-grained PR slices, time estimates or live acceptance.
+Record actual completed slices and remaining engineering in existing cards
+and handoffs; never promote an incomplete card to improve the numbers.
+Follow the designated roadmap order rather than the milestone in an old handoff.
+
+**Adaptive CI budget and measurement.** Validate focused behavior at meaningful
+code seams, run required complete gates on the final coherent tree and fix all
+reported failures in one root-cause-informed correction cycle where possible.
+If repeated CI fixes occur, investigate contract/test drift and reduce the
+*next* PR's risk surface; do not silently split the current work to manufacture
+success. Track complete slices/outcomes, real acceptance closed, remaining
+work, first-pass CI failures, correction pushes and actual review overhead.
+Lines of code and merged PRs are diagnostic statistics, not progress scores.
+Every safety, money-out, service autonomy, release and approval gate remains.
 
 ## Mobile and tool-unavailable connection recovery
 

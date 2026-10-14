@@ -2,6 +2,34 @@
 
 Added team-scoped metadata-only shared-variable list and project-scoped custom-environment inventory, pinned provider GETs and independent exact project/team checks, strict row projection omitting any values or digests, bounded pagination and duplicate/out-of-scope denial. Fake-provider unit tests only; checked production acceptance must wait for a daily/manual release and genuine custom-MCP calls. Five approved E-2 writes still pending, no values retrieved or provider mutation. D-3 paid deploy acceptance remains separately blocked by IN-08 provider enforceable total-cost ceiling plus authenticated independent owner grant. Production stays OFF and autonomous spending $0.
 
+### Owner-requested throughput measurement update — October 14, 2026
+
+Focused maintenance: 400–800 changed production lines and 2–5 completely
+integrated slices per substantive PR on rolling averages, with evidence-backed
+exceptions and no padding. Existing session tooling now reports remaining
+coarse roadmap units and IDs without conflating them with PR slices or live
+acceptance. Source/CI/deployed/provider evidence remains separate.
+No provider operation, release, approval or safety gate is changed.
+
+Verification: all 61 focused session-tool tests passed locally across the five
+updated repositories, including real disposable Git ancestry, unchanged queues,
+partial/review/blocked/optional/planned counts, duplicate/unknown status rejection
+and Google native-ledger parsing. Each actual index/ledger also loaded successfully.
+Required exact-head Actions gates and reviews must pass before merge; this note
+claims no deployed or genuine external-provider acceptance.
+
+## October 14 — owner-approved outcome-sized development workflow
+
+The owner retired five-PR session quotas and multiple-of-five PR boundaries.
+Related approved roadmap slices are implemented together as a coherent,
+tested capability (roughly 500–800 production lines plus tests when sensible,
+not a mandatory quota). Chat sessions checkpoint each completed PR with exact
+head, evidence and next action before context exhaustion. The read-only
+session:status utility reports latest PR informationally rather than a target.
+No provider acceptance, permission, production activation, spending, deployment,
+release or safety gate changed. This is workflow source only; external
+acceptance remains independently pending.
+
 ## D-3 bounded SHA-1 file uploads and deploy manifest — candidate PR #193, NOT provider accepted
 
 Code validates safe UTF-8 text file paths/content, strict 2 MiB sum, SHA-1 digests and up to four files. Pinned raw uploads use immutable token/team/digest headers and per-file durable replay; manifest deployment uses safe SHA/size references, exact project/production classification and independent readback. IN-08 still fail-closes all confirmed builds before any upload or POST without independent enforceable provider total cost ceiling and separately authenticated owner purchase approval. Fake-provider tests exercise headers, bytes, rejected payloads and no-provider-write denial. Real deployment and fixture cleanup are queued; do not claim end-to-end paid acceptance. All five D-3 source tool paths implemented at this bounded scope; production OFF, autonomous spend $0.
@@ -90,7 +118,7 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "status": "PENDING",
     "lastEvidence": "Dual-project code and defensive fake-provider tests proposed PR #185; no real provider write, TEST proof or deployed source attestation."
   },
-{
+  {
     "id": "VERCEL-D2-RUNTIME-LOGS",
     "priority": 2,
     "requiredRevision": "b19efea95be5e552ee5232770342e1ebabd2d23a",
@@ -100,6 +128,17 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "2026-10-14: provider independently verified READY production at 5650873; native deployment detail and scoped preview env metadata read succeeded using exact provider project ID. Native bounded runtime-log GET still unknown_error; independent standard-provider log view found no matching rows but is not custom acceptance. Candidate b19efea95be5e552ee5232770342e1ebabd2d23a shortens stream budget and safely classifies malformed frames; requires exact-head CI and later checked source deployment, then native retest. Neither empty results nor real log protocol accepted."
+  },
+  {
+    "id": "VERCEL-E2-METADATA",
+    "priority": 5,
+    "requiredRevision": "36afa99779ed37983f2dea09ff5d42ce23869909",
+    "task": "Authenticate native read-only selected-team shared-variable and exact-project custom-environment metadata through this custom MCP; prove safe field projection, provider response/pagination boundaries and no value disclosure",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Verified READY production ancestry, own service-issued authorization, selected-team/test project grants; no provider writes or disclosure of values",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source fake-provider E-2 unit tests on PR #194; not a deployed or real-provider acceptance pass"
   }
 ]
 ```
