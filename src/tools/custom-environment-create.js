@@ -47,7 +47,7 @@ function requestBody(a){
     ...(a.description!==undefined?{description:a.description}:{}),
     ...(a.copyFrom?{copyEnvVarsFrom:a.copyFrom}:{})};
 }
-async function scope(ctx,project,expectedName){
+export async function scope(ctx,project,expectedName){
   const {client,account}=await readProvider(ctx);
   if(account.scope==='project'&&account.project_id!==project)
     throw new TypeError('Project outside selected credential');
@@ -72,7 +72,7 @@ async function noConflict(client,project,slug,branch){
       x.branchMatcher.pattern===branch))
     throw new TypeError('Custom environment name or branch already assigned');
 }
-function context({db,connection,env,fetchImpl}){
+export function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:x=>db.recordChange(x),replayStore:db.requestReplayStore(),
     guardProtected:targets=>checkProtected(targets,{db,connection,env}),
@@ -158,3 +158,6 @@ export const customEnvironmentCreateTools={
     content:[{type:'text',text:JSON.stringify(result)}]
   }))}
 };
+
+// Reused by the guarded update/delete sibling. No provider secrets cross this boundary.
+export {PROJECT,NAME,SLUG,BRANCH,ENV,RESERVED};
