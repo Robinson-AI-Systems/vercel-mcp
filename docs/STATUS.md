@@ -1,3 +1,21 @@
+## E-2 custom environment lifecycle — guarded source candidate, genuine acceptance open
+
+Three adjoining approved E-2 slices now implement actual pinned Vercel create,
+update and delete requests with explicit exact selected project/team, branch,
+metadata identity and revision checks. Create supports a provider-side copy
+from nonproduction preview/development only; no environment variable value ever
+enters results or audits. Update requires an empty domain/alias inventory and
+independent revision/prod-branch recheck; destructive delete is full-profile,
+empty-only, and sends `deleteUnassignedEnvironmentVariables:false`.
+All use the existing confirmation, production, app/protected-resource and
+durable replay gates and independent provider readback. Exact request shape,
+unsafe branch, lost project, protected, stale revision, replay and secret
+projections have focused fake-provider tests. These are code/test claims only,
+not permission to use real projects or evidence of a provider mutation.
+The next eligible E-2 engineering scope is shared variable set/unlink/delete;
+live checks await independently verified checked release and selected disposable
+fixture. No purchases, production switch, live project write or spending.
+
 ## E-2 read-only shared/custom environment metadata — candidate PR #194
 
 Added team-scoped metadata-only shared-variable list and project-scoped custom-environment inventory, pinned provider GETs and independent exact project/team checks, strict row projection omitting any values or digests, bounded pagination and duplicate/out-of-scope denial. Fake-provider unit tests only; checked production acceptance must wait for a daily/manual release and genuine custom-MCP calls. Five approved E-2 writes still pending, no values retrieved or provider mutation. D-3 paid deploy acceptance remains separately blocked by IN-08 provider enforceable total-cost ceiling plus authenticated independent owner grant. Production stays OFF and autonomous spending $0.
@@ -139,6 +157,39 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Source fake-provider E-2 unit tests on PR #194; not a deployed or real-provider acceptance pass"
+  },
+  {
+    "id": "VERCEL-E2-CUSTOM-CREATE",
+    "priority": 5,
+    "requiredRevision": "822ca26376fab7e05f1e2526f8ba8ad7e0e49d8f",
+    "task": "Prove native custom MCP create nonproduction environment with optional safe provider-side copy, independent exact branch/readback and cleanup",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Actual READY production ancestry, separate owner-confirmed disposable TEST fixture, saved custom OAuth connection, protected/app/production guards, no paid builds, preserve exact cleanup evidence",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source implementation and fake HTTP tests only; no provider mutations, no owner fixture approval inferred"
+  },
+  {
+    "id": "VERCEL-E2-CUSTOM-UPDATE",
+    "priority": 5,
+    "requiredRevision": "822ca26376fab7e05f1e2526f8ba8ad7e0e49d8f",
+    "task": "Prove native exact-revision nonproduction environment update; changed revision and protected target deny; independent readback",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Actual READY production ancestry, separate owner-confirmed disposable TEST fixture, saved custom OAuth connection, protected/app/production guards, no paid builds, preserve exact cleanup evidence",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source implementation and fake HTTP tests only; no provider mutations, no owner fixture approval inferred"
+  },
+  {
+    "id": "VERCEL-E2-CUSTOM-DELETE",
+    "priority": 5,
+    "requiredRevision": "822ca26376fab7e05f1e2526f8ba8ad7e0e49d8f",
+    "task": "Prove native full-profile empty-only destructive custom environment removal, retained unassigned variables, independent absence and cleanup",
+    "procedure": "docs/pr-cards/E-2.md",
+    "gates": "Actual READY production ancestry, separate owner-confirmed disposable TEST fixture, saved custom OAuth connection, protected/app/production guards, no paid builds, preserve exact cleanup evidence",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source implementation and fake HTTP tests only; no provider mutations, no owner fixture approval inferred"
   }
 ]
 ```

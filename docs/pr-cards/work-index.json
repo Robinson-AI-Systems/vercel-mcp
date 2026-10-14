@@ -670,10 +670,10 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-2 implementer",
-        "reason": "Metadata only reads implemented (#194 candidate); shared env writes and custom environment create/update/delete still pending. Provider live success requires checked release and owner-scoped fixture.",
-        "nextAction": "Continue guarded custom-environment create/update/delete and shared-variable writes with provider request-shape tests and secret-free readback. Prove independent owner/production/app/purchase gates, then check original custom connection after release.",
-        "checkpoint": "Next PR session and checked deployment",
-        "evidenceNeeded": "Authenticated native selected-team shared-variable and exact-project custom-env metadata, no provider value exposure, trustworthy page/empty response semantics; fixture and provider change acceptance",
+        "reason": "Metadata reads merged #194; guarded custom environment create/update/delete source candidate pending exact-head CI, main merge and native provider acceptance. Shared variable mutations remain unimplemented.",
+        "nextAction": "Finish and merge guarded custom-environment lifecycle after exact-head tests/review; then implement shared-variable set/unlink/delete with production-linked classification and private values, following E-2. Catch up native acceptance on next checked release.",
+        "checkpoint": "Candidate custom environment lifecycle exact-head CI/review; next substantive shared variable roadmap slice and checked release",
+        "evidenceNeeded": "Exact-head CI, API-shape and security tests for new guarded custom environment handlers; independent native TEST create/update/delete with readback, nonproduction and protected denials plus clean fixture removal",
         "eligibilityCondition": "Code/fake tests eligible now; owner-signed TEST fixture plus release required only for genuine acceptance",
         "dependencies": [
           "E-1"
