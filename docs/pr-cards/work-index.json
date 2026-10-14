@@ -18,7 +18,7 @@
     "R",
     "X"
   ],
-  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md.",
+  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400–800 changed production-code lines and 2–5 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims.",
   "cards": [
     {
       "id": "A-1",
@@ -668,7 +668,7 @@
         194
       ],
       "revisit": {
-        "trigger": "next-approved-E-2-write-slice",
+        "trigger": "next-implementation-slice",
         "owner": "next E-2 implementer",
         "reason": "Metadata only reads implemented (#194 candidate); shared env writes and custom environment create/update/delete still pending. Provider live success requires checked release and owner-scoped fixture.",
         "nextAction": "Continue guarded custom-environment create/update/delete and shared-variable writes with provider request-shape tests and secret-free readback. Prove independent owner/production/app/purchase gates, then check original custom connection after release.",
