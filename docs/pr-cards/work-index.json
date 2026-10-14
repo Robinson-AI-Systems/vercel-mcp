@@ -558,14 +558,31 @@
         "D-2"
       ],
       "card": "docs/pr-cards/D-3.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 400,
       "units": [
         "D-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "READY",
+      "ownerInputs": [],
+      "pr": [
+        173
+      ],
+      "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
+      "externalAcceptance": "NOT_VERIFIED",
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next D-3 implementer",
+        "reason": "The approved five-tool card is only partially complete. PR #173 implements guarded preview cancellation. Cancellation of an approved disposable running preview remains unexercised against the provider. Four other D-3 tools still need complete implementations.",
+        "nextAction": "Implement guarded preview source management and deletion with exact live-serving exclusion. Keep metered creation/redeploy denied under IN-08 until provider-enforced cumulative price cap and separate owner approval. Exercise genuine cancel only on owner-authorized disposable nonproduction build; perform independent readback and cleanup.",
+        "checkpoint": "At each substantive D-3 PR boundary and on provision of isolated scratch project per IN-06",
+        "evidenceNeeded": "Owner-authorized disposable preview deployment in team account, nonproduction cancellation, independent state readback, production-target denial, permission-denied proof and safe cleanup.",
+        "eligibilityCondition": "Implementation and fake provider regression are eligible immediately; genuine cancellation requires an approved disposable in-progress preview, while metered write activation remains separately gated by IN-08.",
+        "dependencies": [
+          "D-2"
+        ]
+      }
     },
     {
       "id": "D-4",
