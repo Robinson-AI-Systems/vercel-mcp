@@ -23,14 +23,17 @@ const exactArgs={project,expectedName:'sample',id,expectedSlug:'staging',
   confirm:true,requestKey:'mutateStageFake01'};
 const parse=r=>JSON.parse(r.content[0].text);
 function fixture(){
-  const fake=makeFakeVercel(),audit=[],memo=new Map();
+  const fake=makeFakeVercel(),audit=[],memo=new Map(),inFlight=new Set();
   const db={getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
     recordChange:async x=>audit.push(x),
     requestReplayStore:()=>({
-      claim:async({key})=>memo.has(key)?{state:'completed',result:memo.get(key)}:
-        {state:'claimed',claimId:key},
-      complete:async({key,result})=>memo.set(key,result),
-      release:async()=>true
+      claim:async({key})=>{
+        if(memo.has(key))return {state:'completed',result:memo.get(key)};
+        if(inFlight.has(key))return {state:'pending'};
+        inFlight.add(key);return {state:'claimed',claimId:key};
+      },
+      complete:async({key,result})=>{inFlight.delete(key);memo.set(key,result);},
+      release:async({key})=>{inFlight.delete(key);return true;}
     })};
   loadToken.mockResolvedValue(token);
   fake.when('GET','/v9/projects/{idOrName}').resolves(projectRow);
