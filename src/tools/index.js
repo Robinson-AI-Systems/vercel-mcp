@@ -23,6 +23,7 @@ import {deploymentDeleteTools} from './deployment-delete.js';
 import {deploymentRedeployTools} from './deployment-redeploy.js';
 import {deploymentGitCreateTools} from './deployment-git-create.js';
 import {deploymentFileCreateTools} from './deployment-file-create.js';
+import {sharedCustomEnvReadTools} from './shared-custom-env-reads.js';
 import {checksReadTools} from './checks.js';
 import {projectEnvReadTools} from './project-env-reads.js';
 import {projectEnvWriteTools} from './project-env-write.js';
@@ -35,4 +36,4 @@ import {teamDefaultProtectionTools} from './team-default-protection.js';
 import {teamSecurityWriteTools} from './team-security-write.js';
 import {teamProfileWriteTools} from './team-profile-write.js';
 
-export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, deploymentCancelTools, deploymentDeleteTools, deploymentRedeployTools, deploymentGitCreateTools, deploymentFileCreateTools, checksReadTools, projectEnvReadTools, projectEnvWriteTools, projectEnvCopyTools, projectEnvBatchTools, teamReadTools, teamProfileWriteTools, teamSecurityWriteTools, teamDefaultProtectionTools, universalTools, passProposalTools]);
+export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, deploymentCancelTools, deploymentDeleteTools, deploymentRedeployTools, deploymentGitCreateTools, deploymentFileCreateTools, sharedCustomEnvReadTools, checksReadTools, projectEnvReadTools, projectEnvWriteTools, projectEnvCopyTools, projectEnvBatchTools, teamReadTools, teamProfileWriteTools, teamSecurityWriteTools, teamDefaultProtectionTools, universalTools, passProposalTools]);
