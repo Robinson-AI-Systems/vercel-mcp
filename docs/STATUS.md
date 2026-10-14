@@ -1,3 +1,7 @@
+## E-1 project env metadata — candidate PR #174
+
+Three native read-only operations are implemented: list key metadata, get metadata by exact variable ID, and generate names-only .env.example placeholders. Exact project ownership is independently checked against the stored credential. List forces decrypt=false. Single GET output discards every provider value, comments and untrusted fields, even for legacy encrypted records. Pages are bounded and never claimed complete without provider proof. Fake-provider tests plant sentinel secrets and verify scope, identity and redaction. Six E-1 tools remain pending; no provider environment changes, production changes or spending were made. Real connected acceptance requires checked source release.
+
 ## D-3 preview cancellation — PR #173
 
 Guarded cancellation code and negative tests now cover exact preview identity, project isolation, pre-dispatch recheck, immutable target, durable replay and independent canceled-state verification. Other deployment changes remain pending; metered operations remain disabled without provider-enforceable owner pricing approval. No actual provider mutation, production change or spending. D-3 external acceptance requires an authorized disposable preview.
