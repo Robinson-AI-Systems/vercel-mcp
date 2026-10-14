@@ -183,8 +183,15 @@ export function makeVercelClient({
         throw error('outcome_unknown', 'Vercel request outcome needs read-back verification',
           { confirmed: null });
       }
-      if(response.ok && options.streamLogs===true)
+      if(response.ok && options.streamLogs===true){
+        // An empty HTTP success is not a readable stream. It also cannot
+        // establish that the requested historical window had no log events.
+        if(response.status===204)return {records:[],stream:{
+          bytesRead:0,received:0,cutoff:'no_content',complete:false,
+          reason:'Provider returned no content; runtime log window completeness is unknown'
+        }};
         return readBoundedRuntimeLogs(response,signal);
+      }
       if(response.ok && options.fileContent===true)
         return readBoundedJson(response,signal,8192);
       if(indexed)envelope=response.status===204?null:await readBoundedJson(response,signal,65536);
