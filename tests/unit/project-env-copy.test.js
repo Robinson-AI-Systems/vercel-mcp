@@ -195,7 +195,7 @@ describe('E-1 server-side Config-only copy',()=>{
     expect(post.body).toEqual({key:input.destinationKey,value,type:'plain',
       target:['development']});
     const projectReads=f.fake.calls.filter(c=>c.method==='GET'&&
-      c.path.startsWith('/v9/projects/')).map(c=>c.params.idOrName);
+      c.path.startsWith('/v9/projects/')).map(c=>c.path.split('/').at(-1));
     expect(projectReads).toContain(project);
     expect(projectReads).toContain(other);
     expect(JSON.stringify([out,f.audit,[...f.memo.values()]])).not.toContain(value);
