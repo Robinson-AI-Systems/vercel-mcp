@@ -241,7 +241,7 @@ export function makeVercelClient({
       createHash('sha1').update(bytes).digest('hex')!==sha)
       throw new TypeError('Invalid SHA-1 or bounded file bytes');
     if(typeof logicalKey!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(logicalKey)||
-      !/^vercel_[a-z0-9_]+$/.test(tool??'')||
+      tool!=='vercel_deploy_create_from_files'||
       !['preview','production'].includes(mode)||
       !replayStore?.claim||!replayStore?.complete)
       throw error('write_guard_unavailable','Durable scoped upload replay is required');
