@@ -1,3 +1,15 @@
+## October 14 — owner-approved outcome-sized development workflow
+
+The owner retired five-PR session quotas and multiple-of-five PR boundaries.
+Related approved roadmap slices are implemented together as a coherent,
+tested capability (roughly 500–800 production lines plus tests when sensible,
+not a mandatory quota). Chat sessions checkpoint each completed PR with exact
+head, evidence and next action before context exhaustion. The read-only
+session:status utility reports latest PR informationally rather than a target.
+No provider acceptance, permission, production activation, spending, deployment,
+release or safety gate changed. This is workflow source only; external
+acceptance remains independently pending.
+
 ## D-3 bounded SHA-1 file uploads and deploy manifest — candidate PR #193, NOT provider accepted
 
 Code validates safe UTF-8 text file paths/content, strict 2 MiB sum, SHA-1 digests and up to four files. Pinned raw uploads use immutable token/team/digest headers and per-file durable replay; manifest deployment uses safe SHA/size references, exact project/production classification and independent readback. IN-08 still fail-closes all confirmed builds before any upload or POST without independent enforceable provider total cost ceiling and separately authenticated owner purchase approval. Fake-provider tests exercise headers, bytes, rejected payloads and no-provider-write denial. Real deployment and fixture cleanup are queued; do not claim end-to-end paid acceptance. All five D-3 source tool paths implemented at this bounded scope; production OFF, autonomous spend $0.
