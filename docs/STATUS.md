@@ -1,3 +1,7 @@
+## D-3 metered target-preserving redeploy — candidate #191, not released or provider accepted
+
+Implemented exact-source and immutable preview/production target classification for a guarded redeploy with independent source/team proof, changed-state refusal, owner/app/protected guards, durable replay, provider response and readback validation. Builds incur unbounded usage; IN-08 central spend gate denies all confirmed calls unless a provider-enforceable per-operation ceiling and separate owner-approved transaction become available. No real deployment, cost, production enablement or provider acceptance. Git/files creation still unimplemented.
+
 ## October 14 D-2 bounded stream diagnostics — code candidate (pending CI, NOT deployed)
 
 Verified exact live/main production source 5650873ba50f97ed0ec688d4269f46f87c5c331c READY through Vercel provider. Actual native custom-MCP deployment metadata read succeeds when passed its exact provider project ID (not its display name), but an actual native runtime-log read still returns unclassified unknown_error. A separate standard-provider query found no logs in its own window; that is not native acceptance. This source change caps the live stream read to 2.5s within the serverless request budget, converts malformed successful upstream frames into a distinct safe diagnosis rather than an empty-events claim, and adds hostile-byte regressions. The exact deployed log response remains unknown; continue pending custom-provider proof after a checked release without loosening authorization or disclosing log messages.
