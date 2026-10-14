@@ -19,3 +19,17 @@ For a new Vercel project, set Settings → Environments → Production → Branc
 `main` holds ongoing checked development; `live` identifies the released snapshot. Agents continue merging into `main`, never into `live`. A commit merged after a release belongs to the next scheduled release; do not keep live synchronized on every merge or trigger extra daytime builds. The release job refreshes changed remote refs and waits up to ten minutes for missing/pending exact-head checks. A completed failed check, diverged history or exhausted window refuses promotion. Atomic daily markers and non-forced fast-forwards remain mandatory. The schedule is 00:01 America/Denver, with native DST and possible GitHub queue delays.
 
 An explicit owner request can authorize a one-off manual release after the exact candidate passes required checks. Read fresh main/live refs, require ancestry, update live without force and with an expected-head lease, then verify Vercel production reaches READY for that SHA and the production alias resolves to it. A branch update alone is not deployment-success evidence. This exception does not authorize automatic releases at agent batch boundaries, new provider production permissions or spending.
+
+## Missed-event recovery (owner repair, 2026-10-14)
+
+The primary remains 00:01 Denver. Backup events run at 00:17, 01:17 and 05:37 Denver,
+plus 12:43 UTC (06:43 MDT / 05:43 MST). Each invokes the same atomic, checked,
+once-per-Denver-day promoter. These are recovery opportunities, not extra releases.
+GitHub can omit every scheduled event; backup configuration alone does not prove reliability.
+Verify the actual run, daily receipt, released SHA and Vercel production deployment.
+
+If all events are missed, the signed-in owner `christcr2012` can Run workflow on
+`main` with `recover_missed_daily` checked. The default is false; other actors,
+branches and invocations fail closed. Recovery retains exact-main CI, ancestry,
+atomic marker and read-back checks and skips if a release already occurred that day.
+No provider production permission, plan, spending limit or preview setting changes.
