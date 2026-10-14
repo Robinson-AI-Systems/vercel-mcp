@@ -36,6 +36,29 @@ cohesive PR needs explicit integration/risk/verification coverage. Preserve actu
 migration ordering, risk isolation and every business/security/financial decision gate.
 Do not revisit passing hardening without a demonstrated defect or approved requirement.
 
+## 2. Finish the current roadmap outcome
+
+Use the approved order, active card/packet and parent outcome from actual main.
+Before coding, turn that outcome's remaining engineering into one finite checklist:
+provider/domain behavior, callers/registry/doors or UI, failure/denial/replay paths,
+fixtures and integration proof. Reuse the card; do not create another roadmap.
+Complete that eligible integration before selecting later dependent units.
+Helper completion, PR numbering and easier tickets do not establish outcome completion.
+
+Investigate technical problems and inherited reviews in this unit; batch authorized
+remedies rather than carrying implementable fixes as external acceptance. If an
+essential owner-specific policy, fact or permission is missing, check recorded decisions
+first, then ask the smallest precise question now with a recommendation and consequences.
+Pause only its dependent path, record the answer and resume the same outcome/session.
+Research public provider contracts independently; do not ask the owner to resolve them.
+Where existing gates permit, continue safe configurable implementation while actual
+activation/provider/professional acceptance remains separately restricted. Never invent
+approval, widen permissions or mark unimplemented code as waiting for a release.
+
+At handoff, name the same unfinished outcome unless its eligible engineering has proof.
+Move to independent work only when the roadmap permits it; preserve genuine execution
+limits, risk boundaries, approval gates and the existing release acceptance queue.
+
 ## 3. Build, verify, publish
 
 Use focused behavioral tests/lint at meaningful seams while developing. Local commits
@@ -102,7 +125,10 @@ source implementation dependencies remain in the existing work index. Split broa
 rows into exact scenario rows as fixtures/revisions are reconciled. No fake pass entries.
 After every meaningful merge, add any new deployment-dependent checks in that PR; pin
 its source commit, never a guessed future merge SHA. After a release, execute cleared
-checks promptly, record sanitized read/write/denial/readback/cleanup proof, and retain
+checks only when that source is in deployed ancestry. If a permitted squash/rebase
+removed the pin, reconcile it to the independently verified merged implementation
+commit before handoff; never mark it passed or repin to unrelated code.
+Execute cleared checks promptly, record sanitized read/write/denial/readback/cleanup proof, and retain
 failed/uncertain fixture recovery tasks. New changes, rollback, authorization or environment
 changes reopen affected proof. NEVER copy credentials/private fixture IDs into the queue.
 
