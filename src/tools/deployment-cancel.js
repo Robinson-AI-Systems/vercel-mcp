@@ -30,7 +30,8 @@ function previewOnly(row){
     throw new TypeError('Unknown or production deployment target cannot be canceled');
 }
 function identity(row,expected){
-  if(row?.uid!==expected.id && row?.id!==expected.id)
+  if(row?.uid!=null&&row?.id!=null&&row.uid!==row.id ||
+     row?.uid!==expected.id && row?.id!==expected.id)
     throw new TypeError('Deployment identity changed');
   if(row.projectId!==expected.project||
      row.project?.id!=null&&row.project.id!==expected.project)
