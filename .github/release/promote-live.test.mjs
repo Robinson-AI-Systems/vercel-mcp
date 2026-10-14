@@ -175,7 +175,8 @@ test('successful no-change run records a receipt and suppresses later developmen
     Object.assign(process.env, { GITHUB_REPOSITORY: 'example/repo',
       GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'schedule', [tokenKey]: 'fixture' });
     process.chdir(dir);
-    globalThis.fetch = async () => { throw Error('No-change must not query checks'); };
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ total_count: 1,
+      check_runs: [{ ...good, head_sha: original }] }) });
     const policy = { repository: 'example/repo', requiredChecks: ['ci'] };
     await run(policy, { attempts: 1 });
     assert.equal(git('ls-remote', 'origin', 'refs/tags/live-promotion/' + denverDay()).split(/\s+/)[0], original);
