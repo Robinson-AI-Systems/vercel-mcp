@@ -211,39 +211,3 @@ export const projectEnvReadTools={
     }
   }
 };
-}}},
-      ['left','right','keys']),
-      annotations:{readOnlyHint:true}},
-    {name:'vercel_env_export_names',writes:false,area:'env',profiles:PROFILES,
-      description:'Export bounded safe .env.example key placeholders for one project/target; no values.',
-      inputSchema:input({project:{type:'string',maxLength:128},
-        target:{type:'string',enum:['production','preview','development']},
-        gitBranch:{type:'string',maxLength:128}}),
-      annotations:{readOnlyHint:true}}
-  ],
-  handlers:{
-    async vercel_env_list(args,ctx){
-      assert(args,['project','target','gitBranch']);
-      return response(await inventory(ctx,args));
-    },
-    async vercel_env_get(args,ctx){
-      assert(args,['project','id']);
-      if(typeof args.id!=='string'||!ID.test(args.id))
-        throw new TypeError('Invalid environment ID');
-      const {client,project}=await projectScope(ctx,args);
-      const row=await client.request('project_env_get',{path:{idOrName:project,id:args.id}});
-      const item=metadata(row,project);
-      if(item.id!==args.id)throw new TypeError('Returned environment identity differs from request');
-      return response({project,item,hasValues:false});
-    },
-    async vercel_env_export_names(args,ctx){
-      assert(args,['project','target','gitBranch']);
-      const x=await inventory(ctx,args);
-      const names=[...new Set(x.items.map(row=>row.key))].sort();
-      return response({project:x.project,target:args.target??null,gitBranch:args.gitBranch??null,
-        example:names.map(key=>key+'=').join(String.fromCharCode(10)),names,
-        hasValues:false,complete:false,capped:x.capped,
-        note:'Names only. Values are intentionally omitted; provider page completeness has not been proven.'});
-    }
-  }
-};
