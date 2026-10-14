@@ -1,3 +1,16 @@
+## E-3 selected-team Global Config reads and guarded create — source candidate
+
+Read-only Global Config store listing and safe item inspection plus independently
+confirmed empty store creation implemented as the first approved E-3 engineering
+slices, with pinned `/v1/global-config/*` provider operations, exact team/ID
+checks, bounded item projections, token/credential redaction, incomplete
+inventory honesty, and `defineWrite` owner/app/protected/confirm/replay gates.
+No production connection or existing resource is modified. Real API calls,
+response compatibility and owner fixture cleanup remain **PENDING** after a
+checked source deployment. No current provider writes/production switches or
+costs were authorized or attempted. Remaining E-3: deletion, item patch,
+token creation and backup restore; next implementation slice is eligible.
+
 ## E-2 guarded shared variable lifecycle — source candidate, native acceptance pending
 
 Four adjoining approved E-2 operations: selected-team preview-only shared Config/Secret
@@ -241,6 +254,39 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Guarded source and fake provider tests only; real provider mutation was not attempted."
+  },
+  {
+    "id": "VERCEL-E3-GLOBAL-LIST",
+    "priority": 6,
+    "requiredRevision": "cd7cd218562dfdc6442185a4062a880284c0033c",
+    "task": "Read actual selected-team Global Config metadata through native custom MCP with exact owner/linked-project scope, safe counts and correct completeness status",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Verified READY production ancestry, custom MCP selected-team owner authorization, disposable TEST-only store, no app/protected resources and no spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and mocked HTTP tests only; real provider API and cleanup not tested"
+  },
+  {
+    "id": "VERCEL-E3-GLOBAL-ITEMS",
+    "priority": 6,
+    "requiredRevision": "cd7cd218562dfdc6442185a4062a880284c0033c",
+    "task": "Read exact-owner Global Config item projections through native custom MCP, verify credential redaction and honest limited-page status",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Verified READY production ancestry, custom MCP selected-team owner authorization, disposable TEST-only store, no app/protected resources and no spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and mocked HTTP tests only; real provider API and cleanup not tested"
+  },
+  {
+    "id": "VERCEL-E3-GLOBAL-CREATE",
+    "priority": 6,
+    "requiredRevision": "cd7cd218562dfdc6442185a4062a880284c0033c",
+    "task": "On owner-approved disposable TEST fixture, independently confirm guarded empty store creation, safe readback, and cleanup with no unrelated store or production impact",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Verified READY production ancestry, custom MCP selected-team owner authorization, disposable TEST-only store, no app/protected resources and no spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and mocked HTTP tests only; real provider API and cleanup not tested"
   }
 ]
 ```
