@@ -111,7 +111,7 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 | `vercel_deploy_get` | Scoped deployment ID/HTTPS URL detail: verified project, state, target, commit, branch and safe aliases (full diagnostics follow) | — | B Op | R | — | D-2 (read built #132) |
 | `vercel_deploy_get_build_logs` | Project-verified deployment build events: bounded type/warning/error/step summary, no raw secret-bearing log text; full raw logs intentionally unavailable pending safe scoped storage | — | B Op | R | — | D-2 (safe summary #134; full text unverified) |
 | `vercel_deploy_get_runtime_logs` | Project-verified runtime stream sample (≤32 KiB/50 entries/6s), local window/level/status/path counts with verified legacy/current wire aliases, honest array-frame cutoff and no raw messages | — | B Op | R | — | D-2 (bounded read #137; full text unverified) |
-| `vercel_deploy_list_files` | Project-verified bounded deployment source-file tree: safe file paths, no source content, honest empty/partial availability | — | B | R | — | D-2 (source tree #134; output-file completeness unverified) |
+| `vercel_deploy_list_files` | Project-verified bounded deployment source-file tree: safe file paths, no source content, honest optional-source-tree 404 availability and partial status | — | B | R | — | D-2 (source tree #134; output-file completeness unverified) |
 | `vercel_deploy_get_file` | Verified tree-bound file ID; bounded 8 KiB JSON base64 body and ≤2 KiB UTF-8, refuses control-byte binaries, secret text, malformed JSON and unknown response | — | B | R | — | D-2 (guarded read #139; real provider shape unverified) |
 | `vercel_deploy_wait` | Project-verified short-poll terminal-state check (0–8s wait budget, max three reads), returns state and how to call again if unfinished; no 45s serverless claim | — | B Op | R | — | D-2 (bounded read #136) |
 | `vercel_check_list_runs` | Scoped Checks V2 run summaries (first 20), safe status/conclusion/task counts; provider completeness unknown, no raw output | — | B Op | R | — | D-2 (read #135) |
@@ -125,8 +125,8 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 | `vercel_deploy_create_from_git` | Deploy a branch or commit; preview unless `target: production` | Cp | B Op | E | y | D-3 |
 | `vercel_deploy_create_from_files` | Deploy a small set of files sent inline (≤2 MB total, e.g. a static page an agent built); preview unless production | Cp | B | E | y | D-3 |
 | `vercel_deploy_redeploy` | Rebuild an existing deployment (same commit); keeps its original target; optional build-cache skip | Cp | Op | E | y | D-3 |
-| `vercel_deploy_cancel` | Cancel a deployment still building | Cp | B Op | E | y | D-3 |
-| `vercel_deploy_delete` | Delete a deployment (refused for the one currently serving production) | D Cp | Op | F | y | D-3 |
+| `vercel_deploy_cancel` | Cancel only an independently project-verified, unfinished PREVIEW deployment; guarded confirmation, scope/state recheck, durable replay and independent CANCELED readback | Cp | B Op | E | y | D-3 (candidate #173) |
+| `vercel_deploy_delete` | Guarded irreversible cleanup of exact failed/canceled unaliased preview only; no production, READY or missing alias proof; fresh pre-delete check and independent 404 readback | D Cp | Op | F | y | D-3 (candidate #175, terminal preview only) |
 
 ## Releases: promote, rollback, aliases, rolling releases — 12
 
@@ -152,15 +152,15 @@ names, targets, kind (Config/Secret), branch and dates come out.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_env_list` | Variables of a project: key, targets, kind, branch, custom environments, created/updated — never values | — | B O Op | R | y | E-1 |
-| `vercel_env_get` | One variable's metadata (never the value) | — | B Op | R | y | E-1 |
+| `vercel_env_list` | Project-verified bounded environment metadata, explicit decrypt=false; keys, targets, kind and dates only, no values, honest unverified provider page | — | B O Op | R | y | E-1 (candidate #174) |
+| `vercel_env_get` | Independently scoped single-variable metadata; discards decrypted/legacy values and untrusted comments | — | B Op | R | y | E-1 (candidate #174) |
 | `vercel_env_set` | Create or change one variable for chosen targets; value from the call (non-secret only), `generate`, or a value Chris pasted on the setup page | Cp | B Op | E | y | E-1 |
 | `vercel_env_set_many` | Same for up to 50 variables, one preview of all | Cp | B Op | E | y | E-1 |
 | `vercel_env_delete` | Remove one variable (from some targets or all) | D Cp | Op | E | y | E-1 |
 | `vercel_env_delete_many` | Remove several variables, one preview of all | D Cp | Op | F | y | E-1 |
 | `vercel_env_copy` | Copy variables to other targets, branches or projects, server-side (Secret-kind values cannot be copied; it says so) | Cp | Op | E | y | E-1 |
 | `vercel_env_compare` | Which keys exist in which targets/projects, and whether two copies hold the same value (compared on the server, never shown) | — | B Op | R | y | E-1 |
-| `vercel_env_export_names` | A `.env.example`-style list of names per target (no values) for a codebase | — | B | R | — | E-1 |
+| `vercel_env_export_names` | Verified project/target .env.example key placeholders with no value material and incomplete-page disclosure | — | B | R | — | E-1 (candidate #174) |
 
 ## Shared variables and custom environments (`vercel_shared_env_*`, `vercel_environment_*`) — 7
 

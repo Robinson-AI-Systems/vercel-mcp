@@ -1,3 +1,23 @@
+## D-3 terminal preview cleanup — candidate #175
+
+Guarded `vercel_deploy_delete` now handles irreversible cleanup of an independently verified failed or canceled preview, explicitly requested by exact project/deployment/state and outside-app intent. Production, running or ready builds, absent or assigned aliases, malformed/foreign identity, changed state before deletion and protected resources are rejected. A fresh bound pre-dispatch provider read prevents stale confirmations. Only independent GET 404 after accepted DELETE is claimed as confirmed; other outcomes are false/unknown, with durable replay and audit. Regression tests are in the new unit suite; real provider fixture cleanup, genuine connected denial/readback and release remain separately open. No real deletion, production change or spending. Other D-3 metered creation/redeploy paths remain gated, E-1 has six planned operations outstanding.
+
+## E-1 project env metadata — candidate PR #174
+
+Three native read-only operations are implemented: list key metadata, get metadata by exact variable ID, and generate names-only .env.example placeholders. Exact project ownership is independently checked against the stored credential. List forces decrypt=false. Single GET output discards every provider value, comments and untrusted fields, even for legacy encrypted records. Pages are bounded and never claimed complete without provider proof. Fake-provider tests plant sentinel secrets and verify scope, identity and redaction. Six E-1 tools remain pending; no provider environment changes, production changes or spending were made. Real connected acceptance requires checked source release.
+
+## D-3 preview cancellation — PR #173
+
+Guarded cancellation code and negative tests now cover exact preview identity, project isolation, pre-dispatch recheck, immutable target, durable replay and independent canceled-state verification. Other deployment changes remain pending; metered operations remain disabled without provider-enforceable owner pricing approval. No actual provider mutation, production change or spending. D-3 external acceptance requires an authorized disposable preview.
+
+## D-2 streamed runtime logs — candidate PR #172
+
+Custom Vercel runtime log calls to the currently live deployment returned an unclassified error, while a separate standard connector log query found no events for its 30-minute window (not a custom MCP pass). This changes the documented live-stream HTTP Accept header to application/stream+json and treats HTTP 204 as zero rows with unknown completeness. Existing bounded transport, identity, secret protection and malformed-stream refusal remain. Fake HTTP regression and exact-head CI required; a real authenticated custom check must be repeated after a checked release. Production writes off; autonomous spending $0. D-3 remains the next milestone.
+
+## D-2 source-tree availability — candidate PR #171
+
+The optional source-tree API returned HTTP 404 for the verified Git deployment via both custom MCP and independent Vercel API reads. Only this endpoint's 404 now means source tree not exposed, not missing deployment or empty files. Fake-provider regression tests are in CI. Custom runtime-log errors and all write/Hub acceptance remain open. No production changes or spending.
+
 ## Review corrections — 2026-10-13
 
 Developer connection retries retain encrypted codes until expiry, concurrent starts use an atomic trusted-IP quota, and backend failures remain retryable. Google consent preserves the requested profile and supports actual native code length. Windows protected credentials fit bounded chunks; cloud refresh locks recover after process exit. Evidence requires every layer and genuine custom-service read/write/denial/readback observations. Production functionality remains intact. Local regression checks passed; exact-head CI, deployed connection, provider, Hub, revocation and cleanup proofs remain separate.
