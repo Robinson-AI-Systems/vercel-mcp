@@ -624,15 +624,16 @@
         174,
         177,
         178,
-        179
+        179,
+        180
       ],
       "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
       "externalAcceptance": "NOT_VERIFIED",
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-1 implementer",
-        "reason": "After #174 metadata, #177 comparison and #178 guarded single variable lifecycle, #179 candidate adds server-side same-project Config promotion. Bulk operations and expanded copy remain.",
-        "nextAction": "Complete all remaining E-1 bulk operations with bounded all-or-nothing preflight, single provider batch calls and honest post-write readbacks; expand cross-project copy only with separate access guards. Verify real safe custom-service preview acceptance after checked release.",
+        "reason": "Read metadata, drift compare, guarded single value lifecycle, same-project Config copy and bounded create/delete batches (#174,#177–#180 candidate) implemented in source. Live provider acceptance and expanded copy remain.",
+        "nextAction": "Run approved disposable native TEST/preview create/update/copy/delete/batch scenarios with independent readbacks and cleanup after checked daily release; then expand branch/cross-project copy only with explicit access guards.",
         "checkpoint": "At each E-1 PR/session boundary and on an owner-authorized disposable project",
         "evidenceNeeded": "CI exact head, owner-authorized disposable preview project and variable, custom-service create/update/delete under stored scoped credential with independent GET/404 and isolated cleanup; no real production env write.",
         "eligibilityCondition": "Read implementations/tests eligible now; genuine connected acceptance requires authorized project; writes require owner permission and production/app safeguards.",
