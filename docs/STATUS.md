@@ -1,3 +1,7 @@
+## October 14 D-2 bounded stream diagnostics — code candidate (pending CI, NOT deployed)
+
+Verified exact live/main production source 5650873ba50f97ed0ec688d4269f46f87c5c331c READY through Vercel provider. Actual native custom-MCP deployment metadata read succeeds when passed its exact provider project ID (not its display name), but an actual native runtime-log read still returns unclassified unknown_error. A separate standard-provider query found no logs in its own window; that is not native acceptance. This source change caps the live stream read to 2.5s within the serverless request budget, converts malformed successful upstream frames into a distinct safe diagnosis rather than an empty-events claim, and adds hostile-byte regressions. The exact deployed log response remains unknown; continue pending custom-provider proof after a checked release without loosening authorization or disclosing log messages.
+
 ## October 14 released D-2 native runtime-log acceptance — still open
 
 An independent Vercel deployment metadata read verified the October 14 05:35 MDT READY production deployment was source `c0ab5d95a7d2bf687624b5564c20ba72ee74296f` (live #181), allowing published read-only D-2 probes. The custom Robinson Vercel MCP runtime-log read for a bounded October 14 14:30–15:00 UTC window returned an unclassified provider `unknown_error`, not an empty or successful log result. This remains a scoped D-2 engineering diagnosis and release-acceptance queue task. The same custom service successfully performed read-only project inventory and preview env metadata listing (four scanned, zero matching preview records, provider page completeness unverified); those reads are limited smoke evidence, not completion of D-1/D-2/E-1 or real write/Hub acceptance.
@@ -70,16 +74,16 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "status": "PENDING",
     "lastEvidence": "Dual-project code and defensive fake-provider tests proposed PR #185; no real provider write, TEST proof or deployed source attestation."
   },
-  {
+{
     "id": "VERCEL-D2-RUNTIME-LOGS",
     "priority": 2,
-    "requiredRevision": "c0ab5d95a7d2bf687624b5564c20ba72ee74296f",
+    "requiredRevision": "b19efea95be5e552ee5232770342e1ebabd2d23a",
     "task": "Investigate and independently retest authenticated custom runtime-log read on exact deployed project/deployment with bounded date window, safe empty/error classification and no raw log exposure",
     "procedure": "docs/pr-cards/D-2.md",
     "gates": "Read-only native service connection, independently attested READY source and project/deployment; no writes, raw log messages or secret content",
     "dependsOn": [],
     "status": "PENDING",
-    "lastEvidence": "October 14: independent Vercel deployment metadata verified READY live c0ab5d95; actual custom vercel_deploy_get_runtime_logs for a bounded 30-minute UTC window returned unclassified provider unknown_error. No provider rows or no-events success can be claimed. Retry after diagnosing deployed endpoint/response classification; not an owner-permission blocker."
+    "lastEvidence": "2026-10-14: provider independently verified READY production at 5650873; native deployment detail and scoped preview env metadata read succeeded using exact provider project ID. Native bounded runtime-log GET still unknown_error; independent standard-provider log view found no matching rows but is not custom acceptance. Candidate b19efea95be5e552ee5232770342e1ebabd2d23a shortens stream budget and safely classifies malformed frames; requires exact-head CI and later checked source deployment, then native retest. Neither empty results nor real log protocol accepted."
   }
 ]
 ```
