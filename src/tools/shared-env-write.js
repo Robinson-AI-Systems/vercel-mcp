@@ -11,6 +11,7 @@ import {checkApp} from './app-guard.js';
 const PROJECT=/^prj_[A-Za-z0-9_-]{3,124}$/;
 const ENV=/^env_[A-Za-z0-9_-]{3,124}$/;
 const KEY=/^[A-Za-z_][A-Za-z0-9_]{0,255}$/;
+const TARGETS=new Set(['preview','development','production']);
 const PENDING=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REQUEST=/^[A-Za-z0-9_-]{8,128}$/;
 const props={
@@ -86,17 +87,20 @@ function rowMeta(raw,teamId){
     !Number.isSafeInteger(raw.updatedAt)||raw.updatedAt<1||
     !['plain','encrypted','sensitive'].includes(raw.type)||
     (raw.customEnvironmentIds!==undefined&&(!Array.isArray(raw.customEnvironmentIds)||
-      raw.customEnvironmentIds.length!==0)))
+      raw.customEnvironmentIds.length>50)))
     throw new TypeError('Shared variable ownership, identity or custom links unknown');
   const projects=typeof raw.projectId==='string'?[raw.projectId]:raw.projectId;
   const target=typeof raw.target==='string'?[raw.target]:raw.target;
   if(!Array.isArray(projects)||projects.length>50||
     projects.some(x=>!PROJECT.test(x))||new Set(projects).size!==projects.length||
-    !Array.isArray(target)||target.length!==1||target[0]!=='preview')
+    !Array.isArray(target)||target.length<1||target.length>3||
+    target.some(t=>!TARGETS.has(t))||new Set(target).size!==target.length)
     throw new TypeError('Cannot safely classify shared variable project or production targets');
   return {id:raw.id,key:raw.key,kind:raw.visibility==='secret'||
     raw.type!=='plain'?'Secret':'Config',projects:[...projects].sort(),
-    updatedAt:raw.updatedAt};
+    updatedAt:raw.updatedAt,previewOnly:target.length===1&&target[0]==='preview',
+    noCustomLinks:Array.isArray(raw.customEnvironmentIds)&&
+      raw.customEnvironmentIds.length===0};
 }
 async function inventory(client,teamId){
   const page=await client.request('shared_env_list');
@@ -132,6 +136,7 @@ async function beforeSet(a,ctx){
   } else {
     item=rows.find(x=>x.id===a.id);
     if(!item||item.key!==a.key||item.kind!==a.kind||
+      !item.previewOnly||!item.noCustomLinks||
       item.updatedAt!==a.expectedUpdatedAt||
       item.projects.length!==1||item.projects[0]!==a.project)
       throw new TypeError('Shared variable kind, revision or project link changed');
@@ -148,6 +153,7 @@ async function beforeRemoval(a,ctx){
   const rows=await inventory(client,account.team_id);
   const row=rows.find(x=>x.id===a.id);
   if(!row||row.key!==a.expectedKey||row.kind!==a.expectedKind||
+    !row.previewOnly||!row.noCustomLinks||
     row.updatedAt!==a.expectedUpdatedAt||
     (a.mode==='unlink'&&!row.projects.includes(a.project))||
     (a.mode==='delete'&&row.projects.length!==0))
