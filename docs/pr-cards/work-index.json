@@ -674,7 +674,10 @@
         "nextAction": "Continue guarded custom-environment create/update/delete and shared-variable writes with provider request-shape tests and secret-free readback. Prove independent owner/production/app/purchase gates, then check original custom connection after release.",
         "checkpoint": "Next PR session and checked deployment",
         "evidenceNeeded": "Authenticated native selected-team shared-variable and exact-project custom-env metadata, no provider value exposure, trustworthy page/empty response semantics; fixture and provider change acceptance",
-        "eligibilityCondition": "Code/fake tests eligible now; owner-signed TEST fixture plus release required only for genuine acceptance"
+        "eligibilityCondition": "Code/fake tests eligible now; owner-signed TEST fixture plus release required only for genuine acceptance",
+        "dependencies": [
+          "E-1"
+        ]
       }
     },
     {
