@@ -233,9 +233,12 @@ const del=defineWrite({
       requestKey,tool:'vercel_env_delete',shapeResult:()=>({accepted:true})});
   },
   async verify(_a,ctx,b){
+    // A 404 from project GET is not proof that the variable was removed.
+    let client,account;
+    try{({client,account}=await scoped(ctx,b.project));}
+    catch{return {confirmed:null};}
+    if(account.team_id!==b.teamId)return {confirmed:null};
     try{
-      const {client,account}=await scoped(ctx,b.project);
-      if(account.team_id!==b.teamId)return {confirmed:null};
       await client.request('project_env_get',{path:{idOrName:b.project,id:b.id}});
       return {confirmed:false};
     }catch(error){return {confirmed:error?.status===404?true:null};}
