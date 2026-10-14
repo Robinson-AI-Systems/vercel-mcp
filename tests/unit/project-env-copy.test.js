@@ -118,6 +118,62 @@ describe('E-1 server-side Config-only copy',()=>{
       expect(f.fake.calls.some(c=>c.method==='POST')).toBe(false);
     }
   });
+  it('copies an exact preview branch Config to a distinct preview branch without disclosing values',async()=>{
+    const f=fixture();
+    const from={...source,gitBranch:'feature/source'};
+    const to={...destination,target:['preview'],gitBranch:'feature/destination'};
+    const branchArgs={...args,sourceGitBranch:'feature/source',
+      destinationTarget:'preview',destinationGitBranch:'feature/destination'};
+    f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
+      .resolves(from).resolves(from).resolves(from).resolves(to);
+    f.fake.when('POST','/v10/projects/{idOrName}/env')
+      .resolves({created:{id:destId,key:'FEATURE_ENDPOINT'},failed:[]});
+    const out=parse(await f.call(branchArgs));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const post=f.fake.calls.find(c=>c.method==='POST');
+    expect(post.body).toEqual({key:'FEATURE_ENDPOINT',value,type:'plain',
+      target:['preview'],gitBranch:'feature/destination'});
+    expect(JSON.stringify([out,f.audit,[...f.memo.values()]])).not.toContain(value);
+    f.fake.verify();
+  });
+  it('refuses branch scope drift, malformed paths and incompatible targets before POST',async()=>{
+    for(const bad of [
+      {...args,sourceGitBranch:'feature/missing'},
+      {...args,sourceGitBranch:'../unsafe'},
+      {...args,destinationGitBranch:'feature/dest'},
+      {...args,destinationTarget:'preview',destinationGitBranch:'feature/../../escape'},
+      {...args,destinationTarget:'preview',destinationGitBranch:'/leading'},
+      {...args,destinationTarget:'preview',destinationGitBranch:'trailing/'},
+      {...args,sourceGitBranch:'feature/source',sourceTarget:'development'}
+    ]){
+      const f=fixture();
+      f.fake.when('GET','/v1/projects/{idOrName}/env/{id}').resolves(source);
+      const out=parse(await f.call(bad));
+      expect(out).toMatchObject({status:'refused_by_guard'});
+      expect(f.fake.calls.some(c=>c.method==='POST')).toBe(false);
+    }
+  });
+  it('refuses a changed branch between preview and dispatch',async()=>{
+    const f=fixture();
+    const good={...source,gitBranch:'feature/main'};
+    f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
+      .resolves(good).resolves({...good,gitBranch:'feature/changed'});
+    const out=parse(await f.call({...args,sourceGitBranch:'feature/main'}));
+    expect(out).toMatchObject({status:'refused_by_guard'});
+    expect(f.fake.calls.some(c=>c.method==='POST')).toBe(false);
+  });
+  it('does not confirm a copied preview variable if the provider lost its branch binding',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
+      .resolves(source).resolves(source).resolves(source)
+      .resolves({...destination,target:['preview'],gitBranch:'feature/wrong'});
+    f.fake.when('POST','/v10/projects/{idOrName}/env')
+      .resolves({created:{id:destId,key:'FEATURE_ENDPOINT'},failed:[]});
+    const out=parse(await f.call({...args,destinationTarget:'preview',
+      destinationGitBranch:'feature/right'}));
+    expect(out).toMatchObject({status:'applied',confirmed:false});
+    expect(JSON.stringify(out)).not.toContain(value);
+  });
   it('previews without submitting the source value',async()=>{
     for(const mode of [{dryRun:true,confirm:false},{confirm:false}]){
       const f=fixture();
