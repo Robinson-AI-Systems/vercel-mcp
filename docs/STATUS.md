@@ -1,3 +1,7 @@
+## October 14 released D-2 native runtime-log acceptance — still open
+
+An independent Vercel deployment metadata read verified the October 14 05:35 MDT READY production deployment was source `c0ab5d95a7d2bf687624b5564c20ba72ee74296f` (live #181), allowing published read-only D-2 probes. The custom Robinson Vercel MCP runtime-log read for a bounded October 14 14:30–15:00 UTC window returned an unclassified provider `unknown_error`, not an empty or successful log result. This remains a scoped D-2 engineering diagnosis and release-acceptance queue task. The same custom service successfully performed read-only project inventory and preview env metadata listing (four scanned, zero matching preview records, provider page completeness unverified); those reads are limited smoke evidence, not completion of D-1/D-2/E-1 or real write/Hub acceptance.
+
 ## E-1 guarded cross-project Config copy — PR #185 candidate (2026-10-14)
 
 The native `vercel_env_copy` can now take an explicit second project, but only under a verified same-team credential with full project visibility and `outsideApp:true`. Before a provider write it independently resolves both project identities and team authority again. Both source and destination are included in protected-resource/application guard targets, the destination receives only a create-only Config variable, and readback verifies the exact other project, target, branch and unchanged value without exposing bytes. Project-scoped credentials, foreign/changed project identity, missing intent, protected or production-unauthorized targets, unsafe Config/Secret, ambiguous provider outcomes and replay remain fail-closed. Same-project and branch workflows remain compatible. No actual Vercel mutations, production activation, new costs or release. Genuine disposable two-project acceptance is separately queued.
@@ -65,6 +69,17 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Dual-project code and defensive fake-provider tests proposed PR #185; no real provider write, TEST proof or deployed source attestation."
+  },
+  {
+    "id": "VERCEL-D2-RUNTIME-LOGS",
+    "priority": 2,
+    "requiredRevision": "c0ab5d95a7d2bf687624b5564c20ba72ee74296f",
+    "task": "Investigate and independently retest authenticated custom runtime-log read on exact deployed project/deployment with bounded date window, safe empty/error classification and no raw log exposure",
+    "procedure": "docs/pr-cards/D-2.md",
+    "gates": "Read-only native service connection, independently attested READY source and project/deployment; no writes, raw log messages or secret content",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "October 14: independent Vercel deployment metadata verified READY live c0ab5d95; actual custom vercel_deploy_get_runtime_logs for a bounded 30-minute UTC window returned unclassified provider unknown_error. No provider rows or no-events success can be claimed. Retry after diagnosing deployed endpoint/response classification; not an owner-permission blocker."
   }
 ]
 ```
