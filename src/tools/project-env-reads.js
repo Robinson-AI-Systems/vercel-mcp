@@ -171,7 +171,10 @@ export const projectEnvReadTools={
       description:'Compare up to 20 named environment keys between verified project targets; no values or digests.',
       inputSchema:input({left:compareSideSchema,right:compareSideSchema,
         keys:{type:'array',minItems:1,maxItems:20,uniqueItems:true,
-          items:{type:'string',pattern:'^[A-Za-z_][A-Za-z0-9_]{0,255}
+          items:{type:'string',pattern:'^[A-Za-z_][A-Za-z0-9_]{0,255}$'}}},
+      ['left','right','keys']),
+      annotations:{readOnlyHint:true}},
+    {name:'vercel_env_export_names',writes:false,area:'env',profiles:PROFILES,
       description:'Export bounded safe .env.example key placeholders for one project/target; no values.',
       inputSchema:input({project:{type:'string',maxLength:128},
         target:{type:'string',enum:['production','preview','development']},
