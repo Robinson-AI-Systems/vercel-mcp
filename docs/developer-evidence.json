@@ -19,15 +19,39 @@
     },
     {
       "layer": "deployed",
-      "status": "unverified"
+      "status": "verified",
+      "source": "deployment_provider",
+      "service": "robinson-vercel-mcp",
+      "origin": "https://vercel-mcp-liard.vercel.app",
+      "commit": "7b4576fb71a0cf60ed52cc798847f046a834147f",
+      "transport": "deployment_api",
+      "observations": [
+        "2026-10-13 owner-authorized release: READY deployment dpl_73b2SHTEnp5rXz5z6idkDA5cobzy at exact live revision, independently verified through Vercel provider as recorded on PR #170",
+        "2026-10-13 authenticated custom service vercel_deploy_wait independently returned READY for that exact deployment and project"
+      ]
     },
     {
       "layer": "custom_transport",
-      "status": "unverified"
+      "status": "verified",
+      "source": "custom_service",
+      "service": "robinson-vercel-mcp",
+      "origin": "https://vercel-mcp-liard.vercel.app",
+      "commit": "7b4576fb71a0cf60ed52cc798847f046a834147f",
+      "transport": "native_mcp",
+      "observations": [
+        "2026-10-13 saved custom native OAuth connection initialized with tools/list and vercel_whoami at the exact deployed origin, recorded on PR #170",
+        "2026-10-13 subsequent authenticated custom-service vercel_whoami, project inventory, deployment READY and project/deployment check reads succeeded",
+        "Observed file-tree 404 and runtime-log error are NOT accepted custom diagnostic behavior at the old deployed revision"
+      ]
     },
     {
       "layer": "provider",
-      "status": "unverified"
+      "status": "unverified",
+      "observations": [
+        "PERMITTED READ ONLY: exact-project deployment READY wait, project check definitions, deployment check runs and account/project listing succeeded through custom service",
+        "NOT VERIFIED: actual custom preview write and independent readback, denied resource/identity access, cleanup and connected streaming/file bytes",
+        "Independent standard Vercel endpoint also returned optional source-tree HTTP 404 for this Git deployment; standard connector is comparison only, not acceptance"
+      ]
     },
     {
       "layer": "hub",
