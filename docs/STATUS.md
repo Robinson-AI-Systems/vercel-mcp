@@ -1,3 +1,45 @@
+### Workflow maintenance handoff — owner publication approved
+
+New offline session utility: eight behavioral tests passed, including actual Git ancestry, partial releases, unknown/failed deployments, rollback, dependency gating, invalid queues, PR alignment and bounded output. All repository queues validate. Existing source/status evidence is preserved; no provider acceptance or release was performed. Owner explicitly approved publication on October 14; publish the reviewed maintenance branch, require exact-head CI/reviews, and merge only when those gates pass. No extra production release is authorized by this approval. Full broad application suites on the shared runner were interrupted after resource/time-limit failures; do not claim them passed. Existing exact-head remote CI/review gates must pass before any main merge.
+
+## Release acceptance queue — workflow optimization 2026-10-14
+
+Owner-authorized guidance/tooling maintenance: consolidated session procedure, focused
+checks between meaningful edits, substantial capability grouping, and read-only queued
+acceptance/PR-boundary report. This records source/tooling work, not a live/provider pass.
+The queue below seeds existing outstanding obligations; reconcile exact scenarios and
+already-proven evidence from the unchanged cards/ledger before running. Keep all prior
+open obligations, original fixture ownership, approvals and deployment provenance.
+
+<!-- release-acceptance:start -->
+```json
+[
+  {
+    "id": "VERCEL-D1",
+    "priority": 1,
+    "requiredRevision": "de61b8f77caf484a544397a15b561ba25e1adc27",
+    "task": "Complete remaining real guarded settings acceptance with independent before/readback",
+    "procedure": "docs/pr-cards/D-1-ACCEPTANCE.md",
+    "gates": "Recorded owner grants; protect production and default permissions",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Existing ledger/card remains authoritative; current live/provider acceptance must be reconciled at session start. Seed revision conservatively includes reviewed current main."
+  },
+  {
+    "id": "VERCEL-D3",
+    "priority": 2,
+    "requiredRevision": "de61b8f77caf484a544397a15b561ba25e1adc27",
+    "task": "Check deployed deployment cancellation/deletion and environment metadata changes against approved disposable preview fixtures",
+    "procedure": "docs/pr-cards/D-3.md",
+    "gates": "No metered builds or spend without separate pricing approval; exact fixture ownership/cleanup",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Existing ledger/card remains authoritative; current live/provider acceptance must be reconciled at session start. Seed revision conservatively includes reviewed current main."
+  }
+]
+```
+<!-- release-acceptance:end -->
+
 <!-- Current repair also records no-change daily receipts: backups cannot publish later same-day development after a successful no-op. -->
 ## October 14 owner-requested daily release recovery repair — current
 
