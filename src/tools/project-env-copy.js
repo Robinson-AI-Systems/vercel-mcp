@@ -1,5 +1,5 @@
 // E-1: server-side Config-only promotion between an authenticated project's
-// ordinary and exactly verified preview-branch environments. No raw source value ever enters a result,
+// ordinary, exact preview-branch, or explicitly authorized same-team projects. No source value ever enters a result,
 // preview, audit or durable replay record.
 import {timingSafeEqual} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
@@ -17,6 +17,8 @@ const NONPROD=new Set(['preview','development']);
 const ALL=new Set(['production','preview','development']);
 const props={
   project:{type:'string',pattern:PROJECT.source},
+  destinationProject:{type:'string',pattern:PROJECT.source},
+  outsideApp:{type:'boolean',const:true},
   sourceId:{type:'string',pattern:ID.source},
   sourceKey:{type:'string',pattern:KEY.source},
   sourceUpdatedAt:{type:'integer',minimum:1},
@@ -34,7 +36,11 @@ const inputSchema={type:'object',properties:props,
 function argsValid(a){
   if(!a||typeof a!=='object'||Array.isArray(a)||
     Object.keys(a).some(k=>!Object.hasOwn(props,k))||
-    !PROJECT.test(a.project??'')||!ID.test(a.sourceId??'')||
+    !PROJECT.test(a.project??'')||
+    (a.destinationProject!==undefined&&!PROJECT.test(a.destinationProject))||
+    (a.destinationProject!==undefined&&a.destinationProject!==a.project&&a.outsideApp!==true)||
+    (a.outsideApp!==undefined&&a.outsideApp!==true)||
+    !ID.test(a.sourceId??'')||
     !KEY.test(a.sourceKey??'')||!KEY.test(a.destinationKey??'')||
     !Number.isSafeInteger(a.sourceUpdatedAt)||a.sourceUpdatedAt<1||
     !NONPROD.has(a.sourceTarget)||!ALL.has(a.destinationTarget)||
@@ -42,6 +48,7 @@ function argsValid(a){
       (typeof b!=='string'||b.length>128||!BRANCH.test(b)||b.split('/').includes('..')))||
     (a.sourceGitBranch!==undefined&&a.sourceTarget!=='preview')||
     (a.destinationGitBranch!==undefined&&a.destinationTarget!=='preview')||
+    (a.destinationProject===undefined||a.destinationProject===a.project)&&
     (a.destinationKey===a.sourceKey&&a.destinationTarget===a.sourceTarget&&
       (a.sourceGitBranch??null)===(a.destinationGitBranch??null))||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
@@ -74,10 +81,18 @@ const copy=defineWrite({
   async before(args,ctx){
     argsValid(args);
     const {client,account}=await scoped(ctx,args.project);
+    const destinationProject=args.destinationProject??args.project;
+    if(destinationProject!==args.project){
+      if(account.scope==='project'||args.outsideApp!==true)
+        throw new TypeError('Cross-project copy needs same-team authority and explicit outside-app intent');
+      const destination=await scoped(ctx,destinationProject);
+      if(destination.account.team_id!==account.team_id)
+        throw new TypeError('Destination team differs from source');
+    }
     const raw=await client.request('project_env_get',{
       path:{idOrName:args.project,id:args.sourceId}});
     source(raw,args.project,args);
-    return {project:args.project,teamId:account.team_id,
+    return {project:args.project,destinationProject,teamId:account.team_id,
       sourceId:args.sourceId,sourceKey:args.sourceKey,
       sourceUpdatedAt:args.sourceUpdatedAt,sourceTarget:args.sourceTarget,
       sourceGitBranch:args.sourceGitBranch??null,
@@ -88,7 +103,8 @@ const copy=defineWrite({
     return 'Copy Config '+b.sourceKey+' from '+b.sourceTarget+
       (b.sourceGitBranch?' (exact preview branch)':'')+' to '+
       b.destinationKey+' in '+b.destinationTarget+
-      (b.destinationGitBranch?' (exact preview branch)':'')+' for '+b.project+
+      (b.destinationGitBranch?' (exact preview branch)':'')+' from '+b.project+
+      ' to '+b.destinationProject+
       '; values hidden, destination is create-only; only new deployments consume changes';
   },
   async production(_a,_ctx,b){
@@ -97,24 +113,29 @@ const copy=defineWrite({
   },
   async targets(_a,b){
     return [{kind:'project',id:b.project},
-      {kind:'env',id:b.destinationKey,projectId:b.project}];
+      ...(b.destinationProject===b.project?[]:[{kind:'project',id:b.destinationProject}]),
+      {kind:'env',id:b.destinationKey,projectId:b.destinationProject}];
   },
   async apply(a,ctx,b,requestKey){
     const provider=await writeProvider(ctx);
     let value;
     await requirePreDispatch(async()=>{
       if(provider.account.team_id!==b.teamId||
-        provider.account.scope==='project'&&provider.account.project_id!==b.project)
+        provider.account.scope==='project'&&
+          (provider.account.project_id!==b.project||b.destinationProject!==b.project))
         throw new TypeError('Selected credential changed');
       const {client,account}=await scoped(ctx,b.project);
       if(account.team_id!==b.teamId)throw new TypeError('Selected team changed');
+      const destination=await scoped(ctx,b.destinationProject);
+      if(destination.account.team_id!==b.teamId)
+        throw new TypeError('Destination team changed');
       const raw=await client.request('project_env_get',{
         path:{idOrName:b.project,id:b.sourceId}});
       source(raw,b.project,a);
       value=raw.value;
     });
     return provider.write('project_env_create',{
-      path:{idOrName:b.project},body:{
+      path:{idOrName:b.destinationProject},body:{
         key:b.destinationKey,value,type:'plain',target:[b.destinationTarget],
         ...(b.destinationGitBranch?{gitBranch:b.destinationGitBranch}:{})
       }
@@ -127,12 +148,14 @@ const copy=defineWrite({
     try{
       const {client,account}=await scoped(ctx,b.project);
       if(account.team_id!==b.teamId)return {confirmed:null};
+      const destination=await scoped(ctx,b.destinationProject);
+      if(destination.account.team_id!==b.teamId)return {confirmed:null};
       const from=await client.request('project_env_get',{
         path:{idOrName:b.project,id:b.sourceId}});
       source(from,b.project,a);
-      const raw=await client.request('project_env_get',{
-        path:{idOrName:b.project,id:applied.id}});
-      const to=envMeta(raw,b.project);
+      const raw=await destination.client.request('project_env_get',{
+        path:{idOrName:b.destinationProject,id:applied.id}});
+      const to=envMeta(raw,b.destinationProject);
       if(to.id!==applied.id||to.key!==b.destinationKey||to.kind!=='Config'||
         to.targets.length!==1||to.targets[0]!==b.destinationTarget||
         (raw.gitBranch??null)!==b.destinationGitBranch)
@@ -148,7 +171,7 @@ const output=r=>({isError:['refused_by_guard','outcome_unknown'].includes(r.stat
 export const projectEnvCopyTools={
   tools:[{name:'vercel_env_copy',writes:true,guardedWrite:true,
     profiles:['everyday','full'],area:'env',
-    description:'Value-hidden Config copy across exact ordinary or preview-branch targets in one verified project; create-only.',
+    description:'Value-hidden Config copy between exact preview branches or owner-scoped same-team projects; create-only.',
     inputSchema,writeContract:copy.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{vercel_env_copy:bindGuardedWrite(copy,context,output)}
