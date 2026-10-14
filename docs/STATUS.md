@@ -1,3 +1,7 @@
+## D-2 streamed runtime logs — candidate PR #172
+
+Custom Vercel runtime log calls to the currently live deployment returned an unclassified error, while a separate standard connector log query found no events for its 30-minute window (not a custom MCP pass). This changes the documented live-stream HTTP Accept header to application/stream+json and treats HTTP 204 as zero rows with unknown completeness. Existing bounded transport, identity, secret protection and malformed-stream refusal remain. Fake HTTP regression and exact-head CI required; a real authenticated custom check must be repeated after a checked release. Production writes off; autonomous spending $0. D-3 remains the next milestone.
+
 ## D-2 source-tree availability — candidate PR #171
 
 The optional source-tree API returned HTTP 404 for the verified Git deployment via both custom MCP and independent Vercel API reads. Only this endpoint's 404 now means source tree not exposed, not missing deployment or empty files. Fake-provider regression tests are in CI. Custom runtime-log errors and all write/Hub acceptance remain open. No production changes or spending.
