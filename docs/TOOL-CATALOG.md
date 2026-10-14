@@ -122,7 +122,7 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_deploy_create_from_git` | Deploy a branch or commit; preview unless `target: production` | Cp | B Op | E | y | D-3 |
+| `vercel_deploy_create_from_git` | Guarded linked-GitHub project commit/ref and exact project/team/target proof; metered build dispatch remains blocked by IN-08 until owner-approved enforceable cost ceiling | $ Cp | B Op | E | y | D-3 (guarded Git create #192 candidate; external cost/fixture acceptance gated) |
 | `vercel_deploy_create_from_files` | Deploy a small set of files sent inline (≤2 MB total, e.g. a static page an agent built); preview unless production | Cp | B | E | y | D-3 |
 | `vercel_deploy_redeploy` | Guarded exact source redeploy retaining original preview/production target; metered builds blocked until separately approved provider-enforceable ceiling | $ P | B Op | E | y | D-3 (guarded code #191 candidate; provider use gated) |
 | `vercel_deploy_cancel` | Cancel only an independently project-verified, unfinished PREVIEW deployment; guarded confirmation, scope/state recheck, durable replay and independent CANCELED readback | Cp | B Op | E | y | D-3 (candidate #173) |

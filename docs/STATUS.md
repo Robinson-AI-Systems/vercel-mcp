@@ -1,3 +1,7 @@
+## D-3 exact linked GitHub commit create — candidate #192 (not released/provider accepted)
+
+Code creates safely scoped GitHub source requests only after independent Vercel project link read (team, project, name, repository), exact caller ref/SHA, protected/app/production guard and transaction controls; independent returned-deployment identity/readback validation specified. No provider create performed: metered charge unbounded so confirmed calls fail closed at IN-08 before POST. Enforceable provider ceiling and independent owner grant required for genuine usage acceptance. Scratch fixture and checked release remain queued. D-3 files creation still to be implemented.
+
 ## D-3 metered target-preserving redeploy — candidate #191, not released or provider accepted
 
 Implemented exact-source and immutable preview/production target classification for a guarded redeploy with independent source/team proof, changed-state refusal, owner/app/protected guards, durable replay, provider response and readback validation. Builds incur unbounded usage; IN-08 central spend gate denies all confirmed calls unless a provider-enforceable per-operation ceiling and separate owner-approved transaction become available. No real deployment, cost, production enablement or provider acceptance. Git/files creation still unimplemented.
