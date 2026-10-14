@@ -101,3 +101,60 @@ describe('E-1 native project env metadata reads never leak values',()=>{
    expect(f.fake.calls[1].query).toMatchObject({decrypt:'false',gitBranch:'feature/test'});
  });
 });
+
+
+describe('E-1 explicit environment drift comparison',()=>{
+ beforeEach(()=>loadToken.mockReset());
+ const both={left:{target:'production'},right:{target:'production'},keys:['API_BASE_URL']};
+ it('compares two independently selected config values without exposing either value or digest',async()=>{
+   const f=fixture();
+   f.fake.when('GET','/v1/projects/{idOrName}/env/{id}').resolves(rows[0]);
+   const result=parse(await f.call('vercel_env_compare',both));
+   expect(result.comparisons).toEqual([{key:'API_BASE_URL',status:'same'}]);
+   expect(result).toMatchObject({hasValues:false,hasDigests:false,complete:false});
+   expect(JSON.stringify(result)).not.toContain(secret);
+   expect(JSON.stringify(result)).not.toContain('digest');
+   expect(f.fake.calls.filter(x=>x.path.includes('/env/env_FAKE_ALPHA'))).toHaveLength(2);
+ });
+ it('classifies secret kinds without reading their values',async()=>{
+   const f=fixture();
+   const result=parse(await f.call('vercel_env_compare',{
+     left:{target:'development'},right:{target:'development'},keys:['DATABASE_PASSWORD']}));
+   expect(result.comparisons).toEqual([{key:'DATABASE_PASSWORD',status:'cannot_compare_secret'}]);
+   expect(f.fake.calls.filter(x=>x.path.includes('/env/env_FAKE_BETA'))).toHaveLength(0);
+   expect(JSON.stringify(result)).not.toContain(secret);
+ });
+ it('never declares a missing key when provider-page completion is unknown',async()=>{
+   const f=fixture();
+   const result=parse(await f.call('vercel_env_compare',{
+     left:{target:'production'},right:{target:'development'},keys:['API_BASE_URL']}));
+   expect(result.comparisons).toEqual([{key:'API_BASE_URL',status:'inventory_unverified'}]);
+   expect(result.complete).toBe(false);
+ });
+ it('fails closed on a changed or foreign single-value identity',async()=>{
+   const f=fixture();
+   f.fake.when('GET','/v1/projects/{idOrName}/env/{id}').resolves({...rows[0],projectId:'prj_FAKE_OTHER'});
+   expect((await f.call('vercel_env_compare',both)).isError).toBe(true);
+ });
+ it('refuses missing targets, unknown selectors and overlapping/invalid key sets',async()=>{
+   for(const bad of [
+     {left:{},right:{target:'production'},keys:['API_BASE_URL']},
+     {left:{target:'production',teamId:'team_OTHER'},right:{target:'production'},keys:['API_BASE_URL']},
+     {...both,keys:['API_BASE_URL','API_BASE_URL']},
+     {...both,keys:['BAD=KEY']},
+     {...both,keys:[]},
+     {...both,teamId:'team_OTHER'}
+   ]){
+     const f=fixture();
+     expect((await f.call('vercel_env_compare',bad)).isError).toBe(true);
+     expect(f.fake.calls).toHaveLength(0);
+   }
+ });
+ it('denies different project scope before accessing provider inventory',async()=>{
+   const f=fixture();
+   expect((await f.call('vercel_env_compare',{
+     left:{project:'prj_FAKE_OTHER',target:'preview'},
+     right:{target:'preview'},keys:['API_BASE_URL']})).isError).toBe(true);
+   expect(f.fake.calls).toHaveLength(0);
+ });
+});

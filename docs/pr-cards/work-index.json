@@ -621,15 +621,16 @@
       "readiness": "READY",
       "ownerInputs": [],
       "pr": [
-        174
+        174,
+        177
       ],
       "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
       "externalAcceptance": "NOT_VERIFIED",
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-1 implementer",
-        "reason": "Three read-only metadata/name tools are implemented in PR #174; six further E-1 value-management, comparison and export operations remain distinct approved work.",
-        "nextAction": "Complete safely gated single/multi-variable writes, compare/copy and redact/no-value invariant; keep production and metered writes protected. Independently verify project-scoped list/get/name export against the native custom service after checked release.",
+        "reason": "Three metadata/name reads (#174) and server-side read-only comparison (#177 candidate) are implemented; five E-1 value-management/copy operations remain.",
+        "nextAction": "Finish owner-guarded set/set-many/delete/delete-many and server-side copy with independently verified target state; preserve secret-value, production and approval gates. Independently accept compare against the released native custom service.",
         "checkpoint": "At each E-1 PR/session boundary and on an owner-authorized disposable project",
         "evidenceNeeded": "Exact deployed source revision; custom MCP project environment list/get metadata, no values, negative project-scope denial; disposable nonproduction variable for write/delete and cleanup acceptance.",
         "eligibilityCondition": "Read implementations/tests eligible now; genuine connected acceptance requires authorized project; writes require owner permission and production/app safeguards.",
