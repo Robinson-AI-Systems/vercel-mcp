@@ -47,7 +47,7 @@ describe('E-1 server-side Config-only copy',()=>{
     f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
       .resolves(source).resolves(source).resolves(source).resolves(destination);
     f.fake.when('POST','/v10/projects/{idOrName}/env')
-      .resolves({id:destId,key:'FEATURE_ENDPOINT',value:'DO_NOT_LEAK'});
+      .resolves({created:{id:destId,key:'FEATURE_ENDPOINT',value:'DO_NOT_LEAK'},failed:[]});
     const result=parse(await f.call());
     expect(result).toMatchObject({status:'applied',mode:'PREVIEW',confirmed:true});
     const post=f.fake.calls.find(x=>x.method==='POST');
@@ -58,6 +58,17 @@ describe('E-1 server-side Config-only copy',()=>{
     expect(JSON.stringify(f.memo.entries())).not.toContain(value);
     expect(JSON.stringify(result)).not.toContain('DO_NOT_LEAK');
     f.fake.verify();
+  });
+  it('treats provider partial success as outcome unknown without leaking error payloads',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
+      .resolves(source).resolves(source);
+    f.fake.when('POST','/v10/projects/{idOrName}/env')
+      .resolves({created:{id:destId,key:'FEATURE_ENDPOINT'},
+        failed:[{error:{value:'CANARY_FAKE_PRIVATE'}}]});
+    const out=parse(await f.call());
+    expect(out).toMatchObject({status:'outcome_unknown',confirmed:null});
+    expect(JSON.stringify(out)).not.toContain('CANARY_FAKE_PRIVATE');
   });
   it('rejects any source that is Secret, branch-specific, credential-like or production-linked',async()=>{
     for(const invalid of [

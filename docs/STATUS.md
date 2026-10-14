@@ -1,5 +1,7 @@
 ## E-1 scoped server-side Config copy — candidate PR #179
 
+Provider compatibility: verified current Vercel POST create envelope can contain `created` and per-item `failed`; #179 also repairs the #178 create-result normalization and rejects partial provider successes rather than claiming confirmed writes.
+
 Native `vercel_env_copy` securely promotes one source Config value between ordinary (non-branch, non-custom) preview/development targets of the same exact project; destination production additionally requires the existing production-mode and owner guard. Secret and credential-shaped values, production-linked sources, cross-project selectors, ambiguous identities and changed revisions are refused. Values remain solely server-side; no raw provider fields/values in results, audit or durable replay. Create-only POST avoids silent overwrites; independent readback compares byte equality. Real provider write acceptance awaits approved disposable preview fixture and normal checked release. E-1 bulk operations and expanded branch/cross-project copy are still pending.
 
 ## E-1 guarded single-variable lifecycle — candidate PR #178

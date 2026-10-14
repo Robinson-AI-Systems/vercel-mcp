@@ -171,12 +171,7 @@ const set=defineWrite({
     return provider.write(operation,{path,body:{
       ...(b.mode==='create'?{key:b.key}:{}),...body
     }},{requestKey,tool:'vercel_env_set',shapeResult:row=>{
-      const data=Array.isArray(row)?row[0]:row;
-      const returned=data?.id;
-      if(b.mode==='create'&&(!ID.test(returned??'')||
-        data?.key!=null&&data.key!==b.key))
-        throw new TypeError('Provider create response lacks exact variable identity');
-      return {id:b.mode==='update'?b.id:returned};
+      return {id:b.mode==='update'?b.id:verifiedCreatedEnvId(row,b.key)};
     }});
   },
   async verify(a,ctx,b,applied){
@@ -265,3 +260,20 @@ export const projectEnvWriteTools={
 
 // Internal allowlisted metadata helpers for server-side Config-only copy.
 export {envMeta,scoped};
+
+
+export function verifiedCreatedEnvId(envelope,expectedKey){
+  // Vercel's current POST contract wraps the created row and can report
+  // a successful HTTP response containing per-item failures. Never
+  // acknowledge a partial creation or serialize any returned raw values.
+  if(!envelope||typeof envelope!=='object'||Array.isArray(envelope)||
+    (envelope.failed!==undefined&&(!Array.isArray(envelope.failed)||
+      envelope.failed.length!==0)))
+    throw new TypeError('Environment create returned unknown or failed items');
+  const row=envelope.created??envelope;
+  const created=Array.isArray(row)&&row.length===1?row[0]:row;
+  if(!created||typeof created!=='object'||Array.isArray(created)||
+    !ID.test(created.id??'')||created.key!=null&&created.key!==expectedKey)
+    throw new TypeError('Provider response lacks exact environment ID/key');
+  return created.id;
+}

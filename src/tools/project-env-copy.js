@@ -7,7 +7,7 @@ import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {envMeta,scoped} from './project-env-write.js';
+import {envMeta,scoped,verifiedCreatedEnvId} from './project-env-write.js';
 
 const PROJECT=/^prj_[A-Za-z0-9_-]{3,124}$/;
 const ID=/^[A-Za-z0-9_-]{6,128}$/;
@@ -105,10 +105,7 @@ const copy=defineWrite({
         key:b.destinationKey,value,type:'plain',target:[b.destinationTarget]
       }
     },{requestKey,tool:'vercel_env_copy',shapeResult:raw=>{
-      const row=Array.isArray(raw)?raw[0]:raw;
-      if(!ID.test(row?.id??'')||row?.key!=null&&row.key!==b.destinationKey)
-        throw new TypeError('New Config destination identity unavailable');
-      return {id:row.id};
+      return {id:verifiedCreatedEnvId(raw,b.destinationKey)};
     }});
   },
   async verify(a,ctx,b,applied){
