@@ -622,17 +622,18 @@
       "ownerInputs": [],
       "pr": [
         174,
-        177
+        177,
+        178
       ],
       "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
       "externalAcceptance": "NOT_VERIFIED",
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-1 implementer",
-        "reason": "Three metadata/name reads (#174) and server-side read-only comparison (#177 candidate) are implemented; five E-1 value-management/copy operations remain.",
-        "nextAction": "Finish owner-guarded set/set-many/delete/delete-many and server-side copy with independently verified target state; preserve secret-value, production and approval gates. Independently accept compare against the released native custom service.",
+        "reason": "Metadata reads #174, drift compare #177, single-resource guarded create/update/delete #178 candidate implemented; bulk writes and server-side copy remain.",
+        "nextAction": "Build bounded set-many/delete-many and server-side copy with complete prevalidation and honest partial outcomes; run approved disposable nonproduction live write/denial/readback/cleanup after checked release.",
         "checkpoint": "At each E-1 PR/session boundary and on an owner-authorized disposable project",
-        "evidenceNeeded": "Exact deployed source revision; custom MCP project environment list/get metadata, no values, negative project-scope denial; disposable nonproduction variable for write/delete and cleanup acceptance.",
+        "evidenceNeeded": "CI exact head, owner-authorized disposable preview project and variable, custom-service create/update/delete under stored scoped credential with independent GET/404 and isolated cleanup; no real production env write.",
         "eligibilityCondition": "Read implementations/tests eligible now; genuine connected acceptance requires authorized project; writes require owner permission and production/app safeguards.",
         "dependencies": [
           "D-1"
