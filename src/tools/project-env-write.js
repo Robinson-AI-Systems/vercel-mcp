@@ -262,3 +262,6 @@ export const projectEnvWriteTools={
     vercel_env_delete:bindGuardedWrite(del,ctxFor,output)
   }
 };
+
+// Internal allowlisted metadata helpers for server-side Config-only copy.
+export {envMeta,scoped};
