@@ -1,5 +1,6 @@
 // E-1: project-scoped environment variable METADATA only. Secret values never leave.
 import {readProvider} from '../vercel/provider.js';
+import {createHash,timingSafeEqual} from 'node:crypto';
 import {credentialLike} from '../core/util.js';
 
 const PROFILES=['read_only','everyday','full'];
@@ -95,6 +96,64 @@ async function inventory(ctx,args){
     returned:Math.min(100,scoped.length),capped:scoped.length>100,
     completeness:'unverified_provider_page',hasValues:false};
 }
+
+const compareSideSchema={
+  type:'object',properties:{
+    project:{type:'string',maxLength:128},
+    target:{type:'string',enum:['production','preview','development']},
+    gitBranch:{type:'string',maxLength:128}
+  },required:['target'],additionalProperties:false
+};
+function compareSide(side){
+  assert(side,['project','target','gitBranch']);
+  if(!TARGETS.has(side.target))throw new TypeError('An explicit environment target is required');
+  return side;
+}
+function uniqueKey(items,key){
+  const found=items.filter(item=>item.key===key);
+  if(found.length>1)throw new TypeError('Environment key selection is ambiguous');
+  return found[0]??null;
+}
+async function compareDigest(client,project,item,target){
+  const raw=await client.request('project_env_get',{path:{idOrName:project,id:item.id}});
+  const checked=metadata(raw,project);
+  if(checked.id!==item.id||checked.key!==item.key||!checked.targets.includes(target))
+    throw new TypeError('Environment value identity changed since inventory');
+  if(checked.kind!=='Config'||typeof raw.value!=='string')
+    return null;
+  // No raw value, digest, length or provider row is ever returned or logged.
+  return createHash('sha256').update(raw.value).digest();
+}
+async function compareEnvironment(ctx,args){
+  if(!Array.isArray(args.keys)||args.keys.length<1||args.keys.length>20||
+    new Set(args.keys).size!==args.keys.length||
+    args.keys.some(key=>typeof key!=='string'||!KEY.test(key)))
+    throw new TypeError('Specify one to twenty distinct environment keys');
+  const left=compareSide(args.left),right=compareSide(args.right);
+  const l=await inventory(ctx,left),r=await inventory(ctx,right);
+  const {client:lc,project:lp}=await projectScope(ctx,left);
+  const {client:rc,project:rp}=await projectScope(ctx,right);
+  if(lp!==l.project||rp!==r.project)
+    throw new TypeError('Environment project scope changed');
+  const comparisons=[];
+  for(const key of args.keys){
+    const a=uniqueKey(l.items,key),b=uniqueKey(r.items,key);
+    let status;
+    if(!a||!b)status='inventory_unverified';
+    else if(a.kind==='Secret'||b.kind==='Secret')status='cannot_compare_secret';
+    else{
+      const ah=await compareDigest(lc,lp,a,left.target);
+      const bh=await compareDigest(rc,rp,b,right.target);
+      status=ah&&bh?(timingSafeEqual(ah,bh)?'same':'different'):'cannot_compare_unavailable';
+    }
+    comparisons.push({key,status});
+  }
+  return {left:{project:lp,target:left.target,gitBranch:left.gitBranch??null},
+    right:{project:rp,target:right.target,gitBranch:right.gitBranch??null},
+    comparisons,hasValues:false,hasDigests:false,complete:false,
+    note:'Inventory pages cannot prove missing keys; inventory_unverified is not a difference. Values and digests stay on the server.'};
+}
+
 export const projectEnvReadTools={
   tools:[
     {name:'vercel_env_list',writes:false,area:'env',profiles:PROFILES,
@@ -108,6 +167,13 @@ export const projectEnvReadTools={
       inputSchema:input({project:{type:'string',maxLength:128},
         id:{type:'string',minLength:1,maxLength:128}},['id']),
       annotations:{readOnlyHint:true}},
+    {name:'vercel_env_compare',writes:false,area:'env',profiles:PROFILES,
+      description:'Compare up to 20 named environment keys between verified project targets; no values or digests.',
+      inputSchema:input({left:compareSideSchema,right:compareSideSchema,
+        keys:{type:'array',minItems:1,maxItems:20,uniqueItems:true,
+          items:{type:'string',pattern:'^[A-Za-z_][A-Za-z0-9_]{0,255}$'}}},
+      ['left','right','keys']),
+      annotations:{readOnlyHint:true}},
     {name:'vercel_env_export_names',writes:false,area:'env',profiles:PROFILES,
       description:'Export bounded safe .env.example key placeholders for one project/target; no values.',
       inputSchema:input({project:{type:'string',maxLength:128},
@@ -116,6 +182,10 @@ export const projectEnvReadTools={
       annotations:{readOnlyHint:true}}
   ],
   handlers:{
+    async vercel_env_compare(args,ctx){
+      assert(args,['left','right','keys']);
+      return response(await compareEnvironment(ctx,args));
+    },
     async vercel_env_list(args,ctx){
       assert(args,['project','target','gitBranch']);
       return response(await inventory(ctx,args));

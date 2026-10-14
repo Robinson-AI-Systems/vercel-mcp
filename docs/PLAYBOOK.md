@@ -1,5 +1,7 @@
 # PLAYBOOK — how to deliver one PR card, step by step
 
+Session startup, cadence and release-dependent proof follow `docs/SESSION-START.md`. These recipes preserve all existing security, review and validation gates. Run focused checks at coherent seams and full required gates before publishing, rather than the whole suite after each small local edit.
+
 The rules are in `AGENTS.md`; the short start is `docs/SESSION-START.md`; the work is the card in `docs/pr-cards/`.
 Same procedure as the Stripe MCP's PLAYBOOK, adapted to this repo (no Next.js, no browser tests; Vercel instead of
 Stripe; `emulate` instead of `stripe-mock`).
@@ -52,7 +54,7 @@ While implementing:
 **Group work before writing code:** a PR should deliver a coherent set of compatible operations sharing the same risk domain, scope, validation, replay and independent read-back rules. Combine their tests into reusable fixtures. Aim for ~450–800 actual production lines when warranted; the hard ~800-line cap, ~15 production-file target, at-most-one-migration and one-risk-area limit remain authoritative. Never add filler, invent scope, or bundle unrelated owner/destructive/spend gates to increase line count. See `docs/implementation-guidance/RECIPES.md` §7.
 
 
-About 500 production lines (tests/docs not counted), about 15 production files, hard stop ~800 lines, at most one
+About 500 production lines (tests/docs not counted), about 15 production files, advisory size estimate, at most one
 migration, one risk area (tokens / production / spend / guards / tools-of-one-area / doors). Measure before opening:
 
 ```bash
@@ -77,7 +79,7 @@ Vercel token (`vcp_…`, `vci_…`, `vca_…`, `vercel_blob_rw_…`), Stripe key
 | You changed | Run |
 |---|---|
 | Any tool | `npx vitest run tests/unit/<area>.test.js tests/unit/write-contract.test.js` |
-| A Vercel call | `npx vitest run tests/unit/request-shapes.test.js` (validates recorded requests against the snapshot) and, when `emulate` covers it, `npm run test:emulate -- tests/emulate/<area>.test.js` (`scripts/emulate.sh` starts `emulate@<pinned>` on `localhost:4000` and stops it) |
+| A Vercel call | `npx vitest run tests/unit/vercel-client.test.js tests/unit/openapi-validate.test.js tests/unit/openapi-snapshot.test.js` (validates recorded requests against the snapshot) and, when `emulate` covers it, `npm run test:emulate -- tests/emulate/<area>.test.js` (`scripts/emulate.sh` starts `emulate@<pinned>` on `localhost:4000` and stops it) |
 | SQL / `src/db.js` | `npm run test:db -- tests/db/<file>.test.js` (`scripts/local-postgres-test.sh`: disposable **localhost** Postgres, never Neon). If no Postgres binaries exist in your workspace, push and let CI run it; say so in the PR |
 | A door (HTTPS API, `vercel_call`) | `npx vitest run tests/doors/` |
 | Listing or descriptions | `node scripts/check-budgets.mjs --print` |

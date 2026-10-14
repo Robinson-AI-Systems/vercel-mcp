@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-13",
+  "updated": "2026-10-14",
   "order": [
     "A",
     "B",
@@ -18,7 +18,7 @@
     "R",
     "X"
   ],
-  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged.",
+  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md.",
   "cards": [
     {
       "id": "A-1",
@@ -621,17 +621,23 @@
       "readiness": "READY",
       "ownerInputs": [],
       "pr": [
-        174
+        174,
+        177,
+        178,
+        179,
+        180,
+        184,
+        185
       ],
       "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
       "externalAcceptance": "NOT_VERIFIED",
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-1 implementer",
-        "reason": "Three read-only metadata/name tools are implemented in PR #174; six further E-1 value-management, comparison and export operations remain distinct approved work.",
-        "nextAction": "Complete safely gated single/multi-variable writes, compare/copy and redact/no-value invariant; keep production and metered writes protected. Independently verify project-scoped list/get/name export against the native custom service after checked release.",
+        "reason": "Read metadata, drift compare, single/batch writes, branch-specific Config copy through #184 and explicit guarded same-team cross-project copy (#185 candidate) have source implementations; exact deployed/source/provider acceptance remains open.",
+        "nextAction": "After verified READY source deployment, perform owner-authorized disposable TEST/preview single/batch and branch/cross-project Config copy through this native MCP, with independent before/readback and precise fixture cleanup. No production or spending without separate approvals.",
         "checkpoint": "At each E-1 PR/session boundary and on an owner-authorized disposable project",
-        "evidenceNeeded": "Exact deployed source revision; custom MCP project environment list/get metadata, no values, negative project-scope denial; disposable nonproduction variable for write/delete and cleanup acceptance.",
+        "evidenceNeeded": "CI exact head, owner-authorized disposable preview project and variable, custom-service create/update/delete under stored scoped credential with independent GET/404 and isolated cleanup; no real production env write.",
         "eligibilityCondition": "Read implementations/tests eligible now; genuine connected acceptance requires authorized project; writes require owner permission and production/app safeguards.",
         "dependencies": [
           "D-1"

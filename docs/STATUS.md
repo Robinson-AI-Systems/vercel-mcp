@@ -1,3 +1,119 @@
+## October 14 released D-2 native runtime-log acceptance — still open
+
+An independent Vercel deployment metadata read verified the October 14 05:35 MDT READY production deployment was source `c0ab5d95a7d2bf687624b5564c20ba72ee74296f` (live #181), allowing published read-only D-2 probes. The custom Robinson Vercel MCP runtime-log read for a bounded October 14 14:30–15:00 UTC window returned an unclassified provider `unknown_error`, not an empty or successful log result. This remains a scoped D-2 engineering diagnosis and release-acceptance queue task. The same custom service successfully performed read-only project inventory and preview env metadata listing (four scanned, zero matching preview records, provider page completeness unverified); those reads are limited smoke evidence, not completion of D-1/D-2/E-1 or real write/Hub acceptance.
+
+## E-1 guarded cross-project Config copy — PR #185 candidate (2026-10-14)
+
+The native `vercel_env_copy` can now take an explicit second project, but only under a verified same-team credential with full project visibility and `outsideApp:true`. Before a provider write it independently resolves both project identities and team authority again. Both source and destination are included in protected-resource/application guard targets, the destination receives only a create-only Config variable, and readback verifies the exact other project, target, branch and unchanged value without exposing bytes. Project-scoped credentials, foreign/changed project identity, missing intent, protected or production-unauthorized targets, unsafe Config/Secret, ambiguous provider outcomes and replay remain fail-closed. Same-project and branch workflows remain compatible. No actual Vercel mutations, production activation, new costs or release. Genuine disposable two-project acceptance is separately queued.
+
+## E-1 exact preview-branch Config copy — PR #184 candidate (2026-10-14)
+
+Native `vercel_env_copy` now accepts strictly validated source/destination preview branch selectors, checks exact source branch and revision before and immediately prior to dispatch, emits Vercel's branch-scoped create body, and independently verifies destination branch binding plus value equality. Existing ordinary copy remains compatible; same-target/branch duplicate, cross-target misuse, malformed selectors, Secret/credential sources, production-linked source, custom env, unverified project, replay and production guards remain refused. Fake HTTP tests cover positive copy, branch drift and mismatched readback. No live value or production mutation; native disposable acceptance stays queued at its exact source revision. Release readiness and provider acceptance are separate.
+
+### Workflow maintenance handoff — owner publication approved
+
+New offline session utility: eight behavioral tests passed, including actual Git ancestry, partial releases, unknown/failed deployments, rollback, dependency gating, invalid queues, PR alignment and bounded output. All repository queues validate. Existing source/status evidence is preserved; no provider acceptance or release was performed. Owner explicitly approved publication on October 14; publish the reviewed maintenance branch, require exact-head CI/reviews, and merge only when those gates pass. No extra production release is authorized by this approval. Full broad application suites on the shared runner were interrupted after resource/time-limit failures; do not claim them passed. Existing exact-head remote CI/review gates must pass before any main merge.
+
+## Release acceptance queue — workflow optimization 2026-10-14
+
+Owner-authorized guidance/tooling maintenance: consolidated session procedure, focused
+checks between meaningful edits, substantial capability grouping, and read-only queued
+acceptance/PR-boundary report. This records source/tooling work, not a live/provider pass.
+The queue below seeds existing outstanding obligations; reconcile exact scenarios and
+already-proven evidence from the unchanged cards/ledger before running. Keep all prior
+open obligations, original fixture ownership, approvals and deployment provenance.
+
+<!-- release-acceptance:start -->
+```json
+[
+  {
+    "id": "VERCEL-D1",
+    "priority": 1,
+    "requiredRevision": "de61b8f77caf484a544397a15b561ba25e1adc27",
+    "task": "Complete remaining real guarded settings acceptance with independent before/readback",
+    "procedure": "docs/pr-cards/D-1-ACCEPTANCE.md",
+    "gates": "Recorded owner grants; protect production and default permissions",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Existing ledger/card remains authoritative; current live/provider acceptance must be reconciled at session start. Seed revision conservatively includes reviewed current main."
+  },
+  {
+    "id": "VERCEL-D3",
+    "priority": 2,
+    "requiredRevision": "de61b8f77caf484a544397a15b561ba25e1adc27",
+    "task": "Check deployed deployment cancellation/deletion and environment metadata changes against approved disposable preview fixtures",
+    "procedure": "docs/pr-cards/D-3.md",
+    "gates": "No metered builds or spend without separate pricing approval; exact fixture ownership/cleanup",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Existing ledger/card remains authoritative; current live/provider acceptance must be reconciled at session start. Seed revision conservatively includes reviewed current main."
+  },
+  {
+    "id": "VERCEL-E1-BRANCH-COPY",
+    "priority": 3,
+    "requiredRevision": "e844591a607af7c7a322aefbce5f1549302bf612",
+    "task": "Prove exact preview-branch Config copy on authorized disposable Vercel project via custom MCP, including mismatched branch denial, value-hidden output, independent destination branch/readback, and exact cleanup",
+    "procedure": "docs/pr-cards/E-1.md",
+    "gates": "Fresh independently verified READY source ancestry; owner-authorized scratch project/branch; guarded nonproduction write permission; no autonomous spend or production mutation",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Branch-aware code and fake-provider tests proposed for PR #184; not yet deployed or accepted. October 14 production deployment source SHA not exposed by sanitized read."
+  },
+  {
+    "id": "VERCEL-E1-CROSS-PROJECT-COPY",
+    "priority": 4,
+    "requiredRevision": "96e3f35baad8d592295bf2b025b6f77c042d2258",
+    "task": "Prove explicit same-team cross-project Config transfer via custom MCP on two owner-authorized disposable projects: dual project scope, outsideApp intent, guarded create-only destination, no value disclosure, independent readback and exact cleanup",
+    "procedure": "docs/pr-cards/E-1.md",
+    "gates": "READY production and exact source ancestry; owner-authorized two disposable projects and stored team-wide nonproduction credential; explicit confirmation; no protected resource, production change or spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Dual-project code and defensive fake-provider tests proposed PR #185; no real provider write, TEST proof or deployed source attestation."
+  },
+  {
+    "id": "VERCEL-D2-RUNTIME-LOGS",
+    "priority": 2,
+    "requiredRevision": "c0ab5d95a7d2bf687624b5564c20ba72ee74296f",
+    "task": "Investigate and independently retest authenticated custom runtime-log read on exact deployed project/deployment with bounded date window, safe empty/error classification and no raw log exposure",
+    "procedure": "docs/pr-cards/D-2.md",
+    "gates": "Read-only native service connection, independently attested READY source and project/deployment; no writes, raw log messages or secret content",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "October 14: independent Vercel deployment metadata verified READY live c0ab5d95; actual custom vercel_deploy_get_runtime_logs for a bounded 30-minute UTC window returned unclassified provider unknown_error. No provider rows or no-events success can be claimed. Retry after diagnosing deployed endpoint/response classification; not an owner-permission blocker."
+  }
+]
+```
+<!-- release-acceptance:end -->
+
+<!-- Current repair also records no-change daily receipts: backups cannot publish later same-day development after a successful no-op. -->
+## October 14 owner-requested daily release recovery repair — current
+
+Owner request on October 14: investigate and repair missed daily releases across the MCP repositories and Appliance Desk, including the quoted owner-run checked recovery. This supersedes the prior scheduled-only/no-new-trigger restriction for missed-event recovery only. Primary 00:01 Denver remains; retries are 00:17, 01:17 and 05:37 Denver plus 12:43 UTC. Explicit recovery defaults OFF and requires both the original actor and the triggering actor to be christcr2012, main, true recovery input and elapsed midnight. Every path retains successful exact-main CI, ancestry, atomic once-per-Denver-day receipt and independent readback. No production-provider activation, spending, force push or preview build is authorized.
+
+Local release safety tests pass. Merge requires exact-head application CI and review resolution. Source repair is separate from observed schedule execution and Vercel READY/alias proof; inspect actual daily run and receipt, do not equate main/live drift after a release with failure. These infrastructure PRs do not replace the existing substantive implementation batch.
+
+## October 14, 2026 missed scheduled release — trigger repair candidate
+GitHub returned zero schedule-event runs despite the daily-release workflow existing on default main since October 12 and passing policy on push/PR. At inspection live and READY production were at #176 (dc98faef) while green main was #180 (9e0f7ba0). The workflow's Denver timezone syntax is supported by GitHub; the absent event is a scheduler enqueue issue, not a failed promote step.
+Repair: preserve 00:01 America/Denver primary; add staggered 00:13, 00:29, 00:47 Denver schedule retries and an explicitly owner-initiated workflow_dispatch recovery. The recovery requires the repository owner, exact main branch, true recovery input, and local time after 00:01. All paths retain required exact-head checks, fast-forward-only atomic push, daily marker, replay suppression and readback. This changes no production environment settings and does not itself dispatch a release. Verify future schedule enqueues; if zero continue, investigate disabled workflow/GitHub scheduler with GitHub Support.
+
+## E-1 bounded batch environment workflows — candidate PR #180
+
+The native guarded create-only set-many operation batches 2–10 Config or privately supplied/generated Secret keys into one Vercel POST, with no upsert and individual readbacks. The guarded delete-many operation verifies 2–10 exact IDs/keys/revisions and uses the published one-request batch DELETE with individual 404 confirmation. Both enforce project identity, protected/app and production policy, replay, confirmation, fresh pre-dispatch state and no values in outputs/audits. Provider partial/ambiguous reports are outcome_unknown, not invented success. No actual provider write or production activation was performed. Branch/custom/cross-project Config copy and live disposable acceptance remain pending.
+
+## E-1 scoped server-side Config copy — candidate PR #179
+
+Provider compatibility: verified current Vercel POST create envelope can contain `created` and per-item `failed`; #179 also repairs the #178 create-result normalization and rejects partial provider successes rather than claiming confirmed writes.
+
+Native `vercel_env_copy` securely promotes one source Config value between ordinary (non-branch, non-custom) preview/development targets of the same exact project; destination production additionally requires the existing production-mode and owner guard. Secret and credential-shaped values, production-linked sources, cross-project selectors, ambiguous identities and changed revisions are refused. Values remain solely server-side; no raw provider fields/values in results, audit or durable replay. Create-only POST avoids silent overwrites; independent readback compares byte equality. Real provider write acceptance awaits approved disposable preview fixture and normal checked release. E-1 bulk operations and expanded branch/cross-project copy are still pending.
+
+## E-1 guarded single-variable lifecycle — candidate PR #178
+
+Native `vercel_env_set` and `vercel_env_delete` add single-resource create/replace/delete with exact project/target/expected revision, fresh pre-dispatch scope/state checks, existing protected-resource/app/production/replay/confirmation safeguards, and independent provider readbacks. Values enter only transiently via noncredential Config input or encrypted owner pending input / strong server generation for Secret; never appear in output, preview, audit or replay. Secret readback proves metadata only (`confirmed:null` for value); Config readback verifies equality; deletion requires independent 404. Production mutations stay disabled, no autonomous spend or real provider writes. Bulk set/delete and copy still pending. Exact-head CI and genuine disposable native custom-service acceptance tracked separately.
+
+## E-1 safe environment drift audit — candidate PR #177
+
+Add `vercel_env_compare`: a read-only, project-verified, explicit-target workflow comparing up to 20 named config keys using in-process SHA-256 equality, returning same/different without raw values or digests. Secret kinds are not decrypted or compared; unavailable values and incomplete/absent inventory are marked unknown rather than misreported as drift. Fake-provider tests cover scoped positive comparisons, changed identities, secret safety and incomplete page evidence. No environment mutation, production activation or spend; native provider comparison acceptance is pending checked release. Remaining E-1 writes and copy operations are still unimplemented and independently gated.
+
 ## D-3 terminal preview cleanup — candidate #175
 
 Guarded `vercel_deploy_delete` now handles irreversible cleanup of an independently verified failed or canceled preview, explicitly requested by exact project/deployment/state and outside-app intent. Production, running or ready builds, absent or assigned aliases, malformed/foreign identity, changed state before deletion and protected resources are rejected. A fresh bound pre-dispatch provider read prevents stale confirmations. Only independent GET 404 after accepted DELETE is claimed as confirmed; other outcomes are false/unknown, with durable replay and audit. Regression tests are in the new unit suite; real provider fixture cleanup, genuine connected denial/readback and release remain separately open. No real deletion, production change or spending. Other D-3 metered creation/redeploy paths remain gated, E-1 has six planned operations outstanding.
