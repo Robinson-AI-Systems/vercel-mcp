@@ -52,8 +52,10 @@ describe('D-3 terminal unaliased preview cleanup',()=>{
     const f=fixture();setup(f);
     const first=result(await f.call());
     expect(first).toMatchObject({status:'applied',mode:'PREVIEW',confirmed:true});
-    expect(result(await f.call())).toEqual(first);
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','DELETE','GET','GET','GET']);
+    // After irreversible cleanup there is no source state to re-prove.
+    // Refuse a replay rather than reissuing DELETE or fabricating an outcome.
+    expect(result(await f.call())).toMatchObject({status:'refused_by_guard'});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','DELETE','GET','GET']);
     expect(f.fake.calls[3].path).toBe('/v13/deployments/'+deployment);
     expect(f.fake.calls[3].query.teamId).toBe('team_FAKE');
     expect(f.fake.calls[3].body).toBeUndefined();
