@@ -1,3 +1,7 @@
+## E-1 guarded cross-project Config copy — PR #185 candidate (2026-10-14)
+
+The native `vercel_env_copy` can now take an explicit second project, but only under a verified same-team credential with full project visibility and `outsideApp:true`. Before a provider write it independently resolves both project identities and team authority again. Both source and destination are included in protected-resource/application guard targets, the destination receives only a create-only Config variable, and readback verifies the exact other project, target, branch and unchanged value without exposing bytes. Project-scoped credentials, foreign/changed project identity, missing intent, protected or production-unauthorized targets, unsafe Config/Secret, ambiguous provider outcomes and replay remain fail-closed. Same-project and branch workflows remain compatible. No actual Vercel mutations, production activation, new costs or release. Genuine disposable two-project acceptance is separately queued.
+
 ## E-1 exact preview-branch Config copy — PR #184 candidate (2026-10-14)
 
 Native `vercel_env_copy` now accepts strictly validated source/destination preview branch selectors, checks exact source branch and revision before and immediately prior to dispatch, emits Vercel's branch-scoped create body, and independently verifies destination branch binding plus value equality. Existing ordinary copy remains compatible; same-target/branch duplicate, cross-target misuse, malformed selectors, Secret/credential sources, production-linked source, custom env, unverified project, replay and production guards remain refused. Fake HTTP tests cover positive copy, branch drift and mismatched readback. No live value or production mutation; native disposable acceptance stays queued at its exact source revision. Release readiness and provider acceptance are separate.
@@ -50,6 +54,17 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Branch-aware code and fake-provider tests proposed for PR #184; not yet deployed or accepted. October 14 production deployment source SHA not exposed by sanitized read."
+  },
+  {
+    "id": "VERCEL-E1-CROSS-PROJECT-COPY",
+    "priority": 4,
+    "requiredRevision": "96e3f35baad8d592295bf2b025b6f77c042d2258",
+    "task": "Prove explicit same-team cross-project Config transfer via custom MCP on two owner-authorized disposable projects: dual project scope, outsideApp intent, guarded create-only destination, no value disclosure, independent readback and exact cleanup",
+    "procedure": "docs/pr-cards/E-1.md",
+    "gates": "READY production and exact source ancestry; owner-authorized two disposable projects and stored team-wide nonproduction credential; explicit confirmation; no protected resource, production change or spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Dual-project code and defensive fake-provider tests proposed PR #185; no real provider write, TEST proof or deployed source attestation."
   }
 ]
 ```
