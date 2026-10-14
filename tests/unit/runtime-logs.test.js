@@ -47,6 +47,34 @@ describe('D-2 project-verified bounded runtime logs',()=>{
    const got=obj(await call({deployment},fetch));
    expect(got).toMatchObject({matched:1,transport:{complete:false}});
  });
+ it('negotiates Vercel streaming media type without changing ordinary read headers',async()=>{
+   const f=makeFetch([]);
+   const original=f.fetch;
+   let requestedAccept;
+   const fetch=async(url,init)=>{
+     if(new URL(url).pathname.includes('/runtime-logs')){
+       requestedAccept=init.headers.accept;
+       return new Response(JSON.stringify(log())+'\\n',{
+         headers:{'content-type':'application/stream+json'}});
+     }
+     return original(url,init);
+   };
+   const got=obj(await call({deployment},fetch));
+   expect(got.matched).toBe(1);
+   expect(requestedAccept).toBe('application/stream+json');
+   expect(f.calls[0].headers.accept).toBe('application/json');
+   expect(JSON.stringify(got)).not.toContain('vcp_FAKE_NEVER_SHOW');
+ });
+ it('accepts HTTP 204 as an explicitly incomplete empty sample, not an exception',async()=>{
+   const f=makeFetch([]);
+   const fetch=async(url,init)=>new URL(url).pathname.includes('/runtime-logs')?
+     new Response(null,{status:204}):f.fetch(url,init);
+   const got=obj(await call({deployment},fetch));
+   expect(got).toMatchObject({scanned:0,matched:0,
+     transport:{bytesRead:0,received:0,cutoff:'no_content',complete:false},
+     containsRawLogText:false});
+   expect(got.note).toMatch(/does not certify/i);
+ });
  it('refuses changed project identity before streaming',async()=>{
    const f=makeFakeVercel();
    f.when('GET','/v13/deployments/{idOrUrl}').resolves({uid:deployment,projectId:'prj_OTHER'});
