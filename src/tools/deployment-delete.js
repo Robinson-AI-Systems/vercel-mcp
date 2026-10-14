@@ -87,7 +87,9 @@ const remove=defineWrite({
   async verify(_args,ctx,before){
     try{
       const {client,account}=await readProvider(ctx);
-      if(account.team_id!==before.teamId)return {confirmed:null};
+      if(account.team_id!==before.teamId||
+         account.scope==='project'&&account.project_id!==before.project)
+        return {confirmed:null};
       await client.request('deployments_get',{path:{idOrUrl:before.id}});
       return {confirmed:false};
     }catch(error){
