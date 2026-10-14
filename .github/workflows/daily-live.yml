@@ -1,8 +1,23 @@
 name: Daily live policy
 on:
   schedule:
-    - cron: '1 0 * * *' # 00:01 Denver year-round; GitHub may delay.
+    # Primary Denver 00:01; retries tolerate dropped GitHub schedule events.
+    # Atomic daily marker ensures no duplicate promotion.
+    - cron: '1 0 * * *'
       timezone: America/Denver
+    - cron: '13 0 * * *'
+      timezone: America/Denver
+    - cron: '29 0 * * *'
+      timezone: America/Denver
+    - cron: '47 0 * * *'
+      timezone: America/Denver
+  workflow_dispatch:
+    inputs:
+      recover_missed_daily:
+        description: 'Owner-only checked recovery after missed 00:01 Denver schedule'
+        type: boolean
+        required: true
+        default: false
   pull_request:
     types: [opened, synchronize, reopened, edited]
   push:
@@ -33,7 +48,10 @@ jobs:
 
   promote:
     name: scheduled-live-promotion
-    if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && inputs.recover_missed_daily == true && github.actor == 'christcr2012'))
     needs: policy
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -48,4 +66,5 @@ jobs:
       - name: Checked daily fast-forward only
         env:
           GH_TOKEN: ${{ github.token }}
+          RECOVER_MISSED_DAILY: ${{ inputs.recover_missed_daily }}
         run: node .github/release/promote-live.mjs

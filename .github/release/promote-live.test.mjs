@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checksPass, checksFailed, decide, denverDay, run } from './promote-live.mjs';
+import { checksPass, checksFailed, decide, denverDay, denverMinute, authorizedReleaseInvocation, run } from './promote-live.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -22,6 +22,29 @@ test('Denver calendar dates honor midnight and DST', () => {
   assert.equal(denverDay(new Date('2026-10-12T06:00:00Z')), '2026-10-12');
   assert.equal(denverDay(new Date('2026-12-12T06:59:59Z')), '2026-12-11');
 });
+test('owner-only missed-schedule recovery cannot bypass Denver time or repo scope', () => {
+  const repo='example/repo';
+  const env={GITHUB_REPOSITORY:repo,GITHUB_REF:'refs/heads/main',
+    GH_TOKEN:'fixture',GITHUB_EVENT_NAME:'workflow_dispatch',
+    GITHUB_ACTOR:'christcr2012',RECOVER_MISSED_DAILY:'true'};
+  const before=new Date('2026-10-14T06:00:00Z');
+  const after=new Date('2026-10-14T06:01:00Z');
+  assert.equal(denverMinute(before),0);
+  assert.equal(denverMinute(after),1);
+  assert.equal(authorizedReleaseInvocation(env,repo,before),false);
+  assert.equal(authorizedReleaseInvocation(env,repo,after),true);
+  for(const changed of [
+    {GITHUB_ACTOR:'not-the-owner'}, {RECOVER_MISSED_DAILY:'false'},
+    {GITHUB_REPOSITORY:'wrong/repo'}, {GITHUB_REF:'refs/heads/feature'},
+    {GH_TOKEN:''}, {GITHUB_EVENT_NAME:'push'},
+    {GITHUB_EVENT_NAME:'pull_request'}
+  ])assert.equal(authorizedReleaseInvocation({...env,...changed},repo,after),false);
+  assert.equal(authorizedReleaseInvocation({
+    ...env,GITHUB_EVENT_NAME:'schedule',GITHUB_ACTOR:'github-actions',
+    RECOVER_MISSED_DAILY:'false'},repo,before),true);
+  assert.equal(denverMinute(new Date('2026-12-14T07:01:00Z')),1);
+});
+
 test('requires successful latest exact-head trusted checks', () => {
   assert.equal(checksPass([good], ['ci'], main), true);
   for (const change of [{ conclusion: 'failure' }, { conclusion: 'skipped' },
@@ -103,8 +126,13 @@ test('real atomic git promotion, read-back and second same-day update refusal', 
   }
 });
 
-test('owner release schedule is 00:01 Denver with native DST handling', () => {
-  const workflow = readFileSync(new URL('../workflows/daily-live.yml', import.meta.url), 'utf8');
-  assert.equal((workflow.match(/^\s*- cron:/gm) || []).length, 1);
-  assert.match(workflow, /- cron: '1 0 \* \* \*'[^\n]*\n\s+timezone: America\/Denver\s*\n/);
+test('00:01 Denver primary and staggered retries share guarded daily marker', () => {
+  const workflow=readFileSync(new URL('../workflows/daily-live.yml', import.meta.url), 'utf8');
+  const matches=[...workflow.matchAll(/^\s+- cron: '(\d+ 0 \* \* \*)'\n\s+timezone: America\/Denver\s*$/gm)];
+  assert.deepEqual(matches.map(m=>m[1]),[
+    '1 0 * * *','13 0 * * *','29 0 * * *','47 0 * * *'
+  ]);
+  assert.match(workflow,/recover_missed_daily:/);
+  assert.match(workflow,/github.actor == 'christcr2012'/);
+  assert.match(workflow,/RECOVER_MISSED_DAILY:/);
 });
