@@ -625,15 +625,16 @@
         177,
         178,
         179,
-        180
+        180,
+        184
       ],
       "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
       "externalAcceptance": "NOT_VERIFIED",
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-1 implementer",
-        "reason": "Read metadata, drift compare, guarded single value lifecycle, same-project Config copy and bounded create/delete batches (#174,#177–#180 candidate) implemented in source. Live provider acceptance and expanded copy remain.",
-        "nextAction": "Run approved disposable native TEST/preview create/update/copy/delete/batch scenarios with independent readbacks and cleanup after checked daily release; then expand branch/cross-project copy only with explicit access guards.",
+        "reason": "Read metadata, drift comparison, single Config/Secret lifecycle, same-project Config copy, bounded batches (#174,#177–#180) and exact preview-branch copy (#184 candidate) are implemented. Independent deployed/provider acceptance and separately authorized cross-project copy remain open.",
+        "nextAction": "After an independently attested checked release, run safe read and approved disposable preview variable lifecycle, exact branch-to-branch copy and bounded batch tests through the custom MCP, with independent readbacks and cleanup; continue code-level cross-project Config copy only with independently verified dual-project/team guards.",
         "checkpoint": "At each E-1 PR/session boundary and on an owner-authorized disposable project",
         "evidenceNeeded": "CI exact head, owner-authorized disposable preview project and variable, custom-service create/update/delete under stored scoped credential with independent GET/404 and isolated cleanup; no real production env write.",
         "eligibilityCondition": "Read implementations/tests eligible now; genuine connected acceptance requires authorized project; writes require owner permission and production/app safeguards.",
