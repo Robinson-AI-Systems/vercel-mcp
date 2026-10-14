@@ -1,3 +1,9 @@
+## E-1 scoped server-side Config copy — candidate PR #179
+
+Provider compatibility: verified current Vercel POST create envelope can contain `created` and per-item `failed`; #179 also repairs the #178 create-result normalization and rejects partial provider successes rather than claiming confirmed writes.
+
+Native `vercel_env_copy` securely promotes one source Config value between ordinary (non-branch, non-custom) preview/development targets of the same exact project; destination production additionally requires the existing production-mode and owner guard. Secret and credential-shaped values, production-linked sources, cross-project selectors, ambiguous identities and changed revisions are refused. Values remain solely server-side; no raw provider fields/values in results, audit or durable replay. Create-only POST avoids silent overwrites; independent readback compares byte equality. Real provider write acceptance awaits approved disposable preview fixture and normal checked release. E-1 bulk operations and expanded branch/cross-project copy are still pending.
+
 ## E-1 guarded single-variable lifecycle — candidate PR #178
 
 Native `vercel_env_set` and `vercel_env_delete` add single-resource create/replace/delete with exact project/target/expected revision, fresh pre-dispatch scope/state checks, existing protected-resource/app/production/replay/confirmation safeguards, and independent provider readbacks. Values enter only transiently via noncredential Config input or encrypted owner pending input / strong server generation for Secret; never appear in output, preview, audit or replay. Secret readback proves metadata only (`confirmed:null` for value); Config readback verifies equality; deletion requires independent 404. Production mutations stay disabled, no autonomous spend or real provider writes. Bulk set/delete and copy still pending. Exact-head CI and genuine disposable native custom-service acceptance tracked separately.

@@ -51,7 +51,7 @@ describe('E-1 guarded single-variable environment lifecycle',()=>{
   });
   it('creates exact preview Config and independently proves the value without leaking it',async()=>{
     const f=fixture();
-    f.fake.when('POST','/v10/projects/{idOrName}/env').resolves({id,key,value:'PRIVATE_FAKE_RAW'});
+    f.fake.when('POST','/v10/projects/{idOrName}/env').resolves({created:{id,key,value:'PRIVATE_FAKE_RAW'},failed:[]});
     f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
       .resolves({...original,value:setArgs.value});
     const out=parse(await f.call('vercel_env_set',setArgs));
@@ -68,7 +68,7 @@ describe('E-1 guarded single-variable environment lifecycle',()=>{
   });
   it('cryptographically generates Secret value, reports metadata only, never echoing private bytes',async()=>{
     const f=fixture();
-    f.fake.when('POST','/v10/projects/{idOrName}/env').resolves({id,key});
+    f.fake.when('POST','/v10/projects/{idOrName}/env').resolves({created:{id,key},failed:[]});
     f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
       .resolves({...original,type:'sensitive',value:'PRIVATE_FAKE_SHOULD_NOT_ECHO'});
     const out=parse(await f.call('vercel_env_set',{
