@@ -25,6 +25,8 @@ import {deploymentGitCreateTools} from './deployment-git-create.js';
 import {deploymentFileCreateTools} from './deployment-file-create.js';
 import {sharedCustomEnvReadTools} from './shared-custom-env-reads.js';
 import {sharedEnvWriteTools} from './shared-env-write.js';
+import {globalConfigReadTools} from './globalconfig-read.js';
+import {globalConfigCreateTools} from './globalconfig-create.js';
 import {customEnvironmentCreateTools} from './custom-environment-create.js';
 import {customEnvironmentMutateTools} from './custom-environment-mutate.js';
 import {checksReadTools} from './checks.js';
@@ -39,4 +41,4 @@ import {teamDefaultProtectionTools} from './team-default-protection.js';
 import {teamSecurityWriteTools} from './team-security-write.js';
 import {teamProfileWriteTools} from './team-profile-write.js';
 
-export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, deploymentCancelTools, deploymentDeleteTools, deploymentRedeployTools, deploymentGitCreateTools, deploymentFileCreateTools, sharedCustomEnvReadTools, sharedEnvWriteTools, customEnvironmentCreateTools, customEnvironmentMutateTools, checksReadTools, projectEnvReadTools, projectEnvWriteTools, projectEnvCopyTools, projectEnvBatchTools, teamReadTools, teamProfileWriteTools, teamSecurityWriteTools, teamDefaultProtectionTools, universalTools, passProposalTools]);
+export const registry = mergeNamespaces([serverTools, productionTools, protectedTools, observabilityTools, ownerTools, metaTools, projectsTools, gitTools, cronsTools, projectCreateTools, projectSettingsTools, projectMemberTools, projectRemoveTools, projectTrafficTools, projectDeleteTools, projectTransferTools, projectResourcesTools, deploymentReadTools, deploymentCancelTools, deploymentDeleteTools, deploymentRedeployTools, deploymentGitCreateTools, deploymentFileCreateTools, sharedCustomEnvReadTools, sharedEnvWriteTools, globalConfigReadTools, globalConfigCreateTools, customEnvironmentCreateTools, customEnvironmentMutateTools, checksReadTools, projectEnvReadTools, projectEnvWriteTools, projectEnvCopyTools, projectEnvBatchTools, teamReadTools, teamProfileWriteTools, teamSecurityWriteTools, teamDefaultProtectionTools, universalTools, passProposalTools]);
