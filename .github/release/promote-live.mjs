@@ -71,7 +71,16 @@ export async function run(policy = JSON.parse(readFileSync(new URL('./policy.jso
       '+refs/heads/live:refs/remotes/origin/live']);
     const main = git(['rev-parse', 'origin/main']);
     const live = git(['rev-parse', 'origin/live']);
-    if (tagged() || main === live) { console.log('No promotion needed today'); return; }
+    if (tagged()) { console.log('Already processed today'); return; }
+    if (main === live) {
+      if (remoteHead('main') !== main || remoteHead('live') !== live) continue;
+      // A successful no-change daily run consumes today's opportunity too.
+      // Backups must not publish later development from the same day.
+      git(['push', '--atomic', 'origin', main + ':refs/tags/' + marker]);
+      if (!tagged()) throw Error('No-change daily receipt read-back failed');
+      console.log('Recorded no-change daily receipt for ' + denverDay());
+      return;
+    }
     let ancestor = false;
     try { git(['merge-base', '--is-ancestor', live, main]); ancestor = true; } catch { /* fail closed */ }
     const runs = [];

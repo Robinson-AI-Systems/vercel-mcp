@@ -1,3 +1,4 @@
+<!-- Current repair also records no-change daily receipts: backups cannot publish later same-day development after a successful no-op. -->
 # Daily production release policy
 
 Owner-approved 2026-10-12. Pull requests target `main`; `main` is the default development branch. Do not merge PRs into `live` or push directly to it. Do not run Vercel CLI production deployments or manually promote a preview during routine development.
