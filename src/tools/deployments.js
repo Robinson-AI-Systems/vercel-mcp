@@ -96,7 +96,7 @@ export async function scopedDeployment(args,ctx,requestOptions={}){
   const row=await client.request('deployments_get',{path:{idOrUrl:args.deployment}},requestOptions);
   const verified=summary(row,project);
   if(verified.id!==args.deployment)throw new TypeError('Deployment identity changed');
-  return {client,project,verified};
+  return {client,account,project,verified};
 }
 function buildEventSummary(events){
   if(!Array.isArray(events))throw new TypeError('Invalid deployment events response');

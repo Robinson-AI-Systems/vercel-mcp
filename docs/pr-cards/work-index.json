@@ -567,17 +567,18 @@
       "readiness": "READY",
       "ownerInputs": [],
       "pr": [
-        173
+        173,
+        175
       ],
       "codeAcceptance": "PARTIAL_PENDING_EXACT_HEAD_CI",
       "externalAcceptance": "NOT_VERIFIED",
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-3 implementer",
-        "reason": "The approved five-tool card is only partially complete. PR #173 implements guarded preview cancellation. Cancellation of an approved disposable running preview remains unexercised against the provider. Four other D-3 tools still need complete implementations.",
-        "nextAction": "Implement guarded preview source management and deletion with exact live-serving exclusion. Keep metered creation/redeploy denied under IN-08 until provider-enforced cumulative price cap and separate owner approval. Exercise genuine cancel only on owner-authorized disposable nonproduction build; perform independent readback and cleanup.",
+        "reason": "Guarded preview cancellation #173 plus terminal unaliased preview deletion candidate #175 are implemented; create-from-Git, create-from-files and redeploy remain unimplemented. Real provider disposal and independent cleanup acceptance remain separate.",
+        "nextAction": "Complete approved D-3 deployment creation/redeploy with pinned official operations and fail-closed production/spend guards. Metered execution remains denied without enforceable cost ceiling and independent owner approval. Exercise terminal preview deletion only on an explicitly authorized disposable fixture, with independent readback and cleanup.",
         "checkpoint": "At each substantive D-3 PR boundary and on provision of isolated scratch project per IN-06",
-        "evidenceNeeded": "Owner-authorized disposable preview deployment in team account, nonproduction cancellation, independent state readback, production-target denial, permission-denied proof and safe cleanup.",
+        "evidenceNeeded": "An owner-approved disposable preview deployment (ERROR or CANCELED) with independent proof of empty aliases, a narrow team/project credential and post-deletion 404; test production/foreign denials and preserve $0 spending. Separate cost approval required for metered creation/redeploy.",
         "eligibilityCondition": "Implementation and fake provider regression are eligible immediately; genuine cancellation requires an approved disposable in-progress preview, while metered write activation remains separately gated by IN-08.",
         "dependencies": [
           "D-2"
