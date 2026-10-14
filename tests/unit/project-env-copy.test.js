@@ -180,10 +180,12 @@ describe('E-1 server-side Config-only copy',()=>{
       scope:'team',project_id:null}});
     f.fake.when('GET','/v9/projects/prj_FAKE_OTHER')
       .resolves({id:other,name:'other-project'});
-    f.fake.when('GET','/v1/projects/prj_FAKE_OTHER/env/env_FAKE_DEST')
-      .resolves({...destination,projectId:other});
+    // The fake selects the newest matching rule: register the generic
+    // source first, then the exact destination to prove destination readback.
     f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
       .resolves(source);
+    f.fake.when('GET','/v1/projects/prj_FAKE_OTHER/env/env_FAKE_DEST')
+      .resolves({...destination,projectId:other});
     f.fake.when('POST','/v10/projects/{idOrName}/env')
       .resolves({created:{id:destId,key:'FEATURE_ENDPOINT'},failed:[]});
     const input={...args,destinationProject:other,outsideApp:true,
