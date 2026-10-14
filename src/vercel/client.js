@@ -171,7 +171,8 @@ export function makeVercelClient({
       const signal=AbortSignal.timeout(timeoutMs);
       try {
         response = await fetchImpl(url.toString(), {
-          method, headers: { authorization: 'Bearer ' + token, accept: 'application/json',
+          method, headers: { authorization: 'Bearer ' + token,
+            accept: options.streamLogs === true ? 'application/stream+json' : 'application/json',
             ...(params.body === undefined ? {} : { 'content-type': 'application/json' }) },
           ...(params.body === undefined ? {} : { body: JSON.stringify(params.body) }),
           signal, ...(indexed?{redirect:'error'}:{})
