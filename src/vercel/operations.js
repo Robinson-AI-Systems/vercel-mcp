@@ -21,6 +21,8 @@ export const OPS = Object.freeze({
   checks_run_get: Object.freeze({ method: 'GET', path: '/v2/deployments/{deploymentId}/check-runs/{checkRunId}' }),
   checks_project_list: Object.freeze({ method: 'GET', path: '/v2/projects/{projectIdOrName}/checks' }),
   projects_get: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}' }),
+  project_env_list: Object.freeze({ method: 'GET', path: '/v10/projects/{idOrName}/env' }),
+  project_env_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/env/{id}' }),
   projects_members_list: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/members' }),
   projects_members_add: Object.freeze({ method: 'POST', path: '/v1/projects/{idOrName}/members' }),
   projects_members_remove: Object.freeze({ method: 'DELETE', path: '/v1/projects/{idOrName}/members/{uid}' }),
