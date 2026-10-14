@@ -57,7 +57,7 @@ describe('E-1 native project env metadata reads never leak values',()=>{
    const f=fixture();
    const result=parse(await f.call('vercel_env_export_names',{}));
    expect(result.names).toEqual(['API_BASE_URL','DATABASE_PASSWORD']);
-   expect(result.example).toBe('API_BASE_URL=\\nDATABASE_PASSWORD=');
+   expect(result.example).toBe(['API_BASE_URL=','DATABASE_PASSWORD='].join(String.fromCharCode(10)));
    expect(result.hasValues).toBe(false);
    expect(result.complete).toBe(false);
    expect(JSON.stringify(result)).not.toContain(secret);
