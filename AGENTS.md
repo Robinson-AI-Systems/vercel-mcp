@@ -1,4 +1,34 @@
 # AGENTS.md — the rules. Read this first, every session.
+
+## Original Toolkit is reference-only — owner clarification 2026-10-14
+
+`Robinson-AI-Systems/robinsons-toolkit-mcp` is the historical capability reference,
+not an active implementation/deployment target. The standalone custom MCP servers
+and optional `robinsons-toolkit-hub` replace it. Do not maintain/rebuild the original,
+resume its recovery PRs, synchronize implementations back to it, or require a bridge.
+Preserve its code/history for coverage and behavioral research. When the owner chooses a new provider MCP, its implementing agent inventories the
+relevant legacy tool names, families, workflows and intended behavior, reconciles them
+with current provider contracts, and tracks coverage in THAT project's cards/index.
+The Hub stays provider-agnostic: discover/connect/authorize/route/read results for
+new contract-compatible MCP servers without provider-specific handlers or a fixed
+family list. Future services and legacy catalog parity are not Hub completion gates.
+Do not copy provider capabilities into the Hub or start speculative server projects.
+Mapped/planned is not implemented or accepted. Service autonomy and all existing
+provider/security/owner gates remain binding.
+
+
+## Efficient release-aware execution — owner instruction 2026-10-14
+
+[SESSION-START](docs/SESSION-START.md) is the consolidated session procedure;
+`npm run session:status` prints the read-only release acceptance queue and PR boundary.
+Its workflow/cadence/merge-versus-live-proof rules supersede older conflicting procedural
+wording below, but never override explicit safety or pre-merge owner/card gates.
+Use substantial cohesive outcomes; numeric production-line targets are advisory rather
+than artificial hard caps. Full mandatory checks run before publication, with focused
+checks during development. Product acceptance stays open until real evidence passes.
+The owner explicitly authorized this cross-repository guidance/tooling optimization;
+routine implementation sessions still prohibit filler/documentation-only PRs.
+
 ## Mobile and tool-unavailable connection recovery
 
 Before treating absent private-plugin tools as an acceptance blocker, follow
@@ -80,8 +110,7 @@ card; read only that recipe. It maps existing code and proposed work without cha
     is the current task — fix it before any new card.
 12. **Problems are not blockers.** Red CI, lint, failing tests, wrong parameters, conflicts and unclear code are yours to
     fix; stop only for a hard limit or an owner decision the current step needs (SESSION-START §6).
-13. **Thin slices, then a recovery point.** Run each slice's tests and lint before writing the next (≤ ~150 lines between
-    runs); end every turn right after a push whose resume note names the exact next action.
+13. **Thin slices, then a recovery point.** Run each slice's tests and lint before writing the next (at meaningful seams); end every turn right after a push whose resume note names the exact next action.
 14. **GitHub REST testing when no local runner (permanent owner instruction).** In a GitHub-connector-only or
     terminal-less environment, use the **GitHub REST route** to perform verification on GitHub Actions runners.
     Commit the tested slice to an `ai/*` branch, open a draft PR, and use REST to inspect the exact-head
@@ -98,114 +127,6 @@ card; read only that recipe. It maps existing code and proposed work without cha
     next-session prompt in the **same reply**. Do not start a sixth PR. If GitHub CI is pending or an
     API call is blocked, give the exact verified state and recovery action in the handoff now;
     never silently wait or report pending checks as passed.
-
-## Outcome-first milestone delivery and continuation (permanent)
-
-Every session begins by verifying live `main`, concurrent branches/open PRs,
-review threads, exact-head CI, owner answers and `docs/pr-cards/work-index.json`.
-Resolve demonstrated security/correctness/CI defects first. Select the
-**highest-priority eligible capability milestone** with explicit user-facing
-behavior and finite acceptance, not a count of PRs. Plan cohesive substantive
-PRs that materially deliver that outcome and satisfy the existing risk/size
-limits; five merged PRs are a normal **batch boundary**, never completion
-evidence or a reason to invent work. Stop earlier only for a real external
-gate, exhausted safe eligible work, or an explicit instruction; record why.
-
-Track separately **implemented code**, **local/CI tests**, **deployed HTTPS
-verification**, **authenticated custom-MCP acceptance**, and real Toolkit Hub
-**direct, private relay, Sandbox and revocation** runs when applicable.
-Passing mocks, reference conformance, build/configuration checks or ordinary
-provider connectors is not deployment/connected evidence. Do not close a
-milestone without its *actual* required acceptance; however, continue
-approved independent work while an external acceptance gate is pending.
-
-Every handoff and copy-ready next-thread prompt must name the actual
-verified `main` SHA, merged PRs, current milestone and outstanding criteria,
-next **eligible** action, due/deferred items and objective blockers. Direct
-the successor to this repo's authoritative workflow, cards and final PR's
-permanent handoff instead of repeating all rules. Tell them to recheck newly
-answered owner input, dependency merges and changed environments, preserve
-review/CI/hosting/production/spending gates, normally perform the next
-five-PR outcome-based batch and produce the same compact prompt. Keep
-detailed history/evidence in repo, not in an oversized continuation prompt.
-Do not create a separate documentation-only PR to maintain this workflow.
-
-## Scoped blockers are problems to solve, not permission to stop (permanent owner directive, 2026-10-12)
-
-A blocker affecting one tool, operation, acceptance item, environment or milestone is **not a whole-project blocker**.
-Before declaring any work blocked, identify the failing contract and investigate its root cause: reproduce or inspect
-the defect, check CI logs, code, OpenAPI/provider mappings, configuration, dependencies, stale documentation,
-hosting limits and **owner decisions already answered**. Attempt every authorized repair and complete every eligible
-implementation/test step. Never convert an engineering defect into an unanswered owner question.
-
-Only after attempted remedies may a remaining unmet requirement be classified as a genuine external gate
-(permission, secret/credential, paid resource, unavailable provider evidence, owner approval or external deployment).
-Record its exact scope, root cause, attempts, independent evidence, dependency, next executable action,
-owner and re-entry condition in the existing work index/STATUS; never bypass security, spend, data integrity,
-owner approval, or assert fabricated connected acceptance. **Isolate that operation**, enumerate the
-remaining roadmap/dependencies, and immediately progress the highest-priority approved independent task
-(including approved read-only exceptions). Do not let one unverified endpoint freeze D-1/D-2 or unrelated cards.
-Recheck triggers at each PR boundary, session start and whenever environment/owner/dependency evidence changes;
-return newly eligible work to active implementation automatically.
-
-Five substantive merges remain the normal batch boundary, counting already merged PRs; neither pad with
-unrelated tasks nor stop early merely because a preferred acceptance step is externally gated. An early stop
-requires concrete evidence that *all* safe eligible work has been exhausted or a specific execution limitation,
-including what was attempted and the smallest external action truly needed. Future continuation prompts
-refer back to this authoritative rule and identify the next concrete outcome, unverified acceptance and due
-re-entry triggers, not just a PR quota.
-
-## Owner-assisted blocker recovery and PR alignment — permanent 2026-10-13 directive
-
-The normal session batch is five **substantive** merged PRs. When resuming at an
-unaligned PR number, adjust the current batch to finish on the next PR-number
-multiple of five (e.g. latest #158 → target #160); subsequent sessions finish
-at #165, #170, etc. Recheck actual numbering and concurrent PRs. Never pad,
-fragment work or relax acceptance/review gates to achieve numerical alignment.
-
-A missing owner-only credential, pass, permission, approval or external
-verification is not permission to silently end the session. First investigate
-the actual failure; attempt authorized code/configuration/API/CI repairs,
-inspect decisions and existing credentials, and complete independent eligible
-roadmap work. When progress still requires the owner, **ask in this same
-conversation** with an exact, plain-English, least-privileged action: where to
-click/configure, how to confirm, why it is needed, the affected PR/acceptance
-gate, and whether it entails secrets, spending, elevated access or production.
-Never ask for passwords, passes or tokens in chat. Clearly label what the
-agent can repair itself. After the owner completes the action, reverify and
-**resume this same session**, keeping completed work. Do not issue a premature
-continuation prompt as a substitute for an actionable owner request.
-
-When no authorized independent work remains, give an "Action Required to Resume"
-report with actual merged/open PR count and target, exact blocker and observed
-evidence, exact owner action, and immediate verification/implementation on
-re-entry. Only normal-close and issue a compact next-session prompt after the
-assigned work is complete, the owner explicitly says stop, or work is truly
-impossible and the owner declines/cannot supply the required action.
-All next-session prompts must preserve the five-substantial-PR normal batch,
-multiple-of-five ending, scoped investigation/independent work, direct owner
-escalation and same-conversation recovery. Never fabricate provider,
-deployment, release, authenticated routing or revocation acceptance.
-
-## Blocked work must return to the roadmap (all future cards)
-
-A blocked or incomplete card is **not** postponed indefinitely. Before switching to another
-card, put a machine-validated `revisit` entry in `docs/pr-cards/work-index.json`:
-reason, exact owner/dependency/external trigger, named next implementer, next action,
-and a concrete checkpoint (normally the next substantive PR/session start).
-The matching STATUS/owner-input rows must identify what is actually answered,
-what code is finished, what is intentionally unsupported, and what still lacks
-external acceptance. Answered owner decisions **must never remain listed as a
-current owner-input blocker**; resume the applicable card or preserve its verified
-remaining work with an explicit checkpoint. Do not clear a card merely because
-an owner approved a policy. Do not defer indefinitely by inventing hardening PRs.
-
-Before picking a new feature, reconcile the work queue against the owner-input
-ledger and the predecessor handoff; follow a documented read-only early-start
-exception when a separate owner-only gate blocks writes (D-2 after D-1 is the
-current example). `npm run check` enforces revisit records and rejects stale
-owner-blocked classifications. Never weaken production, spending or data guards
-to satisfy the queue.
 
 ## What this is
 
@@ -285,7 +206,7 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
   reviewed.
 - **Drift and reconciliation** (`docs/implementation-contracts/DRIFT-PROTOCOL.md`): checklist A before each PR, B inside
   each PR written as if it had already merged, C when a batch finishes.
-- **PR size:** about 500 production lines and 15 files, hard stop ~800 lines, at most one migration, one risk area
+- **PR size:** about 500 production lines and 15 files, advisory size estimate, at most one migration, one risk area
   (PLAYBOOK Step 3a).
 - **Model:** whichever model Chris selected does the work. Sol 5.6 is the routine implementer: light effort for an
   already-tested pattern (a new read tool), medium for the safety layer, guards, production, spend, tokens, passes, or
@@ -383,7 +304,7 @@ python3 docs/pr-cards/validate-index.py
 ## Cohesive PR throughput (mandatory from D-1 security close-out)
 
 - Group adjacent operations **by safety boundary and reusable implementation pattern**, not one PR per endpoint. Prefer a complete related read family or a compatible set of guarded settings mutations with shared before/read-back fixtures. Never group destructive, owner-only, paid or production-sensitive changes with an unrelated operation merely to hit a size target.
-- Target approximately **450–800 changed production-code lines** only when the unit genuinely warrants them. The existing ~800-line hard stop and one-risk-area/migration constraints in PLAYBOOK still win. No padding, placeholders, invented endpoints or empty PRs. Five PRs means five quality gates, not five tiny features.
+- Target approximately **450–800 changed production-code lines** only when the unit genuinely warrants them. The existing advisory size estimate and one-risk-area/migration constraints in PLAYBOOK still win. No padding, placeholders, invented endpoints or empty PRs. Five PRs means five quality gates, not five tiny features.
 - Within a group, reuse authorization, input validation, provider calls, independent read-back, replay and test fixtures. A guarded handler must use `bindGuardedWrite` around the matching `defineWrite`; no caller-written contract literal can authorize the registry. Transport replay identities must distinguish operation plus stable mutation parameters/discriminator.
 - Run focused tests once per cohesive group, consolidate related fixes before each CI push, and avoid duplicate discovery/commits. Never skip exact-head CI or defer a security review finding. See `docs/implementation-guidance/RECIPES.md` §7 and the grouped D-1 card. If REST-only, use the Actions CI fallback unchanged.
 
