@@ -5,6 +5,1586 @@
   "maintenanceBranch": "ai/codex/completion-recovery-20261014",
   "branches": [
     {
+      "name": "ai/claude/a-1-foundation",
+      "sha": "fa7f45d44fa393c0935d2c5636806b06e984f485",
+      "disposition": "merged",
+      "prs": [
+        1
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/claude/anti-stall",
+      "sha": "e15112329b68cb8f2b66eac34a793062040ac185",
+      "disposition": "merged",
+      "prs": [
+        4
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/claude/ci-cadence",
+      "sha": "4ebb4b242eb4c28c43927bce66530d21b495ce35",
+      "disposition": "merged",
+      "prs": [
+        5
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/claude/no-legacy",
+      "sha": "8555945500c8485ef0933db796a5d2b7be383d36",
+      "disposition": "merged",
+      "prs": [
+        3
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/claude/owner-answers",
+      "sha": "334c667145f486e293709620bd8cb09b042bf916",
+      "disposition": "merged",
+      "prs": [
+        2
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/agent-delegation",
+      "sha": "f2c581e3a26c04936fcfd1e13d704eb977d821f5",
+      "disposition": "merged",
+      "prs": [
+        166
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/api-discovery",
+      "sha": "96f67ab4cf1cb51bb6b6e051d0e8d653320f071d",
+      "disposition": "merged",
+      "prs": [
+        148
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/api-scoped-reads",
+      "sha": "a6fa646517030b630edf3a887dd6c736934c74a4",
+      "disposition": "merged",
+      "prs": [
+        150
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/ci-container-reliability",
+      "sha": "176c09045f93c26a8fe7d9bf98792228a78ee515",
+      "disposition": "merged",
+      "prs": [
+        167
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/daily-live-policy",
+      "sha": "6e228171fbb458e43fc06dc4a8177ae52240a902",
+      "disposition": "merged",
+      "prs": [
+        121
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/developer-review-corrections",
+      "sha": "87457912be62eb91e112094649d6a372152d053b",
+      "disposition": "merged",
+      "prs": [
+        168
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/hosting-cost-handoff-2026-10-12",
+      "sha": "a31e6b0797203906cddf35d97e96dcf5b384d04b",
+      "disposition": "superseded",
+      "prs": [],
+      "reason": "Reviewed historical recovery branch; superseded implementation or infrastructure handoff retained in archive."
+    },
+    {
+      "name": "ai/codex/owner-pass-proposals",
+      "sha": "ca2c13c446e696b654b8913c0e1ad263fdbd6abd",
+      "disposition": "merged",
+      "prs": [
+        151
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/release-refresh-20261013",
+      "sha": "ca1aef1e091eaa980bb59d4760757d1a65ae0c70",
+      "disposition": "merged",
+      "prs": [
+        161
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/team-default-protection",
+      "sha": "026b9376cfccb9194c2387513b6a4d6f717872e1",
+      "disposition": "merged",
+      "prs": [
+        147
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/team-security",
+      "sha": "17671c7cfc2f8f013f57a023d3cc1499b82e305e",
+      "disposition": "merged",
+      "prs": [
+        146
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-2-database-schema",
+      "sha": "330dda3367e80a26b958faf579051ac88cae4fe3",
+      "disposition": "merged",
+      "prs": [
+        6
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-3-postmerge-docs",
+      "sha": "507ba317ed1786fe7e892091cd962f7a2ebe48af",
+      "disposition": "merged",
+      "prs": [
+        9
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-3a-oauth-primitives",
+      "sha": "4804d340c482850c2c0c79519b976baf641204a3",
+      "disposition": "merged",
+      "prs": [
+        7
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-3b-oauth-endpoints",
+      "sha": "1a7bb457b510bbeabbb1c46462bc9ff5d34dd436",
+      "disposition": "merged",
+      "prs": [
+        8
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-4-openapi-card",
+      "sha": "8e4a0f97982824e66f68623fa166a655667dcb1a",
+      "disposition": "merged",
+      "prs": [
+        10
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-4-vercel-client",
+      "sha": "94b4a544d7e356036da5c14576b1ca39039bea88",
+      "disposition": "merged",
+      "prs": [
+        12
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-5-secure-credentials",
+      "sha": "cffb2c26a9bae7db9304fccfa0fc6c7cfebf7594",
+      "disposition": "merged",
+      "prs": [
+        13
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-5b1-token-store-probe",
+      "sha": "bec4c25b259b6fca58583e828cdda46127b9196f",
+      "disposition": "merged",
+      "prs": [
+        14
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-5b2-owner-setup-tools",
+      "sha": "08a6aed701a69d85345e9b73af7f0d834d5dda0a",
+      "disposition": "merged",
+      "prs": [
+        15
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/a-6-owner-deployment-guide",
+      "sha": "e9db534f199c199d43b419dcfb010cf921ab824a",
+      "disposition": "merged",
+      "prs": [
+        16
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-1-write-contract",
+      "sha": "b6fde75812466998a492c20c882c6f5ded08bdaf",
+      "disposition": "merged",
+      "prs": [
+        17
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-2-production-approval",
+      "sha": "210e9206511cc7949499365cf641d40f859f0533",
+      "disposition": "merged",
+      "prs": [
+        18
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-3-self-protection",
+      "sha": "5b2017652a7c9c33e5f9987e2f0f10981652bc58",
+      "disposition": "merged",
+      "prs": [
+        19
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-4-plain-errors",
+      "sha": "831625dbcf7bbecb96e5261b2fad7d7aea727e09",
+      "disposition": "merged",
+      "prs": [
+        20
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-5-safe-results",
+      "sha": "4dcaa880197401c9a47ad6f88c10c0b75ea8c81c",
+      "disposition": "merged",
+      "prs": [
+        21
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-6-profile-access",
+      "sha": "a038321b1af4be4770a6005cec9671acd39bc145",
+      "disposition": "merged",
+      "prs": [
+        22
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-7-write-declarations",
+      "sha": "e78133c69db465038c03f0b0e95f986863b98d9f",
+      "disposition": "merged",
+      "prs": [
+        23
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8-account-list-scope",
+      "sha": "f3037df3789b2625287b6d748b641aa6f8f7abf8",
+      "disposition": "merged",
+      "prs": [
+        28
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8-default-approval-mcp",
+      "sha": "a103654ec5567fff670b970091f6e6cbe1570395",
+      "disposition": "merged",
+      "prs": [
+        38
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8-owner-authorization-contract",
+      "sha": "365968a32a3d31d155e7986e2860dea977270519",
+      "disposition": "merged",
+      "prs": [
+        29
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8-owner-proposal-contract",
+      "sha": "2b090b07e8322ed2acb6c65300457ef6274dde7f",
+      "disposition": "merged",
+      "prs": [
+        37
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8-revoke-approval-close",
+      "sha": "4313264d7801902efa652d3f48ac1859516b8345",
+      "disposition": "merged",
+      "prs": [
+        40
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8-spend-approval-mcp",
+      "sha": "7622427c2b4c13cd73b64c927526ed99ebfb0297",
+      "disposition": "merged",
+      "prs": [
+        39
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8a-account-observability",
+      "sha": "2945d284688a16b210686b5534308d293ec1a961",
+      "disposition": "merged",
+      "prs": [
+        24
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-default-owner-account",
+      "sha": "c07055ed92239c7f244edc08f1f6c58aa1a22edb",
+      "disposition": "merged",
+      "prs": [
+        30
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-owner-approval-apply",
+      "sha": "10a9b9589624d5a70425ceabc9dfb7915c84e935",
+      "disposition": "merged",
+      "prs": [
+        35
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-owner-approval-envelope",
+      "sha": "71dd6a45907fadf6358f49cbe962ad4182e778e9",
+      "disposition": "merged",
+      "prs": [
+        33
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-owner-approval-review",
+      "sha": "f967889289896958d63948b299216371c9cef2b8",
+      "disposition": "merged",
+      "prs": [
+        34
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-owner-spend-limit",
+      "sha": "0344b8bd9bb40529f9e48c8f86bd1bd7293d633f",
+      "disposition": "merged",
+      "prs": [
+        31
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-owner-token-panel",
+      "sha": "40b856416f2e1e780943d24d558b26b055ae3ecf",
+      "disposition": "merged",
+      "prs": [
+        27
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-targeted-revoke",
+      "sha": "e42f3eea37a02c3438a8e2a2d30e74c83b03e003",
+      "disposition": "merged",
+      "prs": [
+        32
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/b-8b-token-recheck",
+      "sha": "99c367e8a0e17ad259c161195a046f7ab28ed22d",
+      "disposition": "merged",
+      "prs": [
+        26
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/blocked-work-revisit-131",
+      "sha": "52b5ae416bc039bd08b16ea409ebc719e6f1a5d5",
+      "disposition": "merged",
+      "prs": [
+        131
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/c-1a-result-store",
+      "sha": "6c3d0bacf8faf7d6c7ee995dd8d812b405e80a20",
+      "disposition": "merged",
+      "prs": [
+        41
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/c-1b-view-rules",
+      "sha": "256f0da409966711f13f5ca466d0af2685d60d5a",
+      "disposition": "merged",
+      "prs": [
+        42
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/c-1c-mcp-result-handles",
+      "sha": "c0cbc14fba13887fa6a43e42d3f0a008d8861a89",
+      "disposition": "merged",
+      "prs": [
+        43
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/c-2a-compact-discovery",
+      "sha": "709a861aa923c683752630dc42021de2940dc26c",
+      "disposition": "merged",
+      "prs": [
+        44
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/c-2b-wrapped-meta",
+      "sha": "0827868154e1232965e570156b6cd4873a8e9848",
+      "disposition": "merged",
+      "prs": [
+        45
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/c-2c-pinned-token-budgets",
+      "sha": "269e069b5cb7524bb75d2ba7ad48ceded894243d",
+      "disposition": "merged",
+      "prs": [
+        46
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/connected-acceptance-runner",
+      "sha": "df730cfde402ca0548fdfac202fe910353a5d358",
+      "disposition": "merged",
+      "prs": [
+        160
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-bounded-member-pagination-70",
+      "sha": "6612ec6b43cc7dcc462f520e1a32ce6ecfca25db",
+      "disposition": "merged",
+      "prs": [
+        70
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-create-name-race-104",
+      "sha": "afa303478b224151172b1d670802c71fdc26f11f",
+      "disposition": "merged",
+      "prs": [
+        104
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-cron-secret-output-99",
+      "sha": "febf18d206222a06f2aa11baba635870fdeaf141",
+      "disposition": "merged",
+      "prs": [
+        99
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-delete-deployment-inventory-69",
+      "sha": "84725bde6dd260c2509e95ccace682dfea1fb09e",
+      "disposition": "merged",
+      "prs": [
+        69
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-delete-execution-proof-82",
+      "sha": "df59b6a3c919fdb9e8358b20fea2604aa1c28323",
+      "disposition": "merged",
+      "prs": [
+        82
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-delete-impact-preview-77",
+      "sha": "d9d8184cf9835d2558ced25de33c58e8e2deb2d3",
+      "disposition": "merged",
+      "prs": [
+        77
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-delete-proof-73",
+      "sha": "0a7048d3b2876fe0ec85be922178be06b09ce6f1",
+      "disposition": "merged",
+      "prs": [
+        73
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-delete-storage-aliases-95",
+      "sha": "3356825dd69f31f81612eaabfa221733586c89a7",
+      "disposition": "merged",
+      "prs": [
+        95
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-delete-total-consistency-96",
+      "sha": "d3080fa96596bde013720a28bba472180b1e991f",
+      "disposition": "merged",
+      "prs": [
+        96
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-encoded-metadata-redaction-103",
+      "sha": "98e348fb27ca72c089fbd8bd2ac6a3fc4469ecf0",
+      "disposition": "merged",
+      "prs": [
+        103
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-finite-code-acceptance-140",
+      "sha": "2f2a92b0d4722850fdb6c586ae12c3554fedd9f0",
+      "disposition": "merged",
+      "prs": [
+        140
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-discovery-safe-72",
+      "sha": "ab00a44e6f8d7590d2bb675a1285f5fb2855ed4b",
+      "disposition": "merged",
+      "prs": [
+        72
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-identity-canonical-94",
+      "sha": "2f0ae159d628d00fc7a14de0d9a50bf23ba7c688",
+      "disposition": "merged",
+      "prs": [
+        94
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-import-execution-proof-80",
+      "sha": "9436e0130a597bf0ac303529b391beaef56a7228",
+      "disposition": "merged",
+      "prs": [
+        80
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-import-proof-75",
+      "sha": "cc581130affd98f184d723ad59c4d7d25afaa895",
+      "disposition": "merged",
+      "prs": [
+        75
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-import-root-101",
+      "sha": "fbd40ce7f136d042668cc308abda38d546aca68f",
+      "disposition": "merged",
+      "prs": [
+        101
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-link-host-93",
+      "sha": "97f6f1844c88bc8664c40c2ced52b7dc1b127896",
+      "disposition": "merged",
+      "prs": [
+        93
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-metadata-safety-89",
+      "sha": "e9b7bee2052c7fed775f98f15e94f0396bff4221",
+      "disposition": "merged",
+      "prs": [
+        89
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-git-repo-url-path-100",
+      "sha": "7b98cc16ba8b3f19e4da3123ff3dc184af287033",
+      "disposition": "merged",
+      "prs": [
+        100
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-grant-execution-recheck-78",
+      "sha": "85d37a367e64f2974929ecd59364c6a7ab9172b1",
+      "disposition": "merged",
+      "prs": [
+        78
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-grant-project-role-race-86",
+      "sha": "723d32294fdfcfff9f90207dd6809f7ca4ca17fa",
+      "disposition": "merged",
+      "prs": [
+        86
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-grouped-unlinked-create",
+      "sha": "64adfa180882ffec362dc0f0994bb2e0675a82cf",
+      "disposition": "merged",
+      "prs": [
+        59
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-guarded-empty-project-delete",
+      "sha": "3cf797b7f13b2abb1b7d5fcb860a08968425422a",
+      "disposition": "merged",
+      "prs": [
+        60
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-member-alias-consistency-91",
+      "sha": "34dfb9c9e06b620ff0ed58fbc2fd99a67728812c",
+      "disposition": "merged",
+      "prs": [
+        91
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-member-boundary-66",
+      "sha": "c8f8727eadec7fa8f68c79cd7500802397f05445",
+      "disposition": "merged",
+      "prs": [
+        66
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-member-pagination-proof-105",
+      "sha": "cb6b522a56cb5c507dcd715a4cc63afcb6ab105b",
+      "disposition": "merged",
+      "prs": [
+        105
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-member-read-canonical-98",
+      "sha": "ece0aae81729a075d6c692a5f3e77808712fdc68",
+      "disposition": "merged",
+      "prs": [
+        98
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-member-revocation-68",
+      "sha": "fc8e0dd44fc3c1e40d8f85f47710355187c72226",
+      "disposition": "merged",
+      "prs": [
+        68
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-member-uid-proof-102",
+      "sha": "dbfca78b3314c50d27e872595dfc6466ca18bbc7",
+      "disposition": "merged",
+      "prs": [
+        102
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-metered-resource-race-88",
+      "sha": "b4b84077d38dbb34804d7f31aaa8fb682db757e3",
+      "disposition": "merged",
+      "prs": [
+        88
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-metered-resource-recheck-83",
+      "sha": "47971115a711b9de4fbe3bc8fecc3531122f7aa2",
+      "disposition": "merged",
+      "prs": [
+        83
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-p1-secret-spend-races-106",
+      "sha": "f94692830259dc43b5f7aea1528c7523a84635f6",
+      "disposition": "merged",
+      "prs": [
+        106
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-command-settings",
+      "sha": "9c823c54507dc494f737d887543f3f973e3dd64a",
+      "disposition": "merged",
+      "prs": [
+        57
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-create",
+      "sha": "249a08d1d426cfbdb0279ffbab59bbc2c3ea1949",
+      "disposition": "merged",
+      "prs": [
+        52
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-detail-71",
+      "sha": "05ec75d6d84f09b2444428f18f0c81d5996fb92f",
+      "disposition": "merged",
+      "prs": [
+        71
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-member-add",
+      "sha": "3bf6aa2bb1c7a783d597981656926f6f7be32b0d",
+      "disposition": "merged",
+      "prs": [
+        54
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-member-read-redaction-90",
+      "sha": "b28e2c2596c62ea090690c9a67d2fd4410cac6c1",
+      "disposition": "merged",
+      "prs": [
+        90
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-member-remove",
+      "sha": "351efcf51c99c4bd66baa140b71fa43b7a4f8d7b",
+      "disposition": "merged",
+      "prs": [
+        55
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-pause-state-92",
+      "sha": "be15bb3e3cc96c46e08596e2d7e7edebe658c612",
+      "disposition": "merged",
+      "prs": [
+        92
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-read-pages-74",
+      "sha": "d5110483aa7535360b6fe0bb0179b2d33ea7e795",
+      "disposition": "merged",
+      "prs": [
+        74
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-settings",
+      "sha": "c9a78d74c2a06c125dca043ed7487f3c0bda7f23",
+      "disposition": "merged",
+      "prs": [
+        53
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-settings-execution-84",
+      "sha": "a02fb97227f1355a26a18df98665c8c2d2632eef",
+      "disposition": "merged",
+      "prs": [
+        84
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-traffic-guards-85",
+      "sha": "7942a55643a89e5e7138d95b0b7fb89fffa63380",
+      "disposition": "merged",
+      "prs": [
+        85
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-project-traffic-lifecycle",
+      "sha": "a6da99b99e64ab9df6e2543092fa1ce7b1b8995c",
+      "disposition": "merged",
+      "prs": [
+        58
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-replay-intent-111",
+      "sha": "3098bb5b1a7609152daf71cd336a908a68211cc2",
+      "disposition": "merged",
+      "prs": [
+        111
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-revoke-execution-recheck-79",
+      "sha": "c5ce8e4dbf68b1d1f9d334795e52c31af7ac5ee1",
+      "disposition": "merged",
+      "prs": [
+        79
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-safe-project-metadata-76",
+      "sha": "bfa6404f896addbee79f6e7223830f0e5a608b12",
+      "disposition": "merged",
+      "prs": [
+        76
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-security-reviews-81",
+      "sha": "c3c39889f912f7b74c2a47de8a53bf156fd8a5d6",
+      "disposition": "merged",
+      "prs": [
+        81
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-security-throughput",
+      "sha": "85335f60cea3bc710c436342932c848c2dd16b06",
+      "disposition": "merged",
+      "prs": [
+        56
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-settings-lost-update-87",
+      "sha": "1bf92992d116bb09322da351c4071e61e1ccae64",
+      "disposition": "merged",
+      "prs": [
+        87
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-team-member-proof-67",
+      "sha": "e3ad3def2f73c1e83e7205337660946d346c82cb",
+      "disposition": "merged",
+      "prs": [
+        67
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-transfer-credential-recheck-97",
+      "sha": "03e325425d780733b46815b6c893afc20874f364",
+      "disposition": "merged",
+      "prs": [
+        97
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d1-write-gateway-closeout",
+      "sha": "d0f03353865efcc58c190eaa49f4b8224bc4de5d",
+      "disposition": "merged",
+      "prs": [
+        51
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-bounded-deployment-wait-136",
+      "sha": "d80b9986a43c0b0de7ae79412c82ec17ff40e0b7",
+      "disposition": "merged",
+      "prs": [
+        136
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-build-logs-and-files-134",
+      "sha": "c157e70d4a9fd9924b80ce1978f691f005963975",
+      "disposition": "merged",
+      "prs": [
+        134
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-capped-file-content-139",
+      "sha": "2ce3c52442bccdcc8a711160934016bdbb1a1232",
+      "disposition": "merged",
+      "prs": [
+        139
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-checks-v2-read-135",
+      "sha": "619d5315f43f756572e126c5954b83ec48d611af",
+      "disposition": "merged",
+      "prs": [
+        135
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-deployment-reads-132",
+      "sha": "be42bdafc0bfa5ad1221e34f53f58906a979342a",
+      "disposition": "merged",
+      "prs": [
+        132
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-deployment-triage-filters-138",
+      "sha": "1f96067bf5042859a50fc4d261cbdf7d7b94be6d",
+      "disposition": "merged",
+      "prs": [
+        138
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-file-contents-safety-142",
+      "sha": "8e13f41c71b42c264a675f3ee3800e3ba03d1070",
+      "disposition": "merged",
+      "prs": [
+        142
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-finite-read-acceptance-143",
+      "sha": "920fd955c1eed13320de93f15f1651db77ba69b1",
+      "disposition": "merged",
+      "prs": [
+        143
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-runtime-logs-bounded-137",
+      "sha": "ec995cc34db15501bec89ed3ee55d3eeb7524111",
+      "disposition": "merged",
+      "prs": [
+        137
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-runtime-wire-shapes-141",
+      "sha": "e24649447a422c17502f8dda6b69d8b3ba52c357",
+      "disposition": "merged",
+      "prs": [
+        141
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1-git-linked-project-create",
+      "sha": "dbc26505425ddf7ecaa88092352be190700c3557",
+      "disposition": "merged",
+      "prs": [
+        65
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1-guarded-build-resources",
+      "sha": "289fd99bbd42ebe21e93c0dd15af0c9ed9d09868",
+      "disposition": "merged",
+      "prs": [
+        64
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1-project-configuration-null-limits",
+      "sha": "3e4c562363a3e4fab2d13be6e77d4b8ba5946430",
+      "disposition": "merged",
+      "prs": [
+        61
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1-spend-guard-foundation",
+      "sha": "e422741283bb149c3d13664d6d1f2659c9487977",
+      "disposition": "merged",
+      "prs": [
+        63
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1-transfer-request-vault",
+      "sha": "720fa29c4d01966500efbf6b746f85ae7e360885",
+      "disposition": "merged",
+      "prs": [
+        62
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1a-project-reads",
+      "sha": "eac54ed63bbde10cc5906a619921023fff7dd79c",
+      "disposition": "merged",
+      "prs": [
+        47
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1b-member-pagination",
+      "sha": "3b6814e51671e0ecb13680bf5529cf6acf5bd8d1",
+      "disposition": "merged",
+      "prs": [
+        48
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1c-git-discovery",
+      "sha": "e11ad0217cb35faf162b17e9ea5290a34ca6df17",
+      "disposition": "merged",
+      "prs": [
+        49
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d-1d-cron-schedule-reads",
+      "sha": "ff3db615c357ba3143891a1be349d3c3c6253b3a",
+      "disposition": "merged",
+      "prs": [
+        50
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/denver-midnight-release",
+      "sha": "2169ef0e6e19062863a386c58e506dc72408c188",
+      "disposition": "merged",
+      "prs": [
+        158
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/failclosed-read-metadata-125",
+      "sha": "6fe25776a2ad673e1dd07d103aa7fb00e30fd783",
+      "disposition": "merged",
+      "prs": [
+        125
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/gateway-architecture-recovery",
+      "sha": "d7991f66cc0b810eb3b1f2d27d98464e9a43f9ac",
+      "disposition": "merged",
+      "prs": [
+        149
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/implementation-recipes",
+      "sha": "03d58367316b7c533c370eaf66b2a5d8b4aa3c2d",
+      "disposition": "merged",
+      "prs": [
+        25
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/in07-owner-project-eligibility-107",
+      "sha": "3bb41ded76dd09775e84b37f219cf42fa5233fd6",
+      "disposition": "merged",
+      "prs": [
+        107
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/in08-bound-price-recheck-119",
+      "sha": "699a16e48e0059e56e2f5c224723c01384b179b4",
+      "disposition": "merged",
+      "prs": [
+        119
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/in08-owner-purchase-approval-109",
+      "sha": "c27aef87e1490957ee43a25b6e7c18a5d3b2cea0",
+      "disposition": "merged",
+      "prs": [
+        109
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/in08-paid-write-owner-gate-110",
+      "sha": "be476fdc73135081ffacb2492c800be89c8ab3a1",
+      "disposition": "merged",
+      "prs": [
+        110
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/in08-purchase-ledger-108",
+      "sha": "dd06988de9c8ad2a997bd52a2b805daa403475d2",
+      "disposition": "merged",
+      "prs": [
+        108
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/in08-recurring-cost-gate-116",
+      "sha": "3916e4602fb1ba1ef44dc87bc5c8a45db95851b1",
+      "disposition": "merged",
+      "prs": [
+        116
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/o1-selected-team-reads-144",
+      "sha": "d1e9c4effb02c4392c76d3fd0bcfe826dec58318",
+      "disposition": "merged",
+      "prs": [
+        144
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/o1-team-profile-guarded-145",
+      "sha": "a2d9950a73529d0266b05749f351adfb43a2f897",
+      "disposition": "merged",
+      "prs": [
+        145
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/owner-decision-requeue",
+      "sha": "658b27f19365d1cfe2b34793dae15757b73a5d01",
+      "disposition": "superseded",
+      "prs": [],
+      "reason": "Reviewed historical recovery branch; superseded implementation or infrastructure handoff retained in archive."
+    },
+    {
+      "name": "ai/gpt6/owner-token-pagination-recovery",
+      "sha": "dbefdb3e1c9d06d96ef40b738cea4d68ed06700d",
+      "disposition": "merged",
+      "prs": [
+        157
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/read-result-nontext-boundary-128",
+      "sha": "1ceab1a5dba572f6471dacef12c95d0afa784f0e",
+      "disposition": "merged",
+      "prs": [
+        128
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/review-and-hosting-policy-122",
+      "sha": "ce0dd2812cf58aea2c033eab5bec30e1dc7eb448",
+      "disposition": "merged",
+      "prs": [
+        122
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-argument-integrity-130",
+      "sha": "ea390e3ba03b5f3070d16228c8e0bf17fa74846a",
+      "disposition": "merged",
+      "prs": [
+        130
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-atomic-batch-quota-117",
+      "sha": "de9b64a4a93534b2c7c450e8ada998dfcde7cb78",
+      "disposition": "merged",
+      "prs": [
+        117
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-batch-result-envelope-124",
+      "sha": "839e6e71a35f6b445a3d9d4611158bd070695ed5",
+      "disposition": "merged",
+      "prs": [
+        124
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-batch-revocation-127",
+      "sha": "dde73a5ef2206b0275ed7afb447eb55d11287eb0",
+      "disposition": "merged",
+      "prs": [
+        127
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-catalog-envelope-126",
+      "sha": "8834e5d11eb1426be9d427556a7d6b7ea24665d6",
+      "disposition": "merged",
+      "prs": [
+        126
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-discovery-pagination-118",
+      "sha": "000e973bedf4f35f4bbb77a2316f7f1f924e8889",
+      "disposition": "merged",
+      "prs": [
+        118
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-failclosed-metadata-120",
+      "sha": "054483bbe0105899c440f5014760c8574e6aec1e",
+      "disposition": "merged",
+      "prs": [
+        120
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-hub-conformance-115",
+      "sha": "a67c6f66eb89ae1781203ef4eeed86285766e212",
+      "disposition": "merged",
+      "prs": [
+        115
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-manifest-metadata-112",
+      "sha": "2b8ac15b7944cd7e48cea29dd3e6589310426f39",
+      "disposition": "merged",
+      "prs": [
+        112
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-owner-passes-113",
+      "sha": "6c586d569cbe4a02fd409ede21324c1ec818a28a",
+      "disposition": "merged",
+      "prs": [
+        113
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-preauth-db-gate-129",
+      "sha": "c759202895c50fb6640dd89431e4d58203f128da",
+      "disposition": "merged",
+      "prs": [
+        129
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-readonly-http-114",
+      "sha": "dbfbcfbffaf1e3df9b41068f9595bb3bcd4e0f9c",
+      "disposition": "merged",
+      "prs": [
+        114
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-results-page-123",
+      "sha": "4d1429926d4369dc6fe8ac87b94066295cdcc096",
+      "disposition": "merged",
+      "prs": [
+        123
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/rtc-test-isolated-lane-133",
+      "sha": "33a2be5e24176e0cc0502dba7efdcc42665e2f17",
+      "disposition": "merged",
+      "prs": [
+        133
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/save-vercel-openapi-2026-10-11",
+      "sha": "bc2714d294a9be6ec872d10521c962bc8814e818",
+      "disposition": "merged",
+      "prs": [
+        11
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/standing-github-rest-ci",
+      "sha": "006eb358ccb789b492a65de468745a8fa75c3737",
+      "disposition": "merged",
+      "prs": [
+        36
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-audited-segments-20261013",
+      "sha": "6ed20dcb4e4307912c07ca56cba34fe19c4199d0",
+      "disposition": "merged",
+      "prs": [
+        163
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-deployment-flag-status-20261012",
+      "sha": "3c8f2a8d30c4227447285ec78af631a4c11914e3",
+      "disposition": "merged",
+      "prs": [
+        154
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-deployment-team-proof-20261013",
+      "sha": "2bd141aa52f0cebfa12281dc0c788912678e11d7",
+      "disposition": "merged",
+      "prs": [
+        162
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-exact-flag-identity-20261013",
+      "sha": "2d37915a6011df312ebd9dfe0841f9e3f2592ba6",
+      "disposition": "merged",
+      "prs": [
+        165
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-flag-capacity-20261012",
+      "sha": "c2d611514f0f1421805e3ef379c236131d5358bd",
+      "disposition": "merged",
+      "prs": [
+        155
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-flag-pagination-20261012",
+      "sha": "39e706361bdcd8ed26e7e59aec49c5a28af6451a",
+      "disposition": "merged",
+      "prs": [
+        152
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-flag-revisions-20261012",
+      "sha": "bd0c510263d470821cb023f34d532aa97f3c2d7d",
+      "disposition": "merged",
+      "prs": [
+        156
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-team-capacity-20261013",
+      "sha": "4292ea6943efaa0eb8bc4c12e55197e7bc072c94",
+      "disposition": "merged",
+      "prs": [
+        164
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-team-flag-inventory-20261012",
+      "sha": "c1c302ced0990a8e8d24522e62b5cc120474801a",
+      "disposition": "merged",
+      "prs": [
+        153
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/u1-team-proof-owner-recovery",
+      "sha": "378f8c3984804e4f37e949befdeeaf910503468c",
+      "disposition": "merged",
+      "prs": [
+        159
+      ],
+      "reason": "Original PR merged; preserve exact source history, including squash-merged tips."
+    },
+    {
+      "name": "ai/codex/mobile-native-connection",
+      "sha": "2c5a8f42f6e38bfb404d4e15cae15e76b7630f18",
+      "disposition": "merged",
+      "prs": [
+        170
+      ],
+      "reason": "Verified merged PR; preserve exact source history including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-file-tree-availability",
+      "sha": "6bd339cd77d8f55016a9db152dfb85959cccd542",
+      "disposition": "merged",
+      "prs": [
+        171
+      ],
+      "reason": "Verified merged PR; preserve exact source history including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d2-runtime-transport",
+      "sha": "a9542b1216b5fe33631325d7a7810dcdc792de67",
+      "disposition": "merged",
+      "prs": [
+        172
+      ],
+      "reason": "Verified merged PR; preserve exact source history including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d3-preview-cancel",
+      "sha": "84ce4a0bbe2f93f19f53db8b072535bf48486cf3",
+      "disposition": "merged",
+      "prs": [
+        173
+      ],
+      "reason": "Verified merged PR; preserve exact source history including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/d3-preview-terminal-delete",
+      "sha": "3727f6d6bd5676cd4c125892826709ed5453535f",
+      "disposition": "merged",
+      "prs": [
+        175
+      ],
+      "reason": "Verified merged PR; preserve exact source history including squash-merged tips."
+    },
+    {
+      "name": "ai/gpt6/e1-env-metadata-reads",
+      "sha": "7aa671e333e9f67a8e4a559c6d13cea9d56c9f61",
+      "disposition": "merged",
+      "prs": [
+        174
+      ],
+      "reason": "Verified merged PR; preserve exact source history including squash-merged tips."
+    },
+    {
       "name": "ai/codex/correct-shape-test-target-2026-10-14",
       "sha": "18400cc46f617ab92b51c62aa0bc1753b0e38ece",
       "disposition": "merged",
