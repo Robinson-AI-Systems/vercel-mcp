@@ -125,7 +125,7 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 | `vercel_deploy_create_from_git` | Deploy a branch or commit; preview unless `target: production` | Cp | B Op | E | y | D-3 |
 | `vercel_deploy_create_from_files` | Deploy a small set of files sent inline (≤2 MB total, e.g. a static page an agent built); preview unless production | Cp | B | E | y | D-3 |
 | `vercel_deploy_redeploy` | Rebuild an existing deployment (same commit); keeps its original target; optional build-cache skip | Cp | Op | E | y | D-3 |
-| `vercel_deploy_cancel` | Cancel a deployment still building | Cp | B Op | E | y | D-3 |
+| `vercel_deploy_cancel` | Cancel only an independently project-verified, unfinished PREVIEW deployment; guarded confirmation, scope/state recheck, durable replay and independent CANCELED readback | Cp | B Op | E | y | D-3 (candidate #173) |
 | `vercel_deploy_delete` | Delete a deployment (refused for the one currently serving production) | D Cp | Op | F | y | D-3 |
 
 ## Releases: promote, rollback, aliases, rolling releases — 12
