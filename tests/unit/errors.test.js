@@ -12,13 +12,22 @@ describe('B-4 plain-language Vercel provider errors',()=>{
   ['custom_domain_needs_upgrade','custom-domain','pricing'],
   ['env_invalid_target','environment-variable','variable'],
   ['missing_files','build files','Review'],
-  ['no_files','build files','Review']
+  ['no_files','build files','Review'],
+  ['runtime_log_stream_invalid','runtime logs','bounded read']
  ];
  for(const [code,word,action] of cases) it('maps '+code+' to an actionable safe explanation',()=>{
    const obj=explainVercelError({code,status:400});
    expect(obj.what.toLowerCase()).toContain(word.toLowerCase());
    expect(obj.next.toLowerCase()).toContain(action.toLowerCase());
    expect(obj.technical).toContain('HTTP 400');
+ });
+ it('redacts hostile stream errors while retaining safe HTTP classification',()=>{
+   const rendered=JSON.stringify(vercelErrorResult({code:'runtime_log_stream_invalid',status:200,
+     message:'vcp_FAKE_must_not_leak',body:'private event'}));
+   expect(rendered).toContain('runtime logs');
+   expect(rendered).toContain('HTTP 200');
+   expect(rendered).not.toContain('vcp_FAKE_must_not_leak');
+   expect(rendered).not.toContain('private event');
  });
  it('identifies project scope vs insufficient owner permissions',()=>{
    const a=explainVercelError({code:'forbidden',status:403},{projectScoped:true,project:'project_FAKE'});

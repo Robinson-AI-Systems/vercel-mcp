@@ -4,6 +4,7 @@ import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
 import {mergeNamespaces} from '../../src/core/registry.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
+import {makeVercelClient} from '../../src/vercel/client.js';
 vi.mock('../../src/vercel/tokens.js',async m=>({...await m(),loadToken:vi.fn()}));
 const conn={account:'acct_ONE',profile:'read_only',mode:'preview',listing:'catalog'};
 const db={getAccountCredential:async()=>({})};
@@ -132,6 +133,16 @@ describe('D-2 project-verified bounded runtime logs',()=>{
    const result=await call({deployment},fetch);
    expect(result.isError).toBe(true);
    expect(JSON.stringify(result)).not.toContain('vcp_FAKE_NEVER_SHOW');
+ });
+ it('classifies a successful but malformed log stream without leaking provider bytes',async()=>{
+   const fake=makeFetch([]);
+   const request=async(url,init)=>new URL(url).pathname.includes('/runtime-logs')?
+     new Response('not-json vcp_FAKE_never_echo',{status:200,headers:{'content-type':'application/stream+json'}}):fake.fetch(url,init);
+   const client=makeVercelClient({token:'vcp_FAKE_token',
+     account:{id:'acct_ONE',team_id:'team_ONE',scope:'project',project_id:project},
+     fetchImpl:request});
+   await expect(client.request('runtime_logs_get',{path:{projectId:project,deploymentId:deployment}},
+     {streamLogs:true,timeoutMs:2500})).rejects.toMatchObject({code:'runtime_log_stream_invalid',status:200});
  });
  it('caps a large provider stream and never exceeds the safe response budget',async()=>{
    const f=makeFetch(Array.from({length:70},()=>log()));

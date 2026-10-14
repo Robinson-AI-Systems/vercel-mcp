@@ -4,7 +4,8 @@ const CODE = /^[a-z][a-z0-9_-]{0,79}$/;
 const KNOWN_CODES = new Set([
   'unauthorized', 'invalid_token', 'token_expired', 'expired_token',
   'forbidden', 'not_found', 'rate_limited', 'price_mismatch', 'not_available',
-  'conflict_aliases', 'custom_domain_needs_upgrade', 'missing_files', 'no_files'
+  'conflict_aliases', 'custom_domain_needs_upgrade', 'missing_files', 'no_files',
+  'runtime_log_stream_invalid'
 ]);
 const SAFE_LABEL = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/;
 // Scope labels are untrusted and may themselves be credentials.
@@ -57,6 +58,10 @@ export function explainVercelError(raw, context = {}) {
     const reset=denverTime(context.resetAtMs ?? context.resetAt);
     why=reset ? 'Requests may resume around ' + reset + '.' : 'The reset time was not provided.';
     next='Wait for the provider rate-limit window to reset, then retry a read-only check.';
+  } else if (code==='runtime_log_stream_invalid') {
+    what='Vercel runtime logs could not be safely read.';
+    why='The deployment is verified, but the streamed log response was not usable.';
+    next='Keep the log check pending; inspect the provider stream contract and retry only a bounded read after a checked release.';
   } else if (code==='price_mismatch') {
     what='The price changed before the request could finish.';
     why='The quoted provider price no longer matches the verified charge.';
