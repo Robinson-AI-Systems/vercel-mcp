@@ -152,15 +152,15 @@ names, targets, kind (Config/Secret), branch and dates come out.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_env_list` | Variables of a project: key, targets, kind, branch, custom environments, created/updated — never values | — | B O Op | R | y | E-1 |
-| `vercel_env_get` | One variable's metadata (never the value) | — | B Op | R | y | E-1 |
+| `vercel_env_list` | Project-verified bounded environment metadata, explicit decrypt=false; keys, targets, kind and dates only, no values, honest unverified provider page | — | B O Op | R | y | E-1 (candidate #174) |
+| `vercel_env_get` | Independently scoped single-variable metadata; discards decrypted/legacy values and untrusted comments | — | B Op | R | y | E-1 (candidate #174) |
 | `vercel_env_set` | Create or change one variable for chosen targets; value from the call (non-secret only), `generate`, or a value Chris pasted on the setup page | Cp | B Op | E | y | E-1 |
 | `vercel_env_set_many` | Same for up to 50 variables, one preview of all | Cp | B Op | E | y | E-1 |
 | `vercel_env_delete` | Remove one variable (from some targets or all) | D Cp | Op | E | y | E-1 |
 | `vercel_env_delete_many` | Remove several variables, one preview of all | D Cp | Op | F | y | E-1 |
 | `vercel_env_copy` | Copy variables to other targets, branches or projects, server-side (Secret-kind values cannot be copied; it says so) | Cp | Op | E | y | E-1 |
 | `vercel_env_compare` | Which keys exist in which targets/projects, and whether two copies hold the same value (compared on the server, never shown) | — | B Op | R | y | E-1 |
-| `vercel_env_export_names` | A `.env.example`-style list of names per target (no values) for a codebase | — | B | R | — | E-1 |
+| `vercel_env_export_names` | Verified project/target .env.example key placeholders with no value material and incomplete-page disclosure | — | B | R | — | E-1 (candidate #174) |
 
 ## Shared variables and custom environments (`vercel_shared_env_*`, `vercel_environment_*`) — 7
 
