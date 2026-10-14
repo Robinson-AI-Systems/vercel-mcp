@@ -656,14 +656,26 @@
         "E-1"
       ],
       "card": "docs/pr-cards/E-2.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 350,
       "units": [
         "E-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "CARD_WRITTEN",
+      "ownerInputs": [],
+      "pr": [
+        194
+      ],
+      "revisit": {
+        "trigger": "next-approved-E-2-write-slice",
+        "owner": "next E-2 implementer",
+        "reason": "Metadata only reads implemented (#194 candidate); shared env writes and custom environment create/update/delete still pending. Provider live success requires checked release and owner-scoped fixture.",
+        "nextAction": "Continue guarded custom-environment create/update/delete and shared-variable writes with provider request-shape tests and secret-free readback. Prove independent owner/production/app/purchase gates, then check original custom connection after release.",
+        "checkpoint": "Next PR session and checked deployment",
+        "evidenceNeeded": "Authenticated native selected-team shared-variable and exact-project custom-env metadata, no provider value exposure, trustworthy page/empty response semantics; fixture and provider change acceptance",
+        "eligibilityCondition": "Code/fake tests eligible now; owner-signed TEST fixture plus release required only for genuine acceptance"
+      }
     },
     {
       "id": "E-3",
