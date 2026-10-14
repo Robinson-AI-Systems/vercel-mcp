@@ -108,7 +108,7 @@ const create=defineWrite({
   },
   async targets(_args,b){
     return [{kind:'project',id:b.project,name:b.name},
-      {kind:'environment',id:b.slug,projectId:b.project}];
+      {kind:'env',id:b.slug,projectId:b.project}];
   },
   async apply(_args,ctx,b,requestKey){
     const provider=await writeProvider(ctx);

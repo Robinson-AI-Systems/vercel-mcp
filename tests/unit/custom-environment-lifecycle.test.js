@@ -132,6 +132,10 @@ describe('E-2 guarded custom environment lifecycle',()=>{
       f.db.listProtectedResources=async()=>[{match:project,note:'protected'}];
       expect(parse(await f.call(t,args)).status).toBe('refused_by_guard');
       expect(changes(f)).toHaveLength(0);
+      const protectedEnv=fixture();
+      protectedEnv.db.listProtectedResources=async()=>[{match:t==='vercel_environment_create'?'staging-new':id,note:'protected env'}];
+      expect(parse(await protectedEnv.call(t,args)).status).toBe('refused_by_guard');
+      expect(changes(protectedEnv)).toHaveLength(0);
       const h=fixture();
       const denied=await h.call(t,args,{...connection,profile:'read_only'});
       expect(denied.isError||parse(denied).status==='refused_by_guard').toBe(true);

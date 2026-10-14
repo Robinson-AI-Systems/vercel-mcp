@@ -2,8 +2,7 @@
 // Nonproduction-only, with no domains/deployment aliases and safe provider rechecks.
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {credentialLike} from '../core/util.js';
-import {readProvider,writeProvider} from '../vercel/provider.js';
-import {validateRequest} from '../vercel/openapi-validation.js';
+import {writeProvider} from '../vercel/provider.js';
 import {scope,context,PROJECT,NAME,SLUG,BRANCH,ENV,RESERVED} from './custom-environment-create.js';
 
 const INTEGER={type:'integer',minimum:1};
@@ -140,7 +139,7 @@ const update=defineWrite({
     '; attached domains and active aliases forbidden, no deployments triggered';},
   async production(){return {production:false,why:'Exact nonproduction branch, no attached domains or active aliases'};},
   async targets(_a,b){return [{kind:'project',id:b.project,name:b.name},
-    {kind:'environment',id:b.id,projectId:b.project}];},
+    {kind:'env',id:b.id,projectId:b.project}];},
   async apply(a,ctx,b,requestKey){
     const provider=await recheck(ctx,a,b,true);
     const body={...(a.slug!==undefined?{slug:b.nextSlug}:{}),
@@ -179,7 +178,7 @@ const remove=defineWrite({
     'Unassigned project variables are never deleted by this operation';},
   async production(){return {production:false,why:'No production branch, domains or active deployment aliases'};},
   async targets(_a,b){return [{kind:'project',id:b.project,name:b.name},
-    {kind:'environment',id:b.id,projectId:b.project}];},
+    {kind:'env',id:b.id,projectId:b.project}];},
   async apply(a,ctx,b,requestKey){
     const provider=await recheck(ctx,a,b,false);
     return provider.write('custom_environments_delete',{path:path(b),
