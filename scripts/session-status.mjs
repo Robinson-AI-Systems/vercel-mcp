@@ -65,6 +65,48 @@ export function planQueue(rows, observation, isAncestor) {
   });
 }
 
+const roadmapStatuses = new Set(['MERGED', 'IN_PROGRESS', 'APPROVED', 'BLOCKED', 'ON_REQUEST', 'COMPLETE', 'PLANNED']);
+
+/** Read-only source/card coverage, never a claim of accepted live behavior.
+ * The index's units are coarse planned units, not PR implementation slices. */
+export function summarizeRoadmap(index) {
+  if (!index || !Array.isArray(index.order) || !Array.isArray(index.cards) ||
+      new Set(index.order).size !== index.order.length ||
+      index.order.some(x => typeof x !== 'string' || !x))
+    throw new Error('Invalid authoritative roadmap index.');
+  const totals = { merged: 0, inProgress: 0, approved: 0, blocked: 0, onRequest: 0, complete: 0, planned: 0 };
+  const seen = new Set();
+  const batches = index.order.map(batch => ({ batch, remaining: [], blocked: [], onRequest: [], planned: [] }));
+  for (const card of index.cards) {
+    if (!card || typeof card.id !== 'string' || !roadmapStatuses.has(card.status) ||
+        !Array.isArray(card.units) || !card.units.length ||
+        !index.order.includes(card.batch))
+      throw new Error('Invalid indexed roadmap card.');
+    const group = batches.find(b => b.batch === card.batch);
+    for (const unit of card.units) {
+      if (typeof unit !== 'string' || !unit || seen.has(unit))
+        throw new Error('Duplicate or invalid roadmap unit.');
+      seen.add(unit);
+      if (card.status === 'MERGED') totals.merged++;
+      else if (card.status === 'COMPLETE') totals.complete++;
+      else if (card.status === 'PLANNED') { totals.planned++; group.planned.push(unit); }
+      else if (card.status === 'IN_PROGRESS') { totals.inProgress++; group.remaining.push(unit); }
+      else if (card.status === 'APPROVED') { totals.approved++; group.remaining.push(unit); }
+      else if (card.status === 'BLOCKED') { totals.blocked++; group.blocked.push(unit); }
+      else { totals.onRequest++; group.onRequest.push(unit); }
+    }
+  }
+  return {
+    ...totals, total: seen.size,
+    remainingApproved: totals.inProgress + totals.approved,
+    unfinishedWithBlocked: totals.inProgress + totals.approved + totals.blocked,
+    remainingIncludingPlanned: totals.inProgress + totals.approved + totals.blocked + totals.planned,
+    batches
+  };
+}
+
+
+
 function git(root, ...args) {
   try { return execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }).trim(); }
   catch { return null; }
@@ -82,6 +124,7 @@ export function run(root, args) {
   const policy = JSON.parse(readFileSync(resolve(root, 'docs/session-policy.json'), 'utf8'));
   if (!/^[\w.-]+\/[\w.-]+$/.test(policy.repository) || !/^docs\/[\w/.-]+\.md$/.test(policy.ledger) || policy.ledger.includes('..')) throw new Error('Invalid repository/ledger policy.');
   const rows = readQueue(readFileSync(resolve(root, policy.ledger), 'utf8'));
+  const roadmap = summarizeRoadmap(JSON.parse(readFileSync(resolve(root, 'docs/pr-cards/work-index.json'), 'utf8')));
   const observation = {
     main: git(root, 'rev-parse', '--verify', 'refs/remotes/origin/main^{commit}'),
     live: git(root, 'rev-parse', '--verify', 'refs/remotes/origin/live^{commit}'),
@@ -106,6 +149,18 @@ export function run(root, args) {
     if (!/^\d+$/.test(flags['--latest-pr'])) throw new Error('Latest PR must be an integer.');
     lines.push(`Latest observed PR: #${Number(flags['--latest-pr'])} (informational only; no session PR quota or numeric boundary).`);
   }
+
+  lines.push('Roadmap (coarse source/ledger units; NOT PR slices or live acceptance): ' +
+    roadmap.merged + '/' + roadmap.total + ' MERGED; ' + roadmap.complete + ' COMPLETE; ' + roadmap.planned + ' PLANNED separately; ' + roadmap.remainingApproved +
+    ' remaining approved (' + roadmap.inProgress + ' IN_PROGRESS, ' + roadmap.approved +
+    ' APPROVED); ' + roadmap.blocked + ' BLOCKED separately; ' + roadmap.onRequest +
+    ' ON_REQUEST excluded from approved remaining.');
+  for (const batch of roadmap.batches) {
+    if (batch.remaining.length) lines.push('Remaining ' + batch.batch + ' (' + batch.remaining.length + '): ' + batch.remaining.join(', '));
+    if (batch.planned.length) lines.push('Planned ' + batch.batch + ' (' + batch.planned.length + '): ' + batch.planned.join(', '));
+    if (batch.blocked.length) lines.push('Blocked ' + batch.batch + ': ' + batch.blocked.join(', '));
+  }
+  lines.push('PR planning averages: 400–800 changed production lines and 2–5 fully completed documented slices; measure real diffs and evidence, never infer slices from coarse roadmap units.');
   lines.push(`Queue: ${plan.length} total; ${plan.length - active.length} recorded passes; ${active.length} tasks to reconsider.`);
   for (const row of active.slice(0, limit)) lines.push(`${row.priority}. ${row.id} ${row.disposition}: ${row.task}`, `   Procedure: ${row.procedure}; gates: ${row.gates}`, `   Last evidence: ${row.lastEvidence}`);
   if (active.length > limit) lines.push(`${active.length - limit} additional tasks are in ${policy.ledger}; use --limit ${Math.min(active.length, 1000)} or read the queue directly. Nothing is removed or marked passed.`);
