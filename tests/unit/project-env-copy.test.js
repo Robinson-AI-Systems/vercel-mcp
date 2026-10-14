@@ -174,6 +174,62 @@ describe('E-1 server-side Config-only copy',()=>{
     expect(out).toMatchObject({status:'applied',confirmed:false});
     expect(JSON.stringify(out)).not.toContain(value);
   });
+  it('copies only by explicit same-team two-project authority and outside-app intent',async()=>{
+    const f=fixture(),other='prj_FAKE_OTHER';
+    loadToken.mockResolvedValue({...token,account:{...token.account,
+      scope:'team',project_id:null}});
+    f.fake.when('GET','/v9/projects/prj_FAKE_OTHER')
+      .resolves({id:other,name:'other-project'});
+    f.fake.when('GET','/v1/projects/prj_FAKE_OTHER/env/env_FAKE_DEST')
+      .resolves({...destination,projectId:other});
+    f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
+      .resolves(source);
+    f.fake.when('POST','/v10/projects/{idOrName}/env')
+      .resolves({created:{id:destId,key:'FEATURE_ENDPOINT'},failed:[]});
+    const input={...args,destinationProject:other,outsideApp:true,
+      destinationTarget:'development'};
+    const out=parse(await f.call(input));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const post=f.fake.calls.find(c=>c.method==='POST');
+    expect(post.params.idOrName).toBe(other);
+    expect(post.body).toEqual({key:input.destinationKey,value,type:'plain',
+      target:['development']});
+    const projectReads=f.fake.calls.filter(c=>c.method==='GET'&&
+      c.path.startsWith('/v9/projects/')).map(c=>c.params.idOrName);
+    expect(projectReads).toContain(project);
+    expect(projectReads).toContain(other);
+    expect(JSON.stringify([out,f.audit,[...f.memo.values()]])).not.toContain(value);
+    f.fake.verify();
+  });
+  it('refuses cross-project copy without consent or team-wide stored scope',async()=>{
+    for(const bad of [
+      {...args,destinationProject:'prj_FAKE_OTHER'},
+      {...args,destinationProject:'prj_FAKE_OTHER',outsideApp:false},
+      {...args,destinationProject:'invalid-project',outsideApp:true}
+    ]){
+      const f=fixture();
+      const response=await f.call(bad);
+      expect(response.isError||parse(response).status==='refused_by_guard').toBe(true);
+      expect(f.fake.calls.some(c=>c.method==='POST')).toBe(false);
+    }
+    const f=fixture();
+    f.fake.when('GET','/v1/projects/{idOrName}/env/{id}').resolves(source);
+    const out=parse(await f.call({...args,destinationProject:'prj_FAKE_OTHER',
+      outsideApp:true}));
+    expect(out).toMatchObject({status:'refused_by_guard'});
+    expect(f.fake.calls.some(c=>c.method==='POST')).toBe(false);
+  });
+  it('denies foreign or changed destination project identity before any write',async()=>{
+    const f=fixture();
+    loadToken.mockResolvedValue({...token,account:{...token.account,
+      scope:'team',project_id:null}});
+    f.fake.when('GET','/v9/projects/prj_FAKE_OTHER')
+      .resolves({id:'prj_WRONG_PROJECT'});
+    const out=parse(await f.call({...args,destinationProject:'prj_FAKE_OTHER',
+      outsideApp:true}));
+    expect(out).toMatchObject({status:'refused_by_guard'});
+    expect(f.fake.calls.some(c=>c.method==='POST')).toBe(false);
+  });
   it('previews without submitting the source value',async()=>{
     for(const mode of [{dryRun:true,confirm:false},{confirm:false}]){
       const f=fixture();
