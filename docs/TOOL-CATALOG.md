@@ -158,7 +158,7 @@ names, targets, kind (Config/Secret), branch and dates come out.
 | `vercel_env_set_many` | Guarded create-only 2–10 new project keys in one POST; Config or owner-private/generated Secret, detect partial provider results, independent per-key readback | Cp | B Op | E | y | E-1 (#180 candidate) |
 | `vercel_env_delete` | Guarded irreversible deletion from all targets by exact ID/key/revision with scope, protected/app, production and state-race checks, independently verified 404 | D Cp | Op | F | y | E-1 (#178 candidate) |
 | `vercel_env_delete_many` | Guarded delete 2–10 exact ID/key/revision variables from all targets in one DELETE batch, with independent 404 readback | D Cp | Op | F | y | E-1 (#180 candidate) |
-| `vercel_env_copy` | Copy one verified, noncredential plain Config key between ordinary targets in the same project using transient server-only value, create-only destination, confirmation and independent readback (Secret/cross-project/branch-specific blocked) | Cp | Op | E | y | E-1 (#179 candidate) |
+| `vercel_env_copy` | Copy one verified, noncredential Config key between ordinary or exact preview Git-branch targets of the same project using server-only value, create-only destination, confirmation, source recheck and branch/value readback; Secret and cross-project copies blocked | Cp | Op | E | y | E-1 (#179, #184 candidate) |
 | `vercel_env_compare` | Verify explicit project/targets and compare up to 20 named Config keys using in-memory digests (never output); Secret/unknown-page results remain unknown | — | B Op | R | y | E-1 (#177 candidate) |
 | `vercel_env_export_names` | Verified project/target .env.example key placeholders with no value material and incomplete-page disclosure | — | B | R | — | E-1 (candidate #174) |
 
