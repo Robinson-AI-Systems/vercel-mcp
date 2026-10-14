@@ -26,7 +26,7 @@
       "commit": "7b4576fb71a0cf60ed52cc798847f046a834147f",
       "transport": "deployment_api",
       "observations": [
-        "2026-10-13 owner-authorized release: READY deployment dpl_73b2SHTEnp5rXz5z6idkDA5cobzy at exact live revision, independently verified through Vercel provider as recorded on PR #170",
+        "2026-10-13 owner-authorized release: READY deployment identified through protected provider readback at the exact live revision, independently verified through Vercel provider as recorded on PR #170",
         "2026-10-13 authenticated custom service vercel_deploy_wait independently returned READY for that exact deployment and project"
       ]
     },
