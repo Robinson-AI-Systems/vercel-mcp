@@ -1,3 +1,7 @@
+## D-3 preview cancellation — PR #173
+
+Guarded cancellation code and negative tests now cover exact preview identity, project isolation, pre-dispatch recheck, immutable target, durable replay and independent canceled-state verification. Other deployment changes remain pending; metered operations remain disabled without provider-enforceable owner pricing approval. No actual provider mutation, production change or spending. D-3 external acceptance requires an authorized disposable preview.
+
 ## D-2 streamed runtime logs — candidate PR #172
 
 Custom Vercel runtime log calls to the currently live deployment returned an unclassified error, while a separate standard connector log query found no events for its 30-minute window (not a custom MCP pass). This changes the documented live-stream HTTP Accept header to application/stream+json and treats HTTP 204 as zero rows with unknown completeness. Existing bounded transport, identity, secret protection and malformed-stream refusal remain. Fake HTTP regression and exact-head CI required; a real authenticated custom check must be repeated after a checked release. Production writes off; autonomous spending $0. D-3 remains the next milestone.
