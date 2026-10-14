@@ -1,13 +1,13 @@
 // Owner-designated project exclusions are removable; project identity alone is not a write ban.
 // Reads are never blocked. Missing ownership metadata fails closed for writes.
-const KINDS = new Set(['account','project','domain','dns_record','env','store','token','deployment','alias','certificate']);
+const KINDS = new Set(['account','project','domain','dns_record','env','store','token','deployment','alias','certificate','shared_env']);
 const CHILDREN = new Set(['domain','dns_record','env','store','deployment','alias','certificate']);
 const DENY = reason => ({ blocked: true, reason });
 function value(v) { return typeof v === 'string' ? v.trim().toLowerCase() : ''; }
 function protectedMatch(resource, target) {
   const term = value(resource.match);
   const candidates = [target.id,target.name,target.projectId,target.projectName,
-    target.parentProjectId,target.parentProjectName,target.tokenId].map(value);
+    target.parentProjectId,target.parentProjectName,target.accountId,target.tokenId].map(value);
   return term && candidates.includes(term);
 }
 export function checkTargets(targets, rules, { selfTokenId = '' } = {}) {
@@ -15,6 +15,7 @@ export function checkTargets(targets, rules, { selfTokenId = '' } = {}) {
   if (!Array.isArray(rules)) return DENY('Protected resource rules are unavailable');
   for (const target of targets) {
     if (!target || !KINDS.has(target.kind)) return DENY('Unrecognized write target');
+    if (target.kind === 'shared_env' && !target.accountId) return DENY('Shared variable team ownership is unknown');
     if (target.kind === 'token' && (target.isServerToken === true ||
       (selfTokenId && value(target.id) === value(selfTokenId)))) {
       return DENY('The credential used by this server is protected');
