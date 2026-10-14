@@ -57,12 +57,12 @@ const cancel=defineWrite({
     const row=await client.request('deployments_get',{path:{idOrUrl:verified.id}});
     const expected={id:verified.id,project,state:verified.state};
     identity(row,expected);
-    if(!STATES.has(verified.state))
-      throw new TypeError('Only in-progress previews can be canceled');
+    if(!STATES.has(verified.state)&&verified.state!=='CANCELED')
+      throw new TypeError('Only in-progress or already-canceled previews can be canceled');
     return expected;
   },
   async preview(_args,_ctx,before){
-    return 'Cancel the unfinished preview build '+before.id+
+    return (before.state==='CANCELED'?'Confirm already-canceled preview ':'Cancel the unfinished preview build ')+before.id+
       ' in project '+before.project+' (currently '+before.state+
       '). No production deployment or other resource is changed';
   },
@@ -72,6 +72,9 @@ const cancel=defineWrite({
       {kind:'project',id:before.project}];
   },
   async apply(_args,ctx,before,requestKey){
+    // A repeated logical request may arrive after the first call completed.
+    // Never issue a second PATCH against an already canceled deployment.
+    if(before.state==='CANCELED')return {unchanged:true};
     const provider=await writeProvider(ctx);
     await requirePreDispatch(async()=>{
       const current=await provider.read('deployments_get',{path:{idOrUrl:before.id}});
