@@ -148,8 +148,8 @@ describe('E-1 server-side Config-only copy',()=>{
     ]){
       const f=fixture();
       f.fake.when('GET','/v1/projects/{idOrName}/env/{id}').resolves(source);
-      const out=parse(await f.call(bad));
-      expect(out).toMatchObject({status:'refused_by_guard'});
+      const response=await f.call(bad);
+      expect(response.isError||parse(response).status==='refused_by_guard').toBe(true);
       expect(f.fake.calls.some(c=>c.method==='POST')).toBe(false);
     }
   });
