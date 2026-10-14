@@ -28,6 +28,7 @@ export const OPS = Object.freeze({
   project_env_create: Object.freeze({ method: 'POST', path: '/v10/projects/{idOrName}/env' }),
   project_env_update: Object.freeze({ method: 'PATCH', path: '/v9/projects/{idOrName}/env/{id}' }),
   project_env_delete: Object.freeze({ method: 'DELETE', path: '/v9/projects/{idOrName}/env/{id}' }),
+  project_env_delete_batch: Object.freeze({ method: 'DELETE', path: '/v1/projects/{idOrName}/env' }),
   projects_members_list: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/members' }),
   projects_members_add: Object.freeze({ method: 'POST', path: '/v1/projects/{idOrName}/members' }),
   projects_members_remove: Object.freeze({ method: 'DELETE', path: '/v1/projects/{idOrName}/members/{uid}' }),
