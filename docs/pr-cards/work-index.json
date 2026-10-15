@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-14",
+  "updated": "2026-10-15",
   "order": [
     "A",
     "B",
@@ -804,23 +804,25 @@
         "V-1"
       ],
       "card": "docs/pr-cards/V-2.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "V-2"
       ],
-      "readiness": "CARD_WRITTEN",
+      "readiness": "VERIFIED_AND_MERGED",
       "ownerInputs": [],
-      "pr": [],
+      "pr": [
+        207
+      ],
       "revisit": {
-        "trigger": "next-implementation-slice",
-        "owner": "current V-2 implementer",
-        "reason": "Four approved V-2 tools and native alias/env/bypass cleanup being implemented; provider API validation and independent owner access/charge acceptance remain separate.",
-        "nextAction": "Run pinned API shape fixtures, unit and isolated DB, full exact-head ci/check/unit/db/emulate/release-policy and review, then merge only when green.",
-        "checkpoint": "Main ad1a080, implementation branch ai/gpt6/v2-preview-workflows-20261014",
-        "evidenceNeeded": "Actual provider request/response shapes in synthetic provider fake, idempotency/replay/negative preview and production tests, encrypted one-time bypass and cleanup 404 readback.",
-        "eligibilityCondition": "Source design and fake tests eligible; metered deployment blocked IN-08; bypass project-wide never permitted on live projects.",
+        "trigger": "external-acceptance",
+        "owner": "provider/live acceptance reviewer",
+        "reason": "V-2 full engineering merged via PR #207 main 66ed6fa, exact-head all required checks passed; provider metered builds and real custom MCP acceptance remain independent.",
+        "nextAction": "Verify checked READY source ancestry, native custom MCP read/denial paths and owner-approved isolated provider fixture only within IN-08 limits.",
+        "checkpoint": "main 66ed6fab3ffbbb1c4d856564ad6a04cbb0b84739, PR #207 final head d826e88c8603c729d36037f0753badd4423d16b9",
+        "evidenceNeeded": "Genuine approved Vercel TEST preview env/alias/protection evidence, exact live READY revision and direct/Hub custom MCP routes.",
+        "eligibilityCondition": "Source engineering merged; charged preview build requires provider-enforceable total operation ceiling plus one-use independently authenticated owner grant.",
         "dependencies": [
           "V-1"
         ]
@@ -835,14 +837,30 @@
         "V-1"
       ],
       "card": "docs/pr-cards/V-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "V-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "VERIFIED_AND_MERGED",
+      "ownerInputs": [],
+      "pr": [
+        209
+      ],
+      "revisit": {
+        "trigger": "external-acceptance",
+        "owner": "checked release/provider acceptance reviewer",
+        "reason": "Four preview observation workflows engineered and exact-head mandatory source checks green; true native deployment and actual approved preview resource still outstanding.",
+        "nextAction": "After normal checked promotion of source PR #209, run the six V1/V2/V3 source-specific queued native provider scenarios only when their own owner/preview authorization is actually present.",
+        "checkpoint": "PR #209 exact-head b0fdf8195d5cfa3ccddfa2cb258787a3c61008d8 with ci/check/unit/db/emulate/release-policy green; no production source update",
+        "evidenceNeeded": "Verified checked READY source containing V-3; owner-approved recorded preview deployment, provider events, native OAuth, independent readback, and Hub direct/relay/Sandbox",
+        "eligibilityCondition": "Only exact current READY deployed ancestor scenarios are eligible; no new metered build without IN-08 ceiling/independent grant.",
+        "dependencies": [
+          "V-1",
+          "V-2"
+        ]
+      }
     },
     {
       "id": "V-4",

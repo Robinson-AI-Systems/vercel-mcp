@@ -66,6 +66,10 @@ instructions' **PR workload is measured in predefined batch subsections** rule.
    substantive PR/card. Tell the owner the specific finding during the session.
    A chat turn is not a background runner; re-enter from actual repository state.
 
+### Durable work before long tool chains (2026-10-15)
+
+GitHub blob SHAs and text written in chat are **not recoverable implementation** until linked into a committed branch. After the first cohesive source+test stage, fast-forward commit to the active implementation branch and open a draft PR. On long REST-only sessions, commit each coherent work stage before issuing another long sequence of file edits. Never defer the first commit until all tests/cards are complete. Draft PR checkpoints do not count as completed subsections, bypass CI/reviews, or authorize provider writes. On resumed chats, inspect the real commit/PR first; only reuse unattached blobs after verifying them. Leave actual passing evidence and remaining work on the active card/PR. Avoid no-op CI polling and make progress against the same outcome.
+
 ## 0. Reconcile and recover
 
 Read the governing instructions and the current permanent handoff, not historical
