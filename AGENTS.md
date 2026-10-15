@@ -1,5 +1,15 @@
 # AGENTS.md — the rules. Read this first, every session.
 
+## Owner-requested implementation detail — October 14, 2026
+
+Read only the applicable subsection in [IMPLEMENTATION-DETAIL.md](docs/implementation-contracts/IMPLEMENTATION-DETAIL.md)
+under **Concrete implementation contracts** before building remaining roadmap work.
+It supplies concrete state/input/output, file-seam, failure/recovery and fixture
+contracts for Sol 5.6. Existing approved scope, card/public schemas, owner inputs
+and all security/CI/review/release gates remain authoritative. This is explicitly
+requested design maintenance, not a product-completion PR. Do not re-request
+general roadmap approval or convert these internal steps into batch subsections.
+
 ## Session PR count comes from the current owner prompt
 
 There is no repository-default session PR count, upper quota or PR-number
