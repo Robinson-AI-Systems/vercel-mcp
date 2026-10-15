@@ -15,6 +15,7 @@ export const OPS = Object.freeze({
   rolling_config_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release/config' }),
   rolling_active_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release' }),
   rolling_config_update: Object.freeze({ method: 'PATCH', path: '/v1/projects/{idOrName}/rolling-release/config' }),
+  rolling_config_delete: Object.freeze({ method: 'DELETE', path: '/v1/projects/{idOrName}/rolling-release/config' }),
   rolling_start: Object.freeze({ method: 'POST', path: '/v1/projects/{idOrName}/rolling-release/start' }),
   rolling_approve: Object.freeze({ method: 'POST', path: '/v1/projects/{idOrName}/rolling-release/approve-stage' }),
   rolling_complete: Object.freeze({ method: 'POST', path: '/v1/projects/{idOrName}/rolling-release/complete' }),

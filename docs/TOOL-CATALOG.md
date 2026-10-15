@@ -139,11 +139,11 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 | `vercel_alias_get` | One alias and the deployment it points to | — | B Op | R | — | D-4 (partial source candidate; native TEST pending) |
 | `vercel_alias_assign` | Point an alias at a deployment (production when the alias is a production domain) | Cp | B Op | E | y | D-4 (partial source candidate; native TEST pending) |
 | `vercel_alias_delete` | Remove an alias | D Cp | Op | F | y | D-4 (partial source candidate; native TEST pending) |
-| `vercel_rolling_get` | Rolling-release settings, the active release and its stage, and billing status | — | Op | R | — | D-4 |
-| `vercel_rolling_update_config` | Turn rolling releases on/off for a project and set stages (may be billed) | PR $ | O | F | y | D-4 |
-| `vercel_rolling_start` | Start a rolling release of a deployment | PR | Op | E | y | D-4 |
-| `vercel_rolling_approve_stage` | Move the active rolling release to its next stage | PR | Op | E | y | D-4 |
-| `vercel_rolling_complete` | Finish the rolling release (100% of traffic) | PR | Op | E | y | D-4 |
+| `vercel_rolling_get` | Rolling-release settings, the active release and its stage, and billing status | — | Op | R | — | D-4 (candidate PR #205, CI/native TEST pending) |
+| `vercel_rolling_update_config` | Turn rolling releases on/off for a project and set stages (may be billed) | PR $ | O | F | y | D-4 (candidate PR #205, CI/native TEST pending) |
+| `vercel_rolling_start` | Start a rolling release of a deployment | PR $ | Op | E | y | D-4 (candidate PR #205, CI/native TEST pending) |
+| `vercel_rolling_approve_stage` | Move the active rolling release to its next stage | PR | Op | E | y | D-4 (candidate PR #205, CI/native TEST pending) |
+| `vercel_rolling_complete` | Finish the rolling release (100% of traffic) | PR | Op | E | y | D-4 (candidate PR #205, CI/native TEST pending) |
 
 ## Environment variables (`vercel_env_*`) — 9
 

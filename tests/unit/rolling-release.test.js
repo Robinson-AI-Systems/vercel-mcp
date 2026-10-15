@@ -81,6 +81,8 @@ describe('D-4 rolling-release guarded lifecycle',()=>{
     for(const operation of ['rolling_billing_get','rolling_config_get',
       'rolling_active_get'])expect(validateRequest(operation,
       {path:{idOrName:project},query:{teamId:team}})).toBe(true);
+    expect(validateRequest('rolling_config_delete',{
+      path:{idOrName:project},query:{teamId:team}})).toBe(true);
     expect(validateRequest('rolling_start',{
       path:{idOrName:project},query:{teamId:team},
       body:{canaryDeploymentId:canary}})).toBe(true);
@@ -155,17 +157,22 @@ describe('D-4 rolling-release guarded lifecycle',()=>{
   });
   it('disables idle rollout configuration only from a confirmed production owner',async()=>{
     const f=setup({stages:[{rollingRelease:null}]});
+    f.fake.when('GET','/v1/projects/{idOrName}/rolling-release/config')
+      .resolves(config).resolves(config).resolves(config).resolves(config)
+      .resolves({rollingRelease:null});
     const initial=parse(await f.call('vercel_rolling_get',{project}));
     const args={project,expectedConfigHash:initial.configHash,enabled:false,
       outsideApp:true,confirm:true,requestKey:'rollingDisableFake01'};
-    f.fake.when('PATCH','/v1/projects/{idOrName}/rolling-release/config')
-      .resolves({rollingRelease:null});
+    f.fake.when('DELETE','/v1/projects/{idOrName}/rolling-release/config')
+      .resolves(null,204);
     const out=parse(await f.call('vercel_rolling_update_config',args,preview));
     expect(out.status).toBe('refused_by_guard');
     expect(f.writes()).toHaveLength(0);
     const changing=parse(await f.call('vercel_rolling_update_config',args,owner));
     expect(changing.status).toBe('applied');
-    expect(changing.confirmed).toBe(null);
+    expect(changing.confirmed).toBe(true);
     expect(f.writes()).toHaveLength(1);
+    expect(f.writes()[0]).toMatchObject({method:'DELETE',
+      path:'/v1/projects/'+project+'/rolling-release/config'});
   });
 });

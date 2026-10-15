@@ -19,10 +19,13 @@ All traffic mutation paths require full-profile owner-enabled PRODUCTION,
 selected team/project/aliases and deployment readbacks, protected/app
 guards, confirmation, fresh pre-dispatch verification and replay.
 No preview build promotion, paid rebuild, real provider mutation or
-production owner activation was attempted. Five rolling-release tools
-remain **unfinished engineering** in D-4, not external acceptance.
-This source and fake-provider candidate requires exact-head CI and merge
-before checking the native TEST acceptance queue.
+production owner activation was attempted. Five rolling-release tools are assembled on PR #205 with the seven already
+merged alias/promotion tools: config/billing/stage reads, guarded enable/disable,
+canary start, stage approval and completion. Disable now uses the official DELETE
+operation. Metered enable/start remain fail-closed under IN-08, requiring a
+provider-enforceable charge ceiling and a separate authenticated owner grant.
+Exact-head CI/review and official PATCH request-shape proof remain pending;
+D-4 is not counted complete. No real provider write or owner activation occurred.
 
 ## E-4 schema lifecycle and E-3 timestamp-restore — source candidate
 

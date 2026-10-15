@@ -207,7 +207,7 @@ function factory(kind){
           throw new TypeError('Independent charge approval unavailable');
       });
       const operation={
-        config:'rolling_config_update',start:'rolling_start',
+        config:b.desired.enabled?'rolling_config_update':'rolling_config_delete',start:'rolling_start',
         approve:'rolling_approve',complete:'rolling_complete'}[kind];
       const body=kind==='config'?b.desired:
         kind==='approve'?{
@@ -215,7 +215,7 @@ function factory(kind){
           canaryDeploymentId:b.canary
         }:{canaryDeploymentId:b.canary};
       return provider.write(operation,
-        {path:{idOrName:b.project},body},
+        {path:{idOrName:b.project},...(kind==='config'&&!b.desired.enabled?{}:{body})},
         {requestKey,tool:name,shapeResult:()=>({
           project:b.project,operation:kind,
           canary:b.canary??null})});
@@ -241,7 +241,7 @@ function factory(kind){
         if(r.state!=='COMPLETED')return {confirmed:null};
         const aliases=await ownedAliases(state,b.project);
         return {confirmed:aliases.length>0&&
-          aliases.every(x=>x.deployment===b.canary)};
+          aliases.every(x=>x.deployment===b.canary)?true:null};
       }catch{return {confirmed:null};}
     }
   });
