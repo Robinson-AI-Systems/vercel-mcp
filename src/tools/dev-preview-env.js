@@ -45,7 +45,9 @@ function valid(a){
 function rows(result){
   const items=result?.envs;
   if(!Array.isArray(items)||items.length>100||
-     result?.pagination?.next!=null)
+     !result?.pagination||result.pagination.next!==null||
+     result.pagination.count!==items.length||
+     result.pagination.hasNext===true||result.pagination.hasMore===true)
     throw new TypeError('Complete bounded preview environment inventory required');
   return items;
 }
@@ -59,7 +61,7 @@ export async function planPreviewEnv(a,ctx){
     const b=await owned(a,ctx);
     const {client}=await readProvider(ctx);
     const current=rows(await client.request('project_env_list',
-      {path:{idOrName:b.project}}));
+      {path:{idOrName:b.project},query:{decrypt:'false'}}));
     if(a.vars.some(v=>current.some(r=>matches(r,v.key,a.gitBranch))))
       throw new TypeError('Existing preview variable cannot be overwritten by a development run');
     const planned=a.vars.map(v=>({key:v.key,type:'encrypted',
@@ -84,7 +86,7 @@ const wire=defineWrite({
     const provider=await selectedWrite(ctx,b);
     await requirePreDispatch(async()=>{
       const fresh=rows(await provider.read('project_env_list',
-        {path:{idOrName:b.project}}));
+        {path:{idOrName:b.project},query:{decrypt:'false'}}));
       if(fresh.length!==b.priorCount||
          b.planned.some(v=>fresh.some(r=>matches(r,v.key,b.branch))))
         throw new TypeError('Environment inventory changed after confirmation');
@@ -102,7 +104,7 @@ const wire=defineWrite({
         throw new TypeError('Approved value was unavailable, not consumed or too large');
       await requirePreDispatch(async()=>{
         const fresh=rows(await provider.read('project_env_list',
-          {path:{idOrName:b.project}}));
+          {path:{idOrName:b.project},query:{decrypt:'false'}}));
         if(fresh.some(r=>matches(r,v.key,b.branch)))
           throw new TypeError('Preview key was created concurrently');
       });
@@ -131,7 +133,7 @@ const wire=defineWrite({
     const {client,account}=await readProvider(ctx);
     if(account.team_id!==b.teamId)return {confirmed:null};
     const list=rows(await client.request('project_env_list',
-      {path:{idOrName:b.project}}));
+      {path:{idOrName:b.project},query:{decrypt:'false'}}));
     const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
     return {confirmed:r.created.every((id,i)=>list.some(row=>
       row.id===id&&matches(row,b.planned[i].key,b.branch))&&

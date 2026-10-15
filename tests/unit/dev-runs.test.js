@@ -282,7 +282,19 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     expect(writes).toHaveLength(1);
     expect(writes[0].body).toEqual({revoke:{secret:value,regenerate:false}});
     expect(JSON.stringify(out)+JSON.stringify(f.audit)).not.toContain(value);
+    expect(JSON.stringify(f.audit)).not.toContain(box);
     f.fake.verify();
+  });
+  it('routes a tracked bypass cleanup through the protected owning project guard',async()=>{
+    const f=fixture([object('bypass','byp_0123456789abcdef0123456789abcdef',
+      project,{ciphertext:'synthetic-encrypted-only'})]);
+    f.db.listProtectedResources=async()=>[{kind:'project',match:project,
+      note:'Owner-excluded project'}];
+    const out=parse(await f.call('vercel_dev_cleanup',{
+      runId,outsideApp:true,confirm:true,requestKey:'denyProtectedBypass01'}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(f.fake.calls).toHaveLength(0);
+    expect(f.rows.get(runId)[0].status).toBe('active');
   });
   it('denies unowned, invalid, and undeclared cleanup runs',async()=>{
     const f=fixture();

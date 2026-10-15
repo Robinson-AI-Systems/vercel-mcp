@@ -370,7 +370,13 @@ const cleanup=defineWrite({
     for(const r of runs){
       const objects=sortCleanup(await ctx.db.listDevRunObjects({account:scope(ctx),id:r.id}));
       if(objects.length>=100)throw new TypeError('Object inventory must be complete');
-      groups.push({id:r.id,objects});
+      // Only safe, stable metadata enters the preflight/audit snapshot.
+      // The execution phase loads private object detail (including encrypted
+      // bypass revocation evidence) directly from the owner-scoped database.
+      groups.push({id:r.id,objects:objects.map(o=>({
+        object_type:o.object_type,object_id:o.object_id,
+        project_id:o.project_id,status:o.status,created_at:o.created_at
+      }))});
     }
     if(!groups.length)throw new TypeError('No active owned development runs eligible for cleanup');
     return {groups,teamId:account.team_id};
@@ -383,14 +389,18 @@ const cleanup=defineWrite({
   async production(){return {production:false,why:'Recorded preview fixtures only, with live-state rechecks'};},
   async targets(_a,b){return b.groups.flatMap(g=>g.objects
     .filter(o=>o.object_type!=='intent')
-    .map(o=>({kind:o.object_type,id:o.object_id,projectId:o.project_id})));},
+    .map(o=>o.object_type==='bypass'
+      ?{kind:'project',id:o.project_id}
+      :{kind:o.object_type,id:o.object_id,projectId:o.project_id}));},
   async apply(_a,ctx,b,requestKey){
     const provider=await writeProvider(ctx);
     const outcomes=[];
     for(const group of b.groups){
       const objects=sortCleanup(await ctx.db.listDevRunObjects({account:scope(ctx),id:group.id}));
-      if(JSON.stringify(objects.map(o=>[o.object_type,o.object_id]))!==
-         JSON.stringify(group.objects.map(o=>[o.object_type,o.object_id])))
+      if(JSON.stringify(objects.map(o=>[
+        o.object_type,o.object_id,o.project_id,o.status]))!==
+         JSON.stringify(group.objects.map(o=>[
+           o.object_type,o.object_id,o.project_id,o.status])))
         throw new PreDispatchRefusal('Run objects changed after confirmation');
       // Each record is handled separately; never infer a missing object from a tag.
       for(const obj of objects){
