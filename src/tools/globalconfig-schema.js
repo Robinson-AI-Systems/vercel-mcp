@@ -47,7 +47,7 @@ function strictSchema(value){
         if(v.length>100)throw new TypeError('Schema array too large');
         v.forEach(child=>check(child,depth+1));return;
       }
-      if(Object.getPrototypeOf(v)!==Object||Object.keys(v).length>100)
+      if(Object.getPrototypeOf(v)!==Object.prototype||Object.keys(v).length>100)
         throw new TypeError('Only plain JSON Schema objects are permitted');
       for(const [key,child] of Object.entries(v)){
         if(key==='__proto__'||key==='constructor'||key==='prototype'||
