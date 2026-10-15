@@ -43,7 +43,7 @@ const bypass=defineWrite({
       throw new TypeError('Only an owned run scratch project can receive a bypass');
     const {client}=await readProvider(ctx);
     await isolated(client,b);
-    const probe={generate:{secret:'a'.repeat(64),note:a.note}};
+    const probe={generate:{secret:'a'.repeat(32),note:a.note}};
     validateRequest('project_protection_bypass_update',{
       path:{idOrName:b.project},query:{teamId:b.teamId},body:probe});
     return {...b,note:a.note};
@@ -61,7 +61,7 @@ const bypass=defineWrite({
     await requirePreDispatch(async()=>{
       await isolated({request:(...x)=>provider.read(...x)},b);
     });
-    const value=randomBytes(32).toString('hex');
+    const value=randomBytes(16).toString('hex');
     const id='byp_'+createHash('sha256').update(value).digest('hex').slice(0,32);
     // Encrypt the revocation credential before POST; absence of this intent
     // after an ambiguous request must never be interpreted as safe cleanup.

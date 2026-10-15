@@ -14,10 +14,19 @@ const object=(type,id,detail={})=>({object_type:type,object_id:id,
 const projectRow={id:project,name:'test-preview',accountId:team,
   link:{type:'github',org:'synthetic',repo:'preview'}};
 function fixture(items=[],row=projectRow){
-  const fake=makeFakeVercel(),audit=[],runs=new Map(),objects=new Map();
+  const fake=makeFakeVercel(),audit=[],runs=new Map(),objects=new Map(),receipts=new Map();
   runs.set(runId,{id:runId,status:'active',description:'Synthetic test'});
   objects.set(runId,structuredClone(items));
   const db={
+    getAccountCredential:async()=>({}),
+    getVercelAccountSafe:async()=>({id:account,spend_limit_cents:0}),
+    getTodaySpendCents:async()=>0,
+    insertOneTimeSecret:async row=>{receipts.set(row.id,row);},
+    consumeOneTimeSecret:async({id,account:a})=>{
+      const x=receipts.get(id);
+      if(x?.account!==a&&!x?.vercel_account===a)return null;
+      receipts.delete(id);return {...x,vercel_account:a};
+    },
     recordChange:async e=>audit.push(e),
     listProtectedResources:async()=>[],
     getDevRun:async({id,account:a})=>a===account?runs.get(id)??null:null,
@@ -51,7 +60,7 @@ function fixture(items=[],row=projectRow){
   const call=(name,args={},conn=owner,fetchImpl=fake.fetch,env={})=>
     dispatchReadOnlyTool({registry,name,args,connection:conn,db,fetchImpl,env});
   fake.when('GET','/v9/projects/{idOrName}').resolves(row);
-  return {call,db,audit,fake,runs,objects};
+  return {call,db,audit,fake,runs,objects,receipts};
 }
 describe('V-2 owned branch, preview env, alias and bypass',()=>{
   beforeEach(()=>{vi.clearAllMocks();loadToken.mockResolvedValue({
@@ -183,6 +192,57 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     f.fake.verify();
   });
+  it('issues bypass only on a provably isolated scratch project and hides the value',async()=>{
+    const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
+    const row={...projectRow,name,productionDeployment:null,
+      protectionBypass:{}};
+    const f=fixture([object('project',project,{name})],row);
+    f.fake.when('GET','/v7/deployments').resolves({
+      deployments:[],pagination:{count:0,next:null}});
+    f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[],pagination:{count:0,next:null}});
+    let generated;
+    const fetchImpl=async(input,init={})=>{
+      const url=new URL(input instanceof Request?input.url:String(input));
+      const method=init.method??(input instanceof Request?input.method:'GET');
+      if(method==='PATCH'&&url.pathname.endsWith('/protection-bypass')){
+        const body=JSON.parse(init.body??'{}');
+        generated=body.generate?.secret;
+        return new Response(JSON.stringify({protectionBypass:{
+          [generated]:{scope:'automation-bypass',createdAt:1,createdBy:'owner'}
+        }}),{status:200,headers:{'content-type':'application/json'}});
+      }
+      return f.fake.fetch(input,init);
+    };
+    const out=parse(await f.call('vercel_dev_create_bypass',
+      {runId,project,note:'Synthetic isolation proof',confirm:true,
+        requestKey:'ownerBypassOnly01'},owner,fetchImpl,
+      {TOKEN_ENCRYPTION_KEY:'00'.repeat(32)}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(generated).toMatch(/^[a-z0-9]{32}$/);
+    expect(out.oneTimeReference??out.result?.oneTimeReference).toBeDefined();
+    expect(f.receipts.size).toBe(1);
+    expect(f.objects.get(runId).some(o=>o.object_type==='bypass'&&
+      o.detail.ciphertext.startsWith('v1.'))).toBe(true);
+    expect(JSON.stringify(out)+JSON.stringify(f.audit)+
+      JSON.stringify(f.objects.get(runId))).not.toContain(generated);
+    expect(f.fake.calls.filter(x=>x.method==='POST'||x.method==='PATCH')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('never issues project-wide bypass when any deployment is production',async()=>{
+    const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
+    const f=fixture([object('project',project,{name})],{...projectRow,name});
+    f.fake.when('GET','/v7/deployments').resolves({
+      deployments:[{id:'dpl_LIVE',projectId:project,target:'production'}],
+      pagination:{count:1,next:null}});
+    f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[],pagination:{count:0,next:null}});
+    const out=parse(await f.call('vercel_dev_create_bypass',
+      {runId,project,note:'Must refuse live',confirm:true}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    f.fake.verify();
+  });
   it('pinned Vercel env, alias and bypass operation schemas are validated',()=>{
     expect(validateRequest('project_env_create',{
       path:{idOrName:project},query:{teamId:team},body:{
@@ -194,6 +254,6 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
       body:{alias:'rtc-run-20261014-abcd1234-preview.vercel.app'}})).toBe(true);
     expect(validateRequest('project_protection_bypass_update',{
       path:{idOrName:project},query:{teamId:team},
-      body:{generate:{secret:'a'.repeat(64),note:'synthetic'}}})).toBe(true);
+      body:{generate:{secret:'a'.repeat(32),note:'synthetic'}}})).toBe(true);
   });
 });

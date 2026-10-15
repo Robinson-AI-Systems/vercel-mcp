@@ -1,4 +1,5 @@
 // V-2: scoped run, project and run-object utilities.
+import {createHash} from 'node:crypto';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {compact} from '../core/util.js';
 import {checkProtected} from './self-guard.js';
@@ -64,7 +65,7 @@ export async function startRun(ctx,b){
   if(!run||typeof run.created!=='boolean')throw new TypeError('Run checkpoint uncertain');
 }
 export async function preIntent(ctx,b,kind,name,detail={}){
-  const id='intent-'+kind+'-'+name;
+  const id='intent-'+kind+'-'+createHash('sha256').update(name).digest('hex').slice(0,32);
   await ctx.db.addDevRunObject({account:ctx.connection.account,id:b.runId,
     type:'intent',objectId:id,projectId:b.project,detail:{kind,...detail}});
   return id;

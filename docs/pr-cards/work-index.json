@@ -814,7 +814,7 @@
       "ownerInputs": [],
       "pr": [],
       "revisit": {
-        "trigger": "V-2 full integration CI and review",
+        "trigger": "next-implementation-slice",
         "owner": "current V-2 implementer",
         "reason": "Four approved V-2 tools and native alias/env/bypass cleanup being implemented; provider API validation and independent owner access/charge acceptance remain separate.",
         "nextAction": "Run pinned API shape fixtures, unit and isolated DB, full exact-head ci/check/unit/db/emulate/release-policy and review, then merge only when green.",
