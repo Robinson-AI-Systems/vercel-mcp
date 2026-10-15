@@ -4,6 +4,9 @@ import {dispatchReadOnlyTool,listMcpTools} from '../../src/core/mcp-server.js';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 import {validateRequest} from '../../src/vercel/openapi-validation.js';
+import {planPreviewEnv} from '../../src/tools/dev-preview-env.js';
+import {planPreviewAlias} from '../../src/tools/dev-preview-alias.js';
+import {context} from '../../src/tools/dev-preview-common.js';
 vi.mock('../../src/vercel/tokens.js',async fn=>({...await fn(),loadToken:vi.fn()}));
 const account='acct_FAKE_V2',team='team_FAKE_V2',project='prj_FAKE_V2';
 const deployment='dpl_FAKE_V2_PREVIEW',runId='run_20261014_abcd1234';
@@ -24,7 +27,7 @@ function fixture(items=[],row=projectRow){
     insertOneTimeSecret:async row=>{receipts.set(row.id,row);},
     consumeOneTimeSecret:async({id,account:a})=>{
       const x=receipts.get(id);
-      if(x?.account!==a&&!x?.vercel_account===a)return null;
+      if(!x || (x.account!==a && x.vercel_account!==a))return null;
       receipts.delete(id);return {...x,vercel_account:a};
     },
     recordChange:async e=>audit.push(e),
@@ -106,6 +109,28 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect(deniedCost.status).toBe('refused_by_guard');
     expect(JSON.stringify(deniedCost)).toMatch(/Unbounded|ceiling/i);
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    f.fake.verify();
+  });
+  it('builds the V-2 preview env plan with exact run, provider and bounded inventory',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v10/projects/{idOrName}/env')
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    const args={runId,project,vars:[{key:'DEMO_PREVIEW_ONLY',value:'synthetic-value-123'}]};
+    const p=await planPreviewEnv(args,context({db:f.db,connection:owner,
+      env:{},fetchImpl:f.fake.fetch}));
+    expect(p).toMatchObject({project,runId,priorCount:0,
+      planned:[{key:'DEMO_PREVIEW_ONLY',target:['preview'],type:'encrypted'}]});
+    f.fake.verify();
+  });
+  it('builds the V-2 preview alias plan only for absent recorded deployment',async()=>{
+    const name='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
+    const f=fixture([object('deployment',deployment)]);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      uid:deployment,projectId:project,target:'preview',readyState:'READY'});
+    f.fake.when('GET','/v4/aliases/{idOrAlias}').rejects(404);
+    const p=await planPreviewAlias({runId,project,deployment,alias:name},
+      context({db:f.db,connection:owner,env:{},fetchImpl:f.fake.fetch}));
+    expect(p).toMatchObject({project,runId,deployment,alias:name});
     f.fake.verify();
   });
   it('validates one preview-only env body and never exposes the inline source value',async()=>{
@@ -220,7 +245,7 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
       {TOKEN_ENCRYPTION_KEY:'00'.repeat(32)}));
     expect(out).toMatchObject({status:'applied',confirmed:true});
     expect(generated).toMatch(/^[a-z0-9]{32}$/);
-    expect(out.oneTimeReference??out.result?.oneTimeReference).toBeDefined();
+    expect(out.ownerRevealRef).toBeDefined();
     expect(f.receipts.size).toBe(1);
     expect(f.objects.get(runId).some(o=>o.object_type==='bypass'&&
       o.detail.ciphertext.startsWith('v1.'))).toBe(true);

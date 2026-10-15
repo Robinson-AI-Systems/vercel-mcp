@@ -10,6 +10,35 @@ and all security/CI/review/release gates remain authoritative. This is explicitl
 requested design maintenance, not a product-completion PR. Do not re-request
 general roadmap approval or convert these internal steps into batch subsections.
 
+## Anti-stall execution contract — owner correction 2026-10-15
+
+**A running CI job is not productive work, and a red job is not a stop condition.**
+Do not repeatedly query the same check run without a changed result or an actionable
+reason. After a PR push, check CI once; while jobs run, work on the next approved
+independently eligible engineering/test/review seam without breaking the two-open-PR
+limit. Return to CI when enough work/evidence exists or the result changes. Never
+create an unrelated PR to look busy or leave a failing PR uninvestigated.
+
+**Failure-resolution loop:** collect the complete job conclusions and all failing
+test/check messages before changing code; distinguish actual contract, test-fixture,
+integration, lint, and governance/index failures. Read the pinned provider schema
+before changing a fixture. Reproduce with the smallest available focused check.
+Apply one coherent correction set to the existing PR, verify locally where possible,
+then run mandatory exact-head gates once. If the same failure repeats, add a
+new diagnostic proving the failing boundary; do not make speculative pushes or
+weaken safety assertions. A blocked resource does not block independent roadmap work.
+
+**Interruption and visibility:** at each substantive tool/CI boundary, update the
+current PR/card or permanent handoff with branch and exact head, subsection ID,
+failure evidence, next concrete action, and what remains **unverified**. In an
+interactive chat, give the owner a useful progress message rather than silently
+polling. Once a chat turn ends, the agent is NOT still coding in the background:
+on the next user message re-fetch the real branch, checks, reviews and concurrent
+PRs and continue from that snapshot. Never claim asynchronous progress or future
+delivery. Keep the owner's workload target and all actual merge/review/CI/security,
+provider spending and release restrictions intact. Fold this guidance into the
+current substantial implementation PR; do not make a docs-only PR.
+
 ## Session PR count comes from the current owner prompt
 
 There is no repository-default session PR count, upper quota or PR-number

@@ -20,9 +20,7 @@ async function previewDeployment(client,id,project){
      row.readyState!=='READY')
     throw new TypeError('Only a READY, owner-scoped preview deployment can be aliased');
 }
-const aliasWrite=defineWrite({
-  name:'vercel_dev_alias_preview',risk:{access:true},
-  async before(a,ctx){
+export async function planPreviewAlias(a,ctx){
     exact(a,props,schema.required);
     if(!DEPLOY.test(a.deployment??'')||!HOST.test(a.alias??'')||
        !a.alias.startsWith('rtc-'+a.runId.replaceAll('_','-')+'-'))
@@ -37,7 +35,10 @@ const aliasWrite=defineWrite({
     validateRequest('release_alias_assign',{path:{id:a.deployment},
       query:{teamId:b.teamId},body:{alias:a.alias}});
     return {...b,deployment:a.deployment,alias:a.alias};
-  },
+}
+const aliasWrite=defineWrite({
+  name:'vercel_dev_alias_preview',risk:{access:true},
+  before:planPreviewAlias,
   async preview(_a,_ctx,b){
     return 'Assign new run-namespaced preview hostname '+b.alias+
       ' exclusively to recorded READY preview '+b.deployment+
@@ -47,7 +48,7 @@ const aliasWrite=defineWrite({
   async access(){return {widens:true,who:'Holders of the explicit preview URL',
     what:'Read access through a newly assigned preview URL'};},
   async targets(_a,b){return [{kind:'deployment',id:b.deployment,projectId:b.project},
-    {kind:'domain',id:b.alias}];},
+    {kind:'domain',id:b.alias,projectId:b.project}];},
   async apply(_a,ctx,b,key){
     const provider=await selectedWrite(ctx,b);
     await requirePreDispatch(async()=>{

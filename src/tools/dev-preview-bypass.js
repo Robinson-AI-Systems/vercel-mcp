@@ -32,7 +32,7 @@ async function isolated(client,b){
     throw new TypeError('Protection bypass is unsafe on a project with any live or unknown traffic');
 }
 const bypass=defineWrite({
-  name:'vercel_dev_create_bypass',risk:{access:true},secretOut:true,
+  name:'vercel_dev_create_bypass',risk:{access:true},secretOut:true,oneTimeDelivery:true,
   async before(a,ctx){
     exact(a,props,schema.required);
     if(!boundedLabel(a.note))throw new TypeError('Unsafe bypass note');
@@ -84,7 +84,7 @@ const bypass=defineWrite({
     // Only the authenticated setup path can consume and reveal this secret.
     const receipt=await oneTimeSecrets({db:ctx.db,env:ctx.env}).issue({
       account:ctx.connection.account,kind:'dev_automation_bypass',label:b.note,value});
-    return {id,oneTimeReference:receipt.id,expiresAt:receipt.expiresAt};
+    return {id,ownerRevealRef:receipt.id,expiresAt:receipt.expiresAt};
   },
   async verify(_a,ctx,b,r){
     if(typeof r?.id!=='string')return {confirmed:null};
@@ -93,7 +93,7 @@ const bypass=defineWrite({
     await isolated(client,b);
     const rows=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
     return {confirmed:rows.some(o=>o.object_type==='bypass'&&o.object_id===r.id),
-      oneTimeReference:r.oneTimeReference,expiresAt:r.expiresAt};
+      ownerRevealRef:r.ownerRevealRef,expiresAt:r.expiresAt};
   }
 });
 export const devPreviewBypassTools={

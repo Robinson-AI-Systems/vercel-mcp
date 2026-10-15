@@ -54,9 +54,7 @@ function matches(row,key,branch){
   return row?.key===key&&targets.includes('preview')&&
     (row.gitBranch??null)===(branch??null);
 }
-const wire=defineWrite({
-  name:'vercel_dev_wire_preview_env',secretIn:true,
-  async before(a,ctx){
+export async function planPreviewEnv(a,ctx){
     valid(a);
     const b=await owned(a,ctx);
     const {client}=await readProvider(ctx);
@@ -71,7 +69,10 @@ const wire=defineWrite({
         query:{teamId:b.teamId},body:{...v,value:'synthetic-validation-placeholder',
           comment:'rtc_run='+b.runId}});
     return {...b,planned,branch:a.gitBranch??null,priorCount:current.length};
-  },
+}
+const wire=defineWrite({
+  name:'vercel_dev_wire_preview_env',secretIn:true,
+  before:planPreviewEnv,
   async preview(_a,_ctx,b){
     return 'Create '+b.planned.length+' named encrypted preview-only environment variables in '+
       b.project+(b.branch?' on branch '+b.branch:' on all preview branches')+
