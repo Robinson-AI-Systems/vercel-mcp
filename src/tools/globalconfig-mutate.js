@@ -279,3 +279,6 @@ export const globalConfigMutateTools={
     vercel_globalconfig_delete:bindGuardedWrite(remove,context,out)
   }
 };
+
+// Shared selected-team safeguards for related E-3 token and backup operations.
+export {store,allItems,targets,classification,context};

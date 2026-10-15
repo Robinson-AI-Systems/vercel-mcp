@@ -209,12 +209,27 @@ export function defineWrite(spec) {
       return { status: 'outcome_unknown', mode, confirmed: null, requestKey,
         reason: 'The owner approval request could not be verified; do not retry blindly' };
     }
+    // One-time provider secrets are never returned through MCP. Only a UUID
+    // for the independently authenticated owner reveal form may be included.
+    const delivered=spec.oneTimeDelivery===true?{
+      ownerRevealRef:providerResult?.ownerRevealRef,
+      expiresAt:providerResult?.expiresAt,
+      revealAt:'/api/vercel/setup'
+    }:null;
+    if(delivered&&(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(delivered.ownerRevealRef??'')||
+      typeof delivered.expiresAt!=='string'||
+      !Number.isFinite(new Date(delivered.expiresAt).getTime())||
+      new Date(delivered.expiresAt).getTime()<=Date.now()||
+      new Date(delivered.expiresAt).getTime()>Date.now()+600000))
+      return {status:'outcome_unknown',mode,confirmed:null,requestKey,
+        reason:'Provider token outcome or encrypted one-time delivery is unverified'};
     const result = safeShape(ctx, spec.approvalOnly ?
       { status: 'awaiting_owner_approval', mode, confirmed: false,
         ownerApprovalRequired: true, reference: providerResult.reference,
         expiresAt: providerResult.expiresAt, preview: summary, requestKey,
         reviewAt: '/api/vercel/setup' } :
-      { status: 'applied', mode, confirmed, preview: summary, moneyLine, requestKey });
+      { status: 'applied', mode, confirmed, preview: summary, moneyLine, requestKey,
+        ...(delivered||{}) });
     const inverse = typeof spec.inverse === 'function'
       ? safeShape(ctx, await spec.inverse(args, before, providerResult, ctx)) : null;
     await ctx.audit({ ...auditBase, dryRun: false,

@@ -1,3 +1,27 @@
+## E-3/E-4 integrated Global Config token/restore source candidate
+
+The remainder of E-3 now implements one-time encrypted owner-only read-token
+issuance and exact-version backup restore with item-key diff and guarded
+readback. E-4's adjacent metadata-only token list plus targeted irreversible
+revoke complete the owner token lifecycle in one cohesive source batch.
+Existing one-time secret vault and guarded writes are reused. The PR does not
+create a provider token or perform a real restore; source, CI, merge, checked
+release and independent owner TEST provider acceptance remain separate.
+E-4 schema get/set is the next eligible engineering work.
+
+### Owner workflow clarification — October 14, 2026
+
+PR workload is counted in whole predefined batch subsections from the approved
+roadmap/design, never technical slices or packet checklist tasks. Partial
+subsections count zero complete; retain all remaining engineering and separate
+external acceptance. Session PR count and scope come only from the current
+owner prompt, with no standing quota or PR-number alignment. Historical PR
+counts below record earlier work and do not instruct future sessions.
+This owner-requested maintenance changes guidance/report wording only; required
+CI/review, security, provider, spending and release gates remain unchanged.
+Focused reporting tests passed locally; exact-head full Actions gates are required
+before merge. No product subsection, deployment or provider acceptance claimed.
+
 ### Owner workflow clarification — October 14, 2026
 
 PR workload is counted in whole predefined batch subsections from the approved
@@ -335,6 +359,50 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Source and fake-provider tests pending CI; no native provider mutation has been made"
+  },
+  {
+    "id": "VERCEL-E3-ONE-TIME-TOKEN",
+    "priority": 6,
+    "requiredRevision": "a9cc6e958c39fe63347a0a2e9d248d7aebda3a23",
+    "task": "Prove native owner TEST read-token creation with encrypted one-time reveal reference, no bearer leak, identity/readback and separately approved cleanup",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Checked READY source, custom MCP authenticated owner and disposable TEST-only store, explicit owner approval, fail-closed app/protected/production policies, durable one-time vault and fixture cleanup",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source candidate and planned fake-provider tests; no actual token issuance or restore attempted"
+  },
+  {
+    "id": "VERCEL-E3-BACKUP-RESTORE",
+    "priority": 6,
+    "requiredRevision": "a9cc6e958c39fe63347a0a2e9d248d7aebda3a23",
+    "task": "Prove exact-version native TEST backup diff preview, production-linked refusal, safe restore and independent item equality readback",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Checked READY source, custom MCP authenticated owner and disposable TEST-only store, explicit owner approval, fail-closed app/protected/production policies, durable one-time vault and fixture cleanup",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source candidate and planned fake-provider tests; no actual token issuance or restore attempted"
+  },
+  {
+    "id": "VERCEL-E4-TOKEN-LIST",
+    "priority": 6,
+    "requiredRevision": "a9cc6e958c39fe63347a0a2e9d248d7aebda3a23",
+    "task": "Prove native token ID/label-only list drops bearer values and marks bounded pagination honestly",
+    "procedure": "docs/pr-cards/E-4.md",
+    "gates": "Checked READY source, custom MCP authenticated owner and disposable TEST-only store, explicit owner approval, fail-closed app/protected/production policies, durable one-time vault and fixture cleanup",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source candidate and planned fake-provider tests; no actual token issuance or restore attempted"
+  },
+  {
+    "id": "VERCEL-E4-TOKEN-REVOKE",
+    "priority": 6,
+    "requiredRevision": "a9cc6e958c39fe63347a0a2e9d248d7aebda3a23",
+    "task": "Prove native full-profile revoke selected disposable read token, old-credential denial and independent post-revocation absence",
+    "procedure": "docs/pr-cards/E-4.md",
+    "gates": "Checked READY source, custom MCP authenticated owner and disposable TEST-only store, explicit owner approval, fail-closed app/protected/production policies, durable one-time vault and fixture cleanup",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Guarded source candidate and planned fake-provider tests; no actual token issuance or restore attempted"
   }
 ]
 ```
