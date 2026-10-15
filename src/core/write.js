@@ -212,11 +212,11 @@ export function defineWrite(spec) {
     // One-time provider secrets are never returned through MCP. Only a UUID
     // for the independently authenticated owner reveal form may be included.
     const delivered=spec.oneTimeDelivery===true?{
-      oneTimeSecretRef:providerResult?.oneTimeSecretRef,
+      ownerRevealRef:providerResult?.ownerRevealRef,
       expiresAt:providerResult?.expiresAt,
       revealAt:'/api/vercel/setup'
     }:null;
-    if(delivered&&(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(delivered.oneTimeSecretRef??'')||
+    if(delivered&&(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(delivered.ownerRevealRef??'')||
       typeof delivered.expiresAt!=='string'||
       !Number.isFinite(new Date(delivered.expiresAt).getTime())||
       new Date(delivered.expiresAt).getTime()<=Date.now()||

@@ -3,11 +3,9 @@
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {encryptSecret} from '../core/secret-box.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
-import {compact,credentialLike} from '../core/util.js';
+import {credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
-import {checkProtected} from './self-guard.js';
-import {checkApp} from './app-guard.js';
-import {STORE,SLUG,KEY,safeLabel,selected,exact,strictArgs,schema} from './globalconfig-common.js';
+import {STORE,SLUG,KEY,safeLabel,exact,strictArgs,schema} from './globalconfig-common.js';
 import {store,allItems,targets,classification,context} from './globalconfig-mutate.js';
 
 const ID=/^[A-Za-z0-9_-]{3,128}$/;
@@ -89,7 +87,7 @@ function receivedToken(raw,label){
   return {id,value};
 }
 const createToken=defineWrite({
-  name:'vercel_globalconfig_create_token',oneTimeDelivery:true,
+  name:'vercel_globalconfig_create_token',oneTimeDelivery:true,secretOut:true,
   risk:{access:true},
   before:tokenState,
   async preview(_a,_ctx,b){
@@ -120,7 +118,7 @@ const createToken=defineWrite({
             label:'Global Config '+b.id+' token '+b.label,
             value:issued.value,ttlMs:600000
           });
-          return {id:issued.id,oneTimeSecretRef:once.id,
+          return {id:issued.id,ownerRevealRef:once.id,
             expiresAt:once.expiresAt};
         }});
   },

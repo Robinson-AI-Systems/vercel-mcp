@@ -91,7 +91,7 @@ describe('E-3/E-4 complete Global Config token and restore workflow',()=>{
     const out=parse(await f.call('vercel_globalconfig_create_token',args));
     expect(out).toMatchObject({status:'applied',confirmed:true,
       revealAt:'/api/vercel/setup'});
-    expect(out.oneTimeSecretRef).toMatch(/^[0-9a-f-]{36}$/);
+    expect(out.ownerRevealRef).toMatch(/^[0-9a-f-]{36}$/);
     expect(f.mutations()).toHaveLength(1);
     expect(f.mutations()[0]).toMatchObject({method:'POST',
       path:'/v1/global-config/'+id+'/token',body:{label:'CI read access'}});
