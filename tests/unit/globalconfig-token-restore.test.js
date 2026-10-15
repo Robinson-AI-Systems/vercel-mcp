@@ -171,4 +171,43 @@ describe('E-3/E-4 complete Global Config token and restore workflow',()=>{
       expect(f.secretRows).toHaveLength(0);
     }
   });
+  it('selects the newest complete-inventory backup strictly before a UTC cutoff',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v1/global-config/{edgeConfigId}/backups').resolves({
+      backups:[
+        {id:versionId,edgeConfigId:id,createdAt:'2026-01-10T00:00:00.000Z'},
+        {id:'backup_FAKE_NEW',edgeConfigId:id,createdAt:'2026-01-20T00:00:00.000Z'}
+      ],pagination:{next:null}
+    });
+    f.fake.when('POST','/v1/global-config/{edgeConfigId}/backups/{edgeConfigBackupVersionId}/restore')
+      .resolves({});
+    f.fake.when('GET','/v1/global-config/{edgeConfigId}')
+      .resolves(row).resolves(row).resolves({...row,updatedAt:101});
+    f.fake.when('GET','/v1/global-config/{edgeConfigId}/items')
+      .resolves({items:{FLAG:'current'}})
+      .resolves({items:{FLAG:'current'}})
+      .resolves({items:{FLAG:'backup'}});
+    const {versionId:unused,...withoutVersion}=restoreArgs;
+    expect(unused).toBe(versionId);
+    const out=parse(await f.call('vercel_globalconfig_restore_backup',{
+      ...withoutVersion,beforeTime:'2026-01-15T00:00:00.000Z'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(JSON.stringify(out)).toContain(versionId);
+    expect(f.mutations()).toHaveLength(1);
+    expect(f.mutations()[0].path)
+      .toBe('/v1/global-config/'+id+'/backups/'+versionId+'/restore');
+  });
+  it('refuses an incomplete timestamp-based backup inventory before provider mutation',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v1/global-config/{edgeConfigId}/backups')
+      .resolves({backups:[{id:versionId,createdAt:'2026-01-10T00:00:00.000Z'}],
+        pagination:{next:'later'}});
+    const {versionId:unused,...withoutVersion}=restoreArgs;
+    expect(unused).toBe(versionId);
+    const out=parse(await f.call('vercel_globalconfig_restore_backup',{
+      ...withoutVersion,beforeTime:'2026-01-15T00:00:00.000Z'}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(f.mutations()).toHaveLength(0);
+  });
+
 });
