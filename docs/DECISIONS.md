@@ -136,3 +136,15 @@ routing and grant mapping; this service owns provider credentials, canonical too
 Core adoption is optional and separately gated; do not require K-3 for RTC/Hub acceptance or reduce standalone
 capability for common code. Existing source/fake/deployed/real evidence and every owner/CI/release gate remain.
 This explicit docs/planning request permits this focused documentation PR; routine cadence remains unchanged.
+
+## October 14, 2026 — owner-delegated concrete implementation designs
+
+The owner requested completing/revising remaining designs, then extending the
+same Sol 5.6 implementation detail to all six active custom MCP repositories.
+[IMPLEMENTATION-DETAIL.md](implementation-contracts/IMPLEMENTATION-DETAIL.md) adds typed state/argument/result
+contracts, domain-specific failure and recovery cases, current code seams and
+finite proof requirements for the remaining indexed scope. This is an explicit
+design-maintenance exception to routine no-docs-only implementation work, not a
+feature PR or completed subsection. Existing owner-specific missing inputs,
+spending/production/credential/cleanup authority remain gated; this entry does
+not mark them answered. The original Toolkit stays reference-only.
