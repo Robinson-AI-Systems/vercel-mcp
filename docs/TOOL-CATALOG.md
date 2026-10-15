@@ -132,13 +132,13 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_deploy_promote` | Point production traffic at a ready deployment; preview shows what is live now and what will be | PR | Op | E | y | D-4 |
-| `vercel_deploy_rollback` | Point production back at an earlier production deployment (instant rollback), with a reason note | PR | Op | E | y | D-4 |
-| `vercel_deploy_list_promote_aliases` | Which production aliases moved (or are still moving) during the last promote or rollback | — | Op | R | — | D-4 |
-| `vercel_alias_list` | Aliases (custom URLs) by project or deployment | — | B Op | R | — | D-4 |
-| `vercel_alias_get` | One alias and the deployment it points to | — | B Op | R | — | D-4 |
-| `vercel_alias_assign` | Point an alias at a deployment (production when the alias is a production domain) | Cp | B Op | E | y | D-4 |
-| `vercel_alias_delete` | Remove an alias | D Cp | Op | F | y | D-4 |
+| `vercel_deploy_promote` | Point production traffic at a ready deployment; preview shows what is live now and what will be | PR | Op | E | y | D-4 (partial source candidate; native TEST pending) |
+| `vercel_deploy_rollback` | Point production back at an earlier production deployment (instant rollback), with a reason note | PR | Op | E | y | D-4 (partial source candidate; native TEST pending) |
+| `vercel_deploy_list_promote_aliases` | Which production aliases moved (or are still moving) during the last promote or rollback | — | Op | R | — | D-4 (partial source candidate; native TEST pending) |
+| `vercel_alias_list` | Aliases (custom URLs) by project or deployment | — | B Op | R | — | D-4 (partial source candidate; native TEST pending) |
+| `vercel_alias_get` | One alias and the deployment it points to | — | B Op | R | — | D-4 (partial source candidate; native TEST pending) |
+| `vercel_alias_assign` | Point an alias at a deployment (production when the alias is a production domain) | Cp | B Op | E | y | D-4 (partial source candidate; native TEST pending) |
+| `vercel_alias_delete` | Remove an alias | D Cp | Op | F | y | D-4 (partial source candidate; native TEST pending) |
 | `vercel_rolling_get` | Rolling-release settings, the active release and its stage, and billing status | — | Op | R | — | D-4 |
 | `vercel_rolling_update_config` | Turn rolling releases on/off for a project and set stages (may be billed) | PR $ | O | F | y | D-4 |
 | `vercel_rolling_start` | Start a rolling release of a deployment | PR | Op | E | y | D-4 |

@@ -597,14 +597,27 @@
         "D-3"
       ],
       "card": "docs/pr-cards/D-4.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 500,
       "units": [
         "D-4"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "CARD_WRITTEN",
+      "ownerInputs": [],
+      "pr": [],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next D-4 implementer",
+        "reason": "Seven D-4 production routing and alias tools are one cohesive source candidate pending exact-head CI/merge. Five rolling-release tools remain unimplemented; D-4 counts zero completed batch subsections until fully implemented and accepted at premerge gates.",
+        "nextAction": "Finish current release-routing PR exact-head CI/review/merge; then implement all five remaining D-4 rolling-release capabilities as a substantial full follow-up, verifying provider billing/stages and IN-08, without narrowing production gates. After checked release and owner TEST grants execute queued native acceptance.",
+        "checkpoint": "Current PR exact head, next D-4 rolling-release engineering and next independently checked READY production release",
+        "evidenceNeeded": "Exact-head tests/code/CI, predispatch route change/readback, staged-produce vs previously-serving rollback proof, alias exact identity/owner; rolling-release 5 operation source+tests; real provider fixture acceptance separate",
+        "eligibilityCondition": "D-4 source development eligible; live promotion requires owner-enabled production mode and protected disposable test fixture",
+        "dependencies": [
+          "D-3"
+        ]
+      }
     },
     {
       "id": "E-1",

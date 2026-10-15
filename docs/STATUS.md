@@ -1,3 +1,18 @@
+## D-4 connected production routing and alias lifecycle — partial source candidate
+
+Seven documented production release/alias tools are implemented together:
+promote a never-serving READY production build, rollback to a genuinely
+previous-serving production build, promotion alias status, selected-project
+alias list/get, exact existing alias reassignment and guarded deletion.
+All traffic mutation paths require full-profile owner-enabled PRODUCTION,
+selected team/project/aliases and deployment readbacks, protected/app
+guards, confirmation, fresh pre-dispatch verification and replay.
+No preview build promotion, paid rebuild, real provider mutation or
+production owner activation was attempted. Five rolling-release tools
+remain **unfinished engineering** in D-4, not external acceptance.
+This source and fake-provider candidate requires exact-head CI and merge
+before checking the native TEST acceptance queue.
+
 ## E-4 schema lifecycle and E-3 timestamp-restore — source candidate
 
 The approved Global Config schema read, compatible set and reversible removal
@@ -448,6 +463,50 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Source and synthetic provider tests only; no live owner TEST provider acceptance"
+  },
+  {
+    "id": "VERCEL-D4-RELEASE-READS",
+    "priority": 5,
+    "requiredRevision": "f2d438c011f2f57a46752d42b3804d4c249dadf7",
+    "task": "Read actual selected-team project alias mappings and current promotion status through custom MCP with no secrets, correct completeness and exact deployment proof",
+    "procedure": "docs/pr-cards/D-4.md",
+    "gates": "Production READY verified checked source ancestry, genuine native custom MCP team authorization, independently signed owner disposable fixture, full production-enabled profile for actual traffic writes, safety/replay/cleanup and no spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source/fake-provider tests are not native acceptance; no live provider write or owner approval attempted."
+  },
+  {
+    "id": "VERCEL-D4-RELEASE-PROMOTE",
+    "priority": 5,
+    "requiredRevision": "f2d438c011f2f57a46752d42b3804d4c249dadf7",
+    "task": "On independently authorized disposable production TEST fixture, inspect current deployment and alias route; test guarded staged READY promotion with independent alias readback and rollback path; never alter owner's protected/live projects",
+    "procedure": "docs/pr-cards/D-4.md",
+    "gates": "Production READY verified checked source ancestry, genuine native custom MCP team authorization, independently signed owner disposable fixture, full production-enabled profile for actual traffic writes, safety/replay/cleanup and no spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source/fake-provider tests are not native acceptance; no live provider write or owner approval attempted."
+  },
+  {
+    "id": "VERCEL-D4-RELEASE-ROLLBACK",
+    "priority": 5,
+    "requiredRevision": "f2d438c011f2f57a46752d42b3804d4c249dadf7",
+    "task": "Verify exact previous-serving production target and reason query; run only with separate production/test owner authorization, independent alias polling/readback and fixture cleanup",
+    "procedure": "docs/pr-cards/D-4.md",
+    "gates": "Production READY verified checked source ancestry, genuine native custom MCP team authorization, independently signed owner disposable fixture, full production-enabled profile for actual traffic writes, safety/replay/cleanup and no spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source/fake-provider tests are not native acceptance; no live provider write or owner approval attempted."
+  },
+  {
+    "id": "VERCEL-D4-ALIAS-WRITES",
+    "priority": 5,
+    "requiredRevision": "f2d438c011f2f57a46752d42b3804d4c249dadf7",
+    "task": "Verify native exact existing domain alias assign/delete with independent owner authorization, protected/app guards and complete selected-project readback; no new domain or unapproved production routing",
+    "procedure": "docs/pr-cards/D-4.md",
+    "gates": "Production READY verified checked source ancestry, genuine native custom MCP team authorization, independently signed owner disposable fixture, full production-enabled profile for actual traffic writes, safety/replay/cleanup and no spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source/fake-provider tests are not native acceptance; no live provider write or owner approval attempted."
   }
 ]
 ```
