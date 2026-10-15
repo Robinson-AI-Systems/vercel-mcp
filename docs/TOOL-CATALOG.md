@@ -204,10 +204,10 @@ everything it creates is recorded in a run and tagged where Vercel allows (`rtc_
 | `vercel_dev_wire_preview_env` | Bounded encrypted preview-only variables (optionally Git branch), one private/synthetic source each; exact IDs tracked and revocable | P | B | F | y | V-2 candidate |
 | `vercel_dev_alias_preview` | New run-namespaced .vercel.app alias to verified active READY preview only; refuses all reassignments and production traffic | P A | B | F | y | V-2 candidate |
 | `vercel_dev_create_bypass` | Project-wide protection bypass restricted to isolated run-owned scratch project; secret encrypted and revealed only via authenticated one-time owner page | C A 1x | B | F | y | V-2 candidate |
-| `vercel_dev_tail_logs` | New build and runtime log lines for a preview since the last call (cursor), compact | — | B | R | — | V-3 |
-| `vercel_dev_diagnose_build` | Why a preview build failed: first error, likely cause (missing variable, Node version, install, type error, memory, ignored step) and the fix | — | B | R | — | V-3 |
-| `vercel_dev_fetch_preview` | Fetch paths on a preview (bypass applied server-side): status, timing, headers, first 4 KB each — a quick smoke test | — | B | R | — | V-3 |
-| `vercel_dev_check_integration` | Is a project set up for the app being built: variable names per target, domains, crons, protection/bypass, Node version, integrations — exact steps for gaps | — | B | R | y | V-3 |
+| `vercel_dev_tail_logs` | Signed account/run/deployment-bound continuation over bounded build/runtime preview events; no full-history claim | — | B | R | — | V-3 candidate |
+| `vercel_dev_diagnose_build` | Classify ten approved first-error rules from bounded preview build events with safe cause/fix, never raw secrets | — | B | R | — | V-3 candidate |
+| `vercel_dev_fetch_preview` | Up to 10 exact owned preview paths, public-only DNS, no redirects, optional encrypted server-private bypass, 4 KB bounded snippets | — | B | R | — | V-3 candidate |
+| `vercel_dev_check_integration` | Metadata-only preview requirements; names, preview domains, framework/runtime, cron-not-applicable, protection and unverified integrations | — | B | R | y | V-3 candidate |
 | `vercel_dev_sandbox_create` | Start a Vercel Sandbox session (optionally from a Git repo/branch) for a run; counts toward the sandbox-minutes limit | P | B | E | — | V-4 |
 | `vercel_dev_sandbox_run` | Run a command in a sandbox session; output summarized, full output behind a handle | P | B | E | — | V-4 |
 | `vercel_dev_sandbox_write_files` | Write files into a sandbox session | P | B | E | — | V-4 |

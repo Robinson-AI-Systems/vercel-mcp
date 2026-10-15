@@ -39,6 +39,14 @@ delivery. Keep the owner's workload target and all actual merge/review/CI/securi
 provider spending and release restrictions intact. Fold this guidance into the
 current substantial implementation PR; do not make a docs-only PR.
 
+## Crash-safe coding checkpoints — owner correction 2026-10-15
+
+An agent must **not** keep a long implementation solely in chat context or unattached GitHub blobs. A blob-creation response is NOT a recoverable branch change. After assembling the first cohesive source files, immediately create a fast-forward branch commit and draft PR; keep subsequent work on that same PR. Before another large multi-file coding stage, commit the current coherent stage, update the PR with existing subsection IDs and remaining acceptance, and record the exact head. Never defer the entire branch commit until cards, tests, documentation and all optional polish are complete. Do not publish unfinished work as completed or merge a checkpoint merely to make it persistent.
+
+**Checkpoint frequency by risk, not PR count:** commit promptly after a logically consistent source+test stage or whenever interruption risk rises (many remote tool calls, a long chat, context exhaustion, or a user interruption). Review current code and run focused tests before publication when a runner is available; draft checkpoints may be red and must be marked so. In a REST-only environment, let exact-head Actions show actual checks. Add remaining tests/docs to the same substantive PR; an early draft is NOT an extra batch subsection or completed bundle. If a tool call takes time, give one useful status update and do not poll unchanged check state. Always prioritize restoring a durable draft branch over writing another large uncommitted module.
+
+**Resume contract:** on any new user interruption, re-fetch branch and open PRs, find the last actual commit (not a blob SHA or an unsubmitted tool plan), reconcile loose blobs only when verified, and continue the existing approved subsection. Do not assume any source authored only in the previous chat exists in the repository. Do not ask the owner to repeat known instructions. Preserve all checked CI/review, security, provider, billing and release gates. This instruction is included in the next substantial implementation PR, never a documentation-only PR.
+
 ## Session PR count comes from the current owner prompt
 
 There is no repository-default session PR count, upper quota or PR-number
