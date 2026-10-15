@@ -1,5 +1,6 @@
 // D-4: bounded, selected-project rolling-release state and drift proofs.
 import {projectContext,PROJECT,DEPLOY} from './release-common.js';
+import {createHash} from 'node:crypto';
 
 const STATES=new Set(['ACTIVE','COMPLETED','ABORTED','PENDING','PAUSED']);
 export const shared={
@@ -28,7 +29,7 @@ export function stageArray(raw){
       !Number.isInteger(row.targetPercentage)||row.targetPercentage<0||
       row.targetPercentage>100||row.targetPercentage<=prev||
       row.duration!==undefined&&(!Number.isInteger(row.duration)||
-        row.duration<1||row.duration>86400)||
+        row.duration<1||row.duration>1440)||
       row.requireApproval!==undefined&&typeof row.requireApproval!=='boolean')
       throw new TypeError('Invalid rolling-release stage '+i);
     prev=row.targetPercentage;
@@ -89,7 +90,7 @@ export function normalizeConfig(reply){
     target:'production'};
 }
 export function configFingerprint(config){
-  return JSON.stringify(config);
+  return createHash('sha256').update(JSON.stringify(config)).digest('hex');
 }
 export async function rollingSnapshot(args,ctx,{billing=false}={}){
   const scoped=await projectContext(args,ctx);
