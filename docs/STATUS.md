@@ -1,10 +1,27 @@
-## V-2 merged, V-3 source checkpoint — 2026-10-15
+## V-3 resumed and native release acceptance evaluated — October 15, 2026
 
-V-2 full approved subsection merged as PR #207, main `66ed6fab`, production diff +641/-6, after exact-head `ci`, `check`, `unit`, `db`, `emulate`, `release-policy` green. V-1 was merged PR #206. The separate tested-source outcome does **not** establish checked READY deployed production ancestry, real Vercel custom-MCP acceptance or owner-authorized preview fixtures.
+Current main e49f5a3 includes merged guidance PR #208; V-3 source branch PR #209 reconciles it without discarding owner instructions. Existing single V-3 approved subsection implements four preview-only read workflows; strengthened active run/project proof, cross-deployment event rejection, and chronological build-first-error selection with dedicated regressions. The draft remains IN_PROGRESS until exact-head checks/reviews and merge. No V-3 external/provider acceptance claimed.
 
-V-3 now `IN_PROGRESS` on draft PR #209, branch `ai/gpt6/v3-preview-observability-20261015`. Existing predefined ID **V-3** is a single incomplete batch subsection until read-only log tail/diagnosis, exact owned SSRF-safe preview fetch, metadata-only integration checks, caller/registry, failure paths and full exact-head CI/review are complete and merged. Source checkpoint commit `904b3d3` preserves the first implementation stage. Initial CI showed an expected missing status/checklist and registry allowlist drift, while db/emulate/release-policy passed; corrections are integrated in this PR, not counted as completed work.
+Production READY source ad1a080 (#206) was checked independently from Vercel; main being newer did not defer V-1. Native service-issued custom MCP read `vercel_dev_list_runs({limit:10})` returned `{runs:[]}`, PASSED for account-scoped V-1 listing only; see queue VERCEL-V1-RUN-LIST. A subsequent custom `vercel_deploy_get` for exact READY deployment returned sanitized `unknown_error`; D-2 runtime logs remain unverified and need targeted native diagnosis. V-2 source #207 is not in current deployed revision, so its provider acceptance cannot pass yet. All owner-confirmed disposable fixture, controlled writes, Hub relay/Sandbox, revocation and billed D-4 acceptance remain pending under their specific gates. Production OFF, autonomous spending $0, no manual release.
 
-The owner reported a **second stall** because I authored many unattached GitHub blobs without a commit/PR, then the chat was interrupted. The anti-stall rule in `AGENTS.md` and `docs/SESSION-START.md` now requires early **draft branch commits** and exact recoverable checkpoints, not only avoiding CI polling. No provider writes, production activation, spending or manual deployment occurred. Metered preview execution remains fail closed under IN-08. Preserve separate D-4 positive charged PATCH and connected provider/Hub acceptance queue.
+### October 15 — owner-requested bundle guidance consistency review
+
+Reviewed current main 66ed6fab3ffbbb1c4d856564ad6a04cbb0b84739. Aligned existing governing instructions, session
+procedure and applicable playbook/card/recipe references: cards define approved
+scope; related whole subsections form coherent bundles; PR splits need concrete
+migration/dependency/safety/reviewability reasons. Removed stale numeric ceilings
+and blanket one-risk/one-migration fragmentation rules where present. Session target
+comes from the current owner, not PR count; incidental fixes/checkpoints do not end
+an unfinished bundle. Remaining engineering must not be hidden as external proof.
+Removed a stale generic session sentence that called future work maintenance.
+All original subsection IDs, roadmap order, source/provider acceptance, independent
+approval/guard/cleanup rules, CI/review and hosting/cost gates remain unchanged.
+Dated PR-count instructions/credits below are historical to their original
+sessions, never standing quotas or credits toward the current target.
+This is explicitly requested guidance maintenance, zero product bundles; no provider
+operation or release. Required exact-head checks and review disposition govern merge.
+Preserve concurrent implementation branches; resume actual current main and the
+implementing agent's active approved outcome after reading this alignment.
 
 ## V-1 merged; V-2 in progress — 2026-10-14
 
@@ -233,6 +250,17 @@ open obligations, original fixture ownership, approvals and deployment provenanc
 ```json
 [
   {
+    "id": "VERCEL-V1-RUN-LIST",
+    "priority": 1,
+    "requiredRevision": "ad1a080b4b612ba6cd1d6d43e5d1b3a2c24a54b0",
+    "task": "Verify native custom Vercel MCP account-scoped read of recorded developer runs without unauthorized mutations",
+    "procedure": "docs/pr-cards/V-1.md",
+    "gates": "Verified READY deployment source, saved native service-issued OAuth, preview connection; list read does not prove write, cleanup, or provider fixtures",
+    "dependsOn": [],
+    "status": "PASSED",
+    "lastEvidence": "2026-10-15: independent Vercel production READY deployment dpl_F9ENRve9yghhqWcgcFinVBfx8gkU has source ad1a080; Robinson Vercel Cloud native connection issuerMatches=true and upstream vercel-mcp-liard.vercel.app; authenticated call vercel_dev_list_runs({limit:10}) returned exactly {runs:[]}. This proves account-scoped read and empty existing run list only. No synthetic creation, provider write, cleanup, or Hub route was tested."
+  },
+  {
     "id": "VERCEL-D1",
     "priority": 1,
     "requiredRevision": "de61b8f77caf484a544397a15b561ba25e1adc27",
@@ -285,7 +313,7 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "gates": "Read-only native service connection, independently attested READY source and project/deployment; no writes, raw log messages or secret content",
     "dependsOn": [],
     "status": "PENDING",
-    "lastEvidence": "2026-10-14: provider independently verified READY production at 5650873; native deployment detail and scoped preview env metadata read succeeded using exact provider project ID. Native bounded runtime-log GET still unknown_error; independent standard-provider log view found no matching rows but is not custom acceptance. Candidate b19efea95be5e552ee5232770342e1ebabd2d23a shortens stream budget and safely classifies malformed frames; requires exact-head CI and later checked source deployment, then native retest. Neither empty results nor real log protocol accepted."
+    "lastEvidence": "2026-10-14: provider independently verified READY production at 5650873; native deployment detail and scoped preview env metadata read succeeded using exact provider project ID. Native bounded runtime-log GET still unknown_error; independent standard-provider log view found no matching rows but is not custom acceptance. Candidate b19efea95be5e552ee5232770342e1ebabd2d23a shortens stream budget and safely classifies malformed frames; requires exact-head CI and later checked source deployment, then native retest. Neither empty results nor real log protocol accepted. 2026-10-15 current READY source ad1a080: authenticated custom call vercel_deploy_get(dpl_F9ENRve9yghhqWcgcFinVBfx8gkU) returned sanitized provider unknown_error; deeper runtime-log read was not reached. Do not mark D2 PASSED; obtain exact provider failure and selected test deployment."
   },
   {
     "id": "VERCEL-E2-METADATA",

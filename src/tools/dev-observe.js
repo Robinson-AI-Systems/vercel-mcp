@@ -49,7 +49,10 @@ function encodeCursor(ctx,a,source,when,seen){
   if(encoded.length>1500)throw new TypeError('Continuation token exceeded bound');
   return encoded;
 }
-function eventRow(event,source){
+function eventRow(event,source,expectedDeployment){
+  const observed=event?.deploymentId??event?.payload?.deploymentId;
+  if(observed!==undefined&&observed!==expectedDeployment)
+    throw new TypeError('Foreign deployment event refused');
   if(!event||typeof event!=='object'||Array.isArray(event))
     throw new TypeError('Malformed provider log event');
   const when=event.created??event.date??event.timestamp??event.payload?.date;
@@ -114,7 +117,7 @@ export const devObserveTools={
         cutoff=result?.stream?.cutoff??'unknown';
       }
       if(!Array.isArray(events))throw new TypeError('Log provider did not return an event array');
-      const rows=events.map(x=>eventRow(x,source));
+      const rows=events.map(x=>eventRow(x,source,a.deployment));
       const sample=incremental(rows,cursor,a.limit??50);
       return reply({runId:a.runId,project:a.project,deployment:a.deployment,
         source,lines:sample.next.map(x=>({created:x.created,kind:x.kind,
@@ -131,8 +134,11 @@ export const devObserveTools={
         path:{idOrUrl:a.deployment},query:{direction:'forward',follow:0,limit:MAX_EVENTS}});
       if(!Array.isArray(events)||events.length>MAX_EVENTS)
         throw new TypeError('Build event inventory cannot be diagnosed safely');
-      const first=events.find(e=>e?.type==='fatal'||e?.type==='stderr'||
-        e?.level==='error'||e?.payload?.level==='error');
+      const ordered=events.map(e=>({event:e,checked:eventRow(e,'build',a.deployment)}))
+        .sort((x,y)=>x.checked.created-y.checked.created||
+          x.checked.id.localeCompare(y.checked.id));
+      const first=ordered.find(({event:e})=>e?.type==='fatal'||e?.type==='stderr'||
+        e?.level==='error'||e?.payload?.level==='error')?.event;
       const raw=first?.payload?.text??first?.text;
       const diagnosis=diagnoseBuildText(raw);
       return reply({runId:a.runId,deployment:a.deployment,

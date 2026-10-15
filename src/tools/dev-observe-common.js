@@ -36,6 +36,11 @@ export async function ownerRun(ctx,{runId,project}){
   const record=await ctx.db.getDevRun({id:runId,account:ctx.connection.account});
   if(!record||record.status!=='active')
     throw new TypeError('Only an active run owned by this account may be inspected');
+  const tracked=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:runId});
+  if(!Array.isArray(tracked)||tracked.length>=100||
+     !tracked.some(item=>item?.project_id===project&&item.status==='active'&&
+       ['project','deployment','alias','env','bypass'].includes(item.object_type)))
+    throw new TypeError('This run has no active recorded ownership of the selected project');
   const {client,account}=await readProvider(ctx);
   if(account.scope==='project'&&account.project_id!==project)
     throw new TypeError('Selected provider token cannot read another project');

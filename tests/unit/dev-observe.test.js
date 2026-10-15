@@ -282,4 +282,33 @@ describe('V-3 preview-only observation and diagnostics',()=>{
     expect(x.isError).toBe(true);
     expect(f.fake.calls).toHaveLength(0);
   });
+  it('rejects an active but unrelated run project before provider access',async()=>{
+    const f=fixture();
+    f.objects[0].project_id='prj_UNRELATED';
+    const denial=await f.call('vercel_dev_check_integration',{
+      spec:{runId,project,framework:'nextjs'}});
+    expect(denial.isError).toBe(true);
+    expect(f.fake.calls).toHaveLength(0);
+  });
+  it('refuses a provider event that is scoped to a different deployment',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v3/deployments/{idOrUrl}/events').resolves([
+      {created:1000,type:'stderr',payload:{
+        id:'foreign_evt',deploymentId:'dpl_UNRELATED_PREVIEW',
+        text:'TS2322: should never be returned'}}]);
+    const result=await f.call('vercel_dev_diagnose_build',{runId,project,deployment});
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('should never be returned');
+    f.fake.verify();
+  });
+  it('diagnoses the first chronological build failure, not response-array order',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v3/deployments/{idOrUrl}/events').resolves([
+      event(3000,'late_error','npm ERR! package resolution','stderr'),
+      event(1000,'first_error','TS2322: type failure','stderr')]);
+    const result=parse(await f.call('vercel_dev_diagnose_build',{runId,project,deployment}));
+    expect(result).toMatchObject({rule:'typescript-lint',firstErrorAt:1000});
+    f.fake.verify();
+  });
+
 });
