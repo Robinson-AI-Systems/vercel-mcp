@@ -1,3 +1,15 @@
+## E-4 schema lifecycle and E-3 timestamp-restore — source candidate
+
+The approved Global Config schema read, compatible set and reversible removal
+now share exact store/team/project proof, item-by-item JSON Schema validation,
+key-only dry-run incompatibility preview, linked-production classification,
+fresh pre-dispatch guards and provider readback. The related E-3 restore now
+supports an exact backup version OR independently proven newest backup before
+a UTC cutoff, with complete bounded history and drift recheck. This is
+engineering source plus fake-provider tests; full CI, checked merge, native
+TEST provider behavior and cleanup are separate evidence gates. Schema/item
+bytes and token material are not disclosed. No live Vercel write occurred.
+
 ## E-3/E-4 integrated Global Config token/restore source candidate
 
 The remainder of E-3 now implements one-time encrypted owner-only read-token
@@ -403,6 +415,39 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Guarded source candidate and planned fake-provider tests; no actual token issuance or restore attempted"
+  },
+  {
+    "id": "VERCEL-E3-BACKUP-BEFORE-TIME",
+    "priority": 6,
+    "requiredRevision": "bea18e1937311e110a6607abf8967ab7f243a9e4",
+    "task": "Verify newest version before an exact UTC cutoff from a trustworthy complete native backup inventory, safe preview, drift refusal and TEST restore",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Checked READY source, authenticated native custom MCP, independently owner-approved disposable TEST store and complete cleanup, production/app/protected guards and zero spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and synthetic provider tests only; no live owner TEST provider acceptance"
+  },
+  {
+    "id": "VERCEL-E4-SCHEMA-READ",
+    "priority": 6,
+    "requiredRevision": "bea18e1937311e110a6607abf8967ab7f243a9e4",
+    "task": "Read exact-store JSON Schema or explicit absence through native custom MCP; redact any credential-shaped provider field",
+    "procedure": "docs/pr-cards/E-4.md",
+    "gates": "Checked READY source, authenticated native custom MCP, independently owner-approved disposable TEST store and complete cleanup, production/app/protected guards and zero spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and synthetic provider tests only; no live owner TEST provider acceptance"
+  },
+  {
+    "id": "VERCEL-E4-SCHEMA-SET-REMOVE",
+    "priority": 6,
+    "requiredRevision": "bea18e1937311e110a6607abf8967ab7f243a9e4",
+    "task": "With owner-approved TEST store, preview incompatible item keys without data leakage; verify guarded compatible set, full-profile removal, version drift denial, inverse and provider readback",
+    "procedure": "docs/pr-cards/E-4.md",
+    "gates": "Checked READY source, authenticated native custom MCP, independently owner-approved disposable TEST store and complete cleanup, production/app/protected guards and zero spending",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and synthetic provider tests only; no live owner TEST provider acceptance"
   }
 ]
 ```

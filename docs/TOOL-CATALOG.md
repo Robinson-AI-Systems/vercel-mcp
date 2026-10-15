@@ -187,8 +187,8 @@ names, targets, kind (Config/Secret), branch and dates come out.
 | `vercel_globalconfig_restore_backup` | Restore a store to a backup version (newest before a time, or by version) | Cp | Op | E | y | E-3 (guarded source candidate; native TEST pending) |
 | `vercel_globalconfig_list_tokens` | Read tokens of a store: label, ID, created — never the token itself | — | B O | R | — | E-4 (source candidate; native TEST pending) |
 | `vercel_globalconfig_revoke_tokens` | Revoke one or more read tokens (apps still using them stop reading the store; preview names the connected projects) | D Cp | O | F | y | E-4 (source candidate; native TEST pending) |
-| `vercel_globalconfig_get_schema` | The JSON schema a store's items must match (or "none") | — | B Op | R | — | E-4 |
-| `vercel_globalconfig_set_schema` | Set, replace or remove a store's JSON schema; preview checks the current items against it and lists any that would no longer match | Cp | B O | E | y | E-4 |
+| `vercel_globalconfig_get_schema` | The JSON schema a store's items must match (or "none") | — | B Op | R | — | E-4 (source candidate; native TEST pending) |
+| `vercel_globalconfig_set_schema` | Set, replace or remove a store's JSON schema; preview checks the current items against it and lists any that would no longer match | Cp D | B O | E | y | E-4 (source candidate; native TEST pending) |
 
 ## Developer tools (`vercel_dev_*`) — 17 (preview only; `docs/designs/BATCH-V.md`)
 

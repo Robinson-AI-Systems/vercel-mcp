@@ -704,8 +704,8 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-3 implementer",
-        "reason": "Five Global Config list/read/create/patch/delete tools merged #199. Final guarded token issuance and backup restore source candidate pending CI/merge and native TEST acceptance.",
-        "nextAction": "Complete current cohesive E-3 token/restore and E-4 token inventory/revoke PR with all CI gates; then advance E-4 schema read/set in approved order.",
+        "reason": "Global Config source list/read/create/patch/delete merged #199, guarded one-time token and exact-version restore merged #201; complete-inventory newest-before-UTC restore selection source candidate pending CI and native provider acceptance.",
+        "nextAction": "Merge next cohesive schema/backup enhancement only after exact-head CI/review; revisit native E3 acceptance after checked deployment and owner-signed TEST fixture.",
         "checkpoint": "At first E-3 PR merge, next E-3 implementation session and checked live release",
         "evidenceNeeded": "Exact-head CI and genuine native TEST selected-team create/reveal/revoke/restore and safe readback, confirmed cleanup",
         "eligibilityCondition": "Source and synthetic tests eligible now; owner TEST access and checked release required only for live acceptance",
@@ -735,10 +735,10 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-4 implementer",
-        "reason": "Token inventory and revoke source candidate integrated with E-3 one-time token issuance and backup restore; E-4 schema GET/set/remove not yet implemented.",
-        "nextAction": "Finish current token and backup source PR exact-head CI and merge; implement E-4 schema get/set/remove including compatibility preview and reversible audit, maintaining queued native TEST provider acceptance.",
+        "reason": "E-4 native token inventory/revoke merged #201; schema read and compatible set/remove source candidate pending exact-head CI/merge. Native owner TEST acceptance still queued.",
+        "nextAction": "Verify and merge E-4 schema lifecycle when exact-head CI/review passes, then automatically advance to next eligible approved roadmap work in repository order. Retain all native owner TEST acceptance tasks.",
         "checkpoint": "Current candidate PR head and next E-4 schema implementation session; on next checked release",
-        "evidenceNeeded": "Fake HTTP token secret redaction, owner-only reveal, revoke and restore exact-head CI; genuine native owner TEST; schema compatibility and provider-native readback still missing",
+        "evidenceNeeded": "Full CI/schema compatibility regression, pinned GET/POST/DELETE path proof, protected/project/production denial, provider schema readback and owner-approved native TEST fixture cleanup",
         "eligibilityCondition": "Schema source/test work eligible now; live TEST acceptance needs checked release and explicit fixture approval",
         "dependencies": [
           "E-3"
