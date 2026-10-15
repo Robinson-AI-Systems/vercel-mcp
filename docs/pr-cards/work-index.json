@@ -770,14 +770,28 @@
         "E-1"
       ],
       "card": "docs/pr-cards/V-1.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "dev_runs",
       "budget": 500,
       "units": [
         "V-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "CARD_WRITTEN",
+      "ownerInputs": [],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next V-1 implementer",
+        "reason": "Full V-1 synthetic runs/seed/cleanup candidate assembled; exact-head unit, DB, emulate and full CI/review still pending. Metered positive builds cannot execute under IN-08 without provider ceiling and independent owner grant.",
+        "nextAction": "Verify source/provider schema and run complete tests, merge only when exact-head required gates pass; retain positive provider seeded build and owner fixture acceptance separately gated. Next roadmap V-2.",
+        "checkpoint": "At exact branch head, PR, CI/review, and checked READY live source ancestry",
+        "evidenceNeeded": "SQLite/Neon-like durability via disposable Postgres, exact provider fake path, replay, partial recovery, and independently approved native disposable TEST preview behavior when valid charge ceiling becomes available.",
+        "eligibilityCondition": "V-1 source and synthetic checks eligible; real billed build requires separate enforceable per-operation provider ceiling, purchase grant and disposable fixture.",
+        "dependencies": [
+          "D-3",
+          "E-1"
+        ]
+      },
+      "pr": []
     },
     {
       "id": "V-2",

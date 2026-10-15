@@ -53,7 +53,7 @@ export async function writeProvider(ctx){
       return client.request(id,params);
     },
     uploadFile({sha,bytes},{requestKey,tool}={}){
-      if(tool!=='vercel_deploy_create_from_files'||
+      if(!['vercel_deploy_create_from_files','vercel_dev_seed'].includes(tool)||
         typeof requestKey!=='string'||
         !Buffer.isBuffer(bytes)||bytes.length>2097152)
         throw new TypeError('Guarded deployment file upload requires a stable owner transaction');

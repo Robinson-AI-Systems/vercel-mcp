@@ -193,13 +193,13 @@ names, targets, kind (Config/Secret), branch and dates come out.
 ## Developer tools (`vercel_dev_*`) — 17 (preview only; `docs/designs/BATCH-V.md`)
 
 Building with Vercel on any project. Every tool refuses production targets before reading anything (contract §10), and
-everything it creates is recorded in a run and tagged where Vercel allows (`rtc_run` in deployment meta and env comments).
+everything it creates is recorded in a run and tagged where Vercel allows (`rtc_run` in deployment meta and env comments). Under IN-08, no metered operation may run without a verified provider-enforced lifetime charge ceiling plus one independently authenticated owner grant; a positive AI-supplied budget is not sufficient. V-1 handles recorded deployments and empty scratch projects only; as future V-2/V-4 resource types are added, their native cleanup paths must be implemented and proven before claiming full cleanup support.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_dev_seed` | Create a scratch project from a named scenario (static site, Next.js hello, API function, cron demo) with a first preview; recorded in a run | P | B | E | — | V-1 |
-| `vercel_dev_list_runs` | Runs and exactly what each created | — | B | R | — | V-1 |
-| `vercel_dev_cleanup` | Remove exactly what a run created (preview deployments, preview variables, aliases, bypass secrets, scratch projects, sandboxes) | C | B | E | y | V-1 |
+| `vercel_dev_seed` | Guarded synthetic scratch project plus preview; metered build fails closed until provider-enforceable per-operation ceiling and independent owner grant | P $ | B | F | — | V-1 candidate #206 |
+| `vercel_dev_list_runs` | Bound account-owned run records and exact resource lifecycle state; no cross-account visibility | — | B | R | — | V-1 candidate #206 |
+| `vercel_dev_cleanup` | Exact recorded preview deployment and provably empty scratch project cleanup; later resource families fail closed until native delete wiring | C | B | F | y | V-1 candidate #206 |
 | `vercel_dev_preview_branch` | Deploy a preview of a branch (or commit) for a run; never production; respects a profile's no-preview branches | P | B | E | y | V-2 |
 | `vercel_dev_wire_preview_env` | Set preview-only (optionally branch-only) variables for a feature; values never echoed; recorded for cleanup | P | B | E | y | V-2 |
 | `vercel_dev_alias_preview` | Give a preview a stable `<name>.vercel.app`-style alias; refuses production domains | P | B | E | y | V-2 |

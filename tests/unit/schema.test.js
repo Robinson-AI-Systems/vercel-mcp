@@ -6,11 +6,11 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-it('exports the frozen thirteen-table schema and the four connection fields', () => {
+it('exports the frozen fifteen-table schema and the four connection fields', () => {
   expect(Object.isFrozen(SCHEMA_TABLES)).toBe(true);
   expect(SCHEMA_TABLES).toEqual([
     'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-    'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes'
+    'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects'
   ]);
   expect(CONNECTION_FIELDS).toEqual(['vercel_account', 'mode', 'profile', 'listing']);
   expect(Object.isFrozen(CONNECTION_FIELDS)).toBe(true);

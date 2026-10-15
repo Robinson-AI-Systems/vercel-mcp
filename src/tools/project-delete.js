@@ -58,7 +58,7 @@ function countComplete(reply,key){
   return rows.length;
 }
 // No raw provider resource rows or secret values leave this function.
-async function inspect(ctx,selector,bound){
+export async function inspectProjectForDeletion(ctx,selector,bound){
   const {client,account}=bound??await readProvider(ctx);
   if(!['team','full'].includes(account.scope))
     throw new TypeError('Only authenticated team accounts may delete projects');
@@ -106,7 +106,7 @@ const deletion=defineWrite({
   name:'vercel_project_delete',
   async before(args,ctx){
     assertArgs(args);
-    const state=await inspect(ctx,args.project);
+    const state=await inspectProjectForDeletion(ctx,args.project);
     if(state.name!==args.expectedName)
       throw new TypeError('Typed project name does not match provider identity');
     // Only dry-runs may inspect nonempty impact. Confirmation is empty-only.
@@ -137,7 +137,7 @@ const deletion=defineWrite({
       // Inventory proof and DELETE use one bound token/team even if the owner
       // rotates the account credential during the potentially slow inventory.
       const client={request:(id,params)=>provider.read(id,params)};
-      const fresh=await inspect(ctx,before.id,{client,account:provider.account});
+      const fresh=await inspectProjectForDeletion(ctx,before.id,{client,account:provider.account});
       if(fresh.id!==before.id||fresh.name!==before.name||!fresh.empty)
         throw new TypeError('Deletion impact changed since confirmation');
     });
