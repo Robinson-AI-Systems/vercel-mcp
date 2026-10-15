@@ -75,7 +75,7 @@ const branch=defineWrite({
       if(['READY','ERROR','CANCELED'].includes(row.readyState))break;
       if(Date.now()+2000>deadline)break;
       await new Promise(resolve=>setTimeout(resolve,2000));
-    }while(true);
+    }while(Date.now()<deadline);
     const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
     return {confirmed:row.readyState==='READY'&&
       objects.some(o=>o.object_type==='deployment'&&o.object_id===r.id),

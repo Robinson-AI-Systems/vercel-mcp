@@ -4,6 +4,7 @@ import {dispatchReadOnlyTool,listMcpTools} from '../../src/core/mcp-server.js';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 import {seedManifest} from '../../src/dev/scenarios.js';
+import {encryptSecret} from '../../src/core/secret-box.js';
 import {validateRequest} from '../../src/vercel/openapi-validation.js';
 
 vi.mock('../../src/vercel/tokens.js',async orig=>({...await orig(),loadToken:vi.fn()}));
@@ -45,8 +46,8 @@ function fixture(items=[]){
       release:async()=>true
     })
   };
-  const call=(name,args={},conn=owner)=>dispatchReadOnlyTool({
-    registry,name,args,connection:conn,db,fetchImpl:fake.fetch});
+  const call=(name,args={},conn=owner,env={})=>dispatchReadOnlyTool({
+    registry,name,args,connection:conn,db,fetchImpl:fake.fetch,env});
   return {call,db,fake,runs,rows,audit,ledger};
 }
 describe('V-1 recorded development runs and strict cleanup',()=>{
@@ -255,6 +256,32 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     expect(result.confirmed).toBe(false);
     expect(f.rows.get(runId)[0].status).toBe('blocked');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('revokes only the exact encrypted recorded automation bypass, then proves absence',async()=>{
+    const env={TOKEN_ENCRYPTION_KEY:'11'.repeat(32)};
+    const value='0123456789abcdef0123456789abcdef';
+    const id='byp_0123456789abcdef0123456789abcdef';
+    const box=encryptSecret(value,'dev-bypass:'+runId+':'+id,env);
+    const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
+    const f=fixture([object('bypass',id,project,{ciphertext:box,note:'Isolated test'})]);
+    const active={id:project,name,protectionBypass:{
+      [value]:{scope:'automation-bypass',createdAt:1,createdBy:'owner'}
+    }};
+    const revoked={id:project,name,protectionBypass:{}};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(active).resolves(active).resolves(revoked);
+    f.fake.when('PATCH','/v1/projects/{idOrName}/protection-bypass')
+      .resolves({protectionBypass:{}});
+    const out=parse(await f.call('vercel_dev_cleanup',{
+      runId,outsideApp:true,confirm:true,requestKey:'revokeBypassOne01'
+    },owner,env));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(f.rows.get(runId)[0].status).toBe('cleaned');
+    const writes=f.fake.calls.filter(c=>c.method==='PATCH');
+    expect(writes).toHaveLength(1);
+    expect(writes[0].body).toEqual({revoke:{secret:value,regenerate:false}});
+    expect(JSON.stringify(out)+JSON.stringify(f.audit)).not.toContain(value);
     f.fake.verify();
   });
   it('denies unowned, invalid, and undeclared cleanup runs',async()=>{

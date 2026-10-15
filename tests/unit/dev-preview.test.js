@@ -152,6 +152,8 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
       .toBe(created.id);
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
     const post=f.fake.calls.find(x=>x.method==='POST');
+    expect(f.fake.calls.filter(c=>c.path.endsWith('/env')&&c.method==='GET')
+      .every(c=>!Object.hasOwn(c.query,'limit'))).toBe(true);
     expect(post.body).toMatchObject({key:'DEMO_PREVIEW_ONLY',value:source,
       type:'encrypted',target:['preview'],comment:'rtc_run='+runId});
     expect(JSON.stringify(result)+JSON.stringify(f.audit)+JSON.stringify(f.objects.get(runId)))
