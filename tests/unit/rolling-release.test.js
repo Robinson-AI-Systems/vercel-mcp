@@ -131,7 +131,6 @@ describe('D-4 rolling-release guarded lifecycle',()=>{
       expectedStageIndex:0,expectedUpdatedAt:1234,
       outsideApp:true,confirm:true,requestKey:'rollingApproveFake02'};
     const result=parse(await f.call('vercel_rolling_approve_stage',args,owner));
-    if(result.status==='outcome_unknown')throw Error('ROLLING_APPROVE_TRACE '+JSON.stringify({result,calls:f.fake.calls.map(x=>({method:x.method,path:x.path,body:x.body})),unmatched:f.fake.unmatched}));
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(f.writes()).toHaveLength(1);
     expect(f.writes()[0]).toMatchObject({
@@ -152,7 +151,6 @@ describe('D-4 rolling-release guarded lifecycle',()=>{
       expectedStageIndex:0,expectedUpdatedAt:1234,
       outsideApp:true,confirm:true,requestKey:'rollingCompleteFake01'};
     const out=parse(await f.call('vercel_rolling_complete',args,owner));
-    if(out.status==='outcome_unknown')throw Error('ROLLING_COMPLETE_TRACE '+JSON.stringify({out,calls:f.fake.calls.map(x=>({method:x.method,path:x.path,body:x.body})),unmatched:f.fake.unmatched}));
     expect(out.status).toBe('applied');
     expect(out.confirmed).toBe(null);
     expect(f.writes()).toHaveLength(1);

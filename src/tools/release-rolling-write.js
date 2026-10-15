@@ -138,9 +138,15 @@ async function candidate(a,ctx,kind){
     s.project,r.canary);
   if(old.id!==r.current||target.id!==r.canary)
     throw new TypeError('Deployment identities changed during rollout');
+  const aliases=await ownedAliases(s,s.project);
+  if(aliases.length===0)
+    throw new TypeError('Production routing inventory is empty');
   return {project:s.project,teamId:s.account.team_id,kind,
-    canary:r.canary,current:r.current,
-    configHash,rollout:r,targets:releaseTargets(s,r.canary)};
+    canary:r.canary,current:r.current,aliases,
+    configHash,rollout:r,targets:[
+      ...releaseTargets(s,r.canary),
+      ...aliases.map(x=>({kind:'domain',id:x.domain,
+        projectId:s.project}))]};
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -198,46 +204,29 @@ function factory(kind){
           provider.account.team_id!==b.teamId)
           throw new TypeError('Production connection authorization changed');
         const current=await candidate(a,ctx,kind);
-        if(!sameBefore(current,b)){
-          if(process.env.VITEST)console.error('D4_DRIFT_DETAIL',kind,JSON.stringify({
-            project:current.project===b.project,
-            team:current.teamId===b.teamId,
-            config:current.configHash===b.configHash,
-            desired:JSON.stringify(current.desired)===JSON.stringify(b.desired),
-            canary:current.canary===b.canary,
-            current:current.current===b.current,
-            aliases:JSON.stringify(current.aliases)===JSON.stringify(b.aliases),
-            rollout:sameRollout(current.rollout,b.rollout),
-            beforeStage:b.rollout?.stageIndex,afterStage:current.rollout?.stageIndex,
-            beforeAt:b.rollout?.updatedAt,afterAt:current.rollout?.updatedAt
-          }));
+        if(!sameBefore(current,b))
           throw new TypeError('Rolling-release state/configuration changed before dispatch');
-        }
-        if(process.env.VITEST)console.error('D4_PRE_DISPATCH_PASS',kind);
         if((kind==='config'&&b.desired.enabled||
           kind==='start')&&
           (ctx.purchaseApproval?.operation!==name||
             ctx.purchaseApproval?.requestKey!==requestKey))
           throw new TypeError('Independent charge approval unavailable');
       });
-      const operation={
-        config:b.desired.enabled?'rolling_config_update':'rolling_config_delete',start:'rolling_start',
-        approve:'rolling_approve',complete:'rolling_complete'}[kind];
+      const operation=kind==='config'?
+        (b.desired.enabled?'rolling_config_update':'rolling_config_delete'):
+        {start:'rolling_start',approve:'rolling_approve',
+          complete:'rolling_complete'}[kind];
       const body=kind==='config'?b.desired:
         kind==='approve'?{
           nextStageIndex:b.rollout.nextStageIndex,
           canaryDeploymentId:b.canary
         }:{canaryDeploymentId:b.canary};
-      try {
-        return await provider.write(operation,
-          {path:{idOrName:b.project},...(kind==='config'&&!b.desired.enabled?{}:{body})},
-          {requestKey,tool:name,shapeResult:()=>({
-            project:b.project,operation:kind,
-            canary:b.canary??null})});
-      } catch(e){
-        if(process.env.VITEST)console.error('D4_ROLLING_INTERNAL',kind,e?.name,e?.message);
-        throw e;
-      }
+      return provider.write(operation,
+        {path:{idOrName:b.project},
+          ...(kind==='config'&&!b.desired.enabled?{}:{body})},
+        {requestKey,tool:name,shapeResult:()=>({
+          project:b.project,operation:kind,
+          canary:b.canary??null})});
     },
     async verify(_a,ctx,b){
       try{
