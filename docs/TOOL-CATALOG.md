@@ -197,13 +197,13 @@ everything it creates is recorded in a run and tagged where Vercel allows (`rtc_
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_dev_seed` | Guarded synthetic scratch project plus preview; metered build fails closed until provider-enforceable per-operation ceiling and independent owner grant | P $ | B | F | — | V-1 candidate #206 |
+| `vercel_dev_seed` | Guarded synthetic scratch project plus preview; metered build fails closed until provider-enforceable per-operation ceiling and independent owner grant | P $ | B | F | — | V-1 built #206 |
 | `vercel_dev_list_runs` | Bound account-owned run records and exact resource lifecycle state; no cross-account visibility | — | B | R | — | V-1 candidate #206 |
 | `vercel_dev_cleanup` | Exact recorded preview deployment and provably empty scratch project cleanup; later resource families fail closed until native delete wiring | C | B | F | y | V-1 candidate #206 |
-| `vercel_dev_preview_branch` | Deploy a preview of a branch (or commit) for a run; never production; respects a profile's no-preview branches | P | B | E | y | V-2 |
-| `vercel_dev_wire_preview_env` | Set preview-only (optionally branch-only) variables for a feature; values never echoed; recorded for cleanup | P | B | E | y | V-2 |
-| `vercel_dev_alias_preview` | Give a preview a stable `<name>.vercel.app`-style alias; refuses production domains | P | B | E | y | V-2 |
-| `vercel_dev_create_bypass` | A protection-bypass secret for automated tests of protected previews, shown once; revoked by cleanup | C A 1x | B | E | y | V-2 |
+| `vercel_dev_preview_branch` | Guarded exact GitHub commit preview, tracked per run; metered build fails closed without enforceable total cost ceiling and independent grant | P $ | B | F | y | V-2 candidate |
+| `vercel_dev_wire_preview_env` | Bounded encrypted preview-only variables (optionally Git branch), one private/synthetic source each; exact IDs tracked and revocable | P | B | F | y | V-2 candidate |
+| `vercel_dev_alias_preview` | New run-namespaced .vercel.app alias to verified active READY preview only; refuses all reassignments and production traffic | P A | B | F | y | V-2 candidate |
+| `vercel_dev_create_bypass` | Project-wide protection bypass restricted to isolated run-owned scratch project; secret encrypted and revealed only via authenticated one-time owner page | C A 1x | B | F | y | V-2 candidate |
 | `vercel_dev_tail_logs` | New build and runtime log lines for a preview since the last call (cursor), compact | — | B | R | — | V-3 |
 | `vercel_dev_diagnose_build` | Why a preview build failed: first error, likely cause (missing variable, Node version, install, type error, memory, ignored step) and the fix | — | B | R | — | V-3 |
 | `vercel_dev_fetch_preview` | Fetch paths on a preview (bypass applied server-side): status, timing, headers, first 4 KB each — a quick smoke test | — | B | R | — | V-3 |

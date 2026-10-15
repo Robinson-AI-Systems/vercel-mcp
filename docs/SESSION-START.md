@@ -12,6 +12,34 @@ external acceptance tracked separately. Use focused checks while building,
 then the full required gates on the substantial assembled PR. See the governing
 instructions' **PR workload is measured in predefined batch subsections** rule.
 
+## Anti-stall recovery for an interrupted or red PR (2026-10-15)
+
+1. **Snapshot once:** read current `main`, active PR head, checks, comments, and
+   latest permanent handoff; reconcile concurrent commits before another push.
+   If the last user turn ended, no work was running during that gap. Do not
+   describe the prior chat's last plan as a completed action.
+2. **Triaging CI:** collect the final evidence from *all* failed checks. Assign
+   each failure to the violated contract/fixture/lint/work-index requirement
+   and name its root cause. Fix the group in one focused correction cycle,
+   preserve good security/provider assertions, and avoid CI-driven tiny PRs.
+3. **No busy-wait:** one check-state fetch after push and one when results
+   materially change is generally sufficient. Never issue consecutive
+   identical-state CI polls while there is safe implementation, focused
+   review, debugging or handoff work to do. Bounded waiting alone is not a
+   batch subsection and not progress. Preserve at most two unmerged PRs;
+   do not start a dependent successor until its prerequisite is merged.
+4. **Escalation:** when a check repeats its failure, capture *new* diagnostics
+   from the exact adapter/operation or focused fixture before the next push.
+   When an external proof is absent, attempt authorized remedies, isolate only
+   that operation, and continue independently eligible roadmap behavior.
+   Do not weaken owner approvals, spend ceilings, preview/production isolation,
+   mandatory test sets, reviews, or merge policies to clear CI.
+5. **Recoverable state:** after each meaningful head or gate transition,
+   checkpoint exact SHA, existing batch-subsection ID(s), what passed/failed,
+   next tool action, and external/deployed acceptance separately in the current
+   substantive PR/card. Tell the owner the specific finding during the session.
+   A chat turn is not a background runner; re-enter from actual repository state.
+
 ## 0. Reconcile and recover
 
 Read the governing instructions and the current permanent handoff, not historical
