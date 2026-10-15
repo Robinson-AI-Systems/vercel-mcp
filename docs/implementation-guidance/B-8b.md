@@ -44,7 +44,7 @@ Global default selection changes `is_default` across rows, unlike tenant-scoped 
 owner-only operation's global scope in the amendment and audit; never expose it to an arbitrary full connector.
 Atomic default selection needs concurrency evidence (constraint/transaction supported by the adapter); an
 `UPDATE all false` then `UPDATE target true` without serialization can leave zero/two defaults. Assign any necessary
-additive migration to one B-8b slice; maintain at most one migration per PR.
+additive migration to one B-8b slice; related additive migrations may share a PR with explicit ordering and upgrade/restore proof; split only for a concrete dependency/safety/reviewability reason.
 
 ## 3. Detailed first slice — safe token re-probe
 
