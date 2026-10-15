@@ -9,6 +9,7 @@ import {validateRequest} from '../vercel/openapi-validation.js';
 import {seedManifest,DEV_SCENARIOS} from '../dev/scenarios.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
+import {inspectProjectForDeletion} from './project-delete.js';
 
 const RUN=/^run_[0-9]{8}_[a-z0-9]{6,24}$/;
 const KEY=/^[a-zA-Z0-9_-]{8,128}$/;
@@ -18,7 +19,8 @@ const props={runId:{type:'string',pattern:RUN.source},requestKey:{type:'string',
 const seedSchema={type:'object',properties:{...props,
   scenario:{type:'string',enum:Object.keys(DEV_SCENARIOS)}},
   required:['scenario','outsideApp'],additionalProperties:false};
-const cleanupSchema={type:'object',properties:{...props},
+const cleanupSchema={type:'object',properties:{...props,
+  runId:{type:'string',anyOf:[{pattern:RUN.source},{const:'all-runs'}]}},
   required:['runId','outsideApp'],additionalProperties:false};
 const listSchema={type:'object',properties:{limit:{type:'integer',minimum:1,maximum:20},
   runId:{type:'string',pattern:RUN.source}},additionalProperties:false};
@@ -84,6 +86,14 @@ function noSecretObject(object){
   return {type:object.object_type,id:object.object_id,project:object.project_id,
     status:object.status,error:object.last_error??null,createdAt:object.created_at};
 }
+function sortCleanup(objects){
+  // Dependency order, not provider timestamps: deploys/aliases must be
+  // removed before the project that owns them (even on equal timestamps).
+  const priorities={alias:0,deployment:1,env:2,bypass:3,sandbox:4,project:5,intent:6};
+  return [...objects].sort((a,b)=>(priorities[a.object_type]??9)-
+    (priorities[b.object_type]??9)||String(b.created_at).localeCompare(String(a.created_at))||
+    a.object_id.localeCompare(b.object_id));
+}
 async function trackedRuns(db,account,runId,all=false){
   if(all){
     const runs=await db.listDevRuns({account,limit:50});
@@ -101,7 +111,14 @@ const seed=defineWrite({
     objectArgs(args,Object.keys(seedSchema.properties),seedSchema.required);
     assertPreviewConnection(ctx);
     if(!Object.hasOwn(DEV_SCENARIOS,args.scenario))throw new TypeError('Unknown synthetic seed scenario');
+    // A requestKey is a durable seed identity, even after the ten-minute
+    // transport replay window and a change of calendar date.
+    if(args.requestKey&&await ctx.db.getDevRunByRequestKey({
+      account:scope(ctx),requestKey:args.requestKey}))
+      throw new TypeError('This seed request already has a durable run; reconcile it before retrying');
     const runId=resolvedRun(args,scope(ctx));
+    if(await ctx.db.getDevRun({id:runId,account:scope(ctx)}))
+      throw new TypeError('Existing development run must be reconciled, not recreated');
     const name=scratchName(runId,args.scenario);
     const fixture=seedManifest(args.scenario);
     const {client,account}=await selectedTeam(ctx);
@@ -136,10 +153,17 @@ const seed=defineWrite({
          ctx.purchaseApproval?.requestKey!==requestKey)
         throw new TypeError('Independent owner purchase grant missing');
     });
-    await ctx.db.createDevRun({id:b.runId,account:scope(ctx),
-      connection:connectionIdentity(ctx),description:'Synthetic '+b.scenario});
-    // Persist the intent first. An ambiguous POST cannot be blindly retried:
-    // deterministic name/run id supports owner-mediated provider reconciliation.
+    const run=await ctx.db.createDevRun({id:b.runId,account:scope(ctx),
+      connection:connectionIdentity(ctx),description:'Synthetic '+b.scenario,
+      requestKey:args.requestKey??null});
+    if(run.created!==true)
+      throw new PreDispatchRefusal('Seed run was already claimed; inspect it before any provider write');
+    // Record the irreversible dispatch intent BEFORE the POST. A provider
+    // timeout or an interrupted DB readback leaves an explicit unresolved
+    // checkpoint; cleanup must not pretend the resource never existed.
+    const projectIntent='intent-project-'+b.name;
+    await ctx.db.addDevRunObject({account:scope(ctx),id:b.runId,type:'intent',
+      objectId:projectIntent,detail:{operation:'projects_create',name:b.name}});
     const created=await provider.write('projects_create',{
       body:{name:b.name,...(b.framework?{framework:b.framework}:{})}
     },{requestKey,tool:'vercel_dev_seed',mutationId:'scratch-project',
@@ -150,6 +174,9 @@ const seed=defineWrite({
       }});
     await ctx.db.addDevRunObject({account:scope(ctx),id:b.runId,type:'project',
       objectId:created.id,projectId:created.id,detail:{name:b.name,scenario:b.scenario}});
+    if(!await ctx.db.setDevRunObjectOutcome({account:scope(ctx),id:b.runId,
+      type:'intent',objectId:projectIntent,status:'cleaned'}))
+      throw new TypeError('Project intent readback was not durable');
     for(const item of b.files){
       const original=seedManifest(b.scenario).files.find(f=>f.file===item.file);
       const bytes=Buffer.from(original.content,'utf8');
@@ -163,6 +190,10 @@ const seed=defineWrite({
     await requirePreDispatch(async()=>{
       await assertProject(provider,created.id,b.name,b.teamId);
     });
+    const deploymentIntent='intent-deployment-'+b.name;
+    await ctx.db.addDevRunObject({account:scope(ctx),id:b.runId,type:'intent',
+      objectId:deploymentIntent,projectId:created.id,
+      detail:{operation:'deployments_create',name:b.name,target:'preview'}});
     const deployment=await provider.write('deployments_create',{
       body:{name:b.name,project:b.name,target:'preview',files:b.files,
         meta:{rtc_run:b.runId}}
@@ -176,6 +207,9 @@ const seed=defineWrite({
       }});
     await ctx.db.addDevRunObject({account:scope(ctx),id:b.runId,type:'deployment',
       objectId:deployment.id,projectId:created.id,detail:{target:'preview'}});
+    if(!await ctx.db.setDevRunObjectOutcome({account:scope(ctx),id:b.runId,
+      type:'intent',objectId:deploymentIntent,status:'cleaned'}))
+      throw new TypeError('Deployment intent readback was not durable');
     return {runId:b.runId,projectId:created.id,deploymentId:deployment.id};
   },
   async verify(_args,ctx,b,r){
@@ -196,7 +230,8 @@ const seed=defineWrite({
 });
 async function deleteExactObject(o,ctx,provider,runId,teamId){
   if(o.status==='uncertain')return 'Prior provider outcome is uncertain; manual readback required';
-  if(o.status==='blocked')return 'Previously blocked; a new guarded cleanup request is needed after reviewing state';
+  // A newly confirmed cleanup call may re-prove a previously blocked object.
+  // Uncertain POST/DELETE outcomes are never automatically retried.
   if(o.status!=='active')return null;
   const project=o.project_id;
   if(!project||provider.account.team_id!==teamId)
@@ -224,21 +259,14 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     const name=o.detail?.name;
     if(typeof name!=='string'||!name.startsWith('rtc-'+runId.replaceAll('_','-')+'-'))
       return 'Missing deterministic scratch project provenance';
-    await assertProject(provider,project,name,teamId);
-    // Fail closed if an untracked deployment/domain or incomplete inventory exists.
-    const [deployments,domains]=await Promise.all([
-      provider.read('deployments_list',{query:{projectId:project,limit:100}}),
-      provider.read('projects_domains_list',{path:{idOrName:project}})]);
-    if(!Array.isArray(deployments?.deployments)||deployments.deployments.length||
-       deployments.pagination?.next!==null||
-       !Array.isArray(domains?.domains)||domains.domains.length||
-       domains.pagination?.next!==null)
-      return 'Scratch project is not provably empty and unaliased';
+    const bound={client:{request:(id,params)=>provider.read(id,params)},account:provider.account};
+    const initial=await inspectProjectForDeletion(ctx,project,bound);
+    if(initial.id!==project||initial.name!==name||!initial.empty)
+      return 'Project resource inventory is incomplete, live or no longer empty';
     await requirePreDispatch(async()=>{
-      await assertProject(provider,project,name,teamId);
-      const fresh=await provider.read('deployments_list',{query:{projectId:project,limit:100}});
-      if(!Array.isArray(fresh?.deployments)||fresh.deployments.length||
-         fresh.pagination?.next!==null)throw new TypeError('New deployment or incomplete listing');
+      const fresh=await inspectProjectForDeletion(ctx,project,bound);
+      if(fresh.id!==initial.id||fresh.name!==initial.name||!fresh.empty)
+        throw new TypeError('Scratch project became nonempty before deletion');
     });
     await provider.write('projects_delete',{path:{idOrName:project}},
       {requestKey:ctx.cleanupKey,tool:'vercel_dev_cleanup',mutationId:'delete-project-'+project,
@@ -260,7 +288,7 @@ const cleanup=defineWrite({
     const runs=await trackedRuns(ctx.db,scope(ctx),args.runId,args.runId==='all-runs');
     const groups=[];
     for(const r of runs){
-      const objects=await ctx.db.listDevRunObjects({account:scope(ctx),id:r.id});
+      const objects=sortCleanup(await ctx.db.listDevRunObjects({account:scope(ctx),id:r.id}));
       if(objects.length>=100)throw new TypeError('Object inventory must be complete');
       groups.push({id:r.id,objects});
     }
@@ -273,19 +301,25 @@ const cleanup=defineWrite({
       '. Untracked or production/serving resources are never touched; failures and ambiguous results remain recorded.';
   },
   async production(){return {production:false,why:'Recorded preview fixtures only, with live-state rechecks'};},
-  async targets(_a,b){return b.groups.flatMap(g=>g.objects.map(o=>({
-    kind:o.object_type,id:o.object_id,projectId:o.project_id})));},
+  async targets(_a,b){return b.groups.flatMap(g=>g.objects
+    .filter(o=>o.object_type!=='intent')
+    .map(o=>({kind:o.object_type,id:o.object_id,projectId:o.project_id})));},
   async apply(_a,ctx,b,requestKey){
     const provider=await writeProvider(ctx);
     const outcomes=[];
     for(const group of b.groups){
-      const objects=await ctx.db.listDevRunObjects({account:scope(ctx),id:group.id});
+      const objects=sortCleanup(await ctx.db.listDevRunObjects({account:scope(ctx),id:group.id}));
       if(JSON.stringify(objects.map(o=>[o.object_type,o.object_id]))!==
          JSON.stringify(group.objects.map(o=>[o.object_type,o.object_id])))
         throw new PreDispatchRefusal('Run objects changed after confirmation');
       // Each record is handled separately; never infer a missing object from a tag.
       for(const obj of objects){
         if(obj.status==='cleaned')continue;
+        if(obj.status==='uncertain'){
+          outcomes.push({runId:group.id,type:obj.object_type,
+            id:obj.object_id,status:'uncertain'});
+          continue;
+        }
         let reason=null,uncertain=false;
         try{
           reason=await deleteExactObject(obj,{...ctx,cleanupKey:requestKey},
@@ -333,7 +367,10 @@ export const devRunTools={
     vercel_dev_seed:bindGuardedWrite(seed,context,output),
     vercel_dev_cleanup:bindGuardedWrite(cleanup,context,output),
     async vercel_dev_list_runs(args,ctx){
+      if(ctx.connection?.mode!=='preview')
+        throw new TypeError('Production connection cannot access development tools');
       objectArgs(args,Object.keys(listSchema.properties),[]);
+      if(args.runId==='all-runs')throw new TypeError('Run listing requires an exact owner ID');
       if(args.limit!==undefined&&(!Number.isInteger(args.limit)||args.limit<1||args.limit>20))
         throw new TypeError('Invalid run limit');
       if(typeof ctx.connection?.account!=='string')throw new TypeError('Stored account required');

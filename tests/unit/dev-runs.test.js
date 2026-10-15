@@ -27,6 +27,7 @@ function fixture(items=[]){
     getVercelAccountSafe:async()=>({id:account,spend_limit_cents:0}),
     getTodaySpendCents:async()=>0,
     listDevRuns:async()=>[...runs.values()],
+    getDevRunByRequestKey:async()=>null,
     getDevRun:async({id,account:owner})=>owner===account?runs.get(id)??null:null,
     listDevRunObjects:async({id,account:owner})=>owner===account?structuredClone(rows.get(id)??[]):[],
     setDevRunObjectOutcome:async({id,type,objectId,status,error})=>{
@@ -133,6 +134,35 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
     expect(parse(await f.call('vercel_dev_cleanup',args)).status).toBe('refused_by_guard');
     expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('refuses production listing before reading the database or Vercel provider',async()=>{
+    const f=fixture();
+    const out=await f.call('vercel_dev_list_runs',{}, {...owner,mode:'production'});
+    expect(out.isError).toBe(true);
+    expect(f.fake.calls).toHaveLength(0);
+  });
+  it('preserves unresolved provider outcomes without retrying DELETE',async()=>{
+    const f=fixture([{...object('deployment',deployment),status:'uncertain'}]);
+    const args={runId,outsideApp:true,confirm:true,requestKey:'cleanupUnknown001'};
+    const result=parse(await f.call('vercel_dev_cleanup',args));
+    expect(result.status).toBe('applied');
+    expect(result.confirmed).toBe(false);
+    expect(f.rows.get(runId)[0].status).toBe('uncertain');
+    expect(f.fake.calls).toHaveLength(0);
+  });
+  it('skips nonempty or modified scratch project and preserves its resource record',async()=>{
+    const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
+    const f=fixture([object('project',project,project,{name})]);
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:project,name,accountId:team,link:{type:'github',repo:'foreign/repo'},
+      hasDeployments:false,stores:[],crons:{definitions:[]}});
+    const out=parse(await f.call('vercel_dev_cleanup',{
+      runId,outsideApp:true,confirm:true,requestKey:'cleanupProject001'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(false);
+    expect(f.rows.get(runId)[0].status).toBe('blocked');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
     f.fake.verify();
   });
   it('denies unowned, invalid, and undeclared cleanup runs',async()=>{

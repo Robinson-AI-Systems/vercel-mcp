@@ -708,24 +708,34 @@ export function createDb(query) {
 
     // V-1: all run and object access is bound to the stored Vercel account.
     // An id is never evidence of ownership; SQL checks the actual owner.
-    async createDevRun({id,account,connection,description=''}) {
+    async createDevRun({id,account,connection,description='',requestKey=null}) {
       if(!/^run_[0-9]{8}_[a-z0-9]{6,24}$/.test(id)||
          typeof account!=='string'||!account||
          typeof connection!=='string'||!connection||
-         typeof description!=='string'||description.length>240)
+         typeof description!=='string'||description.length>240||
+         requestKey!==null&&(typeof requestKey!=='string'||!/^[a-zA-Z0-9_-]{8,128}$/.test(requestKey)))
         throw new TypeError('Invalid development run intent');
       const run=getSql();
       const inserted=await run`INSERT INTO dev_runs
-        (id,vercel_account,connection,description)
-        VALUES (${id},${account},${connection},${description})
+        (id,vercel_account,connection,description,request_key)
+        VALUES (${id},${account},${connection},${description},${requestKey})
         ON CONFLICT (id) DO NOTHING RETURNING id`;
-      const rows=await run`SELECT id,vercel_account,connection,description,status,created_at
+      const rows=await run`SELECT id,vercel_account,connection,description,request_key,status,created_at
         FROM dev_runs WHERE id=${id} AND vercel_account=${account}
         AND connection=${connection}`;
       if(rows.length!==1||rows[0].status!=='active'||
-         rows[0].description!==description)
+         rows[0].description!==description||rows[0].request_key!==requestKey)
         throw new TypeError('Development run id belongs to another owner or has changed');
       return {created:inserted.length===1,id:rows[0].id};
+    },
+    async getDevRunByRequestKey({account,requestKey}) {
+      if(typeof account!=='string'||!account||
+         typeof requestKey!=='string'||!/^[a-zA-Z0-9_-]{8,128}$/.test(requestKey))
+        throw new TypeError('Invalid development request identity');
+      const run=getSql();
+      const rows=await run`SELECT id,status,description FROM dev_runs
+        WHERE vercel_account=${account} AND request_key=${requestKey}`;
+      return rows.length===1?rows[0]:null;
     },
     async getDevRun({id,account}) {
       if(typeof id!=='string'||typeof account!=='string')throw new TypeError('Invalid run lookup');
@@ -753,7 +763,7 @@ export function createDb(query) {
         ORDER BY o.created_at DESC,o.object_type DESC,o.object_id DESC LIMIT 100`;
     },
     async addDevRunObject({account,id,type,objectId,projectId=null,detail={}}) {
-      const kinds=['project','deployment','alias','env','bypass','sandbox'];
+      const kinds=['intent','project','deployment','alias','env','bypass','sandbox'];
       if(typeof account!=='string'||typeof id!=='string'||!kinds.includes(type)||
          typeof objectId!=='string'||objectId.length<3||objectId.length>180||
          projectId!==null&&(typeof projectId!=='string'||projectId.length>128)||
@@ -976,6 +986,7 @@ export function createDb(query) {
       await run`CREATE TABLE IF NOT EXISTS dev_runs (
         id TEXT PRIMARY KEY,vercel_account TEXT NOT NULL,
         connection TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',
+        request_key TEXT,UNIQUE(vercel_account,request_key),
         status TEXT NOT NULL DEFAULT 'active'
           CHECK (status IN ('active','cleaned')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),cleaned_at TIMESTAMPTZ)`;

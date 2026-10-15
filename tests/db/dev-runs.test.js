@@ -52,3 +52,24 @@ it('makes ownership and uniqueness visible in the underlying database',async()=>
   const cross=await rawQuery('SELECT count(*)::integer AS n FROM dev_runs WHERE id=$1 AND vercel_account=$2',[id,other]);
   expect(cross[0].n).toBe(0);
 });
+
+it('binds a seed request key across dates, accounts and duplicate run IDs',async()=>{
+  const key='stableSeedFAKE01',first='run_20261014_f1f1f1f1f1',second='run_20261015_f2f2f2f2f2';
+  expect((await db.createDevRun({id:first,account:owner,connection:'conn_one',
+    description:'Synthetic api-function',requestKey:key})).created).toBe(true);
+  expect(await db.getDevRunByRequestKey({account:owner,requestKey:key}))
+    .toMatchObject({id:first,status:'active'});
+  expect(await db.getDevRunByRequestKey({account:other,requestKey:key})).toBe(null);
+  await expect(db.createDevRun({id:second,account:owner,connection:'conn_one',
+    description:'Synthetic api-function',requestKey:key})).rejects.toThrow();
+  expect((await db.getDevRun({id:second,account:owner}))).toBe(null);
+  expect((await db.createDevRun({id:first,account:owner,connection:'conn_one',
+    description:'Synthetic api-function',requestKey:key})).created).toBe(false);
+  expect(await db.addDevRunObject({account:owner,id:first,type:'intent',
+    objectId:'intent-project-rtc-run-20261014-f1f1f1f1f1-api-function',
+    detail:{operation:'projects_create',name:'rtc-fixture'}})).toBe(true);
+  const objects=await db.listDevRunObjects({account:owner,id:first});
+  expect(objects).toHaveLength(1);
+  expect(objects[0].status).toBe('active');
+  expect(await db.completeDevRunCleanup({account:owner,id:first})).toBe(false);
+});
