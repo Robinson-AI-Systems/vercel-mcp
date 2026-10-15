@@ -15,12 +15,13 @@ export function checkTargets(targets, rules, { selfTokenId = '' } = {}) {
   if (!Array.isArray(rules)) return DENY('Protected resource rules are unavailable');
   for (const target of targets) {
     if (!target || !KINDS.has(target.kind)) return DENY('Unrecognized write target');
+    if (target.kind === 'store' && !target.accountId) return DENY('Store team ownership is unknown');
     if (target.kind === 'shared_env' && !target.accountId) return DENY('Shared variable team ownership is unknown');
     if (target.kind === 'token' && (target.isServerToken === true ||
       (selfTokenId && value(target.id) === value(selfTokenId)))) {
       return DENY('The credential used by this server is protected');
     }
-    if (CHILDREN.has(target.kind) &&
+    if (CHILDREN.has(target.kind) && !(target.kind === 'store' && target.accountId) &&
       !target.projectId && !target.parentProjectId && !target.projectName && !target.parentProjectName) {
       return DENY('Resource ownership is unknown; cannot prove it is unprotected');
     }
