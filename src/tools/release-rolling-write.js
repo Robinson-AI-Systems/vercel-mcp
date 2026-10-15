@@ -67,6 +67,10 @@ function verifyInput(a,kind){
         a.expectedUpdatedAt<=0))
     throw new TypeError('Exact selected rolling release, production authority and intent required');
 }
+function stageKey(stages){
+  return JSON.stringify(stages.map(x=>({targetPercentage:x.targetPercentage,
+    duration:x.duration??null,requireApproval:x.requireApproval===true})));
+}
 function plannedConfig(a){
   if(a.enabled===false)return {enabled:false};
   return {enabled:true,advancementType:a.advancementType,
@@ -89,7 +93,8 @@ async function candidate(a,ctx,kind){
     const desired=plannedConfig(a);
     if(a.enabled===s.config.enabled&&
       (a.enabled===false||
-        JSON.stringify(desired)===JSON.stringify(s.config)))
+        desired.advancementType===s.config.advancementType&&
+        stageKey(desired.stages)===stageKey(s.config.stages)))
       throw new TypeError('No rolling-release configuration change requested');
     return {project:s.project,teamId:s.account.team_id,kind,
       desired,configHash,rollout:s.rollout,billing:s.billing,
@@ -223,8 +228,8 @@ function factory(kind){
         if(kind==='config'){
           return {confirmed:state.config.enabled===b.desired.enabled&&
             (b.desired.enabled===false||
-              JSON.stringify(state.config.stages)===
-                JSON.stringify(b.desired.stages))};
+              state.config.advancementType===b.desired.advancementType&&
+              stageKey(state.config.stages)===stageKey(b.desired.stages))};
         }
         const r=state.rollout;
         if(!r||r.canary!==b.canary||r.current!==b.current)
