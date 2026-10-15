@@ -32,3 +32,7 @@ Run focused native regressions and existing required checks; exact-head CI/revie
 remain mandatory. Record final merge/head/live/deployment identities in the merged
 PR handoff. Product/provider acceptance stays in the existing queue and is not
 claimed by this maintenance. Release frequency and all owner gates are unchanged.
+
+Follow-up review: a shared deploymentReady predicate checks READY/source refs and
+ancestry even when the queue is empty; regression tests refuse missing/divergent/
+unknown ref evidence without changing authorization or main-ahead eligibility.
