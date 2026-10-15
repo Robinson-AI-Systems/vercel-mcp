@@ -4,7 +4,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js'
 import {encryptSecret} from '../core/secret-box.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {compact,credentialLike} from '../core/util.js';
-import {readProvider,writeProvider} from '../vercel/provider.js';
+import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
 import {STORE,SLUG,KEY,safeLabel,selected,exact,strictArgs,schema} from './globalconfig-common.js';
