@@ -16,6 +16,8 @@ export const OPS = Object.freeze({
   release_promote_aliases: Object.freeze({ method: 'GET', path: '/v1/projects/{projectId}/promote/aliases' }),
   release_aliases_list: Object.freeze({ method: 'GET', path: '/v4/aliases' }),
   release_alias_get: Object.freeze({ method: 'GET', path: '/v4/aliases/{idOrAlias}' }),
+  release_alias_assign: Object.freeze({ method: 'POST', path: '/v2/deployments/{id}/aliases' }),
+  release_alias_delete: Object.freeze({ method: 'DELETE', path: '/v2/aliases/{aliasId}' }),
   deployments_list: Object.freeze({ method: 'GET', path: '/v7/deployments' }),
   deployments_get: Object.freeze({ method: 'GET', path: '/v13/deployments/{idOrUrl}' }),
   deployments_create: Object.freeze({ method: 'POST', path: '/v13/deployments' }),
