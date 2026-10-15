@@ -1,3 +1,9 @@
+## V-3 fully implemented and exact-head verified — October 15, 2026
+
+One whole preapproved V-3 subsection: four connected preview-only read workflows (bounded signed-cursor event tail, chronological first-error diagnosis, public-address pinned TLS no-redirect smoke fetch with server-private bypass, and metadata-only integration checks). Source diff +671/-1 production lines excluding tests/docs; ten classifier patterns plus foreign project/deployment, cursor, DNS, bypass, routing and redaction regressions. The reviewed implementation head passed exact-head check/unit/db/emulate/ci/release-policy after one correction cycle for a real Vercel identifier accidentally added to STATUS; no scanner or assertion weakened. Existing PR #209 contains this entire coherent work, not a second PR. This permanent card/index describes eligible engineering as completed on the successful PR merge; provider/checked-live/Hub acceptance are separate.
+
+A fresh Vercel provider read independently verified live source ad1a080 READY; native custom MCP run-list read PASSED. Additional native selected-team E2 metadata and project alias reads succeeded safely, while custom-environment and Global Config list completeness remained unverified and latest promotion status incomplete. Native runtime-log GET still returned safe unknown_error despite selected-project deployment read success. Queue now records this actual evidence and source/deployment-specific prerequisites including V-1/V-2/V-3 scenarios. Production disabled and autonomous spending zero; no unauthorized owner fixture mutation or manual promotion.
+
 ## V-3 resumed and native release acceptance evaluated — October 15, 2026
 
 Current main e49f5a3 includes merged guidance PR #208; V-3 source branch PR #209 reconciles it without discarding owner instructions. Existing single V-3 approved subsection implements four preview-only read workflows; strengthened active run/project proof, cross-deployment event rejection, and chronological build-first-error selection with dedicated regressions. The draft remains IN_PROGRESS until exact-head checks/reviews and merge. No V-3 external/provider acceptance claimed.
@@ -313,7 +319,7 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "gates": "Read-only native service connection, independently attested READY source and project/deployment; no writes, raw log messages or secret content",
     "dependsOn": [],
     "status": "PENDING",
-    "lastEvidence": "2026-10-14: provider independently verified READY production at 5650873; native deployment detail and scoped preview env metadata read succeeded using exact provider project ID. Native bounded runtime-log GET still unknown_error; independent standard-provider log view found no matching rows but is not custom acceptance. Candidate b19efea95be5e552ee5232770342e1ebabd2d23a shortens stream budget and safely classifies malformed frames; requires exact-head CI and later checked source deployment, then native retest. Neither empty results nor real log protocol accepted. 2026-10-15 current READY source ad1a080: authenticated custom call vercel_deploy_get(independently verified READY deployment (ID withheld by repository secret-scan policy)) returned sanitized provider unknown_error; deeper runtime-log read was not reached. Do not mark D2 PASSED; obtain exact provider failure and selected test deployment."
+    "lastEvidence": "2026-10-14: provider independently verified READY production at 5650873; native deployment detail and scoped preview env metadata read succeeded using exact provider project ID. Native bounded runtime-log GET still unknown_error; independent standard-provider log view found no matching rows but is not custom acceptance. Candidate b19efea95be5e552ee5232770342e1ebabd2d23a shortens stream budget and safely classifies malformed frames; requires exact-head CI and later checked source deployment, then native retest. Neither empty results nor real log protocol accepted. 2026-10-15 current READY source ad1a080: authenticated custom call vercel_deploy_get(independently verified READY deployment (ID withheld by repository secret-scan policy)) returned sanitized provider unknown_error; deeper runtime-log read was not reached. Do not mark D2 PASSED; obtain exact provider failure and selected test deployment. Read-only native custom project-scoped deployment metadata GET passed at latest READY source. Native runtime-log call remained sanitized unknown_error, and independent provider grouped-log response was empty. Attempt actual native status/error read on approved nonproduction deployment with logs; do not claim PASS."
   },
   {
     "id": "VERCEL-E2-METADATA",
@@ -324,7 +330,7 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "gates": "Verified READY production ancestry, own service-issued authorization, selected-team/test project grants; no provider writes or disclosure of values",
     "dependsOn": [],
     "status": "PENDING",
-    "lastEvidence": "Source fake-provider E-2 unit tests on PR #194; not a deployed or real-provider acceptance pass"
+    "lastEvidence": "Source fake-provider E-2 unit tests on PR #194; not a deployed or real-provider acceptance pass 2026-10-15 native custom MCP `vercel_shared_env_list` returned one selected-team metadata-only row with complete=true and hasValues=false/hasDigests=false; `vercel_environment_list` on independently verified service project returned zero rows but complete=false. Thus shared metadata read passed as subcheck; full E2-METADATA remains PENDING for complete custom-environment provider inventory."
   },
   {
     "id": "VERCEL-E2-CUSTOM-CREATE",
@@ -401,7 +407,7 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "gates": "Verified READY production ancestry, custom MCP selected-team owner authorization, disposable TEST-only store, no app/protected resources and no spending",
     "dependsOn": [],
     "status": "PENDING",
-    "lastEvidence": "Source and mocked HTTP tests only; real provider API and cleanup not tested"
+    "lastEvidence": "Source and mocked HTTP tests only; real provider API and cleanup not tested 2026-10-15 native custom `vercel_globalconfig_list` on selected team returned zero stores, no token data, but complete=false; this is read/shape evidence, NOT a complete list acceptance pass. Need fixture or native exhaustive pagination proof."
   },
   {
     "id": "VERCEL-E3-GLOBAL-ITEMS",
@@ -533,7 +539,7 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "gates": "Production READY verified checked source ancestry, genuine native custom MCP team authorization, independently signed owner disposable fixture, full production-enabled profile for actual traffic writes, safety/replay/cleanup and no spending",
     "dependsOn": [],
     "status": "PENDING",
-    "lastEvidence": "Source/fake-provider tests are not native acceptance; no live provider write or owner approval attempted."
+    "lastEvidence": "Source/fake-provider tests are not native acceptance; no live provider write or owner approval attempted. 2026-10-15 native custom `vercel_alias_list` on exact selected MCP service project returned three aliases mapped to independently verified READY production deployment, complete=true, hasSecrets=false. Native `vercel_deploy_get` and `vercel_rolling_get` succeeded; rolling disabled/active=null; latest `vercel_deploy_list_promote_aliases` returned one pending alias and complete=false, so final promote status remains unverified. No traffic change."
   },
   {
     "id": "VERCEL-D4-RELEASE-PROMOTE",
@@ -567,6 +573,72 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Source/fake-provider tests are not native acceptance; no live provider write or owner approval attempted."
+  },
+  {
+    "id": "VERCEL-V1-SEED-CLEANUP",
+    "priority": 6,
+    "requiredRevision": "ad1a080b4b612ba6cd1d6d43e5d1b3a2c24a54b0",
+    "task": "Prove recorded synthetic preview intent, precise run-owned cleanup, denial on foreign/serving resources and independent absence readback, without claiming metered preview execution",
+    "procedure": "docs/pr-cards/V-1.md",
+    "gates": "Separate independently authenticated owner purchase grant plus provider-enforceable total operation cost ceiling under IN-08, owner-approved disposable project, exact custom MCP preview connection, no production changes; until then assess read-only denials with recorded fixture",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "2026-10-15 source behavior tracked in merged or candidate engineering; no live native/provider acceptance for this scenario. Do not substitute source CI, standard Vercel connector, or an unapproved provider mutation."
+  },
+  {
+    "id": "VERCEL-V2-ISOLATED-PREVIEW",
+    "priority": 6,
+    "requiredRevision": "66ed6fab3ffbbb1c4d856564ad6a04cbb0b84739",
+    "task": "Prove native custom MCP preview branch/env, owned preview alias, isolated project-only bypass/revocation and exact run-scoped cleanup with private credential never emitted",
+    "procedure": "docs/pr-cards/V-2.md",
+    "gates": "V-2 exact source first in checked READY deployment; owner-authorized isolated disposable nonproduction run with original service token, one-time owner approval for access widening and provider-enforceable build cost ceiling if preview build needed",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "2026-10-15 source behavior tracked in merged or candidate engineering; no live native/provider acceptance for this scenario. Do not substitute source CI, standard Vercel connector, or an unapproved provider mutation."
+  },
+  {
+    "id": "VERCEL-V3-LOG-TAIL",
+    "priority": 6,
+    "requiredRevision": "b0fdf8195d5cfa3ccddfa2cb258787a3c61008d8",
+    "task": "Prove native signed owner/deployment-bound preview build/runtime cursor progress, foreign cursor denial and no raw log secrets",
+    "procedure": "docs/pr-cards/V-3.md",
+    "gates": "V-3 reviewed source in READY deployment; owner-approved run-owned preview deployment with bounded provider events and genuine custom OAuth; no chargeable preview builds without IN-08 owner ceiling/grant",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "2026-10-15 source behavior tracked in merged or candidate engineering; no live native/provider acceptance for this scenario. Do not substitute source CI, standard Vercel connector, or an unapproved provider mutation."
+  },
+  {
+    "id": "VERCEL-V3-BUILD-DIAGNOSIS",
+    "priority": 6,
+    "requiredRevision": "b0fdf8195d5cfa3ccddfa2cb258787a3c61008d8",
+    "task": "Prove native first chronological failure classification on a recorded failed preview build and safe actionable diagnosis without raw provider credentials",
+    "procedure": "docs/pr-cards/V-3.md",
+    "gates": "V-3 reviewed source deployed; genuine owner-approved existing run-owned failing preview deployment; new paid synthetic build unavailable without enforceable ceiling and separate grant",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "2026-10-15 source behavior tracked in merged or candidate engineering; no live native/provider acceptance for this scenario. Do not substitute source CI, standard Vercel connector, or an unapproved provider mutation."
+  },
+  {
+    "id": "VERCEL-V3-PREVIEW-FETCH",
+    "priority": 6,
+    "requiredRevision": "b0fdf8195d5cfa3ccddfa2cb258787a3c61008d8",
+    "task": "Prove actual TLS host-pinned preview smoke GET, safe bytes/header caps, redirect refusal and encrypted server-private bypass denial/cleanup",
+    "procedure": "docs/pr-cards/V-3.md",
+    "gates": "V-3 source deployed; owner-approved recorded public preview host, genuine custom OAuth, optional independently approved isolated project bypass; never forward bypass outside verified host",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "2026-10-15 source behavior tracked in merged or candidate engineering; no live native/provider acceptance for this scenario. Do not substitute source CI, standard Vercel connector, or an unapproved provider mutation."
+  },
+  {
+    "id": "VERCEL-V3-INTEGRATION",
+    "priority": 6,
+    "requiredRevision": "b0fdf8195d5cfa3ccddfa2cb258787a3c61008d8",
+    "task": "Prove actual metadata-only preview/development environment, verified run aliases, framework/runtime and honest unverified third-party integration results",
+    "procedure": "docs/pr-cards/V-3.md",
+    "gates": "V-3 source deployed; owner-approved active run-owned preview project with complete provider inventory; never inspect secret values or change production",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "2026-10-15 source behavior tracked in merged or candidate engineering; no live native/provider acceptance for this scenario. Do not substitute source CI, standard Vercel connector, or an unapproved provider mutation."
   }
 ]
 ```

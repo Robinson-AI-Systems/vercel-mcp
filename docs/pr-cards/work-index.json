@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-14",
+  "updated": "2026-10-15",
   "order": [
     "A",
     "B",
@@ -837,25 +837,28 @@
         "V-1"
       ],
       "card": "docs/pr-cards/V-3.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "V-3"
       ],
-      "readiness": "CARD_WRITTEN",
+      "readiness": "VERIFIED_AND_MERGED",
       "ownerInputs": [],
-      "pr": [],
+      "pr": [
+        209
+      ],
       "revisit": {
-        "trigger": "next-implementation-slice",
-        "owner": "current V-3 implementation agent",
-        "reason": "V-3 four approved read-only preview workflows are being assembled with pinned event/log metadata and V-1/V-2 owner records; exact-head CI/review remains unverified.",
-        "nextAction": "Check full pinned provider shape and fake contracts, resolve all CI failures in one coherent correction set, merge only on exact-head required green gates.",
-        "checkpoint": "starting main 66ed6fab3ffbbb1c4d856564ad6a04cbb0b84739, branch ai/gpt6/v3-preview-observability-20261015",
-        "evidenceNeeded": "Signed cursor ownership/replay tests, public DNS and no-redirect fetch, encrypted bypass kept server-side, metadata-only integration and exact-head CI.",
-        "eligibilityCondition": "V-1/V-2 merged; read-only synthetic source work eligible; live direct and Hub/provider acceptance remain separate.",
+        "trigger": "external-acceptance",
+        "owner": "checked release/provider acceptance reviewer",
+        "reason": "Four preview observation workflows engineered and exact-head mandatory source checks green; true native deployment and actual approved preview resource still outstanding.",
+        "nextAction": "After normal checked promotion of source PR #209, run the six V1/V2/V3 source-specific queued native provider scenarios only when their own owner/preview authorization is actually present.",
+        "checkpoint": "PR #209 exact-head b0fdf8195d5cfa3ccddfa2cb258787a3c61008d8 with ci/check/unit/db/emulate/release-policy green; no production source update",
+        "evidenceNeeded": "Verified checked READY source containing V-3; owner-approved recorded preview deployment, provider events, native OAuth, independent readback, and Hub direct/relay/Sandbox",
+        "eligibilityCondition": "Only exact current READY deployed ancestor scenarios are eligible; no new metered build without IN-08 ceiling/independent grant.",
         "dependencies": [
-          "V-1"
+          "V-1",
+          "V-2"
         ]
       }
     },
