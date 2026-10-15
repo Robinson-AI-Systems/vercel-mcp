@@ -15,8 +15,9 @@
     "test:emulate": "bash scripts/emulate.sh",
     "check:developer-evidence": "node scripts/check-developer-evidence.mjs && node --test scripts/check-developer-evidence.test.mjs",
     "session:status": "node scripts/session-status.mjs",
-    "check:session": "node --test scripts/bundle-plan.test.mjs scripts/session-status.test.mjs && node scripts/session-status.mjs",
-    "session:bundle": "node scripts/bundle-plan.mjs"
+    "check:session": "node --test scripts/session-prepare.test.mjs scripts/check-ci-layout.test.mjs scripts/ci-phase.test.mjs scripts/bundle-plan.test.mjs scripts/session-status.test.mjs && node scripts/session-status.mjs && node scripts/check-ci-layout.mjs",
+    "session:bundle": "node scripts/bundle-plan.mjs",
+    "session:prepare": "node scripts/session-prepare.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
