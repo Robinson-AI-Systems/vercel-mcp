@@ -7,7 +7,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -705,6 +705,94 @@ export function createDb(query) {
       return rows[0].count;
     },
     // Atomic, cross-instance reservation: a timed-out write stays pending, not blindly retried.
+
+    // V-1: all run and object access is bound to the stored Vercel account.
+    // An id is never evidence of ownership; SQL checks the actual owner.
+    async createDevRun({id,account,connection,description=''}) {
+      if(!/^run_[0-9]{8}_[a-z0-9]{6,24}$/.test(id)||
+         typeof account!=='string'||!account||
+         typeof connection!=='string'||!connection||
+         typeof description!=='string'||description.length>240)
+        throw new TypeError('Invalid development run intent');
+      const run=getSql();
+      const inserted=await run`INSERT INTO dev_runs
+        (id,vercel_account,connection,description)
+        VALUES (${id},${account},${connection},${description})
+        ON CONFLICT (id) DO NOTHING RETURNING id`;
+      const rows=await run`SELECT id,vercel_account,connection,description,status,created_at
+        FROM dev_runs WHERE id=${id} AND vercel_account=${account}
+        AND connection=${connection}`;
+      if(rows.length!==1||rows[0].status!=='active'||
+         rows[0].description!==description)
+        throw new TypeError('Development run id belongs to another owner or has changed');
+      return {created:inserted.length===1,id:rows[0].id};
+    },
+    async getDevRun({id,account}) {
+      if(typeof id!=='string'||typeof account!=='string')throw new TypeError('Invalid run lookup');
+      const run=getSql();
+      const rows=await run`SELECT id,vercel_account,connection,description,status,created_at,cleaned_at
+        FROM dev_runs WHERE id=${id} AND vercel_account=${account}`;
+      return rows.length===1?rows[0]:null;
+    },
+    async listDevRuns({account,limit=20}) {
+      if(typeof account!=='string'||!account||!Number.isInteger(limit)||limit<1||limit>50)
+        throw new TypeError('Invalid development run listing');
+      const run=getSql();
+      return run`SELECT id,description,status,created_at,cleaned_at
+        FROM dev_runs WHERE vercel_account=${account}
+        ORDER BY created_at DESC,id DESC LIMIT ${limit}`;
+    },
+    async listDevRunObjects({account,id}) {
+      if(typeof account!=='string'||!account||typeof id!=='string')
+        throw new TypeError('Invalid development object lookup');
+      const run=getSql();
+      return run`SELECT o.object_type,o.object_id,o.project_id,o.detail,
+        o.created_at,o.status,o.last_error,o.cleaned_at
+        FROM dev_run_objects o JOIN dev_runs r ON r.id=o.run_id
+        WHERE r.vercel_account=${account} AND r.id=${id}
+        ORDER BY o.created_at DESC,o.object_type DESC,o.object_id DESC LIMIT 100`;
+    },
+    async addDevRunObject({account,id,type,objectId,projectId=null,detail={}}) {
+      const kinds=['project','deployment','alias','env','bypass','sandbox'];
+      if(typeof account!=='string'||typeof id!=='string'||!kinds.includes(type)||
+         typeof objectId!=='string'||objectId.length<3||objectId.length>180||
+         projectId!==null&&(typeof projectId!=='string'||projectId.length>128)||
+         !detail||typeof detail!=='object'||Array.isArray(detail)||
+         Buffer.byteLength(JSON.stringify(detail))>2000)
+        throw new TypeError('Invalid precise development resource');
+      const run=getSql();
+      const rows=await run`INSERT INTO dev_run_objects
+        (run_id,object_type,object_id,project_id,detail)
+        SELECT r.id,${type},${objectId},${projectId},${JSON.stringify(detail)}::jsonb
+        FROM dev_runs r WHERE r.id=${id} AND r.vercel_account=${account}
+        AND r.status='active'
+        ON CONFLICT (run_id,object_type,object_id) DO NOTHING RETURNING object_id`;
+      if(rows.length!==1)throw new TypeError('Object was already tracked or the run is not active');
+      return true;
+    },
+    async setDevRunObjectOutcome({account,id,type,objectId,status,error=null}) {
+      if(!['cleaned','blocked','uncertain'].includes(status)||
+         error!==null&&(typeof error!=='string'||error.length>160))
+        throw new TypeError('Invalid cleanup outcome');
+      const run=getSql();
+      const rows=await run`UPDATE dev_run_objects AS o SET
+        status=${status},last_error=${error},
+        cleaned_at=CASE WHEN ${status}='cleaned' THEN now() ELSE NULL END
+        FROM dev_runs AS r
+        WHERE r.id=o.run_id AND r.id=${id} AND r.vercel_account=${account}
+        AND o.object_type=${type} AND o.object_id=${objectId}
+        AND o.status<>'cleaned' RETURNING o.object_id`;
+      return rows.length===1;
+    },
+    async completeDevRunCleanup({account,id}) {
+      const run=getSql();
+      const rows=await run`UPDATE dev_runs AS r SET status='cleaned',cleaned_at=now()
+        WHERE r.id=${id} AND r.vercel_account=${account} AND r.status='active'
+        AND NOT EXISTS (SELECT 1 FROM dev_run_objects o
+          WHERE o.run_id=r.id AND o.status<>'cleaned')
+        RETURNING r.id`;
+      return rows.length===1;
+    },
     requestReplayStore() {
       return {
         async claim({ key, account, mode, tool, ttlMs = 600000 }) {
@@ -884,6 +972,25 @@ export function createDb(query) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL,
         summary TEXT, body JSONB NOT NULL)`;
       await run`CREATE INDEX IF NOT EXISTS result_store_expires ON result_store(expires_at)`;
+
+      await run`CREATE TABLE IF NOT EXISTS dev_runs (
+        id TEXT PRIMARY KEY,vercel_account TEXT NOT NULL,
+        connection TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'active'
+          CHECK (status IN ('active','cleaned')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),cleaned_at TIMESTAMPTZ)`;
+      await run`CREATE INDEX IF NOT EXISTS dev_runs_account
+        ON dev_runs(vercel_account,created_at DESC)`;
+      await run`CREATE TABLE IF NOT EXISTS dev_run_objects (
+        run_id TEXT NOT NULL REFERENCES dev_runs(id),object_type TEXT NOT NULL,
+        object_id TEXT NOT NULL,project_id TEXT,detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        status TEXT NOT NULL DEFAULT 'active'
+          CHECK (status IN ('active','cleaned','blocked','uncertain')),
+        last_error TEXT,cleaned_at TIMESTAMPTZ,
+        PRIMARY KEY (run_id,object_type,object_id))`;
+      await run`CREATE INDEX IF NOT EXISTS dev_run_objects_run
+        ON dev_run_objects(run_id,created_at DESC)`;
       await run`CREATE TABLE IF NOT EXISTS request_replay (
         request_key TEXT PRIMARY KEY, vercel_account TEXT NOT NULL, mode TEXT NOT NULL,
         tool TEXT NOT NULL, claim_id UUID NOT NULL, status TEXT NOT NULL DEFAULT 'pending',

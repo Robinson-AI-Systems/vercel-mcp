@@ -1,3 +1,7 @@
+## V-1 recorded preview development runs — candidate 2026-10-14
+
+Source implementation branch `ai/gpt6/v1-owned-dev-runs-20261014` from main `51a64e4`; V-1 remains **IN_PROGRESS (zero whole completed subsections)** until exact-head CI/review/merge. Scope is synthetic seed, account-owned run tracking, and precise cleanup; source, SQL, registry, tests and card travel together. An unbounded metered preview build cannot be authorized under IN-08 even with AI confirmation; the positive provider write stays disabled until a provider-enforceable per-operation total-cost ceiling and separate one-use owner approval are both proven. Recorded resource-only cleanup independently refuses serving/production/unknown targets. No provider write, Neon production SQL operation, production enablement, purchase, manual release or live acceptance was conducted. Existing acceptance queue entries remain unchanged. PR checks/results and final merged SHA must be filled in from actual Actions evidence, not guessed. Next after V-1 full engineering: V-2 then V-3 in approved roadmap order; D-4 positive billed PATCH/body and connected acceptance remain separately pending.
+
 ## Owner-requested design detail — October 14, 2026
 
 Completed a code-grounded remaining-design review in `docs/implementation-contracts/IMPLEMENTATION-DETAIL.md` and linked
