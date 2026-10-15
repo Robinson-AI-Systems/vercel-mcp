@@ -17,13 +17,14 @@ const PROPS={
   expectedUpdatedAt:REV,
   label:{type:'string',minLength:1,maxLength:52},
   versionId:{type:'string',pattern:VERSION.source},
+  beforeTime:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$'},
   outsideApp:{type:'boolean',const:true},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[A-Za-z0-9_-]{8,128}$'}
 };
 const controls=['id','expectedSlug','expectedUpdatedAt','outsideApp','confirm','dryRun','requestKey'];
 const tokenFields=[...controls,'label'];
-const restoreFields=[...controls,'versionId'];
+const restoreFields=[...controls,'versionId','beforeTime'];
 function controlsValid(a,keys){
   strictArgs(a,keys);
   if(!STORE.test(a.id??'')||!SLUG.test(a.expectedSlug??'')||
@@ -150,6 +151,55 @@ function backupVersion(raw,id,storeId){
   }
   return items;
 }
+// An optional timestamp selector is never converted into "latest" by guessing.
+// The authoritative API must supply a complete, bounded backup inventory.
+function timestamp(value){
+  if(typeof value==='number'&&Number.isSafeInteger(value)&&value>=1e11&&
+    value<=4102444800000)return value;
+  if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value))
+    throw new TypeError('Backup timestamp must be an exact UTC instant');
+  const millis=Date.parse(value);
+  if(!Number.isSafeInteger(millis)||new Date(millis).toISOString()!==value||
+    millis<1e11||millis>4102444800000)
+    throw new TypeError('Backup timestamp unverified');
+  return millis;
+}
+async function newestBefore(client,id,instant){
+  const raw=await client.request('global_config_backups',{
+    path:{edgeConfigId:id},query:{limit:50}});
+  const rows=Array.isArray(raw)?raw:raw?.backups??raw?.data;
+  if(!Array.isArray(rows)||rows.length>50||
+    !raw?.pagination||raw.pagination.next!==null)
+    throw new TypeError('Backup inventory is incomplete; select an exact version');
+  const seen=new Set(),parsed=rows.map(row=>{
+    const version=row?.id??row?.versionId??row?.version;
+    if(!VERSION.test(version??'')||seen.has(version))
+      throw new TypeError('Unverified or duplicated backup identity');
+    seen.add(version);
+    if(row.edgeConfigId!=null&&row.edgeConfigId!==id)
+      throw new TypeError('Backup belongs to a different store');
+    return {version,at:timestamp(row.createdAt)};
+  });
+  const eligible=parsed.filter(x=>x.at<instant).sort((a,b)=>b.at-a.at);
+  if(!eligible.length)throw new TypeError('No backup existed before requested UTC instant');
+  if(eligible.length>1&&eligible[0].at===eligible[1].at)
+    throw new TypeError('Newest backup timestamp is ambiguous');
+  return eligible[0].version;
+}
+async function chosenBackup(a,client,storeId){
+  const hasVersion=a.versionId!==undefined,hasTime=a.beforeTime!==undefined;
+  if(hasVersion===hasTime)
+    throw new TypeError('Choose exactly one backup version ID or UTC beforeTime');
+  if(hasVersion){
+    if(!VERSION.test(a.versionId??''))throw new TypeError('Invalid exact backup ID');
+    return a.versionId;
+  }
+  const until=timestamp(a.beforeTime);
+  if(until>Date.now())
+    throw new TypeError('Cannot select a future backup cutoff');
+  return newestBefore(client,storeId,until);
+}
+
 function describeDiff(from,to){
   const before=Object.keys(from),after=Object.keys(to);
   return {
@@ -161,14 +211,15 @@ function describeDiff(from,to){
 }
 async function restoreState(a,ctx){
   controlsValid(a,restoreFields);
-  if(!VERSION.test(a.versionId??''))throw new TypeError('Exact backup version ID required');
+
   const {client,account,row}=await store(ctx,a);
-  const path={edgeConfigId:row.id,edgeConfigBackupVersionId:a.versionId};
+  const versionId=await chosenBackup(a,client,row.id);
+  const path={edgeConfigId:row.id,edgeConfigBackupVersionId:versionId};
   const [now,backup]=await Promise.all([
     client.request('global_config_items',{path:{edgeConfigId:row.id}}),
     client.request('global_config_backup_get',{path})
   ]);
-  const current=allItems(now),saved=backupVersion(backup,a.versionId,row.id);
+  const current=allItems(now),saved=backupVersion(backup,versionId,row.id);
   if(Object.keys(current).length!==row.itemCount)
     throw new TypeError('Store item inventory did not match declared item count');
   const diff=describeDiff(current,saved);
@@ -176,7 +227,7 @@ async function restoreState(a,ctx){
     throw new TypeError('Backup is already identical; no restore needed');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
-    projects:[...row.projects].sort(),versionId:a.versionId,
+    projects:[...row.projects].sort(),versionId,
     backupItemCount:Object.keys(saved).length,diff};
 }
 function restoreUnchanged(b,after){
@@ -190,9 +241,10 @@ function restoreUnchanged(b,after){
 const restore=defineWrite({
   name:'vercel_globalconfig_restore_backup',
   before:restoreState,
-  async preview(_a,_ctx,b){
+  async preview(a,_ctx,b){
     const d=b.diff;
-    return 'Restore exact Global Config backup '+b.versionId+' to '+b.slug+
+    return 'Restore resolved Global Config backup '+b.versionId+
+      (a.beforeTime?' (newest before '+a.beforeTime+')':'')+' to '+b.slug+
       ' ('+b.id+') with '+b.backupItemCount+' items. Create ['+
       d.create.join(', ')+']; update ['+d.update.join(', ')+
       ']; remove ['+d.remove.join(', ')+']. Item values hidden. Linked projects: '+
@@ -248,7 +300,7 @@ export const globalConfigRemainingTools={
       profiles:['everyday','full'],area:'env',
       description:'Version-pinned Global Config restore after exact item-key diff and live-project classification.',
       inputSchema:schema(Object.fromEntries(restoreFields.map(k=>[k,PROPS[k]])),
-        ['id','expectedSlug','expectedUpdatedAt','versionId','outsideApp']),
+        ['id','expectedSlug','expectedUpdatedAt','outsideApp']),
       writeContract:restore.writeContract,
       annotations:{readOnlyHint:false,destructiveHint:true}}
   ],
