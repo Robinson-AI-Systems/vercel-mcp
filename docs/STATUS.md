@@ -2,6 +2,10 @@
 
 ## Acceptance-first session tooling — October 15, 2026
 
+Follow-up: deployment provenance is shared by planning and accounting and is
+verified even for an empty queue. Unknown/missing/divergent refs fail closed;
+the empty-queue native regression preserves partial-release support.
+
 Owner-authorized cross-repository workflow repair: session status now presents
 per-deployment acceptance actions before roadmap work, separately lists waiting
 checks, and validates complete/stale-free temporary acceptance accounting.
