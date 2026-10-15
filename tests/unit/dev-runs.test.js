@@ -157,6 +157,14 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     f.fake.when('GET','/v9/projects/{idOrName}').resolves({
       id:project,name,accountId:team,link:{type:'github',repo:'foreign/repo'},
       hasDeployments:false,stores:[],crons:{definitions:[]}});
+    // Full reusable project-deletion inspector requires complete independent
+    // domain, environment and deployment pages even when Git linkage is known.
+    f.fake.when('GET','/v9/projects/{idOrName}/domains')
+      .resolves({domains:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v10/projects/{idOrName}/env')
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null,count:0}});
     const out=parse(await f.call('vercel_dev_cleanup',{
       runId,outsideApp:true,confirm:true,requestKey:'cleanupProject001'}));
     expect(out.status).toBe('applied');
