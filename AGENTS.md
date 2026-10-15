@@ -50,6 +50,28 @@ The rolling sample used for per-PR workload statistics is not a session quota.
 
 ## PR workload is measured in predefined batch subsections — owner clarification 2026-10-14
 
+**Bundle, card and PR boundaries — owner alignment 2026-10-15.** A card defines
+approved subsection scope; it is not automatically a PR or bundle boundary.
+A bundle is a coherent usable implementation outcome, normally averaging 2–5
+fully completed existing subsections and 400–800 meaningful production-code
+lines (tests/docs/generated/formatting excluded). Select the related cards and
+full acceptance before coding. One substantial subsection can qualify when its
+full workload naturally warrants it; merely finishing a smaller card does not
+make it a bundle. Larger coherent outcomes are allowed when reliably reviewable.
+There is no 500/800-line ceiling, file-count ceiling, one-migration quota or
+blanket one-risk-area rule. Related migrations may share a PR with explicit
+ordering, upgrade/restore proof and safe rollout. Keep every distinct risk,
+permission, confirmation and provider boundary independently enforced/tested;
+shared delivery never combines or relaxes those controls. Split delivery only
+for a concrete migration, dependency, safety or reviewability reason; record
+that reason and the unfinished integration. A bundle spanning PRs counts once
+when its intended outcome is fully implemented, verified and merged. Keep measuring the existing rolling per-substantive-PR workload averages even
+when a bundle spans PRs; explain smaller justified deliveries rather than hiding
+them in bundle totals. The current
+owner prompt sets bundle count, never a standing repository quota. These rules
+supersede older numeric/grouping restrictions in recipes or example cards.
+
+
 **The countable work unit is a predefined batch subsection** in the authoritative
 approved roadmap/design, such as H-3, H-4 or B-5 (use this repository's actual IDs).
 The target is **2–5 fully completed batch subsections per substantive PR on
@@ -321,7 +343,7 @@ burned by overclaiming. A passing typecheck, a screenshot or a plan is not evide
 
 ## Scope and owner decisions
 
-Build what the current card asks, completely. Other ideas go in `docs/ROADMAP.md` and your report — don't build them
+Build the full selected approved card or related cards for the current bundle. Other ideas go in `docs/ROADMAP.md` and your report — don't build them
 unasked. Owner decisions live in `docs/OWNER-INPUTS.md` with stable IDs (`IN-xx`); check there first and ask only for
 what the current card needs. Build what doesn't depend on a missing answer; keep the dependent behavior off.
 
@@ -333,14 +355,15 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
 ## How work is organized
 
 - **Approved designs, just-in-time cards.** Implement only approved scope (`docs/designs/BATCH-*.md`, `docs/PLAN.md`).
-  The implementing model writes the card for the current unit (and its immediate successor when useful) from the
+  The implementing model writes the short cards selected for the current bundle (and its immediate successor when useful) from the
   approved design and actual code (`docs/pr-cards/README.md`). A missing card means write it, not stop. Production,
   spend, secrets and guards follow the design's contract; if it can't work, propose a dated amendment and get it
   reviewed.
 - **Drift and reconciliation** (`docs/implementation-contracts/DRIFT-PROTOCOL.md`): checklist A before each PR, B inside
   each PR written as if it had already merged, C when a batch finishes.
-- **PR size:** about 500 production lines and 15 files, advisory size estimate, at most one migration, one risk area
-  (PLAYBOOK Step 3a).
+- **PR boundary:** follow the bundle/card/PR rule above and PLAYBOOK Step 3a. Related whole
+  subsections may share a PR; no line/file ceiling, one-migration quota or blanket one-risk-area rule
+  forces fragmentation. Document a concrete migration/dependency/safety/reviewability reason to split.
 - **Model:** whichever model Chris selected does the work. Sol 5.6 is the routine implementer: light effort for an
   already-tested pattern (a new read tool), medium for the safety layer, guards, production, spend, tokens, passes, or
   anything unfamiliar. A missing decision is never solved by guessing.
@@ -376,7 +399,7 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
 | Runtime facts (env vars, tables, infra) as built | `docs/ARCHITECTURE.md` |
 | Remaining acceptance | `docs/PLAN.md` |
 | Approved designs (how) | `docs/designs/BATCH-*.md` |
-| Exactly what one PR builds | `docs/pr-cards/<ID>.md` (wins over the design where they differ) |
+| Approved subsection scope and selected bundle acceptance | `docs/pr-cards/<ID>.md` (wins over the design where they differ) |
 | Current state and next item | `docs/STATUS.md`, `docs/MASTER-ROADMAP.md`, `docs/pr-cards/work-index.json` |
 | Owner decisions | `docs/OWNER-INPUTS.md` |
 | Dated decisions and reasons | `docs/DECISIONS.md` |
@@ -437,7 +460,7 @@ python3 docs/pr-cards/validate-index.py
 ## Cohesive PR throughput (mandatory from D-1 security close-out)
 
 - Group adjacent operations **by safety boundary and reusable implementation pattern**, not one PR per endpoint. Prefer a complete related read family or a compatible set of guarded settings mutations with shared before/read-back fixtures. Never group destructive, owner-only, paid or production-sensitive changes with an unrelated operation merely to hit a size target.
-- Target approximately **450–800 changed production-code lines** only when the unit genuinely warrants them. The existing advisory size estimate and one-risk-area/migration constraints in PLAYBOOK still win. No padding, placeholders, invented endpoints or empty PRs. Each PR must carry a substantial coherent workload and pass its quality gates.
+- Target approximately **450–800 changed production-code lines** only when the unit genuinely warrants them. The bundle/card/PR rule above controls grouping; retain all actual independent safety and migration-order proof. No padding, placeholders, invented endpoints or empty PRs. Each PR must carry a substantial coherent workload and pass its quality gates.
 - Within a group, reuse authorization, input validation, provider calls, independent read-back, replay and test fixtures. A guarded handler must use `bindGuardedWrite` around the matching `defineWrite`; no caller-written contract literal can authorize the registry. Transport replay identities must distinguish operation plus stable mutation parameters/discriminator.
 - Run focused tests once per cohesive group, consolidate related fixes before each CI push, and avoid duplicate discovery/commits. Never skip exact-head CI or defer a security review finding. See `docs/implementation-guidance/RECIPES.md` §7 and the grouped D-1 card. If REST-only, use the Actions CI fallback unchanged.
 
