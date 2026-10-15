@@ -199,6 +199,64 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
       .toBe('/v9/projects/'+project);
     f.fake.verify();
   });
+  it('removes an exact run alias only if it still routes to the recorded preview',async()=>{
+    const domain='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
+    const f=fixture([object('alias','alias_FAKE_PREVIEW',project,
+      {name:domain,deployment})]);
+    f.fake.when('GET','/v4/aliases/{idOrAlias}')
+      .resolves({uid:'alias_FAKE_PREVIEW',alias:domain,deploymentId:deployment})
+      .resolves({uid:'alias_FAKE_PREVIEW',alias:domain,deploymentId:deployment})
+      .rejects(404);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      uid:deployment,projectId:project,target:'preview',readyState:'READY'});
+    f.fake.when('DELETE','/v2/aliases/{aliasId}').resolves({},204);
+    const result=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'exactAliasDelete01'}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    expect(f.rows.get(runId)[0].status).toBe('cleaned');
+    f.fake.verify();
+  });
+  it('refuses an alias that was re-pointed to production without DELETE',async()=>{
+    const domain='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
+    const f=fixture([object('alias','alias_FAKE_PREVIEW',project,
+      {name:domain,deployment})]);
+    f.fake.when('GET','/v4/aliases/{idOrAlias}').resolves({
+      uid:'alias_FAKE_PREVIEW',alias:domain,deploymentId:'dpl_UNTRACKED'});
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      uid:deployment,projectId:project,target:'preview',readyState:'READY'});
+    const result=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'aliasMovedLeave01'}));
+    expect(result.confirmed).toBe(false);
+    expect(f.rows.get(runId)[0].status).toBe('blocked');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('removes recorded preview-only env by exact ID after two metadata proofs',async()=>{
+    const f=fixture([object('env','env_FAKE_PREVIEW',project,
+      {key:'PREVIEW_ONLY',target:'preview',branch:'feature/dev'})]);
+    const value={id:'env_FAKE_PREVIEW',key:'PREVIEW_ONLY',target:['preview'],
+      gitBranch:'feature/dev',comment:'rtc_run='+runId};
+    f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
+      .resolves(value).resolves(value).rejects(404);
+    f.fake.when('DELETE','/v9/projects/{idOrName}/env/{id}').resolves({},204);
+    const result=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'deletePreviewEnv01'}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.rows.get(runId)[0].status).toBe('cleaned');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('cannot clean an earlier blocked object just because it is no longer active',async()=>{
+    const f=fixture([{...object('alias','alias_FAKE_PREVIEW',project,{}),
+      status:'blocked',last_error:'Unverified routing'}]);
+    const result=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'blockedNeedsProof01'}));
+    expect(result.confirmed).toBe(false);
+    expect(f.rows.get(runId)[0].status).toBe('blocked');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
   it('denies unowned, invalid, and undeclared cleanup runs',async()=>{
     const f=fixture();
     for(const args of [{runId:'run_20261014_zzzzzzzz',outsideApp:true},

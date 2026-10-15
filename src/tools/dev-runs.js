@@ -10,6 +10,7 @@ import {seedManifest,DEV_SCENARIOS} from '../dev/scenarios.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
 import {inspectProjectForDeletion} from './project-delete.js';
+import {decryptSecret} from '../core/secret-box.js';
 
 const RUN=/^run_[0-9]{8}_[a-z0-9]{6,24}$/;
 const KEY=/^[a-zA-Z0-9_-]{8,128}$/;
@@ -232,10 +233,89 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
   if(o.status==='uncertain')return 'Prior provider outcome is uncertain; manual readback required';
   // A newly confirmed cleanup call may re-prove a previously blocked object.
   // Uncertain POST/DELETE outcomes are never automatically retried.
-  if(o.status!=='active')return null;
+  if(!['active','blocked'].includes(o.status))
+    return 'Only active or previously blocked objects can be inspected for cleanup';
   const project=o.project_id;
   if(!project||provider.account.team_id!==teamId)
     return 'Selected team/project identity unavailable';
+  if(o.object_type==='alias'){
+    const name=o.detail?.name,deploy=o.detail?.deployment;
+    if(typeof name!=='string'||!name.startsWith(
+      'rtc-'+runId.replaceAll('_','-')+'-')||!name.endsWith('.vercel.app')||
+       typeof deploy!=='string')return 'Preview alias provenance missing';
+    const inspect=async()=>{
+      const [alias,target]=await Promise.all([
+        provider.read('release_alias_get',{path:{idOrAlias:o.object_id}}),
+        provider.read('deployments_get',{path:{idOrUrl:deploy}})]);
+      if((alias?.uid??alias?.id)!==o.object_id||alias.alias!==name||
+         (alias.deploymentId??alias.deployment?.id)!==deploy||
+         (target?.uid??target?.id)!==deploy||
+         target.projectId!==project||target.target!=='preview')
+        throw new PreDispatchRefusal('Alias no longer resolves exclusively to recorded preview');
+    };
+    try{await inspect();}catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
+    await requirePreDispatch(inspect);
+    await provider.write('release_alias_delete',{path:{aliasId:o.object_id}},
+      {requestKey:ctx.cleanupKey,tool:'vercel_dev_cleanup',
+        mutationId:'delete-alias-'+o.object_id,shapeResult:()=>({deleted:true})});
+    try{await provider.read('release_alias_get',{path:{idOrAlias:o.object_id}});}
+    catch(e){if(e?.status===404)return null;throw e;}
+    return 'Alias remains assigned after DELETE';
+  }
+  if(o.object_type==='env'){
+    const expected=o.detail;
+    if(typeof expected?.key!=='string'||expected.target!=='preview')
+      return 'Preview env metadata provenance unavailable';
+    const inspect=async()=>{
+      const row=await provider.read('project_env_get',{
+        path:{idOrName:project,id:o.object_id}});
+      const targets=Array.isArray(row?.target)?row.target:[row?.target];
+      if(row?.id!==o.object_id||row.key!==expected.key||
+         targets.length!==1||targets[0]!=='preview'||
+         (row.gitBranch??null)!==(expected.branch??null)||
+         row.comment!=='rtc_run='+runId)
+        throw new PreDispatchRefusal('Env identity or preview-only target has changed');
+    };
+    try{await inspect();}catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
+    await requirePreDispatch(inspect);
+    await provider.write('project_env_delete',
+      {path:{idOrName:project,id:o.object_id}},
+      {requestKey:ctx.cleanupKey,tool:'vercel_dev_cleanup',
+        mutationId:'delete-env-'+o.object_id,shapeResult:()=>({deleted:true})});
+    try{await provider.read('project_env_get',{path:{idOrName:project,id:o.object_id}});}
+    catch(e){if(e?.status===404)return null;throw e;}
+    return 'Preview variable still exists after DELETE';
+  }
+  if(o.object_type==='bypass'){
+    if(typeof o.detail?.ciphertext!=='string')return 'Missing encrypted bypass revocation proof';
+    const row=await provider.read('projects_get',{path:{idOrName:project}});
+    if(row?.id!==project||!row.name?.startsWith(
+      'rtc-'+runId.replaceAll('_','-')+'-')||
+       row.productionDeployment||row.productionDeploymentId)
+      return 'Project-wide bypass revocation requires isolated run-owned project';
+    const secret=decryptSecret(o.detail.ciphertext,
+      'dev-bypass:'+runId+':'+o.object_id,ctx.env);
+    if(!row.protectionBypass||typeof row.protectionBypass!=='object'||
+       !Object.hasOwn(row.protectionBypass,secret))
+      return 'Provider cannot prove the exact previously created bypass';
+    await requirePreDispatch(async()=>{
+      const fresh=await provider.read('projects_get',{path:{idOrName:project}});
+      if(fresh.id!==row.id||!Object.hasOwn(fresh.protectionBypass??{},secret))
+        throw new TypeError('Bypass identity changed before revocation');
+    });
+    const result=await provider.write('project_protection_bypass_update',
+      {path:{idOrName:project},body:{revoke:{secret,regenerate:false}}},
+      {requestKey:ctx.cleanupKey,tool:'vercel_dev_cleanup',
+        mutationId:'revoke-bypass-'+o.object_id,
+        shapeResult:x=>({revoked:Boolean(x?.protectionBypass&&
+          typeof x.protectionBypass==='object'&&!Object.hasOwn(x.protectionBypass,secret))})});
+    if(result.revoked!==true)return 'Provider did not confirm exact bypass revocation';
+    const fresh=await provider.read('projects_get',{path:{idOrName:project}});
+    if(fresh.id!==project||!fresh.protectionBypass||
+       Object.hasOwn(fresh.protectionBypass,secret))
+      return 'Bypass still active or provider evidence incomplete';
+    return null;
+  }
   if(o.object_type==='deployment'){
     const row=await provider.read('deployments_get',{path:{idOrUrl:o.object_id}});
     if((row?.uid??row?.id)!==o.object_id||row.projectId!==project||
@@ -315,6 +395,14 @@ const cleanup=defineWrite({
       // Each record is handled separately; never infer a missing object from a tag.
       for(const obj of objects){
         if(obj.status==='cleaned')continue;
+        if(obj.object_type==='project'&&objects.some(x=>
+           x.object_type==='intent'&&x.status!=='cleaned')){
+          outcomes.push({runId:group.id,type:'project',id:obj.object_id,status:'blocked'});
+          await ctx.db.setDevRunObjectOutcome({account:scope(ctx),id:group.id,
+            type:obj.object_type,objectId:obj.object_id,status:'blocked',
+            error:'Unresolved provider creation intent exists in this run'});
+          continue;
+        }
         if(obj.status==='uncertain'){
           outcomes.push({runId:group.id,type:obj.object_type,
             id:obj.object_id,status:'uncertain'});
