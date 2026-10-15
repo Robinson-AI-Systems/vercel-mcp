@@ -122,12 +122,12 @@ the existing ledger/handoff. Before new implementation and final reporting, vali
 that accounting with `npm run session:status -- --deployed FULL_SHA --state READY
 --acceptance-review /tmp/acceptance-review.json`. This temporary sanitized extract
 is not a second ledger and must not contain secrets, provider bodies or private IDs.
-It contains `deployed`, `deploymentState`, and `tasks`; every outstanding task needs
+It contains the printed `snapshot` digest, `deployed`, `deploymentState`, and `tasks`; every outstanding task needs
 `id`, `requiredRevision`, current planner `disposition`, `outcome` and `evidence`.
 Use `PERFORMED` with `result: PASS|FAIL` (and `nextAction` for FAIL), or `DEFERRED`
 with `prerequisite`, `remedy` and `nextAction`. Existing recorded passes need no
-retyping; optional `REUSED` entries reference their evidence. The checker rejects
-omissions and stale snapshots; it cannot attest evidence truth or grant permission.
+retyping; optional `REUSED` entries reference their evidence. The checker requires a verified READY deployed revision and rejects
+omissions or changes to any queue field via the snapshot digest; it cannot attest evidence truth or grant permission.
 Without a shell, put the same item-by-item accounting in the permanent handoff.
 Record actual results in the existing ledger; rerun the extract after ledger changes.
 An inaccessible deployment/evidence source requires investigation and a specific

@@ -1,5 +1,6 @@
 // Read-only planning. Supplied deployment observations are not acceptance evidence.
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -107,13 +108,21 @@ export function summarizeRoadmap(index) {
 
 
 
+/** Bind accounting to every queue field and planner disposition, not just identity. */
+export function acceptanceSnapshot(plan) {
+  const canonical = [...plan].sort((a, b) => a.id.localeCompare(b.id)).map(row =>
+    Object.fromEntries(Object.keys(row).sort().map(key => [key, row[key]])));
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
 /** Actionable acceptance is displayed before waiting work, independently of main lag. */
 export function acceptanceSummary(plan, limit = 10) {
   const action = plan.filter(row => ['DEPLOYED_CANDIDATE_CHECK_GATES', 'RECHECK_EXTERNAL_GATE'].includes(row.disposition));
   const waiting = plan.filter(row => !['DEPLOYED_CANDIDATE_CHECK_GATES', 'RECHECK_EXTERNAL_GATE', 'RECORDED_PASS'].includes(row.disposition));
   const passed = plan.length - action.length - waiting.length;
   const lines = [`Acceptance first: ${action.length} deployed tasks to act on/recheck; ${waiting.length} waiting/verification tasks; ${passed} recorded passes.`,
-    'Main ahead of live does not defer included checks. Listing a task is NOT executing it.'];
+    'Main ahead of live does not defer included checks. Listing a task is NOT executing it.',
+    'Acceptance snapshot: ' + acceptanceSnapshot(plan)];
   for (const [label, rows] of [['ACT OR RECHECK GATES NOW', action], ['WAITING OR VERIFY SPECIFIC PREREQUISITE', waiting]]) {
     lines.push(label + ':');
     for (const row of rows.slice(0, limit)) lines.push(`${row.priority}. ${row.id} ${row.disposition}: ${row.task}`,
@@ -125,7 +134,10 @@ export function acceptanceSummary(plan, limit = 10) {
 
 /** Completeness/freshness check for a temporary handoff extract; never proof or permission. */
 export function reviewAcceptance(plan, observation, report) {
-  if (!report || report.deployed !== observation.deployed || report.deploymentState !== observation.deploymentState ||
+  if (!SHA.test(observation.deployed || '') || observation.deploymentState !== 'READY' ||
+      plan.some(row => row.disposition === 'VERIFY_DEPLOYMENT'))
+    throw new Error('Acceptance review requires verified READY deployment data; otherwise leave an incomplete checkpoint.');
+  if (!report || report.snapshot !== acceptanceSnapshot(plan) || report.deployed !== observation.deployed || report.deploymentState !== observation.deploymentState ||
       !Array.isArray(report.tasks) || report.tasks.length > plan.length)
     throw new Error('Acceptance review needs the current deployed revision/state and bounded tasks.');
   const bounded = value => typeof value === 'string' && value.trim().length > 0 && value.length <= 1200;

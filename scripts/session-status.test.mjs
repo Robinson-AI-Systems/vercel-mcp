@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptanceSummary, reviewAcceptance, readQueue, planQueue, summarizeRoadmap, run } from './session-status.mjs';
+import { acceptanceSnapshot, acceptanceSummary, reviewAcceptance, readQueue, planQueue, summarizeRoadmap, run } from './session-status.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -70,7 +70,7 @@ test('real git refs and ancestry drive the offline CLI without network/mutations
     git('update-ref', 'refs/remotes/origin/main', second); git('update-ref', 'refs/remotes/origin/live', first);
     writeFileSync(join(root, 'docs/session-policy.json'), JSON.stringify({ repository: 'fixture/repo', ledger: 'docs/STATUS.md', instructions: 'AGENTS.md' }));
     writeFileSync(join(root, 'docs/STATUS.md'), block([row('FIRST', first), row('SECOND', second)]));
-    writeFileSync(join(root, 'acceptance.json'), JSON.stringify({ deployed: first, deploymentState: 'READY', tasks: [
+    writeFileSync(join(root, 'acceptance.json'), JSON.stringify({ snapshot: acceptanceSnapshot(planQueue([row('FIRST', first), row('SECOND', second)], { main: second, live: first, deployed: first, deploymentState: 'READY' }, (x, y) => x === y || x === first && y === second)), deployed: first, deploymentState: 'READY', tasks: [
       { id: 'FIRST', requiredRevision: first, disposition: 'DEPLOYED_CANDIDATE_CHECK_GATES', outcome: 'PERFORMED', result: 'PASS', evidence: 'Fixture observation only' },
       { id: 'SECOND', requiredRevision: second, disposition: 'WAIT_RELEASE_OR_FETCH_HISTORY', outcome: 'DEFERRED', evidence: 'Fixture ancestry', prerequisite: 'Release', remedy: 'Checked fixture history', nextAction: 'Retest deployed successor' }
     ] }));
@@ -172,7 +172,7 @@ test('acceptance accounting refuses omissions, stale revisions and unsupported c
     outcome: 'DEFERRED', evidence: 'Exact ancestry comparison excludes required revision.',
     prerequisite: 'Release containing NEW code', remedy: 'Verified actual production revision and compared history',
     nextAction: 'Run after that revision is deployed under existing release policy' };
-  const report = { deployed: b, deploymentState: 'READY', tasks: [performed, deferred] };
+  const report = { snapshot: acceptanceSnapshot(plan), deployed: b, deploymentState: 'READY', tasks: [performed, deferred] };
   assert.match(reviewAcceptance(plan, obs, report), /accounting checked/);
   for (const tasks of [[performed], [performed, performed], [{ ...performed, requiredRevision: c }, deferred],
     [performed, { ...deferred, remedy: '' }], [performed, { ...deferred, outcome: 'PERFORMED', result: 'PASS' }],
@@ -184,5 +184,25 @@ test('acceptance accounting refuses omissions, stale revisions and unsupported c
   assert.match(reviewAcceptance(plan, obs, { ...report, tasks: [{ ...performed, result: 'FAIL', nextAction: 'Repair verified defect' }, deferred] }), /independently reviewed/);
   assert.equal(JSON.stringify(plan), before);
   const passed = planQueue([{ ...row(), status: 'PASSED' }], obs, ancestor);
-  assert.match(reviewAcceptance(passed, obs, { ...report, tasks: [] }), /accounting checked/);
+  assert.match(reviewAcceptance(passed, obs, { ...report, snapshot: acceptanceSnapshot(passed), tasks: [] }), /accounting checked/);
+});
+
+
+test('accounting binds the entire queue and refuses unknown deployment checkpoints', () => {
+  const plan = planQueue([row('WAIT', c)], obs, ancestor);
+  const entry = { id: 'WAIT', requiredRevision: c, disposition: plan[0].disposition,
+    outcome: 'DEFERRED', evidence: 'Revision not deployed', prerequisite: 'Checked release',
+    remedy: 'Compared exact revisions', nextAction: 'Run after release' };
+  const report = { snapshot: acceptanceSnapshot(plan), deployed: b, deploymentState: 'READY', tasks: [entry] };
+  for (const key of ['task', 'procedure', 'gates', 'lastEvidence', 'dependsOn', 'status']) {
+    const changed = [{ ...plan[0], [key]: key === 'dependsOn' ? ['NEW-DEPENDENCY'] : 'Changed requirement' }];
+    assert.throws(() => reviewAcceptance(changed, obs, report));
+  }
+  for (const change of [{ deployed: null, deploymentState: 'UNKNOWN' }, { deploymentState: 'BUILDING' }]) {
+    const observation = { ...obs, ...change };
+    const unresolved = planQueue([row('WAIT', c)], observation, ancestor);
+    assert.throws(() => reviewAcceptance(unresolved, observation, { ...report, ...change, snapshot: acceptanceSnapshot(unresolved), tasks: [{ ...entry, disposition: unresolved[0].disposition }] }));
+  }
+  const unknownHistory = planQueue([row()], obs, () => null);
+  assert.throws(() => reviewAcceptance(unknownHistory, obs, { ...report, snapshot: acceptanceSnapshot(unknownHistory) }));
 });
