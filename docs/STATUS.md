@@ -22,6 +22,19 @@ CI/review, security, provider, spending and release gates remain unchanged.
 Focused reporting tests passed locally; exact-head full Actions gates are required
 before merge. No product subsection, deployment or provider acceptance claimed.
 
+### Owner workflow clarification — October 14, 2026
+
+PR workload is counted in whole predefined batch subsections from the approved
+roadmap/design, never technical slices or packet checklist tasks. Partial
+subsections count zero complete; retain all remaining engineering and separate
+external acceptance. Session PR count and scope come only from the current
+owner prompt, with no standing quota or PR-number alignment. Historical PR
+counts below record earlier work and do not instruct future sessions.
+This owner-requested maintenance changes guidance/report wording only; required
+CI/review, security, provider, spending and release gates remain unchanged.
+Focused reporting tests passed locally; exact-head full Actions gates are required
+before merge. No product subsection, deployment or provider acceptance claimed.
+
 ## E-3 coherent Global Config lifecycle candidate — PR #199
 
 In addition to selected-team list, item read and guarded empty store create,
