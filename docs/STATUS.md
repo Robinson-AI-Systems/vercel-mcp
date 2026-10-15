@@ -10,6 +10,8 @@ an unfinished bundle. Remaining engineering must not be hidden as external proof
 Removed a stale generic session sentence that called future work maintenance.
 All original subsection IDs, roadmap order, source/provider acceptance, independent
 approval/guard/cleanup rules, CI/review and hosting/cost gates remain unchanged.
+Dated PR-count instructions/credits below are historical to their original
+sessions, never standing quotas or credits toward the current target.
 This is explicitly requested guidance maintenance, zero product bundles; no provider
 operation or release. Required exact-head checks and review disposition govern merge.
 Preserve concurrent implementation branches; resume actual current main and the

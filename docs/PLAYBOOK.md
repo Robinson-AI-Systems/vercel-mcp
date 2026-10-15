@@ -51,8 +51,8 @@ While implementing:
 
 ### Step 3a — PR size
 
-Normally average 2–5 complete predefined subsections and 400–800 meaningful
-production-code lines per coherent bundle; tests/docs/generated/formatting are
+The rolling per-substantive-PR planning averages remain 2–5 complete predefined
+subsections and 400–800 meaningful production-code lines; tests/docs/generated/formatting are
 excluded. These are planning averages, not hard ceilings, minima or filler quotas.
 Cards define approved scope, not mandatory separate PRs. Group connected domain,
 caller, persistence and recovery behavior; different modules/APIs and multiple
