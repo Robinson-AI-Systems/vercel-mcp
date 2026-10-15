@@ -40,6 +40,7 @@ export const OPS = Object.freeze({
   global_config_schema_get: Object.freeze({ method: 'GET', path: '/v1/global-config/{edgeConfigId}/schema' }),
   global_config_schema_set: Object.freeze({ method: 'POST', path: '/v1/global-config/{edgeConfigId}/schema' }),
   global_config_schema_delete: Object.freeze({ method: 'DELETE', path: '/v1/global-config/{edgeConfigId}/schema' }),
+  global_config_backups: Object.freeze({ method: 'GET', path: '/v1/global-config/{edgeConfigId}/backups' }),
   global_config_backup_get: Object.freeze({ method: 'GET', path: '/v1/global-config/{edgeConfigId}/backups/{edgeConfigBackupVersionId}' }),
   global_config_restore_backup: Object.freeze({ method: 'POST', path: '/v1/global-config/{edgeConfigId}/backups/{edgeConfigBackupVersionId}/restore' }),
   shared_env_list: Object.freeze({ method: 'GET', path: '/v1/env' }),
