@@ -2,7 +2,7 @@
 // A live-linked store is always treated as production; unknown links fail closed.
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
-import {readProvider,writeProvider} from '../vercel/provider.js';
+import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
 import {STORE,SLUG,KEY,selected,exact,strictArgs,schema} from './globalconfig-common.js';
