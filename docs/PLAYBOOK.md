@@ -179,8 +179,9 @@ once onto final `main`.
   what Vercel answered (against `emulate` or the reference), propose a dated amendment, continue other work.
 - Docs contradict code: tests are the truth for behavior, AGENTS for rules, PLAN for scope, card and design for how.
 
-## Mandatory five-PR session handoff
+## Session handoff
 
-After the fifth verified merge, perform `docs/SESSION-START.md` §7 **before any other action**. A pending
-post-merge workflow is reported accurately in the same response with its run URL and recovery instruction; the
-handoff prompt is not contingent on a background wait. Never start the sixth PR to repair a missing handoff.
+At completion of the current owner-requested session scope, follow SESSION-START's
+close-out checklist. Report pending post-merge checks with their URLs and exact
+recovery action; never present them as passed. Save the permanent handoff and
+provide the compact continuation prompt. No numeric PR stopping rule applies.
