@@ -1,3 +1,16 @@
+## E-3 coherent Global Config lifecycle candidate — PR #199
+
+In addition to selected-team list, item read and guarded empty store create,
+this same substantive implementation integrates revision-checked guarded item
+batch changes and full-profile store deletion with live-linked production
+classification, verified project ownership, protected resource rechecks,
+durable replay, per-item readback and secret-safe audit. Five adjacent usable
+operations are implemented together rather than shipping tiny PRs. Exact-head
+source/CI/deployed/provider acceptance remain separately tracked; real writes
+are not authorized or claimed. Remaining E-3: one-time token create, bounded
+version-specific backup restore. Continue eligible code while checked live
+releases gate native provider acceptance.
+
 ## E-3 selected-team Global Config reads and guarded create — source candidate
 
 Read-only Global Config store listing and safe item inspection plus independently
@@ -287,6 +300,28 @@ open obligations, original fixture ownership, approvals and deployment provenanc
     "dependsOn": [],
     "status": "PENDING",
     "lastEvidence": "Source and mocked HTTP tests only; real provider API and cleanup not tested"
+  },
+  {
+    "id": "VERCEL-E3-GLOBAL-PATCH",
+    "priority": 6,
+    "requiredRevision": "7e5c8f3dada8185c91602a9c2deec1d1f1a63d16",
+    "task": "Check native selected-team Global Config item create/update/upsert/delete with version/links, protected and production guards, independent readback and value secrecy",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Checked READY source, native custom OAuth, independently owner-approved disposable TEST fixture, project and store safety guards, no spending, no production activation",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and fake-provider tests pending CI; no native provider mutation has been made"
+  },
+  {
+    "id": "VERCEL-E3-GLOBAL-DELETE",
+    "priority": 6,
+    "requiredRevision": "7e5c8f3dada8185c91602a9c2deec1d1f1a63d16",
+    "task": "Check full-profile guarded disposable Global Config store deletion, connected-project production refusal, verified 404 readback and fixture cleanup",
+    "procedure": "docs/pr-cards/E-3.md",
+    "gates": "Checked READY source, native custom OAuth, independently owner-approved disposable TEST fixture, project and store safety guards, no spending, no production activation",
+    "dependsOn": [],
+    "status": "PENDING",
+    "lastEvidence": "Source and fake-provider tests pending CI; no native provider mutation has been made"
   }
 ]
 ```

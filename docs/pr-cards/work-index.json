@@ -698,14 +698,16 @@
       ],
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [],
-      "pr": [],
+      "pr": [
+        199
+      ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-3 implementer",
-        "reason": "Global Config list/item reads and guarded empty creation source candidate; exact-head CI/main merge and real provider acceptance pending. Remaining deletion/patch/token/restore engineering is eligible.",
-        "nextAction": "Merge first E-3 PR only when exact-head CI/review passes, then implement E-3 guarded store delete and item batch patches, followed by one-time token creation and backup restore. Keep real-world acceptance pending checked deployment and owner TEST fixture.",
+        "reason": "Five coherent Global Config operations in current PR #199: team list, exact-store items read, guarded create, guarded item patch and guarded store delete. Pending exact-head CI and native provider acceptance.",
+        "nextAction": "Finish exact-head CI/review and merge cohesive E-3 PR #199. Then complete E-3 one-time token creation and versioned backup restore in next substantial adjacent implementation batch; maintain native TEST acceptance queue.",
         "checkpoint": "At first E-3 PR merge, next E-3 implementation session and checked live release",
-        "evidenceNeeded": "Full exact-head CI and fake API request-shape/redaction tests; genuine custom MCP owner-scoped Global Config list/items/create with safe readback, no user token disclosure, TEST-only cleanup",
+        "evidenceNeeded": "CI/fake-provider proof for five operations and owner-authorized native TEST reads/create/patch/delete with exact project-link classification, value redaction, guarded absence and cleanup.",
         "eligibilityCondition": "Source and synthetic tests eligible now; owner TEST access and checked release required only for live acceptance",
         "dependencies": [
           "E-1"

@@ -126,7 +126,7 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
     for(const a of [
       {...args,teamId:'team_OTHER'},
       {...args,slug:'../secrets'},
-      {...args,slug:'vcp_fake_secret_credential'},
+      {...args,slug:'vcp_FAKE_secret_credential'},
       {...args,outsideApp:false}
     ]){
       const f=fixture([]);
@@ -152,17 +152,15 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
   });
   it('rejects foreign IDs, team metadata, duplicate rows and unknown unsafe item key',async()=>{
     const f=fixture([{...record,teamId:'team_FOREIGN'}]);
-    await expect(f.call('vercel_globalconfig_list')).rejects.toThrow();
+    expect((await f.call('vercel_globalconfig_list')).isError).toBe(true);
     const duplicate=fixture([record,{...record}]);
-    await expect(duplicate.call('vercel_globalconfig_list')).rejects.toThrow();
+    expect((await duplicate.call('vercel_globalconfig_list')).isError).toBe(true);
     const bad=fixture();
     bad.fake.when('GET','/v1/global-config/{edgeConfigId}/items')
       .resolves({items:{'../../BAD':'okay'}});
-    await expect(bad.call('vercel_globalconfig_list_items',{id}))
-      .rejects.toThrow();
+    expect((await bad.call('vercel_globalconfig_list_items',{id})).isError).toBe(true);
     const missing=fixture();
-    await expect(missing.call('vercel_globalconfig_list_items',{id:'ecfg_FAKE_OTHER'}))
-      .rejects.toThrow();
+    expect((await missing.call('vercel_globalconfig_list_items',{id:'ecfg_FAKE_OTHER'})).isError).toBe(true);
   });
   it('refuses concurrent slug collision at pre-dispatch proof without a provider write',async()=>{
     const f=fixture([]);
