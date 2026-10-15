@@ -1,5 +1,17 @@
 # SESSION-START — implement, then catch up released acceptance
 
+## Count complete predefined batch subsections
+
+The PR workload target is 2–5 whole predefined batch subsections on average,
+using the existing roadmap/design IDs such as H-3 or B-5. Technical slices,
+functions, tools, UI hookups, guards and packet checklist tasks are internal
+implementation steps, not countable batch subsections. List the subsection IDs
+and full scope before coding. Partial subsections count zero; count each once
+when eligible engineering and required pre-merge proof are complete, with
+external acceptance tracked separately. Use focused checks while building,
+then the full required gates on the substantial assembled PR. See the governing
+instructions' **PR workload is measured in predefined batch subsections** rule.
+
 ## 0. Reconcile and recover
 
 Read the governing instructions and the current permanent handoff, not historical
@@ -140,14 +152,14 @@ changes reopen affected proof. NEVER copy credentials/private fixture IDs into t
 **Remaining-work visibility.** Run `npm run session:status` for current
 roadmap counts and unfinished IDs in approved order alongside the separate
 release acceptance queue. Counts describe the existing index/ledger's coarse
-units, not fine-grained PR slices, time estimates or live acceptance.
+units; counts do not establish completed subsections or live acceptance.
 Record actual completed slices and remaining engineering in existing cards
 and handoffs; never promote an incomplete card to improve the numbers.
 Follow the designated roadmap order rather than the milestone in an old handoff.
 
 At each PR handoff record production additions/deletions (excluding tests,
 docs, generated files, fixtures and formatting), completed slice IDs and
-acceptance evidence. Evaluate 400–800 production lines and 2–5 complete slices
+acceptance evidence. Evaluate 400–800 production lines and 2–5 complete batch subsections
 per PR on rolling averages over the latest five merged implementation PRs;
 unrecorded historical measurements stay unknown, never invented.
 
@@ -161,8 +173,7 @@ Normal implementation sessions complete as many fully verified, cohesive roadmap
 slices as fit a safe, recoverable chat context. A suitable PR may integrate
 several adjacent small slices (typically targeting 400–800 changed production lines
 plus tests), but contracts, review risk and end-to-end behavior determine size;
-a complete smaller slice or a safe larger slice is legitimate. No fixed
-number of PRs, five-PR cadence, next-multiple alignment, or filler quota.
+a complete smaller slice or a safe larger slice is legitimate. Session PR count is set only by the current owner prompt.
 Do not count a passing helper as a completed outcome. After each verified
 merge, checkpoint the exact head/CI/reviews, completed slices, implementation
 and deployed/real-acceptance state, and one next action. Start another slice
@@ -171,8 +182,7 @@ repair, merge and durable handoff; otherwise end at the clean checkpoint.
 Persist unfinished work on its existing approved card, not only in chat.
 Report completed roadmap slices and acceptance deltas, first-pass CI failures
 and correction cycles, not PR count as a productivity metric.
-This owner-requested repository optimization is scoped maintenance, not a five-feature
-batch. Preserve safety even when no further eligible work or an execution limit remains.
+This owner-requested repository optimization is scoped maintenance, not a product implementation batch. Preserve safety even when no further eligible work or an execution limit remains.
 At completed-session end update status/cards/index, verify final main, leave a permanent
 handoff on the final merged PR and automatically give a short continuation prompt:
 repository + verified handoff + next outcome + queue pointer. Refer to the repository

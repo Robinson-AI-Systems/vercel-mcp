@@ -68,7 +68,7 @@ export function planQueue(rows, observation, isAncestor) {
 const roadmapStatuses = new Set(['MERGED', 'IN_PROGRESS', 'APPROVED', 'BLOCKED', 'ON_REQUEST', 'COMPLETE', 'PLANNED']);
 
 /** Read-only source/card coverage, never a claim of accepted live behavior.
- * The index's units are coarse planned units, not PR implementation slices. */
+ * The index lists planned batch subsections; status counts alone do not prove completion. */
 export function summarizeRoadmap(index) {
   if (!index || !Array.isArray(index.order) || !Array.isArray(index.cards) ||
       new Set(index.order).size !== index.order.length ||
@@ -150,7 +150,7 @@ export function run(root, args) {
     lines.push(`Latest observed PR: #${Number(flags['--latest-pr'])} (informational only; no session PR quota or numeric boundary).`);
   }
 
-  lines.push('Roadmap (coarse source/ledger units; NOT PR slices or live acceptance): ' +
+  lines.push('Roadmap (indexed batch subsections; NOT completion or live-acceptance proof): ' +
     roadmap.merged + '/' + roadmap.total + ' MERGED; ' + roadmap.complete + ' COMPLETE; ' + roadmap.planned + ' PLANNED separately; ' + roadmap.remainingApproved +
     ' remaining approved (' + roadmap.inProgress + ' IN_PROGRESS, ' + roadmap.approved +
     ' APPROVED); ' + roadmap.blocked + ' BLOCKED separately; ' + roadmap.onRequest +
@@ -160,7 +160,8 @@ export function run(root, args) {
     if (batch.planned.length) lines.push('Planned ' + batch.batch + ' (' + batch.planned.length + '): ' + batch.planned.join(', '));
     if (batch.blocked.length) lines.push('Blocked ' + batch.batch + ': ' + batch.blocked.join(', '));
   }
-  lines.push('PR planning averages: 400–800 changed production lines and 2–5 fully completed documented slices; measure real diffs and evidence, never infer slices from coarse roadmap units.');
+  lines.push('PR planning averages: 400–800 changed production lines and 2–5 fully completed predefined batch subsections; count only whole predefined batch subsections with evidence, never helpers or packet subtasks.');
+  lines.push('PR work unit = one whole predefined batch subsection (such as H-3 or B-5). Technical slices, functions, tools, UI wiring, guards and packet tasks do not count separately. Partial subsection = zero completed batch subsections.');
   lines.push(`Queue: ${plan.length} total; ${plan.length - active.length} recorded passes; ${active.length} tasks to reconsider.`);
   for (const row of active.slice(0, limit)) lines.push(`${row.priority}. ${row.id} ${row.disposition}: ${row.task}`, `   Procedure: ${row.procedure}; gates: ${row.gates}`, `   Last evidence: ${row.lastEvidence}`);
   if (active.length > limit) lines.push(`${active.length - limit} additional tasks are in ${policy.ledger}; use --limit ${Math.min(active.length, 1000)} or read the queue directly. Nothing is removed or marked passed.`);

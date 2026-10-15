@@ -35,8 +35,8 @@ implementation, meaningful local/CI proof, deployed HTTPS behavior,
 authenticated custom MCP, Hub real routes/revocation and intentionally
 unsupported operations. A PR merges only after its own code/review gates;
 a milestone closes only when the distinct required criteria are met.
-Five substantive PRs is the normal planning batch size, not a quality
-metric or a license to pad. Incorporate this process into substantive
+Session PR count comes only from the current owner prompt; no repository
+count or numeric alignment is a quality metric or license to pad. Incorporate this process into substantive
 implementation PRs, not dedicated docs-only PRs. At handoff summarize
 capability advanced, what was genuinely proven, remaining blockers and
 the next eligible step.
