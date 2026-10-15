@@ -1,5 +1,7 @@
 import {beforeEach,describe,it,expect,vi} from 'vitest';
 import {createHash} from 'node:crypto';
+import {EventEmitter} from 'node:events';
+import {PassThrough} from 'node:stream';
 import {registry} from '../../src/tools/index.js';
 import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
@@ -7,7 +9,7 @@ import {loadToken} from '../../src/vercel/tokens.js';
 import {lookup} from 'node:dns/promises';
 import {encryptSecret} from '../../src/core/secret-box.js';
 import {BUILD_RULES,diagnoseBuildText} from '../../src/dev/build-failures.js';
-import {publicAddress} from '../../src/tools/dev-preview-fetch.js';
+import {publicAddress,pinnedHttpsGet,publicHost} from '../../src/tools/dev-preview-fetch.js';
 vi.mock('../../src/vercel/tokens.js',async orig=>({...await orig(),loadToken:vi.fn()}));
 vi.mock('node:dns/promises',()=>({lookup:vi.fn()}));
 const account='acct_FAKE_DEV3',team='team_FAKE_DEV3';
@@ -131,6 +133,62 @@ describe('V-3 preview-only observation and diagnostics',()=>{
       '2001:db8::1'])expect(publicAddress(ip)).toBe(false);
     expect(publicAddress('8.8.8.8')).toBe(true);
     expect(publicAddress('2606:4700::1111')).toBe(true);
+  });
+  it('pins the verified public IP on the native HTTPS socket and preserves TLS hostname',async()=>{
+    let observed;
+    const requestImpl=(url,options,callback)=>{
+      observed={url,options};
+      const req=new EventEmitter();
+      req.setTimeout=()=>{};
+      req.end=()=>{
+        const response=new PassThrough();
+        response.statusCode=200;
+        response.headers={'content-type':'text/plain'};
+        callback(response);
+        response.end('pinned synthetic success');
+      };
+      req.destroy=error=>req.emit('error',error);
+      return req;
+    };
+    const url=new URL('https://'+host+'/health');
+    const r=await pinnedHttpsGet(url,{address:'8.8.8.8',family:4,requestImpl});
+    expect(r).toMatchObject({status:200,sample:'pinned synthetic success',truncated:false});
+    expect(observed.url.hostname).toBe(host);
+    expect(observed.options.agent).toBe(false);
+    expect(observed.options.method).toBe('GET');
+    observed.options.lookup(host,{},(error,address,family)=>{
+      expect(error).toBe(null);
+      expect(address).toBe('8.8.8.8');
+      expect(family).toBe(4);
+    });
+  });
+  it('rejects DNS rebinding addresses before creating any TLS socket',async()=>{
+    let called=false;
+    expect(()=>pinnedHttpsGet(new URL('https://'+host+'/'),
+      {address:'127.0.0.1',family:4,requestImpl:()=>{
+        called=true;throw new Error('must never connect');
+      }})).toThrow(/Unverified outbound/);
+    expect(called).toBe(false);
+    lookup.mockResolvedValue([{address:'8.8.8.8',family:4},
+      {address:'127.0.0.1',family:4}]);
+    await expect(publicHost(host)).rejects.toThrow(/private, mixed/);
+  });
+  it('rejects a server-side HTTPS redirect without reading or following the target',async()=>{
+    const requestImpl=(_url,_options,callback)=>{
+      const req=new EventEmitter();
+      req.setTimeout=()=>{};
+      req.end=()=>{
+        const res=new PassThrough();
+        res.statusCode=302;
+        res.headers={location:'http://127.0.0.1/metadata'};
+        callback(res);
+      };
+      req.destroy=error=>req.emit('error',error);
+      return req;
+    };
+    await expect(pinnedHttpsGet(new URL('https://'+host+'/'),
+      {address:'8.8.8.8',family:4,requestImpl}))
+      .rejects.toThrow(/redirect refused/);
   });
   it('fetches an exact owned public preview path with encrypted bypass strictly in process',async()=>{
     const secret='cdef0123456789abcdef0123456789ab';

@@ -117,7 +117,8 @@ export const devObserveTools={
       const rows=events.map(x=>eventRow(x,source));
       const sample=incremental(rows,cursor,a.limit??50);
       return reply({runId:a.runId,project:a.project,deployment:a.deployment,
-        source,lines:sample.next.map(({id,...rest})=>rest),returned:sample.next.length,
+        source,lines:sample.next.map(x=>({created:x.created,kind:x.kind,
+          message:x.message,source:x.source})),returned:sample.next.length,
         cursor:encodeCursor(ctx,a,source,sample.when,sample.seen),
         complete:false,morePossible:sample.morePossible,
         evidence:'bounded provider event sample; not a certified complete history',
