@@ -1,6 +1,7 @@
 // V-3: SSRF/redirect-resistant smoke fetch for an owned, exact preview hostname.
 // The private bypass is decrypted only in-process and never returned to the caller.
 import {lookup} from 'node:dns/promises';
+import {request as httpsRequest} from 'node:https';
 import {isIP} from 'node:net';
 import {decryptSecret} from '../core/secret-box.js';
 import {ownerDeployment,activeObject,base,schema,reply,assertInput,safeText}
@@ -38,12 +39,13 @@ export function publicAddress(address){
   }
   return false;
 }
-async function publicHost(host){
+export async function publicHost(host){
   if(!HOST.test(host))throw new TypeError('Only verified Vercel preview hostnames may be fetched');
   const records=await lookup(host,{all:true,verbatim:true});
   if(!Array.isArray(records)||records.length<1||records.length>16||
-     records.some(r=>!publicAddress(r.address)))
+     records.some(r=>!publicAddress(r.address)||![4,6].includes(r.family)))
     throw new TypeError('Preview hostname resolved to private, mixed or unverifiable addresses');
+  return records.map(r=>({address:r.address,family:r.family}));
 }
 async function snippet(response,max=4096){
   if(!response.body||typeof response.body.getReader!=='function')
@@ -61,6 +63,58 @@ async function snippet(response,max=4096){
     }
   }finally{try{await reader.cancel();}catch{/* Already closed */}}
   return {sample:Buffer.concat(chunks).toString('utf8'),truncated:more};
+}
+// Built-in HTTPS transport must use the DNS address that passed public
+// validation. Ordinary fetch would resolve the host again and permit rebinding.
+// HTTPS still validates the certificate and SNI against the ORIGINAL host.
+export function pinnedHttpsGet(url,{address,family,headers={},requestImpl=httpsRequest}){
+  if(!publicAddress(address)||![4,6].includes(family))
+    throw new TypeError('Unverified outbound connection address');
+  if(!(url instanceof URL)||url.protocol!=='https:'||
+     !HOST.test(url.hostname)||url.username||url.password||url.port||
+     url.search||url.hash)
+    throw new TypeError('Unsafe pinned preview request');
+  return new Promise((resolve,reject)=>{
+    let req,settled=false;
+    const done=(err,value)=>{
+      if(settled)return;settled=true;
+      if(err)reject(err);else resolve(value);
+    };
+    try{
+      req=requestImpl(url,{
+        method:'GET',timeout:3000,agent:false,
+        headers:{accept:'text/html,application/json,text/plain',...headers},
+        lookup:(_name,_options,callback)=>callback(null,address,family)
+      },res=>{
+        if(res.statusCode>=300&&res.statusCode<400){
+          res.destroy();done(new TypeError('Preview redirect refused'));return;
+        }
+        if(!Number.isInteger(res.statusCode)||res.statusCode<100||
+           res.statusCode>599){
+          res.destroy();done(new TypeError('Invalid upstream HTTP status'));return;
+        }
+        let total=0,truncated=false;
+        const chunks=[];
+        res.on('data',chunk=>{
+          if(settled)return;
+          if(!Buffer.isBuffer(chunk))chunk=Buffer.from(chunk);
+          const part=chunk.subarray(0,Math.max(0,4096-total));
+          total+=part.length;chunks.push(part);
+          if(chunk.length>part.length||total>=4096){
+            truncated=true;res.destroy();
+            done(null,{status:res.statusCode,headers:res.headers,
+              sample:Buffer.concat(chunks).toString('utf8'),truncated});
+          }
+        });
+        res.on('end',()=>done(null,{status:res.statusCode,headers:res.headers,
+          sample:Buffer.concat(chunks).toString('utf8'),truncated}));
+        res.on('error',e=>done(e));
+      });
+      req.setTimeout(3000,()=>req.destroy(new TypeError('Preview fetch timed out')));
+      req.on('error',e=>done(e));
+      req.end();
+    }catch(error){done(error);}
+  });
 }
 async function readBypass(a,ctx,b){
   if(a.bypassId===undefined)return null;
@@ -106,25 +160,39 @@ export const devPreviewFetchTools={
         throw new TypeError('Unsafe preview fetch path or bypass identity');
       const b=await ownerDeployment(ctx,a);
       const host=hostOf(b.deployment);
-      await publicHost(host);
+      const verifiedAddresses=await publicHost(host);
       const bypass=await readBypass(a,ctx,b);
-      const fetcher=ctx.fetchImpl??fetch;
+      // fetchImpl is supplied only by the test/contract runner. The actual
+      // production path always pins the verified IP at TLS socket creation.
+      const testFetcher=ctx.fetchImpl;
       const results=[];
       for(const path of a.paths){
         let response;
         try{
-          response=await fetcher('https://'+host+path,{
-            method:'GET',redirect:'manual',signal:AbortSignal.timeout(3000),
-            headers:{accept:'text/html,application/json,text/plain',
-              ...(bypass?{'x-vercel-protection-bypass':bypass}:{})}
-          });
-          if(response.status>=300&&response.status<400)
-            throw new TypeError('Preview redirect refused before following it');
-          if(typeof response.status!=='number'||response.status<100||response.status>599)
-            throw new TypeError('Invalid upstream preview response');
-          const read=await snippet(response);
-          results.push({path,status:response.status,headers:safeHeader(response),
-            body:safeText(read.sample,4096),truncated:read.truncated,
+          const headers=bypass?{'x-vercel-protection-bypass':bypass}:{};
+          let parsed;
+          if(testFetcher){
+            response=await testFetcher('https://'+host+path,{
+              method:'GET',redirect:'manual',signal:AbortSignal.timeout(3000),
+              headers:{accept:'text/html,application/json,text/plain',...headers}
+            });
+            if(response.status>=300&&response.status<400)
+              throw new TypeError('Preview redirect refused before following it');
+            if(typeof response.status!=='number'||response.status<100||
+               response.status>599)
+              throw new TypeError('Invalid upstream preview response');
+            const read=await snippet(response);
+            parsed={status:response.status,
+              headers:{'content-type':response.headers?.get('content-type'),
+                'x-vercel-cache':response.headers?.get('x-vercel-cache'),
+                'x-vercel-id':response.headers?.get('x-vercel-id')},...read};
+          }else{
+            parsed=await pinnedHttpsGet(new URL('https://'+host+path),
+              {...verifiedAddresses[0],headers});
+          }
+          results.push({path,status:parsed.status,
+            headers:safeHeader({headers:{get:key=>parsed.headers?.[key]}}),
+            body:safeText(parsed.sample,4096),truncated:parsed.truncated,
             completed:true});
         }catch{
           results.push({path,status:null,completed:false,

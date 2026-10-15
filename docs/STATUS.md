@@ -1,3 +1,11 @@
+## V-2 merged, V-3 source checkpoint — 2026-10-15
+
+V-2 full approved subsection merged as PR #207, main `66ed6fab`, production diff +641/-6, after exact-head `ci`, `check`, `unit`, `db`, `emulate`, `release-policy` green. V-1 was merged PR #206. The separate tested-source outcome does **not** establish checked READY deployed production ancestry, real Vercel custom-MCP acceptance or owner-authorized preview fixtures.
+
+V-3 now `IN_PROGRESS` on draft PR #209, branch `ai/gpt6/v3-preview-observability-20261015`. Existing predefined ID **V-3** is a single incomplete batch subsection until read-only log tail/diagnosis, exact owned SSRF-safe preview fetch, metadata-only integration checks, caller/registry, failure paths and full exact-head CI/review are complete and merged. Source checkpoint commit `904b3d3` preserves the first implementation stage. Initial CI showed an expected missing status/checklist and registry allowlist drift, while db/emulate/release-policy passed; corrections are integrated in this PR, not counted as completed work.
+
+The owner reported a **second stall** because I authored many unattached GitHub blobs without a commit/PR, then the chat was interrupted. The anti-stall rule in `AGENTS.md` and `docs/SESSION-START.md` now requires early **draft branch commits** and exact recoverable checkpoints, not only avoiding CI polling. No provider writes, production activation, spending or manual deployment occurred. Metered preview execution remains fail closed under IN-08. Preserve separate D-4 positive charged PATCH and connected provider/Hub acceptance queue.
+
 ## V-1 merged; V-2 in progress — 2026-10-14
 
 V-1 full predefined source outcome merged PR #206 to main `ad1a080` (production diff +544/-6) after exact-head check/unit/db/emulate/ci/release-policy success. Synthetic developer runs, durable run/account/resource intent tracking and exact recorded cleanup of preview deployments/empty scratch projects are code-complete; metered positive build remains OFF under IN-08 until enforceable provider total-cost ceiling plus separately signed independent owner grant. Custom authenticated provider deployed/Hub acceptance not implied. No manual production release.
