@@ -18,7 +18,7 @@
     "R",
     "X"
   ],
-  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400–800 changed production-code lines and 2–5 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims.",
+  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400–800 changed production-code lines and 2–5 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims. Owner clarification 2026-10-14: PR workload accounting counts whole predefined batch subsections in the authoritative roadmap/design, never a function, UI hookup, guard, helper or execution-packet subtask. Partial subsections count zero completed batch subsections; count each subsection once with full eligible engineering and pre-merge evidence. Group related subsections into substantial PRs; use focused checks during work and full required gates on the coherent PR. Existing acceptance and safety gates remain.",
   "cards": [
     {
       "id": "A-1",
@@ -704,10 +704,10 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-3 implementer",
-        "reason": "Five coherent Global Config operations in current PR #199: team list, exact-store items read, guarded create, guarded item patch and guarded store delete. Pending exact-head CI and native provider acceptance.",
-        "nextAction": "Finish exact-head CI/review and merge cohesive E-3 PR #199. Then complete E-3 one-time token creation and versioned backup restore in next substantial adjacent implementation batch; maintain native TEST acceptance queue.",
+        "reason": "Five Global Config list/read/create/patch/delete tools merged #199. Final guarded token issuance and backup restore source candidate pending CI/merge and native TEST acceptance.",
+        "nextAction": "Complete current cohesive E-3 token/restore and E-4 token inventory/revoke PR with all CI gates; then advance E-4 schema read/set in approved order.",
         "checkpoint": "At first E-3 PR merge, next E-3 implementation session and checked live release",
-        "evidenceNeeded": "CI/fake-provider proof for five operations and owner-authorized native TEST reads/create/patch/delete with exact project-link classification, value redaction, guarded absence and cleanup.",
+        "evidenceNeeded": "Exact-head CI and genuine native TEST selected-team create/reveal/revoke/restore and safe readback, confirmed cleanup",
         "eligibilityCondition": "Source and synthetic tests eligible now; owner TEST access and checked release required only for live acceptance",
         "dependencies": [
           "E-1"
@@ -723,14 +723,27 @@
         "E-3"
       ],
       "card": "docs/pr-cards/E-4.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 250,
       "units": [
         "E-4"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "CARD_WRITTEN",
+      "ownerInputs": [],
+      "pr": [],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next E-4 implementer",
+        "reason": "Token inventory and revoke source candidate integrated with E-3 one-time token issuance and backup restore; E-4 schema GET/set/remove not yet implemented.",
+        "nextAction": "Finish current token and backup source PR exact-head CI and merge; implement E-4 schema get/set/remove including compatibility preview and reversible audit, maintaining queued native TEST provider acceptance.",
+        "checkpoint": "Current candidate PR head and next E-4 schema implementation session; on next checked release",
+        "evidenceNeeded": "Fake HTTP token secret redaction, owner-only reveal, revoke and restore exact-head CI; genuine native owner TEST; schema compatibility and provider-native readback still missing",
+        "eligibilityCondition": "Schema source/test work eligible now; live TEST acceptance needs checked release and explicit fixture approval",
+        "dependencies": [
+          "E-3"
+        ]
+      }
     },
     {
       "id": "V-1",
