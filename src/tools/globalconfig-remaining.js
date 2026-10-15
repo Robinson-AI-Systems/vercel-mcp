@@ -17,7 +17,7 @@ const PROPS={
   expectedUpdatedAt:REV,
   label:{type:'string',minLength:1,maxLength:52},
   versionId:{type:'string',pattern:VERSION.source},
-  beforeTime:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z
+  beforeTime:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$'},
   outsideApp:{type:'boolean',const:true},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[A-Za-z0-9_-]{8,128}$'}
