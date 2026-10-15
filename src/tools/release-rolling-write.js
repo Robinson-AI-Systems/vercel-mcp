@@ -198,8 +198,22 @@ function factory(kind){
           provider.account.team_id!==b.teamId)
           throw new TypeError('Production connection authorization changed');
         const current=await candidate(a,ctx,kind);
-        if(!sameBefore(current,b))
+        if(!sameBefore(current,b)){
+          if(process.env.VITEST)console.error('D4_DRIFT_DETAIL',kind,JSON.stringify({
+            project:current.project===b.project,
+            team:current.teamId===b.teamId,
+            config:current.configHash===b.configHash,
+            desired:JSON.stringify(current.desired)===JSON.stringify(b.desired),
+            canary:current.canary===b.canary,
+            current:current.current===b.current,
+            aliases:JSON.stringify(current.aliases)===JSON.stringify(b.aliases),
+            rollout:sameRollout(current.rollout,b.rollout),
+            beforeStage:b.rollout?.stageIndex,afterStage:current.rollout?.stageIndex,
+            beforeAt:b.rollout?.updatedAt,afterAt:current.rollout?.updatedAt
+          }));
           throw new TypeError('Rolling-release state/configuration changed before dispatch');
+        }
+        if(process.env.VITEST)console.error('D4_PRE_DISPATCH_PASS',kind);
         if((kind==='config'&&b.desired.enabled||
           kind==='start')&&
           (ctx.purchaseApproval?.operation!==name||
