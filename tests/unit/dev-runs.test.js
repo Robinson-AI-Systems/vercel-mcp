@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {describe,it,expect,beforeEach,vi} from 'vitest';
 import {registry} from '../../src/tools/index.js';
 import {dispatchReadOnlyTool,listMcpTools} from '../../src/core/mcp-server.js';
@@ -261,7 +262,7 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
   it('revokes only the exact encrypted recorded automation bypass, then proves absence',async()=>{
     const env={TOKEN_ENCRYPTION_KEY:'11'.repeat(32)};
     const value='0123456789abcdef0123456789abcdef';
-    const id='byp_0123456789abcdef0123456789abcdef';
+    const id='byp_'+createHash('sha256').update(value).digest('hex').slice(0,32);
     const box=encryptSecret(value,'dev-bypass:'+runId+':'+id,env);
     const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
     const f=fixture([object('bypass',id,project,{ciphertext:box,note:'Isolated test'})]);
