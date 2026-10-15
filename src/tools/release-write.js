@@ -1,7 +1,7 @@
 // D-4: explicit production-only promotion and verified historical rollback.
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact} from '../core/util.js';
-import {readProvider,writeProvider} from '../vercel/provider.js';
+import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
 import {projectContext,ownedAliases,currentDeployment,targetDeployment,

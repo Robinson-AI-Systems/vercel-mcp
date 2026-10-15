@@ -149,6 +149,11 @@ describe('D-4 production releases, aliases and guarded routing',()=>{
       .resolves({aliases:[migrated],pagination:{next:null}});
     f.fake.when('POST','/v2/deployments/{id}/aliases')
       .resolves({alias:domain,id:aliasId},200);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}')
+      .resolves(oldDeployment).resolves(oldDeployment)
+      .resolves(targetDeployment).resolves(targetDeployment)
+      .resolves(oldDeployment).resolves(oldDeployment)
+      .resolves(targetDeployment).resolves(targetDeployment);
     const result=parse(await f.call('vercel_alias_assign',assigned,production));
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(f.mutations()).toHaveLength(1);
@@ -166,6 +171,9 @@ describe('D-4 production releases, aliases and guarded routing',()=>{
       .resolves({aliases:[linked],pagination:{next:null}})
       .resolves({aliases:[],pagination:{next:null}});
     f.fake.when('DELETE','/v2/aliases/{aliasId}').resolves(null,204);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}')
+      .resolves(oldDeployment).resolves(oldDeployment)
+      .resolves(oldDeployment).resolves(oldDeployment);
     const result=parse(await f.call('vercel_alias_delete',removed,production));
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(f.mutations()[0]).toMatchObject({method:'DELETE',
@@ -192,6 +200,10 @@ describe('D-4 production releases, aliases and guarded routing',()=>{
       for(const flags of [{dryRun:true,confirm:false},{confirm:false}]){
         const f=fixture(),args=name==='vercel_deploy_promote'?promote:
           name==='vercel_alias_assign'?assigned:removed;
+        if(name!=='vercel_deploy_promote')
+          f.fake.when('GET','/v13/deployments/{idOrUrl}')
+            .resolves(oldDeployment).resolves(oldDeployment)
+            .resolves(targetDeployment).resolves(targetDeployment);
         const out=parse(await f.call(name,{...args,...flags},production));
         expect(out.status).toBe(flags.dryRun?'preview':'needs_confirmation');
         expect(f.mutations()).toHaveLength(0);
