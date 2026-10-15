@@ -93,14 +93,15 @@ export const devIntegrationTools={
       const result=[];
       const needsEnv=(s.envNames?.preview?.length??0)+(s.envNames?.development?.length??0)>0;
       const needsDomain=Boolean(s.domains?.length);
-      const [environment,domain]=await Promise.all([
+      const [environment,ownedObjects]=await Promise.all([
         needsEnv?b.client.request('project_env_list',
           {path:{idOrName:s.project},query:{decrypt:'false'}}):Promise.resolve(null),
-        needsDomain?b.client.request('projects_domains_list',
-          {path:{idOrName:s.project}}):Promise.resolve(null)
+        needsDomain?ctx.db.listDevRunObjects({
+          account:ctx.connection.account,id:s.runId}):Promise.resolve([])
       ]);
       const envRows=needsEnv?completePage(environment,'envs',500):[];
-      const domainRows=needsDomain?completePage(domain,'domains',100):[];
+      if(!Array.isArray(ownedObjects)||ownedObjects.length>=100)
+        throw new TypeError('Complete recorded run alias inventory required');
       for(const kind of ['preview','development']){
         for(const key of s.envNames?.[kind]??[]){
           const actual=envRows?.find(x=>x?.key===key&&
@@ -112,10 +113,32 @@ export const devIntegrationTools={
         }
       }
       for(const host of s.domains??[]){
-        const found=domainRows?.find(x=>(x.name??x.domain)===host);
-        result.push(row('preview-domain',host,domainRows===null?'unverified':found?'ok':'missing',
-          domainRows===null?'Domain inventory not complete':found?'Provider listed the preview host':'Preview hostname not observed',
-          'Use an explicitly authorized preview alias tool, not a live domain operation'));
+        const known=ownedObjects.find(x=>x.object_type==='alias'&&
+          x.project_id===s.project&&x.status==='active'&&
+          x.detail?.name===host&&typeof x.detail?.deployment==='string');
+        if(!known){
+          result.push(row('preview-domain',host,'missing',
+            'No active run-owned preview alias was recorded',
+            'Use the guarded preview alias workflow on an owned READY deployment'));
+          continue;
+        }
+        let checked=false;
+        try{
+          const [alias,deploy]=await Promise.all([
+            b.client.request('release_alias_get',
+              {path:{idOrAlias:known.object_id}}),
+            b.client.request('deployments_get',
+              {path:{idOrUrl:known.detail.deployment}})
+          ]);
+          checked=(alias.uid??alias.id)===known.object_id&&alias.alias===host&&
+            (alias.deploymentId??alias.deployment?.id)===known.detail.deployment&&
+            (deploy.uid??deploy.id)===known.detail.deployment&&
+            deploy.projectId===s.project&&deploy.target==='preview';
+        }catch{/* Missing, changed or unavailable native alias proof stays unverified */}
+        result.push(row('preview-domain',host,checked?'ok':'unverified',
+          checked?'Verified Vercel alias still routes to run-owned preview':
+            'Recorded alias could not be independently verified against current preview routing',
+          'Inspect exact alias ownership and target; never reassign an existing domain'));
       }
       const cronDefs=b.raw.crons?.definitions;
       for(const path of s.crons??[]){
@@ -157,7 +180,7 @@ export const devIntegrationTools={
           'Project details do not authoritatively prove third-party integration authorization',
           'Inspect the named integration through its own authorized provider connection'));
       }
-      const ready=result.every(x=>x.status==='ok'||x.status==='not_applicable');
+      const ready=result.length>0&&result.every(x=>x.status==='ok');
       return reply({runId:s.runId,project:s.project,ready,
         rows:result,checked:result.length,unverified:result.filter(x=>x.status==='unverified').length,
         containsValues:false,modified:false,

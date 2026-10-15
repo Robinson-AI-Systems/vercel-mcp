@@ -242,6 +242,39 @@ describe('V-3 preview-only observation and diagnostics',()=>{
     expect(JSON.stringify(out)).not.toContain('must-not-return');
     f.fake.verify();
   });
+  it('verifies a run-owned preview alias against the current Vercel routing and deployment',async()=>{
+    const alias='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
+    const f=fixture([{object_type:'alias',object_id:'alias_FAKE3',
+      project_id:project,status:'active',detail:{name:alias,deployment}}]);
+    f.fake.when('GET','/v4/aliases/{idOrAlias}').resolves({
+      uid:'alias_FAKE3',alias,deploymentId:deployment});
+    const result=parse(await f.call('vercel_dev_check_integration',{
+      spec:{runId,project,domains:[alias]}}));
+    expect(result.ready).toBe(true);
+    expect(result.rows).toMatchObject([{
+      type:'preview-domain',name:alias,status:'ok'
+    }]);
+    f.fake.verify();
+  });
+  it('does not call a custom-domain listing proof for an unrecorded preview alias',async()=>{
+    const alias='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
+    const f=fixture();
+    const result=parse(await f.call('vercel_dev_check_integration',{
+      spec:{runId,project,domains:[alias]}}));
+    expect(result.ready).toBe(false);
+    expect(result.rows[0].status).toBe('missing');
+    expect(f.fake.calls.filter(x=>x.path.includes('aliases')||
+      x.path.includes('domains'))).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('reports cron execution as not applicable to previews, not READY',async()=>{
+    const f=fixture();
+    const result=parse(await f.call('vercel_dev_check_integration',{
+      spec:{runId,project,crons:['/api/hello']}}));
+    expect(result.ready).toBe(false);
+    expect(result.rows[0].status).toBe('not_applicable');
+    f.fake.verify();
+  });
   it('refuses production environment expectations without touching Vercel',async()=>{
     const f=fixture();
     const x=await f.call('vercel_dev_check_integration',{
