@@ -214,11 +214,16 @@ function factory(kind){
           nextStageIndex:b.rollout.nextStageIndex,
           canaryDeploymentId:b.canary
         }:{canaryDeploymentId:b.canary};
-      return provider.write(operation,
-        {path:{idOrName:b.project},...(kind==='config'&&!b.desired.enabled?{}:{body})},
-        {requestKey,tool:name,shapeResult:()=>({
-          project:b.project,operation:kind,
-          canary:b.canary??null})});
+      try {
+        return await provider.write(operation,
+          {path:{idOrName:b.project},...(kind==='config'&&!b.desired.enabled?{}:{body})},
+          {requestKey,tool:name,shapeResult:()=>({
+            project:b.project,operation:kind,
+            canary:b.canary??null})});
+      } catch(e){
+        if(process.env.VITEST)console.error('D4_ROLLING_INTERNAL',kind,e?.name,e?.message);
+        throw e;
+      }
     },
     async verify(_a,ctx,b){
       try{
