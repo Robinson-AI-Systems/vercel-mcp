@@ -173,6 +173,32 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
     f.fake.verify();
   });
+  it('deletes only an independently verified empty owned scratch project',async()=>{
+    const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
+    const f=fixture([object('project',project,project,{name})]);
+    const empty={id:project,name,accountId:team,link:null,
+      hasDeployments:false,storageConnections:[],crons:{definitions:[]}};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(empty).resolves(empty).rejects(404);
+    for(const [path,field] of [
+      ['/v9/projects/{idOrName}/domains','domains'],
+      ['/v10/projects/{idOrName}/env','envs'],
+      ['/v7/deployments','deployments']
+    ]){
+      const page={[field]:[],pagination:{count:0,next:null}};
+      f.fake.when('GET',path).resolves(page).resolves(page);
+    }
+    f.fake.when('DELETE','/v9/projects/{idOrName}').resolves({},204);
+    const out=parse(await f.call('vercel_dev_cleanup',{
+      runId,outsideApp:true,confirm:true,requestKey:'cleanupEmptyProj001'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(true);
+    expect(f.rows.get(runId)[0].status).toBe('cleaned');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(1);
+    expect(f.fake.calls.find(c=>c.method==='DELETE').path)
+      .toBe('/v9/projects/'+project);
+    f.fake.verify();
+  });
   it('denies unowned, invalid, and undeclared cleanup runs',async()=>{
     const f=fixture();
     for(const args of [{runId:'run_20261014_zzzzzzzz',outsideApp:true},
