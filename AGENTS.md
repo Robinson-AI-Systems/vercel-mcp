@@ -1,5 +1,15 @@
 # AGENTS.md — the rules. Read this first, every session.
 
+## Session entry and authority
+
+“Do N bundles” starts the complete procedure in [docs/SESSION-START.md](docs/SESSION-START.md).
+N sets new implementation workload only; acceptance, reconciliation, required checks,
+reviews, merges, cleanup and permanent handoff remain session obligations. Project
+instructions need only identify this repository and point here; keep workflow rules
+in the repository. A push or met bundle count is not permission to omit closeout.
+This owner-requested workflow-tooling repair is maintenance, not a product bundle.
+
+
 ## Owner-requested implementation detail — October 14, 2026
 
 Read only the applicable subsection in [IMPLEMENTATION-DETAIL.md](docs/implementation-contracts/IMPLEMENTATION-DETAIL.md)
@@ -276,7 +286,7 @@ card; read only that recipe. It maps existing code and proposed work without cha
     is the current task — fix it before any new card.
 12. **Problems are not blockers.** Red CI, lint, failing tests, wrong parameters, conflicts and unclear code are yours to
     fix; stop only for a hard limit or an owner decision the current step needs (SESSION-START §6).
-13. **Focused tasks, then a recovery point.** Run affected tests/lint at meaningful seams within the predefined batch subsection; end every turn right after a push whose resume note names the exact next action.
+13. **Focused tasks, then a recovery point.** Run affected tests/lint at meaningful seams within the predefined batch subsection; checkpoint the exact next action after a push, then continue required CI/review/merge and session obligations.
 14. **GitHub REST testing when no local runner (permanent owner instruction).** In a GitHub-connector-only or
     terminal-less environment, use the **GitHub REST route** to perform verification on GitHub Actions runners.
     Commit the tested slice to an `ai/*` branch, open a draft PR, and use REST to inspect the exact-head

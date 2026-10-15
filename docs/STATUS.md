@@ -1,5 +1,17 @@
 ## V-3 fully implemented and exact-head verified — October 15, 2026
 
+## Acceptance-first session tooling — October 15, 2026
+
+Owner-authorized cross-repository workflow repair: session status now presents
+per-deployment acceptance actions before roadmap work, separately lists waiting
+checks, and validates complete/stale-free temporary acceptance accounting.
+SESSION-START is authoritative for sequencing and final closeout; push checkpoints
+continue into required obligations. This maintenance completes no product bundle,
+closes no provider/deployed acceptance, changes no release/approval gate, and
+preserves concurrent roadmap work and existing evidence. Focused native script
+regressions and required exact-head CI/review must pass before merge.
+
+
 One whole preapproved V-3 subsection: four connected preview-only read workflows (bounded signed-cursor event tail, chronological first-error diagnosis, public-address pinned TLS no-redirect smoke fetch with server-private bypass, and metadata-only integration checks). Source diff +671/-1 production lines excluding tests/docs; ten classifier patterns plus foreign project/deployment, cursor, DNS, bypass, routing and redaction regressions. The reviewed implementation head passed exact-head check/unit/db/emulate/ci/release-policy after one correction cycle for a real Vercel identifier accidentally added to STATUS; no scanner or assertion weakened. Existing PR #209 contains this entire coherent work, not a second PR. This permanent card/index describes eligible engineering as completed on the successful PR merge; provider/checked-live/Hub acceptance are separate.
 
 A fresh Vercel provider read independently verified live source ad1a080 READY; native custom MCP run-list read PASSED. Additional native selected-team E2 metadata and project alias reads succeeded safely, while custom-environment and Global Config list completeness remained unverified and latest promotion status incomplete. Native runtime-log GET still returned safe unknown_error despite selected-project deployment read success. Queue now records this actual evidence and source/deployment-specific prerequisites including V-1/V-2/V-3 scenarios. Production disabled and autonomous spending zero; no unauthorized owner fixture mutation or manual promotion.
