@@ -752,6 +752,27 @@ export function createDb(query) {
         FROM dev_runs WHERE vercel_account=${account}
         ORDER BY created_at DESC,id DESC LIMIT ${limit}`;
     },
+    // V-4: serialized per-account/day reservation; the row lock in ON CONFLICT
+    // prevents concurrent sandbox creations from both spending the last minutes.
+    // Reservations are conservative: an ambiguous provider POST does not get a refund.
+    async reserveDevSandboxMinutes({account,minutes,day}) {
+      if(typeof account!=='string'||!account||
+        !Number.isSafeInteger(minutes)||minutes<1||minutes>60||
+        typeof day!=='string'||!/^\\d{4}-\\d{2}-\\d{2}$/.test(day))
+        throw new TypeError('Invalid bounded sandbox budget reservation');
+      const run=getSql();
+      const rows=await run`INSERT INTO dev_sandbox_usage
+        (vercel_account,day,minutes)
+        SELECT a.id,${day}::date,${minutes}
+        FROM vercel_accounts a WHERE a.id=${account}
+          AND a.sandbox_minutes_per_day>=${minutes}
+        ON CONFLICT (vercel_account,day) DO UPDATE
+          SET minutes=dev_sandbox_usage.minutes + EXCLUDED.minutes
+          WHERE dev_sandbox_usage.minutes + EXCLUDED.minutes <=
+            (SELECT sandbox_minutes_per_day FROM vercel_accounts WHERE id=${account})
+        RETURNING minutes`;
+      return rows.length===1?{allowed:true,used:rows[0].minutes}:{allowed:false};
+    },
     async listDevRunObjects({account,id}) {
       if(typeof account!=='string'||!account||typeof id!=='string')
         throw new TypeError('Invalid development object lookup');
@@ -763,7 +784,7 @@ export function createDb(query) {
         ORDER BY o.created_at DESC,o.object_type DESC,o.object_id DESC LIMIT 100`;
     },
     async addDevRunObject({account,id,type,objectId,projectId=null,detail={}}) {
-      const kinds=['intent','project','deployment','alias','env','bypass','sandbox','webhook'];
+      const kinds=['intent','project','deployment','alias','env','bypass','sandbox'];
       if(typeof account!=='string'||typeof id!=='string'||!kinds.includes(type)||
          typeof objectId!=='string'||objectId.length<3||objectId.length>180||
          projectId!==null&&(typeof projectId!=='string'||projectId.length>128)||
@@ -787,8 +808,6 @@ export function createDb(query) {
       const run=getSql();
       const rows=await run`UPDATE dev_run_objects AS o SET
         status=${status},last_error=${error},
-        detail=CASE WHEN o.object_type='webhook' AND ${status}='cleaned'
-          THEN '{}'::jsonb ELSE o.detail END,
         cleaned_at=CASE WHEN ${status}='cleaned' THEN now() ELSE NULL END
         FROM dev_runs AS r
         WHERE r.id=o.run_id AND r.id=${id} AND r.vercel_account=${account}
@@ -994,6 +1013,10 @@ export function createDb(query) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),cleaned_at TIMESTAMPTZ)`;
       await run`CREATE INDEX IF NOT EXISTS dev_runs_account
         ON dev_runs(vercel_account,created_at DESC)`;
+      await run`CREATE TABLE IF NOT EXISTS dev_sandbox_usage (
+        vercel_account TEXT NOT NULL,day DATE NOT NULL,
+        minutes INTEGER NOT NULL DEFAULT 0 CHECK(minutes>=0),
+        PRIMARY KEY(vercel_account,day))`;
       await run`CREATE TABLE IF NOT EXISTS dev_run_objects (
         run_id TEXT NOT NULL REFERENCES dev_runs(id),object_type TEXT NOT NULL,
         object_id TEXT NOT NULL,project_id TEXT,detail JSONB NOT NULL DEFAULT '{}'::jsonb,
