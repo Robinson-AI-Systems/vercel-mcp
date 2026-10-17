@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import { operation } from './operations.js';
 import { readBoundedJson } from './bounded-json.js';
+import {sandboxBinaryPost as nativeSandboxFile,sandboxCommandLogs as nativeSandboxLogs} from './sandbox-binary.js';
 import {readBoundedRuntimeLogs} from './runtime-log-stream.js';
 import { validateRequest,documentedRead } from './openapi-validation.js';
 import { createDb } from '../db.js';
@@ -292,5 +293,20 @@ export function makeVercelClient({
     }
     return { items, capped: true };
   }
-  return { request, paginate, uploadFile };
+  // The client is the sole provider transport door for bounded Sandbox
+  // filesystem and log streams, which the JSON-only request method cannot
+  // safely parse. Scope and identity are checked again before native transport.
+  async function sandboxFilesystem(ctx,params){
+    if(ctx?.connection?.account!==account.id||ctx.connection.mode!=='preview'||
+      ctx.db==null||params==null)
+      throw new TypeError('Native Sandbox file transport requires selected preview account');
+    return nativeSandboxFile(ctx,params);
+  }
+  async function sandboxOutput(ctx,params){
+    if(ctx?.connection?.account!==account.id||ctx.connection.mode!=='preview'||
+      ctx.db==null||params==null)
+      throw new TypeError('Native Sandbox logs require selected preview account');
+    return nativeSandboxLogs(ctx,params);
+  }
+  return {request,paginate,uploadFile,sandboxFilesystem,sandboxOutput};
 }

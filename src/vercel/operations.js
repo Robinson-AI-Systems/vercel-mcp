@@ -84,6 +84,13 @@ export const OPS = Object.freeze({
   projects_domains_list: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}/domains' }),
   projects_env_list: Object.freeze({ method: 'GET', path: '/v10/projects/{idOrName}/env' }),
   projects_transfer_request: Object.freeze({ method: 'POST', path: '/projects/{idOrName}/transfer-request' }),
+  // V-4 exact paths from the 2026-10-11 sandbox REST surface; the binary
+  // filesystem endpoints have their own bounded transport in sandbox-binary.
+  sandbox_create: Object.freeze({ method: 'POST', path: '/v4/sandboxes' }),
+  sandbox_session_get: Object.freeze({ method: 'GET', path: '/v2/sandboxes/sessions/{sessionId}' }),
+  sandbox_command_run: Object.freeze({ method: 'POST', path: '/v2/sandboxes/sessions/{sessionId}/cmd' }),
+  sandbox_command_get: Object.freeze({ method: 'GET', path: '/v2/sandboxes/sessions/{sessionId}/cmd/{cmdId}' }),
+  sandbox_stop: Object.freeze({ method: 'POST', path: '/v2/sandboxes/sessions/{sessionId}/stop' }),
   projects_delete: Object.freeze({ method: 'DELETE', path: '/v9/projects/{idOrName}' })
 });
 

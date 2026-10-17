@@ -98,8 +98,15 @@ export function defineWrite(spec) {
       // A numeric ceiling is meaningless unless the provider guarantees
       // lifetime charges cannot exceed it. Vercel build/compute usage
       // currently supplies no enforceable per-request maximum here.
-      if(purchase.cents===null || purchase.recurring) return refusal(
-        'Unbounded metered usage is disabled until a provider-enforceable owner ceiling can be verified');
+      if(purchase.cents===null || purchase.recurring){
+        // The only authorized exception is a finite, isolated Sandbox session:
+        // owner must explicitly accept non-guaranteed variable usage AFTER
+        // reviewing the real scope in authenticated setup. No generic metered
+        // purchase inherits this permission, and this agent cannot approve it.
+        if(!(spec.name==='vercel_dev_sandbox_create'&&spec.risk?.ownerApprovedMetered===true&&
+          purchase.cents===null&&purchase.recurring===true))
+          return refusal('Unbounded metered usage requires a provider-enforceable ceiling or a separately authenticated owner-approved supported policy');
+      }
       if(typeof args.requestKey!=='string')
         return refusal('A stable explicit requestKey is mandatory for paid operations');
       if(typeof ctx.db?.requestPurchaseIntent!=='function' ||
@@ -130,6 +137,8 @@ export function defineWrite(spec) {
       const ceiling=Number(verified?.ceiling_cents);
       if(verified?.status!=='approved'||!Number.isSafeInteger(ceiling)||
         ceiling<1||(purchase.cents!==null&&purchase.cents>ceiling)||
+        (purchase.cents===null&&verified?.allow_unbounded_metered!==true)||
+        (purchase.cents!==null&&verified?.allow_unbounded_metered===true)||
         !verified.approved_at||new Date(verified.expires_at).getTime()<=Date.now())
         return refusal('Owner purchase approval is stale or cannot cover the quoted price');
       charge={...binding,reference:issued.reference};
@@ -211,7 +220,9 @@ export function defineWrite(spec) {
     }
     // One-time provider secrets are never returned through MCP. Only a UUID
     // for the independently authenticated owner reveal form may be included.
-    const delivered=spec.oneTimeDelivery===true?{
+    const oneTimeRequired=spec.oneTimeDelivery===true&&
+      (typeof spec.oneTimeWhen!=='function'||spec.oneTimeWhen(args)===true);
+    const delivered=oneTimeRequired?{
       ownerRevealRef:providerResult?.ownerRevealRef,
       expiresAt:providerResult?.expiresAt,
       revealAt:'/api/vercel/setup'
@@ -223,13 +234,18 @@ export function defineWrite(spec) {
       new Date(delivered.expiresAt).getTime()>Date.now()+600000))
       return {status:'outcome_unknown',mode,confirmed:null,requestKey,
         reason:'Provider token outcome or encrypted one-time delivery is unverified'};
+    // Optional Vercel-agnostic verified receipt. Default writes preserve the
+    // original response, while multi-step workflows can expose exact owner-
+    // scoped IDs and private result handles WITHOUT exposing provider bodies.
+    const publicReceipt=confirmed===true&&typeof spec.publicReceipt==='function'?
+      safeShape(ctx,await spec.publicReceipt(args,before,providerResult,verification)):null;
     const result = safeShape(ctx, spec.approvalOnly ?
       { status: 'awaiting_owner_approval', mode, confirmed: false,
         ownerApprovalRequired: true, reference: providerResult.reference,
         expiresAt: providerResult.expiresAt, preview: summary, requestKey,
         reviewAt: '/api/vercel/setup' } :
       { status: 'applied', mode, confirmed, preview: summary, moneyLine, requestKey,
-        ...(delivered||{}) });
+        ...(delivered||{}),...(publicReceipt?{receipt:publicReceipt}:{}) });
     const inverse = typeof spec.inverse === 'function'
       ? safeShape(ctx, await spec.inverse(args, before, providerResult, ctx)) : null;
     await ctx.audit({ ...auditBase, dryRun: false,

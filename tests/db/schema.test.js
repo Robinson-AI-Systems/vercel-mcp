@@ -16,7 +16,7 @@ beforeAll(async () => {
 
 afterAll(async () => { await closeIsolatedSchema(); });
 
-it('creates exactly the eleven tables and is idempotent for tables, columns, and indexes', async () => {
+it('creates exactly the declared tables and is idempotent for tables, columns, and indexes', async () => {
   await db.initSchema();
   const firstTables = await rawQuery(
     'SELECT tablename FROM pg_tables WHERE schemaname = current_schema() ORDER BY tablename'
@@ -48,7 +48,7 @@ it('enforces safe defaults and has no plaintext token columns', async () => {
   const accountDefaults = Object.fromEntries(accounts.map((row) => [row.column_name, row.column_default]));
   expect(accountDefaults.production_enabled).toMatch(/false/i);
   expect(accountDefaults.spend_limit_cents).toBe('0');
-  expect(accountDefaults.sandbox_minutes_per_day).toBe('60');
+  expect(accountDefaults.sandbox_minutes_per_day).toBeNull(); // Deprecated legacy setting, no new default.
   expect(accounts.find((row) => row.column_name === 'scope').is_nullable).toBe('NO');
 
   for (const table of ['oauth_codes', 'oauth_tokens']) {

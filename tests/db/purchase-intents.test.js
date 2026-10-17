@@ -38,14 +38,29 @@ describe('IN-08 purchase intent ledger',()=>{
     expect((await db.getPurchaseIntent({account:request.account,reference:issued.reference})).status)
       .toBe('consumed');
   });
-  it('supports owner-chosen variable ceiling without an arbitrary policy cap',async()=>{
-    const intent=await db.requestPurchaseIntent({...request,
+  it('requires a separate acknowledged one-use variable charge risk exclusively for bounded Sandbox create',async()=>{
+    const unsafe=await db.requestPurchaseIntent({...request,
       requestKey:'rmcp_scoped_'+'d'.repeat(64),priceCents:null,pricingSource:'metered'});
-    expect(intent.status).toBe('pending');
+    expect(unsafe.status).toBe('pending');
     expect(await db.approvePurchaseIntent({account:request.account,
-      reference:intent.reference,ceilingCents:Number.MAX_SAFE_INTEGER})).toBe(true);
-    expect(await db.consumePurchaseIntent({...request,reference:intent.reference,
-      requestKey:'rmcp_scoped_'+'d'.repeat(64),priceCents:null,pricingSource:'metered'})).toBe(true);
+      reference:unsafe.reference,ceilingCents:1000,acknowledgeUnbounded:true})).toBe(false);
+    expect(await db.approvePurchaseIntent({account:request.account,
+      reference:unsafe.reference,ceilingCents:1000})).toBe(false);
+    const metered={...request,operation:'vercel_dev_sandbox_create',
+      requestKey:'rmcp_scoped_'+'e'.repeat(64),priceCents:null,pricingSource:'metered'};
+    const intent=await db.requestPurchaseIntent(metered);
+    expect(intent.status).toBe('pending');
+    expect(await db.consumePurchaseIntent({...metered,reference:intent.reference})).toBe(false);
+    expect(await db.approvePurchaseIntent({account:request.account,
+      reference:intent.reference,ceilingCents:1000})).toBe(false);
+    expect(await db.approvePurchaseIntent({account:request.account,
+      reference:intent.reference,ceilingCents:1000,acknowledgeUnbounded:true})).toBe(true);
+    const stored=await db.getPurchaseIntent({account:request.account,reference:intent.reference});
+    expect(stored).toMatchObject({status:'approved',allow_unbounded_metered:true});
+    expect(await db.consumePurchaseIntent({...metered,reference:intent.reference,
+      fingerprint:'c'.repeat(64)})).toBe(false);
+    expect(await db.consumePurchaseIntent({...metered,reference:intent.reference})).toBe(true);
+    expect(await db.consumePurchaseIntent({...metered,reference:intent.reference})).toBe(false);
     expect(await db.getPurchaseIntent({account:'team_OTHER',reference:intent.reference})).toBeNull();
   });
 });

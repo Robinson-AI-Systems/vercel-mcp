@@ -1,6 +1,8 @@
 # Decisions (dated)
 
-One entry per design decision, newest last. Reasons live here; current rules live in AGENTS and the designs.
+One entry per design decision. Current latest binding clarifications appear immediately below; earlier records remain historical. Reasons live here; current rules live in AGENTS and the designs.
+
+**2026-10-17 — Owner's definitive developer-versus-end-user authority ruling (supersedes contrary product defaults).** The owner's $0 autonomous spend, no live/production mutations, test-fixture, release and builder approval constraints were instructions to agents BUILDING the MCP services. They were never intended as limits on the finished tools' end users. The service must expose all feasible provider-backed capability to an authenticated user's coding agent according to the user's explicit or delegated choices. Honest risk/cost disclosures, provider rules, real account scopes, security/tenant isolation and user-chosen policy remain. IN-13: do NOT enforce 60 Sandbox minutes/day/account; collect estimates for visibility only. The old developer-only limits in other product code, profiles, purchase paths or catalogs must be inventoried and remediated under existing plans, not silently retained. Current builder is still unauthorized to spend, invoke production changes, bypass tests or deploy unscheduled.
 
 **2026-10-10 — Build a separate, hosted Vercel MCP in the Stripe MCP's form (hub Batch S, `S-vercel`).** Chris builds
 each toolset as its own solid, standalone server because official connectors give less functionality and different
@@ -148,3 +150,5 @@ design-maintenance exception to routine no-docs-only implementation work, not a
 feature PR or completed subsection. Existing owner-specific missing inputs,
 spending/production/credential/cleanup authority remain gated; this entry does
 not mark them answered. The original Toolkit stays reference-only.
+
+**2026-10-17 — Bounded Sandbox metered end-user authorization (clarifies the 2026-10-16 end-user authority decision, V-4/V-5 PR #216).** The implementing agent retains zero autonomous spending and may not create a paid Sandbox for acceptance. A properly authenticated account owner may authorize one explicitly selected, finite-runtime, 1-vCPU/2-GB, deny-all-egress, nonpersistent Sandbox whose actual regional compute/memory charges are variable. The owner must separately sign in, explicitly acknowledge that a chosen planning amount is NOT a provider-enforced dollar ceiling, and authorize the exact account/operation/payload-bound one-use transaction. The grant is consumed before provider creation and is not inferred from MCP `confirm` or daily minutes. All other metered categories without an enforceable ceiling remain fail-closed pending their own approved product remediation. Vercel's published base Pro rates for context: $0.128 per active-vCPU-hour and $0.0212 per provisioned-GB-hour; applicable region, included usage and future provider pricing may differ. No provider spend was performed.

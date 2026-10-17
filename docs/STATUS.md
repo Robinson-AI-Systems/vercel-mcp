@@ -1,3 +1,37 @@
+## October 17 — Owner removes developer restrictions from end-user product rules (PR #216)
+
+IN-13 was answered decisively: **no mandatory MCP Sandbox minutes/day limit**. The end user and coding agent decide their project usage under actual Vercel limits and user-selected policy. Candidate code changes V-4 from atomic quota refusal into atomic **usage-only tracking**, supports the documented Pro provider session maximum (24 h), and removes new-schema daily-cap defaults. Old persisted `sandbox_minutes_per_day` values are ignored; provider API/network/session constraints and separate actual user authority remain enforced. Tests now require concurrent runs crossing 60 minutes to succeed and retain strict account isolation. The original V-4 frozen criterion explicitly referenced an owner-unapproved 60-minute proposal; this owner supersession is documented in the card and delivery ledger rather than falsifying original plan history.
+
+This is a broader repository-wide product-design correction: the coding agent's $0 spending, release and live-mutation restrictions must not become hard end-user limitations. Existing per-charge developer-like approvals, end-user spend/production defaults, read-only/guided-only substitutes and connection profile capabilities need an explicit source-to-provider audit/remediation under the ordered roadmap. Do **not** claim all other restrictions were fixed by this V-4/V-5 bundle. No customer/provider Sandbox charges, deployments or live mutations performed. Exact-head CI, self-review, merge and later deployed/native acceptance remain separate gates.
+
+## Historical pre-IN-13-answer source snapshot — superseded by owner correction above
+
+PR #216 on `ai/gpt6/v4-v5-preview-sandbox-webhook-20261016` includes both
+complete roadmap engineering subsections V-4 (Sandbox lifecycle) and V-5
+(synthetic signed test webhooks). Frozen plan commit: `4669c8e`. Source
+diff: **+882/-23 meaningful production lines**, separate test/docs files.
+Eight original criteria and source evidence are recorded in
+`docs/pr-cards/V-4-delivery.json`; real deploy/provider acceptance is NOT
+included in source proof.
+
+Exact-head source `145cd0d`: `ci` run 39024684949 passed all
+`check`, `unit`, `db`, `emulate` and aggregate `ci` jobs.
+Daily live policy run 39024684960 passed. Further ledger/index edits need
+their own final exact-head verification before any merge.
+
+**Required owner input IN-13 is UNANSWERED** in
+`docs/OWNER-INPUTS.md`, explicitly due before V-4 merges. Repository
+recommends 60 Sandbox minutes/day/account. The existing value is a
+configurable code default, not approved real use or authority to merge.
+Until affirmative approval, both V-4/V-5 remain IN_PROGRESS on one open PR.
+Do not bypass by changing status, claiming source CI as user authorization
+or invoking a charged Sandbox. No autonomous spending or production changes.
+
+The normal `main`→`live` daily release has not promoted this new code.
+Native custom-MCP/RTC, scratch Sandbox/provider and signed receiver live
+acceptance are PENDING, each subject to serving revision and its own approved
+fixture/grants. There is no authorization for an unscheduled deployment.
+
 ### Release-needed owner escalation — October 15
 
 Owner permits manual-release requests only after every independently eligible

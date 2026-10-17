@@ -8,6 +8,10 @@ or require replacing service-owned dispatch/state. Hub's H-1–H-3 work belongs 
 
 Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current state; [PLAN](PLAN.md) holds acceptance.
 
+## Owner-approved cross-cutting end-user authority correction (2026-10-17)
+
+The October 17 owner clarification supersedes interpretations of $0, preview-only, mandatory owner-per-transaction and no-production **developer/acceptance instructions** as enduring customer restrictions. This does not authorize any builder to perform paid/live operations. The actual code paths listed in [END-USER-AUTHORITY](END-USER-AUTHORITY.md) remain a **completion obligation** under existing B/C/U, D/V, O/P/R and applicable other batches, not a newly claimed delivered phase. Reconcile them against actual account permission, user delegation and provider limits before claiming unrestricted end-user parity. Finish current approved V-4/V-5 bundle and independently eligible acceptance/release duties; plan the cohesive shared authorization seam next without fragmenting into helper PRs or silently changing other providers.
+
 ## What is next
 
 **Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), independent U-1 discovery and seven scope-verified feature-flag metadata reads, plus R-1 owner-reviewed read-only pass requests based on merged C-2. D-1/D-2 code acceptance is complete but genuine hosted/provider/Hub acceptance remains pending. No vercel-mcp project appeared in the authorized provider inventory recheck. Re-enter D-2 when an authorized disposable deployment, custom HTTPS service and stored scoped account become available. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
@@ -27,7 +31,7 @@ example when writing the JIT card. No live database, token or deployment is conf
 |---|---|---|---|
 | 1 Foundation | A | Nothing works without it | IN-02/IN-03/IN-04 before A-5 can be tried for real |
 | 2 Safety | B → C | Every later tool is built on the safety layer (production, spend, access, secrets, self-protection) and the context rules | IN-07 (protected list), IN-08 (spend limit default) |
-| 3 Everyday building and running | D → E → V | Projects, deployments and releases, then variables, then the developer tools that make building any project on Vercel fast (previews per branch, env wiring, diagnosis, sandboxes, cleanup) | IN-09 only to use production mode for real; IN-13 before V-4 merges |
+| 3 Everyday building and running | D → E → V | Projects, deployments and releases, then variables, then the developer tools that make building any project on Vercel fast (previews per branch, env wiring, diagnosis, sandboxes, cleanup) | IN-09 only to use production mode for real; IN-13 answered 2026-10-17 (no artificial Sandbox quota) |
 | 4 The rest of the platform | N → F → M | Domains/DNS/registrar, security and traffic, monitoring and integrations | IN-08 for real purchases (never in tests) |
 | 5 Owner | O | Team, members, tokens, billing, admin overview and every dashboard setting | — |
 | 6 Projects | P → W | Optional project profiles and readiness for any app (Appliance Desk first), then the one-sentence jobs | IN-11 (Appliance Desk release rule) |

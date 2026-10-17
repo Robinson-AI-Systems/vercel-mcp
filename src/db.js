@@ -7,7 +7,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -250,22 +250,26 @@ export function createDb(query) {
         !/^[0-9a-f-]{36}$/.test(reference||'')) return null;
       const run=getSql();
       const rows=await run`SELECT id,vercel_account,operation,price_cents,pricing_source,
-        ceiling_cents,status,created_at,expires_at,approved_at,consumed_at
+        ceiling_cents,allow_unbounded_metered,status,created_at,expires_at,approved_at,consumed_at
         FROM purchase_intents WHERE id=${reference} AND vercel_account=${account}`;
       return rows.length===1?rows[0]:null;
     },
-    async approvePurchaseIntent({account,reference,ceilingCents}) {
+    async approvePurchaseIntent({account,reference,ceilingCents,acknowledgeUnbounded=false}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'')||
         !/^[0-9a-f-]{36}$/.test(reference||'')||
-        !Number.isSafeInteger(ceilingCents)||ceilingCents<1)
+        !Number.isSafeInteger(ceilingCents)||ceilingCents<1||
+        typeof acknowledgeUnbounded!=='boolean')
         return false;
       const run=getSql();
       const rows=await run`WITH approved AS (
           UPDATE purchase_intents SET status='approved',approved_at=now(),
-            ceiling_cents=${ceilingCents}
+            ceiling_cents=${ceilingCents},allow_unbounded_metered=${acknowledgeUnbounded}
           WHERE id=${reference} AND vercel_account=${account}
             AND status='pending' AND expires_at>now()
             AND (price_cents IS NULL OR price_cents<=${ceilingCents})
+            AND ((price_cents IS NOT NULL AND ${acknowledgeUnbounded}=FALSE)
+              OR (price_cents IS NULL AND pricing_source='metered'
+                AND operation='vercel_dev_sandbox_create' AND ${acknowledgeUnbounded}=TRUE))
           RETURNING id
         ),audit AS (
           INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
@@ -278,7 +282,8 @@ export function createDb(query) {
       if(rows.length!==1||Number(rows[0].approved_count)!==1||
         Number(rows[0].audit_count)!==1) return false;
       const read=await this.getPurchaseIntent({account,reference});
-      return read?.status==='approved'&&Number(read.ceiling_cents)===ceilingCents;
+      return read?.status==='approved'&&Number(read.ceiling_cents)===ceilingCents&&
+        read.allow_unbounded_metered===acknowledgeUnbounded;
     },
     async consumePurchaseIntent({account,reference,operation,requestKey,fingerprint,priceCents,pricingSource}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'')||
@@ -300,6 +305,9 @@ export function createDb(query) {
             AND consumed_at IS NULL AND expires_at>now()
             AND ceiling_cents IS NOT NULL
             AND (price_cents IS NULL OR price_cents<=ceiling_cents)
+            AND ((price_cents IS NOT NULL AND allow_unbounded_metered=FALSE)
+              OR (price_cents IS NULL AND pricing_source='metered'
+                AND operation='vercel_dev_sandbox_create' AND allow_unbounded_metered=TRUE))
           RETURNING id
         ),audit AS (
           INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
@@ -752,6 +760,25 @@ export function createDb(query) {
         FROM dev_runs WHERE vercel_account=${account}
         ORDER BY created_at DESC,id DESC LIMIT ${limit}`;
     },
+    // V-4: atomic account/day estimated usage accounting for owner visibility.
+    // Never use developer-era sandbox_minutes_per_day as an end-user quota.
+    // The provider's session ceiling and a user's own delegated policy govern usage.
+    // An uncertain provider POST remains recorded, not silently refunded.
+    async recordDevSandboxMinutes({account,minutes,day}) {
+      if(typeof account!=='string'||!account||
+        !Number.isSafeInteger(minutes)||minutes<1||minutes>1440||
+        typeof day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(day))
+        throw new TypeError('Invalid Sandbox session usage record');
+      const run=getSql();
+      const rows=await run`INSERT INTO dev_sandbox_usage
+        (vercel_account,day,minutes)
+        SELECT a.id,${day}::date,${minutes}
+        FROM vercel_accounts a WHERE a.id=${account}
+        ON CONFLICT (vercel_account,day) DO UPDATE
+          SET minutes=dev_sandbox_usage.minutes + EXCLUDED.minutes
+        RETURNING minutes`;
+      return rows.length===1?{recorded:true,used:rows[0].minutes}:{recorded:false};
+    },
     async listDevRunObjects({account,id}) {
       if(typeof account!=='string'||!account||typeof id!=='string')
         throw new TypeError('Invalid development object lookup');
@@ -763,7 +790,7 @@ export function createDb(query) {
         ORDER BY o.created_at DESC,o.object_type DESC,o.object_id DESC LIMIT 100`;
     },
     async addDevRunObject({account,id,type,objectId,projectId=null,detail={}}) {
-      const kinds=['intent','project','deployment','alias','env','bypass','sandbox'];
+      const kinds=['intent','project','deployment','alias','env','bypass','sandbox','webhook'];
       if(typeof account!=='string'||typeof id!=='string'||!kinds.includes(type)||
          typeof objectId!=='string'||objectId.length<3||objectId.length>180||
          projectId!==null&&(typeof projectId!=='string'||projectId.length>128)||
@@ -787,6 +814,8 @@ export function createDb(query) {
       const run=getSql();
       const rows=await run`UPDATE dev_run_objects AS o SET
         status=${status},last_error=${error},
+        detail=CASE WHEN o.object_type='webhook' AND ${status}='cleaned'
+          THEN '{}'::jsonb ELSE o.detail END,
         cleaned_at=CASE WHEN ${status}='cleaned' THEN now() ELSE NULL END
         FROM dev_runs AS r
         WHERE r.id=o.run_id AND r.id=${id} AND r.vercel_account=${account}
@@ -891,7 +920,7 @@ export function createDb(query) {
         scope TEXT NOT NULL, project_id TEXT, project_name TEXT, token_enc TEXT NOT NULL, token_last4 TEXT NOT NULL,
         token_expires_at TIMESTAMPTZ, token_checked_at TIMESTAMPTZ, token_probe JSONB,
         production_enabled BOOLEAN NOT NULL DEFAULT FALSE, spend_limit_cents INTEGER NOT NULL DEFAULT 0,
-        sandbox_minutes_per_day INTEGER NOT NULL DEFAULT 60, is_default BOOLEAN NOT NULL DEFAULT FALSE,
+        sandbox_minutes_per_day INTEGER, is_default BOOLEAN NOT NULL DEFAULT FALSE,
         added_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
       await run`CREATE TABLE IF NOT EXISTS oauth_clients (
         client_id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
@@ -970,11 +999,14 @@ export function createDb(query) {
         id TEXT PRIMARY KEY, vercel_account TEXT NOT NULL,
         operation TEXT NOT NULL, request_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
         price_cents BIGINT, pricing_source TEXT NOT NULL,
-        ceiling_cents BIGINT, status TEXT NOT NULL DEFAULT 'pending',
+        ceiling_cents BIGINT, allow_unbounded_metered BOOLEAN NOT NULL DEFAULT FALSE,
+        status TEXT NOT NULL DEFAULT 'pending',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         expires_at TIMESTAMPTZ NOT NULL,
         approved_at TIMESTAMPTZ,consumed_at TIMESTAMPTZ,
         UNIQUE(vercel_account,operation,request_key))`;
+      await run`ALTER TABLE purchase_intents ADD COLUMN IF NOT EXISTS
+        allow_unbounded_metered BOOLEAN NOT NULL DEFAULT FALSE`;
       await run`CREATE INDEX IF NOT EXISTS purchase_intents_expires ON purchase_intents(expires_at)`;
 
       await run`CREATE TABLE IF NOT EXISTS result_store (
@@ -992,6 +1024,10 @@ export function createDb(query) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),cleaned_at TIMESTAMPTZ)`;
       await run`CREATE INDEX IF NOT EXISTS dev_runs_account
         ON dev_runs(vercel_account,created_at DESC)`;
+      await run`CREATE TABLE IF NOT EXISTS dev_sandbox_usage (
+        vercel_account TEXT NOT NULL,day DATE NOT NULL,
+        minutes INTEGER NOT NULL DEFAULT 0 CHECK(minutes>=0),
+        PRIMARY KEY(vercel_account,day))`;
       await run`CREATE TABLE IF NOT EXISTS dev_run_objects (
         run_id TEXT NOT NULL REFERENCES dev_runs(id),object_type TEXT NOT NULL,
         object_id TEXT NOT NULL,project_id TEXT,detail JSONB NOT NULL DEFAULT '{}'::jsonb,

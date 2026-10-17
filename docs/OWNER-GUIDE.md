@@ -9,6 +9,8 @@ it does not work yet. This file is updated as features ship.
 | "Make me a preview of the feature-x branch." | Deploys a preview (never the live site), gives you the link, cleans it up later | V |
 | "Why did that build fail?" | The first error in plain words, the likely cause and the exact fix | V/W |
 | "Set up preview settings for this feature." | Adds preview-only settings; secret values come from your setup page, never chat | V |
+| "Start an isolated 10-minute Sandbox for this test run and run the checks." | Records requested minutes without a server-imposed daily quota, discloses metered exposure and uses the currently implemented account-owner approval flow before charges (user-delegated policy modes still require separate remediation); supports bounded commands/files and run-owned stop | V-4 |
+| "Prepare a synthetic preview webhook key, then send the sample deployment event." | Reveals the per-run test key on the authenticated owner page, never in chat, and sends only to an exact recorded READY preview over pinned public HTTPS | V-5 |
 | "Clean up everything from that test run." | Removes exactly what that run made, nothing else | V |
 | "What's live on the rental site?" | Which version is live, what's waiting, whether anything is rolling out | W |
 | "Ship this preview to the live site." | Checks the build, tests and a few pages, asks you, switches over, confirms | W |
@@ -23,7 +25,7 @@ it does not work yet. This file is updated as features ship.
 | "How much is Vercel costing me this month?" | Charges by service and project vs your target, and what would lower it | O/W |
 | "Is Vercel ready for Appliance Desk?" | Every item the app needs: done, fixed with your OK, or exactly what you need to click | P |
 | "Set up Vercel for my new project." | Project, settings, domains and preview rules — previewed first | P |
-| "Propose a different default account, daily spend cap or exact connector revocation." | An authorized full production-mode connector can submit an encrypted one-use request; you must review, confirm and reenter your passphrase on the separate setup page before anything changes. The default cap remains $0 until you change it. | B |
+| "Propose a different default account, daily spend cap or exact connector revocation." | An authorized full production-mode connector can submit an encrypted one-use request; you must review, confirm and reenter your passphrase on the separate setup page before anything changes. Current source still defaults to $0; this is a tracked delegation-parity defect, not the owner-approved mandatory customer policy. | B |
 | "What changed in Vercel through Claude this week?" | The change log | B |
 | "Undo that." | Reverses the last change when it has a clean opposite; says plainly when it doesn't | X |
 | "Make a 24-hour read-only pass for Codex." | A pass shown once on your setup page; the agent uses it through Robinson's Toolkit (`rtool`) or the HTTPS API | R |
