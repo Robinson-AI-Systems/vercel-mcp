@@ -90,7 +90,7 @@ function noSecretObject(object){
 function sortCleanup(objects){
   // Dependency order, not provider timestamps: deploys/aliases must be
   // removed before the project that owns them (even on equal timestamps).
-  const priorities={alias:0,deployment:1,env:2,bypass:3,sandbox:4,project:5,intent:6};
+  const priorities={alias:0,deployment:1,env:2,bypass:3,sandbox:4,webhook:4,project:5,intent:6};
   return [...objects].sort((a,b)=>(priorities[a.object_type]??9)-
     (priorities[b.object_type]??9)||String(b.created_at).localeCompare(String(a.created_at))||
     a.object_id.localeCompare(b.object_id));
@@ -334,6 +334,11 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     try{await provider.read('deployments_get',{path:{idOrUrl:o.object_id}});}
     catch(e){if(e?.status===404)return null;throw e;}
     return 'Deployment still exists after delete request';
+  }
+  if(o.object_type==='webhook'){
+    // Signing key is local to this run. The scoped DB transition to cleaned
+    // wipes its encrypted ciphertext; no provider resource exists to revoke.
+    return null;
   }
   if(o.object_type==='project'){
     const name=o.detail?.name;
