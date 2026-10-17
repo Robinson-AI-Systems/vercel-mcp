@@ -53,9 +53,12 @@ first 4 KB of each body (key-shaped strings hidden); refuses non-preview URLs an
 error; out of memory; command not found; ignored build step skipped; framework mis-detected; file size limits). Each
 rule has a plain cause and fix; unknown errors return the first error block verbatim (shaped).
 
-**V8. Sandboxes are metered.** A sandbox minutes budget per account (`sandbox_minutes_per_day`, default 60, IN-13)
-caps `vercel_dev_sandbox_create` and `vercel_dev_sandbox_run` (estimated minutes = session time requested; recorded in
-`dev_sandbox_usage`); default session timeout 10 minutes; every session is recorded and stopped by cleanup. Commands
+**V8. Sandboxes are metered.** **Owner amendment 2026-10-17 (IN-13)**: the original 60-minute mandatory per-account/day
+quota was a development-era restriction, not an end-user policy. Record estimated requested minutes atomically in
+`dev_sandbox_usage` for transparency, **without refusing a valid user-authorized operation at a daily threshold**.
+The legacy `sandbox_minutes_per_day` column is unused by dispatch and receives no default on new schemas.
+Default session timeout is 10 minutes; the request may use Vercel's supported session duration (currently up to
+24 hours on Pro; providers/plans may impose lower limits). Every session is recorded and stopped by cleanup. Commands
 run with a 45 s wait; longer commands continue in the session and are read with the next call.
 
 **V9. Test webhooks for integration builders.** `vercel_dev_send_test_webhook(url, type, runId?)` builds a realistic
@@ -104,8 +107,7 @@ Tools: `vercel_dev_tail_logs`, `vercel_dev_diagnose_build`, `vercel_dev_fetch_pr
 Tests: each diagnosis rule on a recorded build-event fixture; fetch refuses production URLs and private addresses; the
 bypass secret never appears in the result; tail cursor returns only new lines.
 ### V-4 — Sandboxes (M, medium effort)
-Tools: the five `vercel_dev_sandbox_*` tools. Tests: minutes budget enforced across two overlapping calls (database
-test); sessions recorded; cleanup stops them.
+Tools: the five `vercel_dev_sandbox_*` tools. Tests: overlapping account usage records are atomic and allow totals above the old 60-minute limit (real database); sessions recorded; cleanup stops them.
 ### V-5 — Test webhook sender (S)
 Tool: `vercel_dev_send_test_webhook`. Tests: signature verifies with the documented algorithm and the run's secret;
 private URLs refused; secret never in a result.
@@ -113,7 +115,7 @@ private URLs refused; secret never in a result.
 ## 5. Stop-and-ask points
 
 1. Any V0 row false: amend before that card.
-2. Sandbox pricing or limits changed so the default budget would cost more than ~$1/day: ask before V-4 merges.
+2. **Superseded IN-13 on 2026-10-17:** No developer-imposed daily quota or estimated-cost stop-and-ask for end users. Disclose metered exposure; respect user-selected policy and actual provider limits. This does not permit the implementation agent to spend.
 
 ## 6. Acceptance mapping
 
@@ -122,7 +124,7 @@ private URLs refused; secret never in a result.
 | Preview only, everywhere | production-refusal test per tool |
 | Cleanup touches only recorded objects | `tests/unit/dev-cleanup.test.js` |
 | Diagnosis rules and signed test webhooks | `tests/unit/dev-diagnose.test.js`, `tests/unit/dev-webhook.test.js` |
-| Sandbox budget shared across instances | `tests/db/dev-sandbox-usage.test.js` |
+| Sandbox usage recorded atomically across instances without an artificial cap | `tests/db/dev-sandbox-budget.test.js` |
 
 ## Amendments
 

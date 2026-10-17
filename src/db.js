@@ -760,26 +760,24 @@ export function createDb(query) {
         FROM dev_runs WHERE vercel_account=${account}
         ORDER BY created_at DESC,id DESC LIMIT ${limit}`;
     },
-    // V-4: serialized per-account/day reservation; the row lock in ON CONFLICT
-    // prevents concurrent sandbox creations from both spending the last minutes.
-    // Reservations are conservative: an ambiguous provider POST does not get a refund.
-    async reserveDevSandboxMinutes({account,minutes,day}) {
+    // V-4: atomic account/day estimated usage accounting for owner visibility.
+    // Never use developer-era sandbox_minutes_per_day as an end-user quota.
+    // The provider's session ceiling and a user's own delegated policy govern usage.
+    // An uncertain provider POST remains recorded, not silently refunded.
+    async recordDevSandboxMinutes({account,minutes,day}) {
       if(typeof account!=='string'||!account||
-        !Number.isSafeInteger(minutes)||minutes<1||minutes>60||
+        !Number.isSafeInteger(minutes)||minutes<1||minutes>1440||
         typeof day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(day))
-        throw new TypeError('Invalid bounded sandbox budget reservation');
+        throw new TypeError('Invalid Sandbox session usage record');
       const run=getSql();
       const rows=await run`INSERT INTO dev_sandbox_usage
         (vercel_account,day,minutes)
         SELECT a.id,${day}::date,${minutes}
         FROM vercel_accounts a WHERE a.id=${account}
-          AND LEAST(60,a.sandbox_minutes_per_day)>=${minutes}
         ON CONFLICT (vercel_account,day) DO UPDATE
           SET minutes=dev_sandbox_usage.minutes + EXCLUDED.minutes
-          WHERE dev_sandbox_usage.minutes + EXCLUDED.minutes <=
-            (SELECT LEAST(60,sandbox_minutes_per_day) FROM vercel_accounts WHERE id=${account})
         RETURNING minutes`;
-      return rows.length===1?{allowed:true,used:rows[0].minutes}:{allowed:false};
+      return rows.length===1?{recorded:true,used:rows[0].minutes}:{recorded:false};
     },
     async listDevRunObjects({account,id}) {
       if(typeof account!=='string'||!account||typeof id!=='string')
@@ -922,7 +920,7 @@ export function createDb(query) {
         scope TEXT NOT NULL, project_id TEXT, project_name TEXT, token_enc TEXT NOT NULL, token_last4 TEXT NOT NULL,
         token_expires_at TIMESTAMPTZ, token_checked_at TIMESTAMPTZ, token_probe JSONB,
         production_enabled BOOLEAN NOT NULL DEFAULT FALSE, spend_limit_cents INTEGER NOT NULL DEFAULT 0,
-        sandbox_minutes_per_day INTEGER NOT NULL DEFAULT 60, is_default BOOLEAN NOT NULL DEFAULT FALSE,
+        sandbox_minutes_per_day INTEGER, is_default BOOLEAN NOT NULL DEFAULT FALSE,
         added_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
       await run`CREATE TABLE IF NOT EXISTS oauth_clients (
         client_id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`;

@@ -27,7 +27,7 @@ example when writing the JIT card. No live database, token or deployment is conf
 |---|---|---|---|
 | 1 Foundation | A | Nothing works without it | IN-02/IN-03/IN-04 before A-5 can be tried for real |
 | 2 Safety | B → C | Every later tool is built on the safety layer (production, spend, access, secrets, self-protection) and the context rules | IN-07 (protected list), IN-08 (spend limit default) |
-| 3 Everyday building and running | D → E → V | Projects, deployments and releases, then variables, then the developer tools that make building any project on Vercel fast (previews per branch, env wiring, diagnosis, sandboxes, cleanup) | IN-09 only to use production mode for real; IN-13 before V-4 merges |
+| 3 Everyday building and running | D → E → V | Projects, deployments and releases, then variables, then the developer tools that make building any project on Vercel fast (previews per branch, env wiring, diagnosis, sandboxes, cleanup) | IN-09 only to use production mode for real; IN-13 answered 2026-10-17 (no artificial Sandbox quota) |
 | 4 The rest of the platform | N → F → M | Domains/DNS/registrar, security and traffic, monitoring and integrations | IN-08 for real purchases (never in tests) |
 | 5 Owner | O | Team, members, tokens, billing, admin overview and every dashboard setting | — |
 | 6 Projects | P → W | Optional project profiles and readiness for any app (Appliance Desk first), then the one-sentence jobs | IN-11 (Appliance Desk release rule) |

@@ -1,3 +1,5 @@
+**2026-10-17 — Owner's definitive developer-versus-end-user authority ruling (supersedes contrary product defaults).** The owner's $0 autonomous spend, no live/production mutations, test-fixture, release and builder approval constraints were instructions to agents BUILDING the MCP services. They were never intended as limits on the finished tools' end users. The service must expose all feasible provider-backed capability to an authenticated user's coding agent according to the user's explicit or delegated choices. Honest risk/cost disclosures, provider rules, real account scopes, security/tenant isolation and user-chosen policy remain. IN-13: do NOT enforce 60 Sandbox minutes/day/account; collect estimates for visibility only. The old developer-only limits in other product code, profiles, purchase paths or catalogs must be inventoried and remediated under existing plans, not silently retained. Current builder is still unauthorized to spend, invoke production changes, bypass tests or deploy unscheduled.
+
 # Decisions (dated)
 
 One entry per design decision, newest last. Reasons live here; current rules live in AGENTS and the designs.

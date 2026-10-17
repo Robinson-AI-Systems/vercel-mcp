@@ -1,3 +1,9 @@
+## October 17 — Owner removes developer restrictions from end-user product rules (PR #216)
+
+IN-13 was answered decisively: **no mandatory MCP Sandbox minutes/day limit**. The end user and coding agent decide their project usage under actual Vercel limits and user-selected policy. Candidate code changes V-4 from atomic quota refusal into atomic **usage-only tracking**, supports the documented Pro provider session maximum (24 h), and removes new-schema daily-cap defaults. Old persisted `sandbox_minutes_per_day` values are ignored; provider API/network/session constraints and separate actual user authority remain enforced. Tests now require concurrent runs crossing 60 minutes to succeed and retain strict account isolation. The original V-4 frozen criterion explicitly referenced an owner-unapproved 60-minute proposal; this owner supersession is documented in the card and delivery ledger rather than falsifying original plan history.
+
+This is a broader repository-wide product-design correction: the coding agent's $0 spending, release and live-mutation restrictions must not become hard end-user limitations. Existing per-charge developer-like approvals, end-user spend/production defaults, read-only/guided-only substitutes and connection profile capabilities need an explicit source-to-provider audit/remediation under the ordered roadmap. Do **not** claim all other restrictions were fixed by this V-4/V-5 bundle. No customer/provider Sandbox charges, deployments or live mutations performed. Exact-head CI, self-review, merge and later deployed/native acceptance remain separate gates.
+
 ## V-4/V-5 source verified — owner selection IN-13 blocks merge (October 17, 2026)
 
 PR #216 on `ai/gpt6/v4-v5-preview-sandbox-webhook-20261016` includes both

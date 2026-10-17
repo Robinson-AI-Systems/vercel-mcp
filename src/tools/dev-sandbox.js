@@ -1,7 +1,6 @@
 // V-4: complete, bounded, run-owned preview Sandbox lifecycle.
-// All billable creation flows through the normal separate purchase grant; a
-// 60-minute quota is NOT consent to charge. No implementation action creates
-// a real Sandbox without authenticated owner/delegated approval.
+// Metered creation uses the user's selected delegation/approval policy, not
+// a developer-imposed daily quota. This repository's builder cannot spend.
 import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -18,7 +17,7 @@ const base={
   dryRun:{type:'boolean'},confirm:{type:'boolean'}
 };
 const build=(props,required)=>({type:'object',properties:props,required,additionalProperties:false});
-const createProps={...base,minutes:{type:'integer',minimum:1,maximum:60},
+const createProps={...base,minutes:{type:'integer',minimum:1,maximum:1440},
   githubRepo:{type:'string',pattern:REPO.source},gitSha:{type:'string',pattern:SHA.source}};
 delete createProps.session;
 const createSchema=build(createProps,['runId','project','requestKey']);
@@ -67,8 +66,8 @@ function dayDenver(now=Date.now()){
 export {dayDenver};
 export function boundedSandboxMinutes(requested){
   const minutes=requested??10;
-  if(!Number.isSafeInteger(minutes)||minutes<1||minutes>60)
-    throw new TypeError('Sandbox session must be one to sixty minutes');
+  if(!Number.isSafeInteger(minutes)||minutes<1||minutes>1440)
+    throw new TypeError('Sandbox session must be one to 1440 minutes (provider Pro maximum)');
   return minutes;
 }
 async function boundSession(a,ctx,{allowStopped=false}={}){
@@ -117,7 +116,7 @@ const creation=defineWrite({
   },
   async preview(_a,_ctx,b){
     return 'Create one isolated, ephemeral '+b.minutes+'-minute 1-vCPU/2-GB Sandbox in '+
-      b.project+' for run '+b.runId+'. Compute, storage and egress are metered; an independent, transaction-specific grant is required and the daily 60-minute allowance alone is NOT that grant.';
+      b.project+' for run '+b.runId+'. Compute, storage and egress are metered; an independent, transaction-specific grant is required without any MCP-imposed daily minutes quota.';
   },
   async spend(_a,_ctx,b){
     return {cents:null,recurring:true,description:'Vercel Sandbox for '+b.minutes+
@@ -132,12 +131,12 @@ const creation=defineWrite({
       if(row?.id!==b.project||row.accountId!==b.account.team_id)
         throw new TypeError('Project/team identity changed before metered creation');
     });
-    // Conservatively debit before POST. An ambiguous provider timeout is never
-    // treated as an available free minute for a second charged creation.
-    const budget=await ctx.db.reserveDevSandboxMinutes({
+    // Record projected usage before POST; no arbitrary daily refusal.
+    // An ambiguous provider response does not erase the projected usage.
+    const usage=await ctx.db.recordDevSandboxMinutes({
       account:ctx.connection.account,minutes:b.minutes,day:b.day});
-    if(budget?.allowed!==true)
-      throw new TypeError('Daily sandbox minute reservation refused or unavailable');
+    if(usage?.recorded!==true)
+      throw new TypeError('Sandbox usage accounting unavailable');
     const intent='intent-sandbox-'+createHash('sha256').update(b.name).digest('hex').slice(0,32);
     await ctx.db.addDevRunObject({account:ctx.connection.account,id:b.runId,
       type:'intent',objectId:intent,projectId:b.project,
@@ -161,10 +160,10 @@ const creation=defineWrite({
     if(!await ctx.db.setDevRunObjectOutcome({account:ctx.connection.account,id:b.runId,
       type:'intent',objectId:intent,status:'cleaned'}))
       throw new TypeError('Sandbox intent still unresolved in durable store');
-    return {session:created.session,minutesReserved:b.minutes,day:b.day};
+    return {session:created.session,minutesRecorded:b.minutes,day:b.day};
   },
   async publicReceipt(_a,_b,_r,v){
-    return {session:v.session,status:v.status,minutesReserved:v.minutesReserved};
+    return {session:v.session,status:v.status,minutesRecorded:v.minutesRecorded};
   },
   async verify(_a,ctx,b,result){
     const {client,account}=await readProvider(ctx);
@@ -175,7 +174,7 @@ const creation=defineWrite({
     const objs=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
     return {confirmed:status==='running'&&objs.some(o=>
       o.object_type==='sandbox'&&o.object_id===result.session&&o.status==='active'),
-      session:result.session,status,minutesReserved:result.minutesReserved};
+      session:result.session,status,minutesRecorded:result.minutesRecorded};
   }
 });
 const command=defineWrite({

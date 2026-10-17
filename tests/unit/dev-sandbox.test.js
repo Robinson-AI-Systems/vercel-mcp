@@ -101,11 +101,12 @@ describe('V-4 bounded native command logs',()=>{
 });
 
 describe('V-4 approved Sandbox lifetime defaults',()=>{
-  it('defaults to ten minutes without exceeding the daily account quota',()=>{
+  it('defaults to ten minutes and follows the documented provider session maximum',()=>{
     expect(boundedSandboxMinutes()).toBe(10);
     expect(boundedSandboxMinutes(undefined)).toBe(10);
     expect(boundedSandboxMinutes(60)).toBe(60);
-    for(const bad of [0,-1,61,0.5,'10',NaN,Infinity])
+    expect(boundedSandboxMinutes(1440)).toBe(1440);
+    for(const bad of [0,-1,1441,0.5,'10',NaN,Infinity])
       expect(()=>boundedSandboxMinutes(bad)).toThrow();
   });
 });

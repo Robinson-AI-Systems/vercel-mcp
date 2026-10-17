@@ -14,22 +14,22 @@ beforeAll(async()=>{
   await db.initSchema();
   await rawQuery(`INSERT INTO vercel_accounts
     (id,team_id,team_slug,label,scope,token_enc,token_last4,sandbox_minutes_per_day)
-    VALUES ($1,'team_fake','team-fake','Synthetic budget','team','encrypted-fixture','fake',60)`,[account]);
+    VALUES ($1,'team_fake','team-fake','Synthetic accounting','team','encrypted-fixture','fake',60)`,[account]);
 });
 afterAll(async()=>closeIsolatedSchema());
-it('atomically admits only 60 minutes across overlapping POST reservations',async()=>{
+it('atomically records all concurrent sessions, never blocking on the legacy 60-minute column',async()=>{
   const day='2026-10-16';
   const rows=await Promise.all(Array.from({length:4},
-    ()=>db.reserveDevSandboxMinutes({account,minutes:20,day})));
-  expect(rows.filter(x=>x.allowed)).toHaveLength(3);
-  expect(rows.filter(x=>!x.allowed)).toHaveLength(1);
+    ()=>db.recordDevSandboxMinutes({account,minutes:20,day})));
+  expect(rows.every(x=>x.recorded)).toBe(true);
   expect((await rawQuery('SELECT minutes FROM dev_sandbox_usage WHERE vercel_account=$1 AND day=$2',
-    [account,day]))).toEqual([{minutes:60}]);
-  expect(await db.reserveDevSandboxMinutes({account,minutes:1,day})).toEqual({allowed:false});
-  expect(await db.reserveDevSandboxMinutes({account:'acct_foreign',minutes:1,day}))
-    .toEqual({allowed:false});
-  expect((await db.reserveDevSandboxMinutes({account,minutes:20,day:'2026-10-17'})))
-    .toMatchObject({allowed:true,used:20});
+    [account,day]))).toEqual([{minutes:80}]);
+  expect(await db.recordDevSandboxMinutes({account:'acct_foreign',minutes:1,day}))
+    .toEqual({recorded:false});
+  expect((await db.recordDevSandboxMinutes({account,minutes:1440,day})))
+    .toMatchObject({recorded:true,used:1520});
+  expect((await db.recordDevSandboxMinutes({account,minutes:20,day:'2026-10-17'})))
+    .toMatchObject({recorded:true,used:20});
 });
 it('wipes encrypted webhook secret metadata on exact owned cleanup only',async()=>{
   await db.createDevRun({id:runId,account,connection:'builder_preview',description:'Synthetic webhook'});
@@ -45,12 +45,11 @@ it('wipes encrypted webhook secret metadata on exact owned cleanup only',async()
   expect(after[0].detail).toEqual({});
   expect(await db.completeDevRunCleanup({account,id:runId})).toBe(true);
 });
-
-it('never exceeds 60 minutes if an account later increases its configured cap',async()=>{
-  await rawQuery('UPDATE vercel_accounts SET sandbox_minutes_per_day=120 WHERE id=$1',[account]);
+it('ignores legacy sandbox quotas irrespective of their stored value',async()=>{
+  await rawQuery('UPDATE vercel_accounts SET sandbox_minutes_per_day=1 WHERE id=$1',[account]);
   const day='2026-10-18';
-  expect((await db.reserveDevSandboxMinutes({account,minutes:45,day})).allowed).toBe(true);
-  expect((await db.reserveDevSandboxMinutes({account,minutes:30,day})).allowed).toBe(false);
+  expect((await db.recordDevSandboxMinutes({account,minutes:45,day})).recorded).toBe(true);
+  expect((await db.recordDevSandboxMinutes({account,minutes:30,day})).recorded).toBe(true);
   expect((await rawQuery('SELECT minutes FROM dev_sandbox_usage WHERE vercel_account=$1 AND day=$2',
-    [account,day]))[0].minutes).toBe(45);
+    [account,day]))[0].minutes).toBe(75);
 });

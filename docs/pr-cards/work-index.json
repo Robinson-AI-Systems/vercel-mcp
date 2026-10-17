@@ -880,7 +880,26 @@
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [
         "IN-13"
-      ]
+      ],
+      "pr": [
+        216
+      ],
+      "revisit": {
+        "trigger": "owner-input-resolved",
+        "owner": "next Vercel MCP implementation/acceptance agent",
+        "reason": "Original frozen 60-minute cap was rejected by owner IN-13; candidate replacement records use without quota and still needs final exact-head PR CI/merge and real provider acceptance.",
+        "nextAction": "After corrected exact-head CI and source review, safely merge PR #216; then execute separately authorized deployed/native provider Sandbox acceptance.",
+        "checkpoint": "On PR #216 final CI/review/merge and first eligible serving READY revision",
+        "evidenceNeeded": "Successful exact-head check/unit/db/emulate/ci/release-policy, completed review, confirmed source merge and owner-authorized metered native provider test receipt.",
+        "eligibilityCondition": "Engineering verification currently eligible; charged provider acceptance requires deployed READY revision and independent end-user scoped fixture authority; developer agent must not spend.",
+        "dependencies": [
+          "V-1"
+        ],
+        "ownerInputRefs": [
+          "IN-13"
+        ],
+        "resolution": "Owner answered on 2026-10-17: no daily Sandbox cap; implement usage-only atomic accounting and distinguish developer versus customer authority."
+      }
     },
     {
       "id": "V-5",
@@ -898,7 +917,22 @@
         "V-5"
       ],
       "readiness": "CARD_WRITTEN",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "pr": [
+        216
+      ],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next Vercel MCP implementation/acceptance agent",
+        "reason": "Synthetic signed webhook source candidate is on the shared V-4/V-5 PR; exact-head CI/merge and native controlled receiver acceptance are not yet proven.",
+        "nextAction": "After corrected exact-head CI and source review, safely merge PR #216; then execute separately authorized native synthetic webhook scratch receiver acceptance.",
+        "checkpoint": "On PR #216 final CI/review/merge and first eligible serving READY revision",
+        "evidenceNeeded": "Successful exact-head check/unit/db/emulate/ci/release-policy, completed review/merge and signed real scratch receiver evidence.",
+        "eligibilityCondition": "Engineering verification currently eligible; charged provider acceptance requires deployed READY revision and independent end-user scoped fixture authority; developer agent must not spend.",
+        "dependencies": [
+          "V-1"
+        ]
+      }
     },
     {
       "id": "N-1",
