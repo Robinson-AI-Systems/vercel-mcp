@@ -7,7 +7,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -758,7 +758,7 @@ export function createDb(query) {
     async reserveDevSandboxMinutes({account,minutes,day}) {
       if(typeof account!=='string'||!account||
         !Number.isSafeInteger(minutes)||minutes<1||minutes>60||
-        typeof day!=='string'||!/^\\d{4}-\\d{2}-\\d{2}$/.test(day))
+        typeof day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(day))
         throw new TypeError('Invalid bounded sandbox budget reservation');
       const run=getSql();
       const rows=await run`INSERT INTO dev_sandbox_usage
