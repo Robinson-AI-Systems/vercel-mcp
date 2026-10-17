@@ -335,6 +335,35 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     catch(e){if(e?.status===404)return null;throw e;}
     return 'Deployment still exists after delete request';
   }
+  if(o.object_type==='sandbox'){
+    const expected=o.detail?.name;
+    if(!/^sbx_[A-Za-z0-9_-]{3,120}$/.test(o.object_id)||
+      typeof expected!=='string'||!expected.startsWith(
+        'rtc-'+runId.replaceAll('_','-')+'-'))
+      return 'Sandbox run-owned identity or deterministic name missing';
+    const inspect=async()=>{
+      const row=await provider.read('sandbox_session_get',{path:{sessionId:o.object_id}});
+      if((row?.sessionId??row?.id)!==o.object_id||row.projectId!==project||
+        row.name!=null&&row.name!==expected)
+        throw new PreDispatchRefusal('Sandbox session or selected project changed');
+      if(typeof row.status!=='string')
+        throw new PreDispatchRefusal('Unverified Sandbox lifecycle status');
+      return row.status.toLowerCase();
+    };
+    let state;
+    try{state=await inspect();}catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
+    if(state==='stopped')return null;
+    if(state!=='running')return 'Sandbox is stopping or status cannot be proven; manual readback required';
+    await requirePreDispatch(async()=>{
+      if(await inspect()!=='running')throw new TypeError('Sandbox changed before stop');
+    });
+    await provider.write('sandbox_stop',{path:{sessionId:o.object_id}},
+      {requestKey:ctx.cleanupKey,tool:'vercel_dev_cleanup',
+        mutationId:'stop-sandbox-'+o.object_id,shapeResult:()=>({accepted:true})});
+    try{if(await inspect()==='stopped')return null;}
+    catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
+    return 'Sandbox stop requested but not yet verified; leave run resource active';
+  }
   if(o.object_type==='webhook'){
     // Signing key is local to this run. The scoped DB transition to cleaned
     // wipes its encrypted ciphertext; no provider resource exists to revoke.

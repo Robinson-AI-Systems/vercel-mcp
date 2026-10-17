@@ -193,7 +193,7 @@ names, targets, kind (Config/Secret), branch and dates come out.
 ## Developer tools (`vercel_dev_*`) — 17 (preview only; `docs/designs/BATCH-V.md`)
 
 Building with Vercel on any project. Every tool refuses production targets before reading anything (contract §10), and
-everything it creates is recorded in a run and tagged where Vercel allows (`rtc_run` in deployment meta and env comments). Under IN-08, no metered operation may run without a verified provider-enforced lifetime charge ceiling plus one independently authenticated owner grant; a positive AI-supplied budget is not sufficient. V-1 handles recorded deployments and empty scratch projects only; as future V-2/V-4 resource types are added, their native cleanup paths must be implemented and proven before claiming full cleanup support.
+everything it creates is recorded in a run and tagged where Vercel allows (`rtc_run` in deployment meta, Sandbox tags and env comments). Developer-agent spending remains zero unless separately approved for a specific action. End users can separately delegate provider actions through authenticated product controls; the 60-minute limit is not itself purchasing consent. V-4 adds exact Sandbox stop and V-5 wipes encrypted per-run synthetic signing keys as part of guarded run cleanup; do not claim either operationally accepted until its provider readback and tests pass.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
@@ -208,12 +208,12 @@ everything it creates is recorded in a run and tagged where Vercel allows (`rtc_
 | `vercel_dev_diagnose_build` | Classify ten approved first-error rules from bounded preview build events with safe cause/fix, never raw secrets | — | B | R | — | V-3 candidate |
 | `vercel_dev_fetch_preview` | Up to 10 exact owned preview paths, public-only DNS, no redirects, optional encrypted server-private bypass, 4 KB bounded snippets | — | B | R | — | V-3 candidate |
 | `vercel_dev_check_integration` | Metadata-only preview requirements; names, preview domains, framework/runtime, cron-not-applicable, protection and unverified integrations | — | B | R | y | V-3 candidate |
-| `vercel_dev_sandbox_create` | Start a Vercel Sandbox session (optionally from a Git repo/branch) for a run; counts toward the sandbox-minutes limit | P | B | E | — | V-4 |
-| `vercel_dev_sandbox_run` | Run a command in a sandbox session; output summarized, full output behind a handle | P | B | E | — | V-4 |
-| `vercel_dev_sandbox_write_files` | Write files into a sandbox session | P | B | E | — | V-4 |
-| `vercel_dev_sandbox_read_file` | Read a file from a sandbox session (size-capped) | — | B | R | — | V-4 |
-| `vercel_dev_sandbox_stop` | Stop a sandbox session now | P | B | E | — | V-4 |
-| `vercel_dev_send_test_webhook` | Send a correctly signed sample Vercel webhook event (deployment created/succeeded/error, project created…) to an app under development | P 1x | B | E | — | V-5 |
+| `vercel_dev_sandbox_create` | Atomically reserve bounded daily minutes; create one ephemeral owned run session, optional exact public Git SHA; independent purchase consent still required | P $ | B | E | — | V-4 candidate #216 |
+| `vercel_dev_sandbox_run` | Dispatch one ≤45-second async command to an attested active session; status/exit code only (native logs separately; no full-output handle yet) | P | B | E | — | V-4 candidate #216 |
+| `vercel_dev_sandbox_write_files` | Upload up to five safe relative files ≤4 KB each via bounded gzip tar; read-back SHA-256 proof, never echo file values | P | B | E | — | V-4 candidate #216 |
+| `vercel_dev_sandbox_read_file` | Bounded ≤4 KB safe relative file read from attested run-owned session, secrets redacted | — | B | R | — | V-4 candidate #216 |
+| `vercel_dev_sandbox_stop` | Stop exact session, verify stopped state, mark cleaned only after provider readback | P | B | E | — | V-4 candidate #216 |
+| `vercel_dev_send_test_webhook` | Prepare one private run signing key or send HMAC-SHA1 synthetic event to exact READY preview host; HTTPS DNS pinned, no redirect/retry, response only | P 1x | B | E | — | V-5 candidate #216 |
 
 ## Domains (`vercel_domain_*`) — 11
 
