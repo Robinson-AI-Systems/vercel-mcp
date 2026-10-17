@@ -151,6 +151,9 @@ const creation=defineWrite({
       throw new TypeError('Sandbox intent still unresolved in durable store');
     return {session:created.session,minutesReserved:b.minutes,day:b.day};
   },
+  async publicReceipt(_a,_b,_r,v){
+    return {session:v.session,status:v.status,minutesReserved:v.minutesReserved};
+  },
   async verify(_a,ctx,b,result){
     const {client,account}=await readProvider(ctx);
     if(account.team_id!==b.account.team_id||!SBX.test(result?.session??''))
@@ -209,6 +212,12 @@ const command=defineWrite({
     await ctx.db.setDevRunObjectOutcome({account:ctx.connection.account,
       id:b.runId,type:'intent',objectId:intent,status:'cleaned'});
     return result;
+  },
+  async publicReceipt(_a,_b,_r,v){
+    return {commandId:v.commandId,state:v.state,exitCode:v.exitCode,
+      outputPreview:v.outputPreview,outputHandle:v.outputHandle,
+      logAvailable:v.logAvailable,logComplete:v.logComplete,outputRetention:v.outputRetention,
+      refresh:v.refresh};
   },
   async verify(_a,ctx,b,result){
     const {client}=await readProvider(ctx);
@@ -280,6 +289,9 @@ const writeFiles=defineWrite({
       id:b.runId,type:'intent',objectId:intent,status:'cleaned'});
     return {written:b.names,sha256:b.digests,providerAccepted:true};
   },
+  async publicReceipt(_a,_b,_r,v){
+    return {fileCount:v.fileCount,contentsReturned:v.contentsReturned};
+  },
   async verify(_a,ctx,b,_r){
     const digests=[];
     const {client}=await readProvider(ctx);
@@ -319,6 +331,7 @@ const stop=defineWrite({
         shapeResult:()=>({accepted:true})});
     return {requested:true};
   },
+  async publicReceipt(_a,_b,_r,v){return {session:v.session,status:v.status};},
   async verify(_a,ctx,b){
     const {client}=await readProvider(ctx);
     const current=await client.request('sandbox_session_get',{path:{sessionId:b.session}});

@@ -105,6 +105,7 @@ function activeSecret(objects){
 }
 const send=defineWrite({
   name:'vercel_dev_send_test_webhook',secretOut:true,oneTimeDelivery:true,
+  oneTimeWhen:a=>a.action==='prepare',
   async before(a,ctx){
     validate(a);
     if(ctx.connection?.mode!=='preview'||!['everyday','full'].includes(ctx.connection?.profile))
@@ -123,7 +124,7 @@ const send=defineWrite({
       throw new TypeError(a.action==='prepare'?'Webhook signing key already prepared':'Prepare a private per-run signing key first');
     return {runId:a.runId,project:a.project,deployment:a.deployment,teamId:d.account.team_id,
       url:url.toString(),event:a.event,action:a.action,
-      ciphertext:row?.detail?.ciphertext??null,host};
+      keyPrepared:Boolean(row),host};
   },
   async preview(_a,_ctx,b){
     return b.action==='prepare'?
@@ -149,8 +150,11 @@ const send=defineWrite({
         account:ctx.connection.account,kind:'dev_synthetic_webhook',label:'Preview synthetic signing key',value});
       return {prepared:true,ownerRevealRef:receipt.id,expiresAt:receipt.expiresAt};
     }
-    if(typeof b.ciphertext!=='string')throw new TypeError('Private synthetic key not available');
-    const value=decryptSecret(b.ciphertext,webhookSecretPurpose(b.runId),ctx.env);
+    const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
+    const saved=Array.isArray(objects)?activeSecret(objects):null;
+    if(!b.keyPrepared||typeof saved?.detail?.ciphertext!=='string')
+      throw new TypeError('Run-owned private synthetic key not available');
+    const value=decryptSecret(saved.detail.ciphertext,webhookSecretPurpose(b.runId),ctx.env);
     const body=Buffer.from(JSON.stringify(syntheticEvent({
       runId:b.runId,project:b.project,deployment:b.deployment,event:b.event,key,at:Date.now()
     })),'utf8');
@@ -159,6 +163,11 @@ const send=defineWrite({
     const delivered=await (ctx.webhookPost??signedPreviewPost)(new URL(b.url),body,value);
     return {synthetic:true,event:b.event,receiverStatus:delivered.status,
       httpAcknowledged:delivered.acknowledged===true,receiverSideEffectsVerified:false};
+  },
+  async publicReceipt(a,_b,_r,v){
+    if(a.action==='prepare')return null;
+    return {event:v.event,receiverStatus:v.receiverStatus,synthetic:true,
+      receiverSideEffectsVerified:false};
   },
   async verify(_a,ctx,b,r){
     if(b.action==='prepare'){

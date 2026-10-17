@@ -211,7 +211,9 @@ export function defineWrite(spec) {
     }
     // One-time provider secrets are never returned through MCP. Only a UUID
     // for the independently authenticated owner reveal form may be included.
-    const delivered=spec.oneTimeDelivery===true?{
+    const oneTimeRequired=spec.oneTimeDelivery===true&&
+      (typeof spec.oneTimeWhen!=='function'||spec.oneTimeWhen(args)===true);
+    const delivered=oneTimeRequired?{
       ownerRevealRef:providerResult?.ownerRevealRef,
       expiresAt:providerResult?.expiresAt,
       revealAt:'/api/vercel/setup'
@@ -223,13 +225,18 @@ export function defineWrite(spec) {
       new Date(delivered.expiresAt).getTime()>Date.now()+600000))
       return {status:'outcome_unknown',mode,confirmed:null,requestKey,
         reason:'Provider token outcome or encrypted one-time delivery is unverified'};
+    // Optional Vercel-agnostic verified receipt. Default writes preserve the
+    // original response, while multi-step workflows can expose exact owner-
+    // scoped IDs and private result handles WITHOUT exposing provider bodies.
+    const publicReceipt=confirmed===true&&typeof spec.publicReceipt==='function'?
+      safeShape(ctx,await spec.publicReceipt(args,before,providerResult,verification)):null;
     const result = safeShape(ctx, spec.approvalOnly ?
       { status: 'awaiting_owner_approval', mode, confirmed: false,
         ownerApprovalRequired: true, reference: providerResult.reference,
         expiresAt: providerResult.expiresAt, preview: summary, requestKey,
         reviewAt: '/api/vercel/setup' } :
       { status: 'applied', mode, confirmed, preview: summary, moneyLine, requestKey,
-        ...(delivered||{}) });
+        ...(delivered||{}),...(publicReceipt?{receipt:publicReceipt}:{}) });
     const inverse = typeof spec.inverse === 'function'
       ? safeShape(ctx, await spec.inverse(args, before, providerResult, ctx)) : null;
     await ctx.audit({ ...auditBase, dryRun: false,
