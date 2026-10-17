@@ -9,7 +9,9 @@ const parse=result=>{try{return JSON.parse(result.content?.[0]?.text??'{}');}cat
 function call(name,args,profile,mode='production'){
   return dispatchReadOnlyTool({registry,name,args,
     connection:{account:'acct_Fixture',profile,mode,listing:'catalog'},
-    db:{},fetchImpl:fetchOnly,env:{}});
+    db:{recordChange:async()=>{},listProtectedResources:async()=>[],
+      requestReplayStore:()=>({claim:async()=>({state:'claimed',claimId:'fixture'}),
+        complete:async()=>true,release:async()=>true})},fetchImpl:fetchOnly,env:{}});
 }
 describe('V-4/V-5 real registry, direct and broker authorization doors',()=>{
   it('advertises all six tools for builders but never write tools to read-only users',()=>{
