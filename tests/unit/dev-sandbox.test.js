@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {gunzipSync} from 'node:zlib';
 import {sandboxTar,safeSandboxPath,parseSandboxCommandLogs} from '../../src/vercel/sandbox-binary.js';
-import {dayDenver} from '../../src/tools/dev-sandbox.js';
+import {dayDenver,boundedSandboxMinutes} from '../../src/tools/dev-sandbox.js';
 import {registry} from '../../src/tools/index.js';
 import {operation} from '../../src/vercel/operations.js';
 import {validateRequest} from '../../src/vercel/openapi-validation.js';
@@ -97,5 +97,15 @@ describe('V-4 bounded native command logs',()=>{
     expect(()=>parseSandboxCommandLogs(Buffer.from('bad\\n'))).toThrow();
     expect(()=>parseSandboxCommandLogs(Buffer.from('{"stream":"system","data":"test"}\\n'))).toThrow();
     expect(()=>parseSandboxCommandLogs(Buffer.alloc(12289))).toThrow();
+  });
+});
+
+describe('V-4 approved Sandbox lifetime defaults',()=>{
+  it('defaults to ten minutes without exceeding the daily account quota',()=>{
+    expect(boundedSandboxMinutes()).toBe(10);
+    expect(boundedSandboxMinutes(undefined)).toBe(10);
+    expect(boundedSandboxMinutes(60)).toBe(60);
+    for(const bad of [0,-1,61,0.5,'10',NaN,Infinity])
+      expect(()=>boundedSandboxMinutes(bad)).toThrow();
   });
 });

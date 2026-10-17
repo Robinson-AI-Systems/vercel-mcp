@@ -21,7 +21,7 @@ const build=(props,required)=>({type:'object',properties:props,required,addition
 const createProps={...base,minutes:{type:'integer',minimum:1,maximum:60},
   githubRepo:{type:'string',pattern:REPO.source},gitSha:{type:'string',pattern:SHA.source}};
 delete createProps.session;
-const createSchema=build(createProps,['runId','project','minutes','requestKey']);
+const createSchema=build(createProps,['runId','project','requestKey']);
 const runProps={...base,action:{type:'string',enum:['start','inspect']},
   commandId:{type:'string',pattern:CMD.source},command:{type:'string',minLength:1,maxLength:80},
   args:{type:'array',maxItems:20,items:{type:'string',maxLength:200}}};
@@ -65,6 +65,12 @@ function dayDenver(now=Date.now()){
     year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
 }
 export {dayDenver};
+export function boundedSandboxMinutes(requested){
+  const minutes=requested??10;
+  if(!Number.isSafeInteger(minutes)||minutes<1||minutes>60)
+    throw new TypeError('Sandbox session must be one to sixty minutes');
+  return minutes;
+}
 async function boundSession(a,ctx,{allowStopped=false}={}){
   // Caller has already validated its full action schema. Re-validating
   // against stopSchema here would reject legitimate command/files/read fields.
@@ -94,14 +100,14 @@ const creation=defineWrite({
   name:'vercel_dev_sandbox_create',risk:{spend:true,ownerApprovedMetered:true},
   async before(a,ctx){
     validate(a,createSchema);previewBuilder(ctx);
-    if(!Number.isSafeInteger(a.minutes)||a.minutes<1||a.minutes>60||
-      Boolean(a.githubRepo)!==Boolean(a.gitSha)||
+    const minutes=boundedSandboxMinutes(a.minutes);
+    if(Boolean(a.githubRepo)!==Boolean(a.gitSha)||
       a.githubRepo!==undefined&&(!REPO.test(a.githubRepo)||!SHA.test(a.gitSha)))
       throw new TypeError('Bounded Sandbox timeout and exact optional public Git SHA required');
     const b=await ownerRun(ctx,a);
     const name='rtc-'+a.runId.replaceAll('_','-')+'-'+
       createHash('sha256').update(a.requestKey).digest('hex').slice(0,10);
-    return {...b,name,minutes:a.minutes,day:dayDenver(),sha:a.gitSha,repo:a.githubRepo};
+    return {...b,name,minutes,day:dayDenver(),sha:a.gitSha,repo:a.githubRepo};
   },
   async preview(_a,_ctx,b){
     return 'Create one isolated, ephemeral '+b.minutes+'-minute 1-vCPU/2-GB Sandbox in '+
