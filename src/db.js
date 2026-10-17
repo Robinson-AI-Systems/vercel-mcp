@@ -784,7 +784,7 @@ export function createDb(query) {
         ORDER BY o.created_at DESC,o.object_type DESC,o.object_id DESC LIMIT 100`;
     },
     async addDevRunObject({account,id,type,objectId,projectId=null,detail={}}) {
-      const kinds=['intent','project','deployment','alias','env','bypass','sandbox'];
+      const kinds=['intent','project','deployment','alias','env','bypass','sandbox,'webhook'];
       if(typeof account!=='string'||typeof id!=='string'||!kinds.includes(type)||
          typeof objectId!=='string'||objectId.length<3||objectId.length>180||
          projectId!==null&&(typeof projectId!=='string'||projectId.length>128)||
@@ -808,6 +808,8 @@ export function createDb(query) {
       const run=getSql();
       const rows=await run`UPDATE dev_run_objects AS o SET
         status=${status},last_error=${error},
+        detail=CASE WHEN o.object_type='webhook' AND ${status}='cleaned'
+          THEN '{}'::jsonb ELSE o.detail END,
         cleaned_at=CASE WHEN ${status}='cleaned' THEN now() ELSE NULL END
         FROM dev_runs AS r
         WHERE r.id=o.run_id AND r.id=${id} AND r.vercel_account=${account}

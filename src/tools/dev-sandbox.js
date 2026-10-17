@@ -235,7 +235,7 @@ const writeFiles=defineWrite({
       id:b.runId,type:'intent',objectId:intent,status:'cleaned'});
     return {written:b.names,sha256:b.digests,providerAccepted:true};
   },
-  async verify(_a,ctx,b,r){
+  async verify(_a,ctx,b,_r){
     const digests=[];
     for(const name of b.names){
       const read=await (ctx.sandboxBinaryPost??sandboxBinaryPost)(ctx,{
