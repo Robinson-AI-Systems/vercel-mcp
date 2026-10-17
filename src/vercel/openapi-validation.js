@@ -127,6 +127,14 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
     }
   }
   for (const param of byKey.values()) {
+    // Official 2026-10-11 snapshot mistakenly declares a required cmdId
+    // QUERY parameter for POST /v2/.../cmd (runSessionCommand).
+    // The published SDK and provider both take only sessionId and JSON body;
+    // cmdId is a response field, impossible to know before POST. Strictly
+    // exempt only this single demonstrably impossible parameter; do not relax
+    // body/path/query validation or any other operation.
+    if(id==='sandbox_command_run'&&param.in==='query'&&param.name==='cmdId')
+      continue;
     const input = param.in === 'path' ? path : param.in === 'query' ? query : null;
     if (!input) continue;
     if (param.required && (input[param.name] == null || input[param.name] === '')) {

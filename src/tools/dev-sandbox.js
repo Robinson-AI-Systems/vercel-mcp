@@ -62,7 +62,10 @@ function dayDenver(now=Date.now()){
 }
 export {dayDenver};
 async function boundSession(a,ctx,{allowStopped=false}={}){
-  validate(a,stopSchema);
+  // Caller has already validated its full action schema. Re-validating
+  // against stopSchema here would reject legitimate command/files/read fields.
+  if(!RUN.test(a.runId??'')||!PROJ.test(a.project??'')||!SBX.test(a.session??''))
+    throw new TypeError('Exact run-owned sandbox session required');
   const b=await ownerRun(ctx,a);
   const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:a.runId});
   if(!Array.isArray(objects)||objects.length>=100)throw new TypeError('Incomplete run inventory');
@@ -124,7 +127,7 @@ const creation=defineWrite({
       type:'intent',objectId:intent,projectId:b.project,
       detail:{kind:'sandbox_create',name:b.name,minutes:b.minutes}});
     const body={projectId:b.project,name:b.name,persistent:false,timeout:b.minutes*60000,
-      snapshotExpiration:60000,resources:{vcpus:1,memory:2048},
+      resources:{vcpus:1,memory:2048},
       networkPolicy:{mode:'deny-all'},tags:{rtc_run:b.runId},
       ...(b.repo?{source:{type:'git',url:b.repo,revision:b.sha,depth:1}}:{})};
     const created=await provider.write('sandbox_create',{body},{

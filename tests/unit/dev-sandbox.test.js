@@ -60,7 +60,7 @@ describe('V-4 pinned provider contract',()=>{
       method:'POST',path:'/v2/sandboxes/sessions/{sessionId}/stop'});
     expect(()=>validateRequest('sandbox_create',{
       body:{projectId:'prj_synthetic',name:'rtc-run-20261016-abcdef-synthetic',
-        persistent:false,timeout:600000,snapshotExpiration:60000,
+        persistent:false,timeout:600000,
         resources:{vcpus:1,memory:2048},networkPolicy:{mode:'deny-all'},
         tags:{rtc_run:'run_20261016_abcdef'}}})).not.toThrow();
     expect(()=>validateRequest('sandbox_session_get',{

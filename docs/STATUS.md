@@ -4,7 +4,7 @@ Frozen full V-4 and V-5 plan: docs/pr-cards/V-4.md, planning commit 4669c8e.
 One draft PR #216 holds new sandbox create/run/write/read/stop tools, atomic
 America/Denver account/day minute reservations, per-run session and exact cleanup
 provenance, and signed synthetic preview-bound one-time-secret webhooks.
-This is a candidate implementation checkpoint, NOT accepted/merged/deployed work:
+Source contract check uncovered a malformed optional snapshot expiration oneOf and\nprovider SDK mismatch for POST command cmdId query; both are narrowly documented\nin the V-4 card and regression coverage before source completion.\nThis is a candidate implementation checkpoint, NOT accepted/merged/deployed work:
 exact-head check/unit/DB/emulate and direct/broker/HTTP cases remain to pass;
 live scratch Sandbox and webhook receiver acceptance require authenticated
 nonproduction fixtures and independent spend approval where applicable.
