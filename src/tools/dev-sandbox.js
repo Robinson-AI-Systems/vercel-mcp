@@ -5,7 +5,7 @@
 import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
-import {sandboxBinaryPost,safeSandboxPath,sandboxTar,sandboxCommandLogs} from '../vercel/sandbox-binary.js';
+import {safeSandboxPath,sandboxTar} from '../vercel/sandbox-binary.js';
 import {ownerRun,safeText} from './dev-observe-common.js';
 import {context,respond,RUN,PROJ,KEY} from './dev-preview-common.js';
 const SBX=/^sbx_[A-Za-z0-9_-]{3,120}$/;
@@ -219,8 +219,10 @@ const command=defineWrite({
       return {confirmed:false};
     let handle=null,preview=[],logAvailable=false,logComplete=false;
     try{
-      const output=await (ctx.sandboxCommandLogs??sandboxCommandLogs)(ctx,{
-        sessionId:b.session,commandId:result.commandId});
+      const params={sessionId:b.session,commandId:result.commandId};
+      const output=ctx.sandboxCommandLogs?
+        await ctx.sandboxCommandLogs(ctx,params):
+        await client.sandboxOutput(ctx,params);
       if(!Array.isArray(output?.entries)||output.entries.length>64)
         throw new TypeError('Native command logs were not bounded');
       const lines=output.entries.map(e=>({
@@ -268,8 +270,11 @@ const writeFiles=defineWrite({
     await ctx.db.addDevRunObject({account:ctx.connection.account,id:b.runId,
       type:'intent',objectId:intent,projectId:b.project,
       detail:{kind:'sandbox_files',session:b.session,names:b.names}});
-    const result=await (ctx.sandboxBinaryPost??sandboxBinaryPost)(ctx,{
-      sessionId:b.session,kind:'write',files:a.files});
+    const provider=await teamWrite(ctx,b);
+    const params={sessionId:b.session,kind:'write',files:a.files};
+    const result=ctx.sandboxBinaryPost?
+      await ctx.sandboxBinaryPost(ctx,params):
+      await provider.sandboxFile(params,{requestKey:key,tool:'vercel_dev_sandbox_write_files'});
     if(result?.accepted!==true)throw new TypeError('Provider did not acknowledge file upload');
     await ctx.db.setDevRunObjectOutcome({account:ctx.connection.account,
       id:b.runId,type:'intent',objectId:intent,status:'cleaned'});
@@ -277,9 +282,12 @@ const writeFiles=defineWrite({
   },
   async verify(_a,ctx,b,_r){
     const digests=[];
+    const {client}=await readProvider(ctx);
     for(const name of b.names){
-      const read=await (ctx.sandboxBinaryPost??sandboxBinaryPost)(ctx,{
-        sessionId:b.session,kind:'read',path:name});
+      const params={sessionId:b.session,kind:'read',path:name};
+      const read=ctx.sandboxBinaryPost?
+        await ctx.sandboxBinaryPost(ctx,params):
+        await client.sandboxFilesystem(ctx,params);
       if(read.accepted!==true||!Buffer.isBuffer(read.bytes))return {confirmed:null};
       digests.push(createHash('sha256').update(read.bytes).digest('hex'));
     }
@@ -350,9 +358,11 @@ export const devSandboxTools={
     async vercel_dev_sandbox_read_file(a,ctx){
       validate(a,readSchema);
       if(!safeSandboxPath(a.path))throw new TypeError('Invalid sandbox file path');
-      await boundSession({...a,requestKey:'read-only-file'},ctx);
-      const read=await (ctx.sandboxBinaryPost??sandboxBinaryPost)(ctx,{
-        sessionId:a.session,kind:'read',path:a.path});
+      const bound=await boundSession({...a,requestKey:'read-only-file'},ctx);
+      const params={sessionId:a.session,kind:'read',path:a.path};
+      const read=ctx.sandboxBinaryPost?
+        await ctx.sandboxBinaryPost(ctx,params):
+        await bound.client.sandboxFilesystem(ctx,params);
       if(read?.accepted!==true||!Buffer.isBuffer(read.bytes))
         throw new TypeError('Sandbox file read was not independently confirmed');
       return {content:[{type:'text',text:JSON.stringify({

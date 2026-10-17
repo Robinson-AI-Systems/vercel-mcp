@@ -52,6 +52,14 @@ export async function writeProvider(ctx){
         throw new TypeError('Read-back cannot mutate resources');
       return client.request(id,params);
     },
+    async sandboxFile(params,{requestKey,tool}={}){
+      if(tool!=='vercel_dev_sandbox_write_files'||
+        typeof requestKey!=='string'||!requestKey||params?.kind!=='write')
+        throw new TypeError('Native Sandbox file upload requires guarded write identity');
+      // The outer defineWrite claim and durable dev-run intent protect the
+      // full POST; this transport has no unguarded general-purpose exposure.
+      return client.sandboxFilesystem(ctx,params);
+    },
     uploadFile({sha,bytes},{requestKey,tool}={}){
       if(!['vercel_deploy_create_from_files','vercel_dev_seed'].includes(tool)||
         typeof requestKey!=='string'||
