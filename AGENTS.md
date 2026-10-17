@@ -1,5 +1,10 @@
 # AGENTS.md — the rules. Read this first, every session.
 
+## End-user capability authority — owner clarification 2026-10-16
+
+Read [docs/END-USER-AUTHORITY.md](docs/END-USER-AUTHORITY.md) as a governing product-intent decision. Developer-agent $0 spending, TEST/preview, production activation, protected-fixture and owner-confirmation restrictions govern **our implementation and acceptance activities**, not what a fully authorized end user or their delegated coding agent can ultimately do through the service. Provide the full feasible provider capability; for sensitive actions disclose impact and cost uncertainty and respect the **end user's own** permissions and delegation/approval policy. Do not turn developer restrictions into permanent tool denials or guided-only substitutes. This directive does not itself authorize the current developer agent to spend, mutate live accounts or bypass existing CI/release safeguards.
+
+
 ## Session entry and authority
 
 “Do N bundles” starts the complete procedure in [docs/SESSION-START.md](docs/SESSION-START.md).
