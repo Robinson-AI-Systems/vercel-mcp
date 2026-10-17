@@ -10,13 +10,14 @@ function response(){return {headers:{},statusCode:0,body:'',setHeader(k,v){this.
 function fixture(priceCents=2000){
  let row={id:ref,vercel_account:'team_FAKE',operation:'vercel_project_create',
   status:'pending',price_cents:priceCents,pricing_source:priceCents===null?'metered':'provider_quote',
-  ceiling_cents:null,expires_at:new Date(Date.now()+600000)};
+  ceiling_cents:null,allow_unbounded_metered:false,expires_at:new Date(Date.now()+600000)};
  const db={
   listVercelAccounts:async()=>[{id:'team_FAKE',label:'Fixture',scope:'team'}],
   getPurchaseIntent:vi.fn(async({account,reference})=>account==='team_FAKE'&&reference===ref?{...row}:null),
-  approvePurchaseIntent:vi.fn(async({account,reference,ceilingCents})=>{
+  approvePurchaseIntent:vi.fn(async({account,reference,ceilingCents,acknowledgeUnbounded=false})=>{
    if(account!=='team_FAKE'||reference!==ref||row.status!=='pending')return false;
-   row={...row,status:'approved',ceiling_cents:ceilingCents};return true;
+   row={...row,status:'approved',ceiling_cents:ceilingCents,
+     allow_unbounded_metered:acknowledgeUnbounded};return true;
   }),
   recordLoginAttempt:async()=>1,countRecentFailedLogins:async()=>0,
   markLoginAttemptSucceeded:async()=>{}
@@ -52,16 +53,27 @@ describe('IN-08 separately authenticated purchase approval',()=>{
   const ok=await f.send({...req,passphrase:env.ADMIN_PASSPHRASE});
   expect(ok.statusCode).toBe(200);
   expect(f.db.approvePurchaseIntent).toHaveBeenCalledOnce();
+  expect(f.db.approvePurchaseIntent).toHaveBeenCalledWith({account:'team_FAKE',
+    reference:ref,ceilingCents:2000,acknowledgeUnbounded:false});
   expect((await f.send({...req,passphrase:env.ADMIN_PASSPHRASE})).statusCode).toBe(409);
  });
- it('permits independently approved variable ceilings without a discretionary amount cap',async()=>{
+ it('requires explicit unique metered-risk acknowledgment for the exact Sandbox operation',async()=>{
   const f=fixture(null);
+  f.setRow({operation:'vercel_dev_sandbox_create'});
   const request={action:'approve_purchase',csrf,account:'team_FAKE',reference:ref,
-   ceilingDollars:'90071992547409.91',confirm:'yes',passphrase:env.ADMIN_PASSPHRASE};
-  expect((await f.send(request)).statusCode).toBe(200);
+   ceilingDollars:'3.00',confirm:'yes',passphrase:env.ADMIN_PASSPHRASE};
+  const review=await f.send({action:'review_purchase',csrf,account:'team_FAKE',reference:ref});
+  expect(review.statusCode).toBe(200);
+  expect(review.body).toContain('non-guaranteed');
+  expect(review.body).toContain('unboundedMetered');
+  expect((await f.send(request)).statusCode).toBe(409);
+  expect(f.db.approvePurchaseIntent).not.toHaveBeenCalled();
+  expect((await f.send({...request,unboundedMetered:'yes'})).statusCode).toBe(200);
   expect(f.db.approvePurchaseIntent).toHaveBeenCalledWith({
-   account:'team_FAKE',reference:ref,ceilingCents:Number.MAX_SAFE_INTEGER
+   account:'team_FAKE',reference:ref,ceilingCents:300,acknowledgeUnbounded:true
   });
+  const g=fixture(null);
+  expect((await g.send({...request,unboundedMetered:'yes'})).statusCode).toBe(409);
  });
  it('refuses approval from a preview deployment or an expired quote',async()=>{
   const f=fixture();
