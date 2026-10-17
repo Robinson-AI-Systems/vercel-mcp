@@ -75,3 +75,17 @@ describe('V-4 pinned provider contract',()=>{
       path:{sessionId:'sbx_synthetic123'}})).not.toThrow();
   });
 });
+
+describe('V-4 authoritative response envelopes',()=>{
+  it('keeps provider session and command identities nested, never inferred from top-level fields',()=>{
+    // The frozen OpenAPI describes nested required fields, not top-level IDs.
+    const session={session:{id:'sbx_fake123',projectId:'prj_fixture',
+      sourceSandboxName:'rtc-run-20261016-abcdef-fixture',status:'running'},routes:[]};
+    expect(session.session.id).toMatch(/^sbx_/);
+    expect(session.id).toBeUndefined();
+    const command={command:{id:'cmd_fake123',sessionId:'sbx_fake123',
+      name:'node',args:['-v'],cwd:'/vercel/sandbox',startedAt:0,exitCode:null}};
+    expect(command.command.sessionId).toBe(session.session.id);
+    expect(command.id).toBeUndefined();
+  });
+});

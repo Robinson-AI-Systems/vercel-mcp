@@ -45,12 +45,15 @@ function validate(a,schema){
     throw new TypeError('Exact preview Sandbox run and declared fields required');
 }
 function rowIdentity(row,session,project){
-  if(!row||typeof row!=='object'||Array.isArray(row)||
-    (row.sessionId??row.id)!==session||
-    row.projectId!==project||
-    typeof row.status!=='string')
+  // The pinned provider returns {session:{id,projectId,status,...},routes}.
+  // Top-level sessionId/projectId is never a real Vercel read response.
+  const actual=row?.session;
+  if(!actual||typeof actual!=='object'||Array.isArray(actual)||
+    actual.id!==session||
+    actual.projectId!==project||
+    typeof actual.status!=='string')
     throw new TypeError('Vercel did not attest exact Sandbox session and project');
-  return row.status.toLowerCase();
+  return actual.status.toLowerCase();
 }
 function previewBuilder(ctx){
   if(ctx.connection?.mode!=='preview'||!['everyday','full'].includes(ctx.connection?.profile))
@@ -133,8 +136,9 @@ const creation=defineWrite({
     const created=await provider.write('sandbox_create',{body},{
       tool:'vercel_dev_sandbox_create',requestKey:key,
       shapeResult:row=>{
-        const id=row?.sessionId??row?.session?.id??row?.id;
-        if(!SBX.test(id??'')||row.projectId!=null&&row.projectId!==b.project)
+        const id=row?.session?.id;
+        if(!SBX.test(id??'')||row.session.projectId!==b.project||
+          row.session.sourceSandboxName!==b.name||row?.sandbox?.name!==b.name)
           throw new TypeError('Vercel did not return an exact Sandbox session ID');
         return {session:id};
       }});
@@ -187,7 +191,7 @@ const command=defineWrite({
       body:{command:b.command,args:b.args,timeout:45000,wait:false,logs:false}
     },{tool:'vercel_dev_sandbox_run',requestKey:key,
       shapeResult:raw=>{
-        const id=raw?.cmdId??raw?.id;
+        const id=raw?.command?.id;
         if(!CMD.test(id??''))throw new TypeError('Command identity unavailable');
         return {commandId:id};
       }});
@@ -199,12 +203,12 @@ const command=defineWrite({
     const {client}=await readProvider(ctx);
     const row=await client.request('sandbox_command_get',{
       path:{sessionId:b.session,cmdId:result.commandId}});
-    if((row?.cmdId??row?.id)!==result.commandId||
-      row.sessionId!=null&&row.sessionId!==b.session)
+    if(row?.command?.id!==result.commandId||
+      row.command.sessionId!==b.session)
       return {confirmed:false};
     return {confirmed:true,commandId:result.commandId,
-      state:typeof row.status==='string'?row.status:'unverified',
-      exitCode:Number.isInteger(row.exitCode)?row.exitCode:null,
+      state:row.command.exitCode==null?'running':'finished',
+      exitCode:Number.isInteger(row.command.exitCode)?row.command.exitCode:null,
       output:'Full command output is not included in the tool result; use native sandbox logs'};
   }
 });

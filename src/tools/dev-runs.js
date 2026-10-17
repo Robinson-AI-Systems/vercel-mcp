@@ -343,12 +343,12 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
       return 'Sandbox run-owned identity or deterministic name missing';
     const inspect=async()=>{
       const row=await provider.read('sandbox_session_get',{path:{sessionId:o.object_id}});
-      if((row?.sessionId??row?.id)!==o.object_id||row.projectId!==project||
-        row.name!=null&&row.name!==expected)
+      if(row?.session?.id!==o.object_id||row.session.projectId!==project||
+        row.session.sourceSandboxName!==expected)
         throw new PreDispatchRefusal('Sandbox session or selected project changed');
-      if(typeof row.status!=='string')
+      if(typeof row.session.status!=='string')
         throw new PreDispatchRefusal('Unverified Sandbox lifecycle status');
-      return row.status.toLowerCase();
+      return row.session.status.toLowerCase();
     };
     let state;
     try{state=await inspect();}catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
