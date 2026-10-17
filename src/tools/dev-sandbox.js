@@ -86,7 +86,11 @@ async function boundSession(a,ctx,{allowStopped=false}={}){
     path:{sessionId:a.session}}),a.session,a.project);
   if(!allowStopped&&status!=='running')
     throw new TypeError('Sandbox is not running or is already stopping');
-  return {...b,session:a.session,status,details:tracked.detail,objects};
+  // Do not carry raw project/provider client or other run-object details into
+  // defineWrite's generic audit snapshot. Nearby objects can contain encrypted
+  // bypass credentials or synthetic webhook ciphertext.
+  return {runId:a.runId,project:a.project,
+    account:{team_id:b.account.team_id},session:a.session,status};
 }
 function teamWrite(ctx,b){
   return writeProvider(ctx).then(p=>{
@@ -107,7 +111,9 @@ const creation=defineWrite({
     const b=await ownerRun(ctx,a);
     const name='rtc-'+a.runId.replaceAll('_','-')+'-'+
       createHash('sha256').update(a.requestKey).digest('hex').slice(0,10);
-    return {...b,name,minutes,day:dayDenver(),sha:a.gitSha,repo:a.githubRepo};
+    return {runId:b.runId,project:b.project,
+      account:{team_id:b.account.team_id},
+      name,minutes,day:dayDenver(),sha:a.gitSha,repo:a.githubRepo};
   },
   async preview(_a,_ctx,b){
     return 'Create one isolated, ephemeral '+b.minutes+'-minute 1-vCPU/2-GB Sandbox in '+
@@ -186,17 +192,18 @@ const command=defineWrite({
           a.args.some(x=>typeof x!=='string'||x.length>200||/[\x00-\x1f\x7f]/.test(x)))))
       throw new TypeError('Start requires bounded executable/args; inspect requires exact command ID');
     return {...await boundSession(a,ctx),action:inspect?'inspect':'start',
-      commandId:inspect?a.commandId:null,command:a.command,args:a.args??[]};
+      commandId:inspect?a.commandId:null,command:a.command,
+      argCount:(a.args??[]).length};
   },
   async preview(_a,_ctx,b){
     return b.action==='inspect'?
       'Inspect recorded Sandbox command '+b.commandId+' and return bounded redacted output behind a private result handle.':
-      'Run one bounded '+b.command+' command ('+b.args.length+
+      'Run one bounded '+b.command+' command ('+b.argCount+
       ' arguments) in the recorded preview Sandbox. Inspect the returned command ID for full output.';
   },
   async production(){return {production:false,why:'Pre-attested isolated preview session'};},
   async targets(_a,b){return [{kind:'project',id:b.project}];},
-  async apply(_a,ctx,b,key){
+  async apply(a,ctx,b,key){
     if(b.action==='inspect')return {commandId:b.commandId,inspected:true};
     const provider=await teamWrite(ctx,b);
     await requirePreDispatch(async()=>rowIdentity(await provider.read('sandbox_session_get',{
@@ -208,7 +215,7 @@ const command=defineWrite({
       detail:{kind:'sandbox_cmd',session:b.session}});
     const result=await provider.write('sandbox_command_run',{
       path:{sessionId:b.session},
-      body:{command:b.command,args:b.args,timeout:45000,wait:false,logs:false}
+      body:{command:b.command,args:a.args??[],timeout:45000,wait:false,logs:false}
     },{tool:'vercel_dev_sandbox_run',requestKey:key,
       shapeResult:raw=>{
         const id=raw?.command?.id;
@@ -377,11 +384,12 @@ export const devSandboxTools={
     async vercel_dev_sandbox_read_file(a,ctx){
       validate(a,readSchema);
       if(!safeSandboxPath(a.path))throw new TypeError('Invalid sandbox file path');
-      const bound=await boundSession({...a,requestKey:'read-only-file'},ctx);
+      await boundSession({...a,requestKey:'read-only-file'},ctx);
+      const {client}=await readProvider(ctx);
       const params={sessionId:a.session,kind:'read',path:a.path};
       const read=ctx.sandboxBinaryPost?
         await ctx.sandboxBinaryPost(ctx,params):
-        await bound.client.sandboxFilesystem(ctx,params);
+        await client.sandboxFilesystem(ctx,params);
       if(read?.accepted!==true||!Buffer.isBuffer(read.bytes))
         throw new TypeError('Sandbox file read was not independently confirmed');
       return {content:[{type:'text',text:JSON.stringify({

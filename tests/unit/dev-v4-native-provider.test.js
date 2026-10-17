@@ -12,7 +12,10 @@ function fixture(){
   const objects=[{object_type:'project',object_id:project,project_id:project,
     detail:{name:'rtc-test-sandbox'},status:'active'},
     {object_type:'sandbox',object_id:session,project_id:project,
-    detail:{name:'rtc-'+runId.replaceAll('_','-')+'-test'},status:'active'}];
+    detail:{name:'rtc-'+runId.replaceAll('_','-')+'-test'},status:'active'},
+    {object_type:'webhook',object_id:'webhook-secret',project_id:project,
+    detail:{ciphertext:'encrypted_synthetic_should_stay_private_123'},
+    status:'active'}];
   const db={
     getAccountCredential:async()=>({}),
     listProtectedResources:async()=>[],
@@ -59,6 +62,10 @@ describe('V-4 native provider-shaped scoped stop and cleanup state',()=>{
     expect(stop).toMatchObject({path:'/v2/sandboxes/sessions/'+session+'/stop',
       query:{teamId:team}});
     expect(f.audits).toHaveLength(1);
+    // Generic audited before/after snapshots must not include adjacent
+    // run-owned encryption metadata or an entire raw provider project.
+    expect(JSON.stringify(f.audits)).not.toContain('encrypted_synthetic_should_stay_private_123');
+    expect(JSON.stringify(f.audits)).not.toContain('ciphertext');
     f.fake.verify();
   });
 });
