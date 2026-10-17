@@ -784,7 +784,7 @@ export function createDb(query) {
         ORDER BY o.created_at DESC,o.object_type DESC,o.object_id DESC LIMIT 100`;
     },
     async addDevRunObject({account,id,type,objectId,projectId=null,detail={}}) {
-      const kinds=['intent','project','deployment','alias','env','bypass','sandbox,'webhook'];
+      const kinds=['intent','project','deployment','alias','env','bypass','sandbox','webhook'];
       if(typeof account!=='string'||typeof id!=='string'||!kinds.includes(type)||
          typeof objectId!=='string'||objectId.length<3||objectId.length>180||
          projectId!==null&&(typeof projectId!=='string'||projectId.length>128)||
