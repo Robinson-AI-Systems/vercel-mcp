@@ -25,7 +25,7 @@ it does not work yet. This file is updated as features ship.
 | "How much is Vercel costing me this month?" | Charges by service and project vs your target, and what would lower it | O/W |
 | "Is Vercel ready for Appliance Desk?" | Every item the app needs: done, fixed with your OK, or exactly what you need to click | P |
 | "Set up Vercel for my new project." | Project, settings, domains and preview rules — previewed first | P |
-| "Propose a different default account, daily spend cap or exact connector revocation." | An authorized full production-mode connector can submit an encrypted one-use request; you must review, confirm and reenter your passphrase on the separate setup page before anything changes. The default cap remains $0 until you change it. | B |
+| "Propose a different default account, daily spend cap or exact connector revocation." | An authorized full production-mode connector can submit an encrypted one-use request; you must review, confirm and reenter your passphrase on the separate setup page before anything changes. Current source still defaults to $0; this is a tracked delegation-parity defect, not the owner-approved mandatory customer policy. | B |
 | "What changed in Vercel through Claude this week?" | The change log | B |
 | "Undo that." | Reverses the last change when it has a clean opposite; says plainly when it doesn't | X |
 | "Make a 24-hour read-only pass for Codex." | A pass shown once on your setup page; the agent uses it through Robinson's Toolkit (`rtool`) or the HTTPS API | R |

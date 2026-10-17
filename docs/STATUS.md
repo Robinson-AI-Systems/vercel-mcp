@@ -9,7 +9,7 @@ This is a broader repository-wide product-design correction: the coding agent's 
 PR #216 on `ai/gpt6/v4-v5-preview-sandbox-webhook-20261016` includes both
 complete roadmap engineering subsections V-4 (Sandbox lifecycle) and V-5
 (synthetic signed test webhooks). Frozen plan commit: `4669c8e`. Source
-diff: **+884/-22 meaningful production lines**, separate test/docs files.
+diff: **+882/-23 meaningful production lines**, separate test/docs files.
 Eight original criteria and source evidence are recorded in
 `docs/pr-cards/V-4-delivery.json`; real deploy/provider acceptance is NOT
 included in source proof.
