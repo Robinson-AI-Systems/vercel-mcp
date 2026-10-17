@@ -98,8 +98,15 @@ export function defineWrite(spec) {
       // A numeric ceiling is meaningless unless the provider guarantees
       // lifetime charges cannot exceed it. Vercel build/compute usage
       // currently supplies no enforceable per-request maximum here.
-      if(purchase.cents===null || purchase.recurring) return refusal(
-        'Unbounded metered usage is disabled until a provider-enforceable owner ceiling can be verified');
+      if(purchase.cents===null || purchase.recurring){
+        // The only authorized exception is a finite, isolated Sandbox session:
+        // owner must explicitly accept non-guaranteed variable usage AFTER
+        // reviewing the real scope in authenticated setup. No generic metered
+        // purchase inherits this permission, and this agent cannot approve it.
+        if(!(spec.name==='vercel_dev_sandbox_create'&&spec.risk?.ownerApprovedMetered===true&&
+          purchase.cents===null&&purchase.recurring===true))
+          return refusal('Unbounded metered usage requires provider enforcement or a separately approved supported policy');
+      }
       if(typeof args.requestKey!=='string')
         return refusal('A stable explicit requestKey is mandatory for paid operations');
       if(typeof ctx.db?.requestPurchaseIntent!=='function' ||
@@ -130,6 +137,8 @@ export function defineWrite(spec) {
       const ceiling=Number(verified?.ceiling_cents);
       if(verified?.status!=='approved'||!Number.isSafeInteger(ceiling)||
         ceiling<1||(purchase.cents!==null&&purchase.cents>ceiling)||
+        (purchase.cents===null&&verified?.allow_unbounded_metered!==true)||
+        (purchase.cents!==null&&verified?.allow_unbounded_metered===true)||
         !verified.approved_at||new Date(verified.expires_at).getTime()<=Date.now())
         return refusal('Owner purchase approval is stale or cannot cover the quoted price');
       charge={...binding,reference:issued.reference};

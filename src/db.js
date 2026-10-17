@@ -250,22 +250,26 @@ export function createDb(query) {
         !/^[0-9a-f-]{36}$/.test(reference||'')) return null;
       const run=getSql();
       const rows=await run`SELECT id,vercel_account,operation,price_cents,pricing_source,
-        ceiling_cents,status,created_at,expires_at,approved_at,consumed_at
+        ceiling_cents,allow_unbounded_metered,status,created_at,expires_at,approved_at,consumed_at
         FROM purchase_intents WHERE id=${reference} AND vercel_account=${account}`;
       return rows.length===1?rows[0]:null;
     },
-    async approvePurchaseIntent({account,reference,ceilingCents}) {
+    async approvePurchaseIntent({account,reference,ceilingCents,acknowledgeUnbounded=false}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'')||
         !/^[0-9a-f-]{36}$/.test(reference||'')||
-        !Number.isSafeInteger(ceilingCents)||ceilingCents<1)
+        !Number.isSafeInteger(ceilingCents)||ceilingCents<1||
+        typeof acknowledgeUnbounded!=='boolean')
         return false;
       const run=getSql();
       const rows=await run`WITH approved AS (
           UPDATE purchase_intents SET status='approved',approved_at=now(),
-            ceiling_cents=${ceilingCents}
+            ceiling_cents=${ceilingCents},allow_unbounded_metered=${acknowledgeUnbounded}
           WHERE id=${reference} AND vercel_account=${account}
             AND status='pending' AND expires_at>now()
             AND (price_cents IS NULL OR price_cents<=${ceilingCents})
+            AND ((price_cents IS NOT NULL AND ${acknowledgeUnbounded}=FALSE)
+              OR (price_cents IS NULL AND pricing_source='metered'
+                AND operation='vercel_dev_sandbox_create' AND ${acknowledgeUnbounded}=TRUE))
           RETURNING id
         ),audit AS (
           INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
@@ -278,7 +282,8 @@ export function createDb(query) {
       if(rows.length!==1||Number(rows[0].approved_count)!==1||
         Number(rows[0].audit_count)!==1) return false;
       const read=await this.getPurchaseIntent({account,reference});
-      return read?.status==='approved'&&Number(read.ceiling_cents)===ceilingCents;
+      return read?.status==='approved'&&Number(read.ceiling_cents)===ceilingCents&&
+        read.allow_unbounded_metered===acknowledgeUnbounded;
     },
     async consumePurchaseIntent({account,reference,operation,requestKey,fingerprint,priceCents,pricingSource}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'')||
@@ -300,6 +305,9 @@ export function createDb(query) {
             AND consumed_at IS NULL AND expires_at>now()
             AND ceiling_cents IS NOT NULL
             AND (price_cents IS NULL OR price_cents<=ceiling_cents)
+            AND ((price_cents IS NOT NULL AND allow_unbounded_metered=FALSE)
+              OR (price_cents IS NULL AND pricing_source='metered'
+                AND operation='vercel_dev_sandbox_create' AND allow_unbounded_metered=TRUE))
           RETURNING id
         ),audit AS (
           INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
@@ -993,11 +1001,14 @@ export function createDb(query) {
         id TEXT PRIMARY KEY, vercel_account TEXT NOT NULL,
         operation TEXT NOT NULL, request_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
         price_cents BIGINT, pricing_source TEXT NOT NULL,
-        ceiling_cents BIGINT, status TEXT NOT NULL DEFAULT 'pending',
+        ceiling_cents BIGINT, allow_unbounded_metered BOOLEAN NOT NULL DEFAULT FALSE,
+        status TEXT NOT NULL DEFAULT 'pending',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         expires_at TIMESTAMPTZ NOT NULL,
         approved_at TIMESTAMPTZ,consumed_at TIMESTAMPTZ,
         UNIQUE(vercel_account,operation,request_key))`;
+      await run`ALTER TABLE purchase_intents ADD COLUMN IF NOT EXISTS
+        allow_unbounded_metered BOOLEAN NOT NULL DEFAULT FALSE`;
       await run`CREATE INDEX IF NOT EXISTS purchase_intents_expires ON purchase_intents(expires_at)`;
 
       await run`CREATE TABLE IF NOT EXISTS result_store (

@@ -91,7 +91,7 @@ function teamWrite(ctx,b){
   });
 }
 const creation=defineWrite({
-  name:'vercel_dev_sandbox_create',risk:{spend:true},
+  name:'vercel_dev_sandbox_create',risk:{spend:true,ownerApprovedMetered:true},
   async before(a,ctx){
     validate(a,createSchema);previewBuilder(ctx);
     if(!Number.isSafeInteger(a.minutes)||a.minutes<1||a.minutes>60||
@@ -109,7 +109,7 @@ const creation=defineWrite({
   },
   async spend(_a,_ctx,b){
     return {cents:null,recurring:true,description:'Vercel Sandbox for '+b.minutes+
-      ' minutes (metered CPU, memory and network; actual provider lifetime charges vary)'};
+      ' minutes (metered CPU and provisioned memory; external network denied, ephemeral storage, exact runtime timeout; estimated amount varies by region and is NOT a guaranteed dollar limit)'};
   },
   async production(){return {production:false,why:'Ephemeral non-persistent sandbox, no provider production deployment'};},
   async targets(_a,b){return [{kind:'project',id:b.project}];},

@@ -484,7 +484,11 @@ export async function handleSetup(req, res, {
         '<input type="hidden" name="action" value="approve_purchase">' +
         '<input type="hidden" name="account" value="'+escapeHtml(params.account)+'">' +
         '<input type="hidden" name="reference" value="'+escapeHtml(params.reference)+'">' +
-        '<label>Maximum amount approved, USD'+
+        (cents===null&&pending.operation==='vercel_dev_sandbox_create'&&pending.pricing_source==='metered'?
+          '<p><strong>Variable Sandbox billing:</strong> runtime is finite but the provider does not guarantee a total-dollar ceiling. Charges may exceed your planned amount. An AI confirmation or daily allowance cannot grant this risk.</p>'+ 
+          '<label><input type="checkbox" name="unboundedMetered" value="yes" required>I explicitly accept non-guaranteed variable charges for this one Sandbox operation</label>':
+          '')+
+        '<label>'+ (cents===null?'Advisory planning threshold (NOT an enforced maximum), USD':'Maximum amount approved, USD')+
           '<input name="ceilingDollars" inputmode="decimal" required value="'+
           escapeHtml(cents===null?'':(cents/100).toFixed(2))+'"></label>' +
         '<label><input type="checkbox" name="confirm" value="yes" required>Authorize only this transaction and quoted price or stated maximum</label>' +
@@ -494,6 +498,7 @@ export async function handleSetup(req, res, {
       if(env.VERCEL_ENV!=='production')
         return html(res,403,'Unavailable','<p>Purchase approval requires the production server.</p>');
       const ceiling=purchaseDollarCents(params.ceilingDollars);
+      const meteredAck=params.unboundedMetered==='yes';
       if(!accounts.some(a=>a.id===params.account)||params.confirm!=='yes'||
         typeof params.reference!=='string'||!/^[0-9a-f-]{36}$/.test(params.reference)||
         ceiling===null)
@@ -511,17 +516,21 @@ export async function handleSetup(req, res, {
       const pending=await db.getPurchaseIntent({account:params.account,reference:params.reference});
       const quoted=pending?.price_cents===null?null:Number(pending?.price_cents);
       if(!pending||pending.status!=='pending'||new Date(pending.expires_at).getTime()<=now()||
-        (quoted!==null&&(!Number.isSafeInteger(quoted)||quoted<=0||ceiling!==quoted)))
-        return html(res,409,'Unavailable','<p>Purchase quote changed, expired, or already processed.</p>');
+        (quoted!==null&&(!Number.isSafeInteger(quoted)||quoted<=0||ceiling!==quoted||meteredAck))||
+        (quoted===null&&(!meteredAck||pending.operation!=='vercel_dev_sandbox_create'||
+          pending.pricing_source!=='metered')))
+        return html(res,409,'Unavailable','<p>Purchase quote, metered-risk choice or authorization changed.</p>');
       const ok=await db.approvePurchaseIntent({account:params.account,
-        reference:params.reference,ceilingCents:ceiling});
+        reference:params.reference,ceilingCents:ceiling,acknowledgeUnbounded:meteredAck});
       if(ok!==true)
         return html(res,409,'Unavailable','<p>Could not commit one-use owner approval.</p>');
       const verified=await db.getPurchaseIntent({account:params.account,reference:params.reference});
-      if(verified?.status!=='approved'||Number(verified.ceiling_cents)!==ceiling)
-        return html(res,409,'Unverified','<p>Approval read-back was not proven.</p>');
+      if(verified?.status!=='approved'||Number(verified.ceiling_cents)!==ceiling||
+        verified.allow_unbounded_metered!==meteredAck)
+        return html(res,409,'Unverified','<p>Approval and distinct metered-risk acknowledgment were not proven.</p>');
       message='Owner approved one transaction for '+escapeHtml(params.account)+
-        ' with ceiling '+dollars(ceiling)+'. No charge or production activation was performed.';
+        (meteredAck?' with a non-guaranteed planning threshold ':' with ceiling ')+
+        dollars(ceiling)+'. No charge or production activation was performed.';
     } else if (params.action === 'review_owner_request') {
       if(env.VERCEL_ENV!=='production')
         return html(res,403,'Unavailable','<p>Review requires the production server.</p>');
