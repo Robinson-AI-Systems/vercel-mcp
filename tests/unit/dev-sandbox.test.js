@@ -3,6 +3,8 @@ import {gunzipSync} from 'node:zlib';
 import {sandboxTar,safeSandboxPath} from '../../src/vercel/sandbox-binary.js';
 import {dayDenver} from '../../src/tools/dev-sandbox.js';
 import {registry} from '../../src/tools/index.js';
+import {operation} from '../../src/vercel/operations.js';
+import {validateRequest} from '../../src/vercel/openapi-validation.js';
 
 describe('V-4 isolated Sandbox primitives',()=>{
   it('recognizes five separately exposed Sandbox operations and exact profiles',()=>{
@@ -44,5 +46,32 @@ describe('V-4 isolated Sandbox primitives',()=>{
   it('selects the America/Denver quota day at a UTC date boundary',()=>{
     expect(dayDenver(Date.parse('2026-10-17T04:00:00Z'))).toBe('2026-10-16');
     expect(dayDenver(Date.parse('2026-10-17T07:00:00Z'))).toBe('2026-10-17');
+  });
+});
+
+describe('V-4 pinned provider contract',()=>{
+  it('supports the exact v4 creation and v2 session/command/stop request shapes',()=>{
+    expect(operation('sandbox_create')).toMatchObject({method:'POST',path:'/v4/sandboxes'});
+    expect(operation('sandbox_session_get')).toMatchObject({
+      method:'GET',path:'/v2/sandboxes/sessions/{sessionId}'});
+    expect(operation('sandbox_command_run')).toMatchObject({
+      method:'POST',path:'/v2/sandboxes/sessions/{sessionId}/cmd'});
+    expect(operation('sandbox_stop')).toMatchObject({
+      method:'POST',path:'/v2/sandboxes/sessions/{sessionId}/stop'});
+    expect(()=>validateRequest('sandbox_create',{
+      body:{projectId:'prj_synthetic',name:'rtc-run-20261016-abcdef-synthetic',
+        persistent:false,timeout:600000,snapshotExpiration:60000,
+        resources:{vcpus:1,memory:2048},networkPolicy:{mode:'deny-all'},
+        tags:{rtc_run:'run_20261016_abcdef'}}})).not.toThrow();
+    expect(()=>validateRequest('sandbox_session_get',{
+      path:{sessionId:'sbx_synthetic123'}})).not.toThrow();
+    expect(()=>validateRequest('sandbox_command_run',{
+      path:{sessionId:'sbx_synthetic123'},
+      body:{command:'node',args:['-v'],timeout:45000,wait:false,logs:false}
+    })).not.toThrow();
+    expect(()=>validateRequest('sandbox_command_get',{
+      path:{sessionId:'sbx_synthetic123',cmdId:'cmd_fake123'}})).not.toThrow();
+    expect(()=>validateRequest('sandbox_stop',{
+      path:{sessionId:'sbx_synthetic123'}})).not.toThrow();
   });
 });
