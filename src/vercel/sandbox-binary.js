@@ -79,3 +79,56 @@ export async function sandboxBinaryPost(ctx,{sessionId,kind,path,files,requestIm
     request.end(bytes);
   });
 }
+
+const CMD_ID=/^cmd_[A-Za-z0-9_-]{3,120}$/;
+export function parseSandboxCommandLogs(buffer){
+  if(!Buffer.isBuffer(buffer)||buffer.length>12288)
+    throw new TypeError('Sandbox log receipt exceeded 12 KB');
+  const entries=[];
+  for(const line of buffer.toString('utf8').split('\n')){
+    if(!line.trim())continue;
+    if(entries.length>=64)throw new TypeError('Sandbox output exceeded 64 lines');
+    let row;
+    try{row=JSON.parse(line);}catch{throw new TypeError('Malformed native Sandbox NDJSON output');}
+    if(!['stdout','stderr'].includes(row?.stream)||typeof row.data!=='string'||
+      Buffer.byteLength(row.data,'utf8')>2048)
+      throw new TypeError('Unexpected native Sandbox log entry');
+    entries.push({stream:row.stream,data:row.data});
+  }
+  return entries;
+}
+export async function sandboxCommandLogs(ctx,{sessionId,commandId,requestImpl=httpsRequest}){
+  ensureSession(sessionId);
+  if(!CMD_ID.test(commandId??''))throw new TypeError('Invalid exact command ID');
+  const {token,account}=await loadToken({db:ctx.db,accountId:ctx.connection.account,env:ctx.env});
+  if(account?.id!==ctx.connection.account||typeof account.team_id!=='string'||
+    ctx.connection.mode!=='preview')
+    throw new TypeError('Selected Sandbox account is unverified');
+  const url=new URL('https://api.vercel.com/v2/sandboxes/sessions/'+
+    encodeURIComponent(sessionId)+'/cmd/'+encodeURIComponent(commandId)+
+    '/logs?teamId='+encodeURIComponent(account.team_id));
+  return new Promise((resolve,reject)=>{
+    let settled=false,size=0;const buffers=[];
+    const finish=(error,value)=>{if(settled)return;settled=true;
+      if(error)reject(error);else resolve(value);};
+    const req=requestImpl(url,{method:'GET',agent:false,timeout:5000,
+      headers:{authorization:'Bearer '+token,accept:'application/x-ndjson'}},res=>{
+      if(res.statusCode!==200){
+        res.resume();finish(new TypeError('Native command output is unavailable'));return;
+      }
+      res.on('data',chunk=>{
+        size+=chunk.length;
+        if(size>12288){res.destroy();finish(new TypeError('Native command output exceeded limit'));}
+        else buffers.push(chunk);
+      });
+      res.on('end',()=>{
+        try{finish(null,{entries:parseSandboxCommandLogs(Buffer.concat(buffers))});}
+        catch(error){finish(error);}
+      });
+      res.on('error',error=>finish(error));
+    });
+    req.on('timeout',()=>req.destroy(new Error('Bounded command log read timed out')));
+    req.on('error',error=>finish(error));
+    req.end();
+  });
+}

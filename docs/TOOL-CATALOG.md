@@ -209,7 +209,7 @@ everything it creates is recorded in a run and tagged where Vercel allows (`rtc_
 | `vercel_dev_fetch_preview` | Up to 10 exact owned preview paths, public-only DNS, no redirects, optional encrypted server-private bypass, 4 KB bounded snippets | — | B | R | — | V-3 candidate |
 | `vercel_dev_check_integration` | Metadata-only preview requirements; names, preview domains, framework/runtime, cron-not-applicable, protection and unverified integrations | — | B | R | y | V-3 candidate |
 | `vercel_dev_sandbox_create` | Atomically reserve bounded daily minutes; create one ephemeral owned run session, optional exact public Git SHA; independent purchase consent still required | P $ | B | E | — | V-4 candidate #216 |
-| `vercel_dev_sandbox_run` | Dispatch one ≤45-second async command to an attested active session; status/exit code only (native logs separately; no full-output handle yet) | P | B | E | — | V-4 candidate #216 |
+| `vercel_dev_sandbox_run` | Dispatch one ≤45-second async command or inspect its exact ID for bounded redacted log preview, ten-minute private vercel_get_result handle, explicit completeness | P | B | E | — | V-4 candidate #216 |
 | `vercel_dev_sandbox_write_files` | Upload up to five safe relative files ≤4 KB each via bounded gzip tar; read-back SHA-256 proof, never echo file values | P | B | E | — | V-4 candidate #216 |
 | `vercel_dev_sandbox_read_file` | Bounded ≤4 KB safe relative file read from attested run-owned session, secrets redacted | — | B | R | — | V-4 candidate #216 |
 | `vercel_dev_sandbox_stop` | Stop exact session, verify stopped state, mark cleaned only after provider readback | P | B | E | — | V-4 candidate #216 |

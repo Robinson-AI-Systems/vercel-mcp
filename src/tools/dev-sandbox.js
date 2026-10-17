@@ -5,7 +5,7 @@
 import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
-import {sandboxBinaryPost,safeSandboxPath,sandboxTar} from '../vercel/sandbox-binary.js';
+import {sandboxBinaryPost,safeSandboxPath,sandboxTar,sandboxCommandLogs} from '../vercel/sandbox-binary.js';
 import {ownerRun,safeText} from './dev-observe-common.js';
 import {context,respond,RUN,PROJ,KEY} from './dev-preview-common.js';
 const SBX=/^sbx_[A-Za-z0-9_-]{3,120}$/;
@@ -22,9 +22,10 @@ const createProps={...base,minutes:{type:'integer',minimum:1,maximum:60},
   githubRepo:{type:'string',pattern:REPO.source},gitSha:{type:'string',pattern:SHA.source}};
 delete createProps.session;
 const createSchema=build(createProps,['runId','project','minutes','requestKey']);
-const runProps={...base,command:{type:'string',minLength:1,maxLength:80},
+const runProps={...base,action:{type:'string',enum:['start','inspect']},
+  commandId:{type:'string',pattern:CMD.source},command:{type:'string',minLength:1,maxLength:80},
   args:{type:'array',maxItems:20,items:{type:'string',maxLength:200}}};
-const runSchema=build(runProps,['runId','project','session','command','requestKey']);
+const runSchema=build(runProps,['runId','project','session','requestKey']);
 const fileProps={...base,files:{type:'array',minItems:1,maxItems:5,
   items:{type:'object',properties:{path:{type:'string',minLength:1,maxLength:128},
     content:{type:'string',maxLength:4096}},required:['path','content'],additionalProperties:false}}};
@@ -166,18 +167,28 @@ const command=defineWrite({
   name:'vercel_dev_sandbox_run',
   async before(a,ctx){
     validate(a,runSchema);previewBuilder(ctx);
-    if(typeof a.command!=='string'||!/^[A-Za-z0-9_./-]{1,80}$/.test(a.command)||
-      a.command.includes('..')||a.command.startsWith('/')||
-      a.args!==undefined&&(!Array.isArray(a.args)||a.args.length>20||
-        a.args.some(x=>typeof x!=='string'||x.length>200||/[\x00-\x1f\x7f]/.test(x))))
-      throw new TypeError('Bounded sandbox executable and arguments required');
-    return {...await boundSession(a,ctx),command:a.command,args:a.args??[]};
+    const inspect=a.action==='inspect';
+    if(a.action!==undefined&&!['start','inspect'].includes(a.action)||
+      inspect&&(a.command!==undefined||a.args!==undefined||!CMD.test(a.commandId??''))||
+      !inspect&&(a.commandId!==undefined||typeof a.command!=='string'||
+        !/^[A-Za-z0-9_./-]{1,80}$/.test(a.command)||a.command.includes('..')||
+        a.command.startsWith('/')||
+        a.args!==undefined&&(!Array.isArray(a.args)||a.args.length>20||
+          a.args.some(x=>typeof x!=='string'||x.length>200||/[\\x00-\\x1f\\x7f]/.test(x)))))
+      throw new TypeError('Start requires bounded executable/args; inspect requires exact command ID');
+    return {...await boundSession(a,ctx),action:inspect?'inspect':'start',
+      commandId:inspect?a.commandId:null,command:a.command,args:a.args??[]};
   },
-  async preview(_a,_ctx,b){return 'Run one bounded '+b.command+
-    ' command ('+b.args.length+' arguments) inside the recorded preview Sandbox. Output will be safely summarized.';},
+  async preview(_a,_ctx,b){
+    return b.action==='inspect'?
+      'Inspect recorded Sandbox command '+b.commandId+' and return bounded redacted output behind a private result handle.':
+      'Run one bounded '+b.command+' command ('+b.args.length+
+      ' arguments) in the recorded preview Sandbox. Inspect the returned command ID for full output.';
+  },
   async production(){return {production:false,why:'Pre-attested isolated preview session'};},
   async targets(_a,b){return [{kind:'project',id:b.project}];},
   async apply(_a,ctx,b,key){
+    if(b.action==='inspect')return {commandId:b.commandId,inspected:true};
     const provider=await teamWrite(ctx,b);
     await requirePreDispatch(async()=>rowIdentity(await provider.read('sandbox_session_get',{
       path:{sessionId:b.session}}),b.session,b.project)==='running'||
@@ -206,10 +217,32 @@ const command=defineWrite({
     if(row?.command?.id!==result.commandId||
       row.command.sessionId!==b.session)
       return {confirmed:false};
+    let handle=null,preview=[],logAvailable=false,logComplete=false;
+    try{
+      const output=await (ctx.sandboxCommandLogs??sandboxCommandLogs)(ctx,{
+        sessionId:b.session,commandId:result.commandId});
+      if(!Array.isArray(output?.entries)||output.entries.length>64)
+        throw new TypeError('Native command logs were not bounded');
+      const lines=output.entries.map(e=>({
+        stream:e.stream,text:safeText(e.data,512)??'[hidden]'}));
+      logAvailable=true;logComplete=row.command.exitCode!=null;
+      preview=lines.slice(0,3).map(e=>({stream:e.stream,text:e.text.slice(0,160)}));
+      if(lines.length&&/^resown_[a-f0-9]{64}$/.test(ctx.connection?.resultOwner??'')&&
+        typeof ctx.db.putResult==='function'){
+        const stored=await ctx.db.putResult({account:ctx.connection.account,
+          owner:ctx.connection.resultOwner,body:lines,
+          summary:'Sandbox command '+result.commandId+' logs',ttlMs:600000});
+        handle=stored.handle;
+      }
+    }catch{
+      // A streaming timeout/parse failure never means a successful empty log.
+      logAvailable=false;logComplete=false;preview=[];
+    }
     return {confirmed:true,commandId:result.commandId,
       state:row.command.exitCode==null?'running':'finished',
       exitCode:Number.isInteger(row.command.exitCode)?row.command.exitCode:null,
-      output:'Full command output is not included in the tool result; use native sandbox logs'};
+      outputPreview:preview,outputHandle:handle,logAvailable,logComplete,
+      outputRetention:'10 minutes',refresh:'Call action=inspect with exact commandId'};
   }
 });
 const writeFiles=defineWrite({
@@ -295,7 +328,7 @@ function spec(name,schema,profile,readOnly,handler){
     annotations:{readOnlyHint:readOnly,destructiveHint:name==='vercel_dev_sandbox_stop'},
     description:{
       vercel_dev_sandbox_create:'Provision one time-bounded, recorded preview Sandbox with separate metered-purchase approval.',
-      vercel_dev_sandbox_run:'Run one bounded command in an owned active Sandbox; return status rather than unbounded logs.',
+      vercel_dev_sandbox_run:'Start an owned Sandbox command or inspect its exact ID for bounded output and bearer-scoped full result handle.',
       vercel_dev_sandbox_write_files:'Upload up to five bounded, safe relative files into the owned active Sandbox.',
       vercel_dev_sandbox_read_file:'Read one bounded file from the exact owned active preview Sandbox with secret-safe shaping.',
       vercel_dev_sandbox_stop:'Stop an exact owned Sandbox and verify it is stopped before clearing its lifecycle record.'
@@ -311,7 +344,7 @@ export const devSandboxTools={
   ],
   handlers:{
     vercel_dev_sandbox_create:bindGuardedWrite(creation,context,respond),
-    vercel_dev_sandbox_run:bindGuardedWrite(command,context,respond),
+    vercel_dev_sandbox_run:bindGuardedWrite(command,c=>({...context(c),sandboxCommandLogs:c.sandboxCommandLogs}),respond),
     vercel_dev_sandbox_write_files:bindGuardedWrite(writeFiles,c=>({
       ...context(c),sandboxBinaryPost:c.sandboxBinaryPost}),respond),
     async vercel_dev_sandbox_read_file(a,ctx){

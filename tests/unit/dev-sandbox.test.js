@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {gunzipSync} from 'node:zlib';
-import {sandboxTar,safeSandboxPath} from '../../src/vercel/sandbox-binary.js';
+import {sandboxTar,safeSandboxPath,parseSandboxCommandLogs} from '../../src/vercel/sandbox-binary.js';
 import {dayDenver} from '../../src/tools/dev-sandbox.js';
 import {registry} from '../../src/tools/index.js';
 import {operation} from '../../src/vercel/operations.js';
@@ -87,5 +87,15 @@ describe('V-4 authoritative response envelopes',()=>{
       name:'node',args:['-v'],cwd:'/vercel/sandbox',startedAt:0,exitCode:null}};
     expect(command.command.sessionId).toBe(session.session.id);
     expect(command.id).toBeUndefined();
+  });
+});
+
+describe('V-4 bounded native command logs',()=>{
+  it('accepts only bounded stdout/stderr provider NDJSON entries',()=>{
+    const valid=Buffer.from('{"stream":"stdout","data":"test"}\\n'.replace('\\n','\n'));
+    expect(parseSandboxCommandLogs(valid)).toEqual([{stream:'stdout',data:'test'}]);
+    expect(()=>parseSandboxCommandLogs(Buffer.from('bad\\n'))).toThrow();
+    expect(()=>parseSandboxCommandLogs(Buffer.from('{"stream":"system","data":"test"}\\n'))).toThrow();
+    expect(()=>parseSandboxCommandLogs(Buffer.alloc(12289))).toThrow();
   });
 });
