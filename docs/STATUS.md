@@ -1,27 +1,30 @@
-## Batch V-4/V-5 implementation and release handoff — October 17, 2026
+## V-4/V-5 source verified — owner selection IN-13 blocks merge (October 17, 2026)
 
-One coherent PR #216 on ai/gpt6/v4-v5-preview-sandbox-webhook-20261016
-contains all five preview-only Sandbox commands (create, run/inspect, write,
-read, stop), provider-shaped native readback, run-scoped cleanup,
-per-account/day atomic 60-minute reservations with disposable Postgres
-concurrency proof, and authenticated explicit owner-only variable-charge
-consent for just a finite Sandbox (not developer-agent spending authorization).
-V-5 adds separately bound synthetic signed HTTPS webhooks, one-time vault
-secret, strict preview/TLS/DNS/public-IP restrictions and durable cleanup.
-Frozen pre-code plan commit: 4669c8e. Criterion-by-criterion source ledger:
-docs/pr-cards/V-4-delivery.json. Actual production source change currently
-approximately +870/-22 lines, excluding tests/docs.
+PR #216 on `ai/gpt6/v4-v5-preview-sandbox-webhook-20261016` includes both
+complete roadmap engineering subsections V-4 (Sandbox lifecycle) and V-5
+(synthetic signed test webhooks). Frozen plan commit: `4669c8e`. Source
+diff: **+884/-22 meaningful production lines**, separate test/docs files.
+Eight original criteria and source evidence are recorded in
+`docs/pr-cards/V-4-delivery.json`; real deploy/provider acceptance is NOT
+included in source proof.
 
-Previous candidate head 5acd422 passed exact-head CI and daily policy.
-Additional source and test corrections require new exact-head verification;
-do not assume they passed. Native Vercel/Hub/RTC deployed provider acceptance,
-paid/disposable Sandbox and real external webhook receiver remain PENDING until
-independent consented scratch execution on the serving deployed revision.
-No charged Vercel sandbox, production mutation, unscheduled release or
-external signed webhook was invoked by the implementing agent. Current live
-81d4d399 remains behind main; normal daily promotion is the only authorized
-release path. The source PR cannot merge without latest exact-head ci,
-release-policy, reviewed diff and resolved security findings.
+Exact-head source `145cd0d`: `ci` run 39024684949 passed all
+`check`, `unit`, `db`, `emulate` and aggregate `ci` jobs.
+Daily live policy run 39024684960 passed. Further ledger/index edits need
+their own final exact-head verification before any merge.
+
+**Required owner input IN-13 is UNANSWERED** in
+`docs/OWNER-INPUTS.md`, explicitly due before V-4 merges. Repository
+recommends 60 Sandbox minutes/day/account. The existing value is a
+configurable code default, not approved real use or authority to merge.
+Until affirmative approval, both V-4/V-5 remain IN_PROGRESS on one open PR.
+Do not bypass by changing status, claiming source CI as user authorization
+or invoking a charged Sandbox. No autonomous spending or production changes.
+
+The normal `main`→`live` daily release has not promoted this new code.
+Native custom-MCP/RTC, scratch Sandbox/provider and signed receiver live
+acceptance are PENDING, each subject to serving revision and its own approved
+fixture/grants. There is no authorization for an unscheduled deployment.
 
 ### Release-needed owner escalation — October 15
 

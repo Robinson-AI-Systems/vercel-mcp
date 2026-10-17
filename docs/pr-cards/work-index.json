@@ -871,13 +871,13 @@
         "V-1"
       ],
       "card": "docs/pr-cards/V-4.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "dev_sandbox_usage",
       "budget": 400,
       "units": [
         "V-4"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "CARD_WRITTEN",
       "ownerInputs": [
         "IN-13"
       ]
@@ -891,13 +891,13 @@
         "V-1"
       ],
       "card": "docs/pr-cards/V-5.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 200,
       "units": [
         "V-5"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "CARD_WRITTEN",
       "ownerInputs": []
     },
     {
