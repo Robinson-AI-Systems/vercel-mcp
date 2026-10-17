@@ -174,7 +174,7 @@ const command=defineWrite({
         !/^[A-Za-z0-9_./-]{1,80}$/.test(a.command)||a.command.includes('..')||
         a.command.startsWith('/')||
         a.args!==undefined&&(!Array.isArray(a.args)||a.args.length>20||
-          a.args.some(x=>typeof x!=='string'||x.length>200||/[\\x00-\\x1f\\x7f]/.test(x)))))
+          a.args.some(x=>typeof x!=='string'||x.length>200||/[\x00-\x1f\x7f]/.test(x)))))
       throw new TypeError('Start requires bounded executable/args; inspect requires exact command ID');
     return {...await boundSession(a,ctx),action:inspect?'inspect':'start',
       commandId:inspect?a.commandId:null,command:a.command,args:a.args??[]};

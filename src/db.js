@@ -765,11 +765,11 @@ export function createDb(query) {
         (vercel_account,day,minutes)
         SELECT a.id,${day}::date,${minutes}
         FROM vercel_accounts a WHERE a.id=${account}
-          AND a.sandbox_minutes_per_day>=${minutes}
+          AND LEAST(60,a.sandbox_minutes_per_day)>=${minutes}
         ON CONFLICT (vercel_account,day) DO UPDATE
           SET minutes=dev_sandbox_usage.minutes + EXCLUDED.minutes
           WHERE dev_sandbox_usage.minutes + EXCLUDED.minutes <=
-            (SELECT sandbox_minutes_per_day FROM vercel_accounts WHERE id=${account})
+            (SELECT LEAST(60,sandbox_minutes_per_day) FROM vercel_accounts WHERE id=${account})
         RETURNING minutes`;
       return rows.length===1?{allowed:true,used:rows[0].minutes}:{allowed:false};
     },

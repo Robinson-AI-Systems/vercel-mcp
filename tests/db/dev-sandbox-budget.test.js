@@ -45,3 +45,12 @@ it('wipes encrypted webhook secret metadata on exact owned cleanup only',async()
   expect(after[0].detail).toEqual({});
   expect(await db.completeDevRunCleanup({account,id:runId})).toBe(true);
 });
+
+it('never exceeds 60 minutes if an account later increases its configured cap',async()=>{
+  await rawQuery('UPDATE vercel_accounts SET sandbox_minutes_per_day=120 WHERE id=$1',[account]);
+  const day='2026-10-18';
+  expect((await db.reserveDevSandboxMinutes({account,minutes:45,day})).allowed).toBe(true);
+  expect((await db.reserveDevSandboxMinutes({account,minutes:30,day})).allowed).toBe(false);
+  expect((await rawQuery('SELECT minutes FROM dev_sandbox_usage WHERE vercel_account=$1 AND day=$2',
+    [account,day]))[0].minutes).toBe(45);
+});

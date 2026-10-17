@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {createHmac} from 'node:crypto';
-import {checkedReceiver,syntheticEvent,syntheticSignature,signedPreviewPost}
+import {encryptSecret,decryptSecret} from '../../src/core/secret-box.js';
+import {checkedReceiver,syntheticEvent,syntheticSignature,signedPreviewPost,webhookSecretPurpose}
   from '../../src/tools/dev-test-webhook.js';
 const base={runId:'run_20261016_abcdef',project:'prj_sample123',
   deployment:'dpl_preview123',event:'deployment.succeeded',key:'test_request_key_123',at:1792189000000};
@@ -38,5 +39,19 @@ describe('V-5 exact signed synthetic receipts',()=>{
       requestImpl:()=>{sent++;throw Error('should not dispatch');}
     })).rejects.toThrow();
     expect(sent).toBe(0);
+  });
+});
+
+describe('V-5 per-run private key encryption',()=>{
+  it('encrypts and opens an exact run key with provider-safe purpose binding',()=>{
+    const runId='run_20261016_abcdef1234',key='k'.repeat(64);
+    const purpose=webhookSecretPurpose(runId);
+    expect(purpose).toMatch(/^dev-webhook:[a-f0-9]{32}:webhook-secret$/);
+    const env={TOKEN_ENCRYPTION_KEY:'a'.repeat(64)};
+    const ciphertext=encryptSecret(key,purpose,env);
+    expect(ciphertext).not.toContain(key);
+    expect(decryptSecret(ciphertext,purpose,env)).toBe(key);
+    expect(()=>decryptSecret(ciphertext,webhookSecretPurpose('run_20261016_fffffff'),env)).toThrow();
+    expect(()=>webhookSecretPurpose('another_run')).toThrow();
   });
 });

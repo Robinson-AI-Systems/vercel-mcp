@@ -14,6 +14,12 @@ const EVENTS=new Set(['deployment.created','deployment.succeeded','deployment.er
 const PATH=/^\/[A-Za-z0-9/_~.-]{0,170}$/;
 const HOST=/^[a-z0-9](?:[a-z0-9-]{0,91}[a-z0-9])?\.vercel\.app$/;
 const SECRET_ID='webhook-secret';
+// Purpose-scoped AES-GCM AAD allows only [a-zA-Z0-9_:./-]; run IDs have
+// underscores, so hash them rather than passing the raw ID to encryptSecret.
+export function webhookSecretPurpose(runId){
+  if(!RUN.test(runId??''))throw new TypeError('Exact run identity required');
+  return 'dev-webhook:'+createHash('sha256').update(runId).digest('hex').slice(0,32)+':'+SECRET_ID;
+}
 const props={
   runId:{type:'string',pattern:RUN.source},project:{type:'string',pattern:PROJ.source},
   deployment:{type:'string',pattern:DEPLOY.source},
@@ -136,7 +142,7 @@ const send=defineWrite({
     });
     if(b.action==='prepare'){
       const value=randomBytes(32).toString('hex');
-      const ciphertext=encryptSecret(value,'dev-webhook:'+b.runId+':'+SECRET_ID,ctx.env);
+      const ciphertext=encryptSecret(value,webhookSecretPurpose(b.runId),ctx.env);
       await ctx.db.addDevRunObject({account:ctx.connection.account,id:b.runId,
         type:'webhook',objectId:SECRET_ID,projectId:b.project,detail:{ciphertext}});
       const receipt=await oneTimeSecrets({db:ctx.db,env:ctx.env}).issue({
@@ -144,7 +150,7 @@ const send=defineWrite({
       return {prepared:true,ownerRevealRef:receipt.id,expiresAt:receipt.expiresAt};
     }
     if(typeof b.ciphertext!=='string')throw new TypeError('Private synthetic key not available');
-    const value=decryptSecret(b.ciphertext,'dev-webhook:'+b.runId+':'+SECRET_ID,ctx.env);
+    const value=decryptSecret(b.ciphertext,webhookSecretPurpose(b.runId),ctx.env);
     const body=Buffer.from(JSON.stringify(syntheticEvent({
       runId:b.runId,project:b.project,deployment:b.deployment,event:b.event,key,at:Date.now()
     })),'utf8');
