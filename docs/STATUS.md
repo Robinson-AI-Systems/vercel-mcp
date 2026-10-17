@@ -1,21 +1,27 @@
-## Batch V-4/V-5 execution checkpoint — October 16, 2026
+## Batch V-4/V-5 implementation and release handoff — October 17, 2026
 
-Frozen full V-4 and V-5 plan: docs/pr-cards/V-4.md, planning commit 4669c8e.
-One draft PR #216 holds new sandbox create/run/write/read/stop tools, atomic
-America/Denver account/day minute reservations, per-run session and exact cleanup
-provenance, and signed synthetic preview-bound one-time-secret webhooks.
-Source contract check uncovered a malformed optional snapshot expiration oneOf and
-provider SDK mismatch for POST command cmdId query; both are narrowly documented
-in the V-4 card and regression coverage before source completion.\nThe owner-delegated end-user metered exception is now limited to a single finite
-Sandbox create with independently authenticated, explicitly acknowledged variable
-charge risk; no developer agent can approve it and no provider call was made.
-This is a candidate implementation checkpoint, NOT accepted/merged/deployed work:
-exact-head check/unit/DB/emulate and direct/broker/HTTP cases remain to pass;
-live scratch Sandbox and webhook receiver acceptance require authenticated
-nonproduction fixtures and independent spend approval where applicable.
-No real Sandbox/receiver creation, provider spend, production mutation or
-live release was performed in this engineering session. Previous release
-acceptance queue records are unchanged; no queued PENDING item was promoted.
+One coherent PR #216 on ai/gpt6/v4-v5-preview-sandbox-webhook-20261016
+contains all five preview-only Sandbox commands (create, run/inspect, write,
+read, stop), provider-shaped native readback, run-scoped cleanup,
+per-account/day atomic 60-minute reservations with disposable Postgres
+concurrency proof, and authenticated explicit owner-only variable-charge
+consent for just a finite Sandbox (not developer-agent spending authorization).
+V-5 adds separately bound synthetic signed HTTPS webhooks, one-time vault
+secret, strict preview/TLS/DNS/public-IP restrictions and durable cleanup.
+Frozen pre-code plan commit: 4669c8e. Criterion-by-criterion source ledger:
+docs/pr-cards/V-4-delivery.json. Actual production source change currently
+approximately +870/-22 lines, excluding tests/docs.
+
+Previous candidate head 5acd422 passed exact-head CI and daily policy.
+Additional source and test corrections require new exact-head verification;
+do not assume they passed. Native Vercel/Hub/RTC deployed provider acceptance,
+paid/disposable Sandbox and real external webhook receiver remain PENDING until
+independent consented scratch execution on the serving deployed revision.
+No charged Vercel sandbox, production mutation, unscheduled release or
+external signed webhook was invoked by the implementing agent. Current live
+81d4d399 remains behind main; normal daily promotion is the only authorized
+release path. The source PR cannot merge without latest exact-head ci,
+release-policy, reviewed diff and resolved security findings.
 
 ### Release-needed owner escalation — October 15
 

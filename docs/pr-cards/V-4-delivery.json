@@ -1,0 +1,54 @@
+{
+  "subsections": [
+    {
+      "id": "V-4",
+      "criteria": [
+        {
+          "criterion": "Provide all five listed vercel_dev_sandbox_* tools: preview-only owned create, bounded run, bounded write-files, safe read-file and stop with strict session identity and profile enforcement.",
+          "evidence": "Five registered developer tools in src/tools/dev-sandbox.js use scoped V-1 ownerRun/guarded write, exact native session readback and visible profile registry; tests/unit/dev-sandbox.test.js, dev-v4-v5-doors.test.js and dev-v4-native-provider.test.js cover schemas, isolation and denial."
+        },
+        {
+          "criterion": "Reserve configured sandbox minutes atomically across two overlapping sessions/instances and enforce the 60-minute daily policy without treating minutes alone as paid-provider cost authorization.",
+          "evidence": "src/db.js implements atomic ON CONFLICT reservations per Vercel account and America/Denver day; tests/db/dev-sandbox-budget.test.js verifies four concurrent 20-minute attempts against the 60-minute quota, with three allowed and fourth denied; separate owner risk approval is tested in purchase-intents and dev-sandbox-metered-approval."
+        },
+        {
+          "criterion": "Record every sandbox ID on the initiating dev run, stop exact owned active sessions in cleanup, refuse foreign/production sessions and unverified provider outcomes.",
+          "evidence": "Created Sandbox sessions are recorded as run-owned dev_run_objects with a durable pending create intent; src/tools/dev-runs.js uses exact provider session identity and deterministic run-scoped name before stop, with verified stop state and no foreign deletion; unit provider-shape readback test covers stop and persisted cleaned state."
+        },
+        {
+          "criterion": "Verify pinned Vercel provider methods, bounded command/file response and the complete direct/broker/HTTP write-contract and real disposable database concurrency checks; preserve provider-spend/owner approval boundaries.",
+          "evidence": "src/vercel/operations.js pins official v4/v2 Sandbox methods and openapi-validation.js narrowly handles provider's erroneous required cmdId; bounded filesystem gzip-tar and NDJSON logs are in native client boundary; tests/unit/dev-sandbox.test.js, dev-v4-native-provider.test.js, dev-v4-v5-doors.test.js and the repository CI emulator cover method/shape/transport; genuine provider charged Sandbox acceptance remains queued separately."
+        }
+      ],
+      "remainingEngineering": []
+    },
+    {
+      "id": "V-5",
+      "criteria": [
+        {
+          "criterion": "Provide vercel_dev_send_test_webhook to send only clearly labeled synthetic Vercel event types to a validated explicitly chosen public HTTPS development receiver bound to the active owned run.",
+          "evidence": "src/tools/dev-test-webhook.js provides vercel_dev_send_test_webhook with prepare/send actions, strict active V-1 run and READY owned preview deployment binding, synthetic flag and limited Vercel event types; registry and direct/broker tests prove access and connection behavior."
+        },
+        {
+          "criterion": "Sign the exact transmitted body using the documented x-vercel-signature HMAC algorithm and a per-run secret protected by authenticated one-time owner disclosure, with no secret, raw request body or unsafe receipt data in tool results or audit.",
+          "evidence": "Per-run authenticated one-time owner vault plus AES-GCM with hashed run AAD encrypts the HMAC signing key; exact raw body HMAC-SHA1 x-vercel-signature is independently compared to node:crypto in tests/unit/dev-test-webhook.test.js; generic guarded result tests check secret only disclosed on authenticated owner setup, not send receipts/audit."
+        },
+        {
+          "criterion": "Reject private/loopback/mixed-DNS and redirected destinations, prohibit production targets, time out boundedly, refuse blind retries of uncertain delivery and preserve run-scoped secret cleanup.",
+          "evidence": "checkedReceiver and signedPreviewPost allow only an exact verified *.vercel.app preview HTTPS origin, reject unsafe path, metadata/private/mixed DNS and redirect, pin resolved public IP in TLS connection, limit timeout/bytes and never auto-retry ambiguous POSTs; run-scoped ciphertext is wiped after exact cleanup using tests/db/dev-sandbox-budget.test.js."
+        },
+        {
+          "criterion": "Verify signature independently, refusal/replay/transport isolation, provider-shaped event fixtures and all applicable write-contract, direct/broker/HTTP, catalog and security checks.",
+          "evidence": "tests/unit/dev-test-webhook.test.js captures native HTTPS request headers and exact transmitted bytes to verify signature, public DNS pin, one-shot non-2xx and redirect refusal; dev-v4-v5-receipts, dev-v4-v5-doors, registry and generic write-contract tests prove redaction, replay and scoped dispatch. A real independently authorized scratch receiver and deployed native MCP/RTC acceptance remain PENDING."
+        }
+      ],
+      "remainingEngineering": []
+    }
+  ],
+  "productionAdded": 870,
+  "productionRemoved": 22,
+  "newEngineering": "Added five complete V-4 Sandbox tools and V-5 signed synthetic webhook tool, full recorded lifecycle, native Vercel provider/HTTP boundaries, atomic SQL minute reservations, owner metered approval, one-time key vault, safe HTTP/TLS and guard/replay interfaces with focused unit and real disposable Postgres regression evidence.",
+  "planComparison": "Planned approximately 790 production lines across original V-4 and V-5. Actual changed production source is approximately +870/-22 before final publication accounting; exceeds guide modestly because native Sandbox binary/NDJSON adapters and distinct owner-metered consent needed real implementation. All eight frozen acceptance criteria are mapped without shrinking planned subsections. Source CI and independent review remain separate publication gates; real deployed provider/scratch acceptance is PENDING.",
+  "relatedWorkDecision": "V-4 and V-5 share existing preview run ownership, lifecycle cleanup, guarded writes and developer-facing registry; deliver one inseparable feature bundle and preserve distinct Sandbox metering and webhook signing-risk boundaries. No new external provider introduced.",
+  "decision": "SUBSTANTIAL"
+}
