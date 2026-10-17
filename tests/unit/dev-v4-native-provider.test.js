@@ -56,7 +56,7 @@ describe('V-4 native provider-shaped scoped stop and cleanup state',()=>{
     expect(f.objects.find(x=>x.object_type==='sandbox').status).toBe('cleaned');
     expect(f.fake.calls.filter(x=>x.method==='POST')).toHaveLength(1);
     const stop=f.fake.calls.find(x=>x.method==='POST');
-    expect(stop).toMatchObject({path:'/v2/sandboxes/sessions/'+session,
+    expect(stop).toMatchObject({path:'/v2/sandboxes/sessions/'+session+'/stop',
       query:{teamId:team}});
     expect(f.audits).toHaveLength(1);
     f.fake.verify();

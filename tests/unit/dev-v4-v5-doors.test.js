@@ -43,8 +43,8 @@ describe('V-4/V-5 real registry, direct and broker authorization doors',()=>{
       if(name==='vercel_dev_sandbox_run')exact.action='start';
       const direct=await call(name,exact,'full');
       const delegated=await call('vercel_call',{name,args:exact},'full');
-      expect(parse(direct).status).toBe('refused_by_guard');
-      expect(parse(delegated).status).toBe('refused_by_guard');
+      expect(parse(direct).status, name+' direct: '+JSON.stringify(direct)).toBe('refused_by_guard');
+      expect(parse(delegated).status, name+' broker: '+JSON.stringify(delegated)).toBe('refused_by_guard');
     }
   });
 });
