@@ -9,7 +9,7 @@ it does not work yet. This file is updated as features ship.
 | "Make me a preview of the feature-x branch." | Deploys a preview (never the live site), gives you the link, cleans it up later | V |
 | "Why did that build fail?" | The first error in plain words, the likely cause and the exact fix | V/W |
 | "Set up preview settings for this feature." | Adds preview-only settings; secret values come from your setup page, never chat | V |
-| "Start an isolated 10-minute Sandbox for this test run and run the checks." | Reserves the selected daily minute budget atomically, discloses metered costs and independently seeks approval before new charges, then can run bounded commands/files and stop the run-owned session | V-4 |
+| "Start an isolated 10-minute Sandbox for this test run and run the checks." | Records requested minutes without a server-imposed daily quota, discloses metered exposure and uses the currently implemented account-owner approval flow before charges (user-delegated policy modes still require separate remediation); supports bounded commands/files and run-owned stop | V-4 |
 | "Prepare a synthetic preview webhook key, then send the sample deployment event." | Reveals the per-run test key on the authenticated owner page, never in chat, and sends only to an exact recorded READY preview over pinned public HTTPS | V-5 |
 | "Clean up everything from that test run." | Removes exactly what that run made, nothing else | V |
 | "What's live on the rental site?" | Which version is live, what's waiting, whether anything is rolling out | W |

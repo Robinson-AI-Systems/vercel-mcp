@@ -15,7 +15,7 @@ Legend: **Owner** = only Chris · **Agent** = Claude can do it once you say go.
 | [ ] | Team key added (IN-04, IN-05) | Vercel → Account Settings → Tokens (team scope, 90 days), then the server's setup page (Owner) | None | `vercel_whoami` shows the team, PREVIEW, key scope, last 4 and expiry date |
 | [ ] | Protected projects list confirmed (IN-07) | Setup page (Owner) | Defaults | `vercel_list_protected_resources` shows the list |
 | [ ] | Connector added in Claude, preview mode (Owner) | claude.ai → Settings → Connectors | Not added | Claude answers "who am I connected as in Vercel?" correctly |
-| [ ] | Spend limit confirmed (IN-08) | Ask Claude: "set my Vercel spend limit to $X" (Owner confirms) | $0 default | `vercel_whoami` shows the limit |
+| [ ] | Legacy spending control (IN-08) | Existing server requires owner setup before charged operations; future user-selected spending/authorization policy must replace developer-era default $0. | $0 currently in code; **not an owner-approved restriction on customers** | `vercel_whoami` exposes legacy value; record actual delegated-mode acceptance only after implemented |
 | [ ] | Blob stores the server may look inside (IN-15; none by default) | Setup page → Blob stores (Owner types each store's key there) | None | `vercel_blob_list` on that store lists its files; other stores answer "not connected" |
 | [ ] | Variable-cost Sandbox authorization (V-4; optional, per transaction) | First ask the connected agent to preview a bounded Sandbox; inspect the resulting exact purchase reference on the authenticated setup page, check the non-guaranteed-cost acknowledgment, enter your chosen planning threshold and reenter your passphrase. Do **not** use developer-agent approvals | Never automatic | The one-use grant is consumed before the exact preview Sandbox starts; Vercel activity and `vercel_dev_list_runs` verify the owned session. The actual bill may exceed the advisory planning threshold |
 | [ ] | Scratch project and its project key (IN-06) | Vercel dashboard + setup page (Owner) | None | The X-2 report shows the scratch run passing |
@@ -24,7 +24,7 @@ Legend: **Owner** = only Chris · **Agent** = Claude can do it once you say go.
 
 | Done | Item | Where / how | Today | How you know it worked |
 |---|---|---|---|---|
-| [ ] | Production enabled for the team (IN-09): ask Claude, then re-enter your passphrase on the setup page | Owner | Off | A new connection offers "production" for that team |
+| [ ] | Production delegated for the team (IN-09) | Existing setup requires passphrase activation; user-configurable delegation without mandatory developer-only steps is still to be implemented and tested | Off in current source; **not a permanent customer capability ban** | An entitled user/delegated agent can execute, audit and read back a scoped authorized production operation after remediation |
 | [ ] | One harmless production change with you watching (e.g. re-issue a certificate, or promote the same deployment that is already live on the scratch project) | Owner + Agent | Not done | It shows in Vercel's activity log and in `vercel_recent_changes` |
 
 ## 3. Team settings (guided; the server checks what it can read)

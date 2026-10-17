@@ -11,7 +11,7 @@ next bounded implementation.
 - Database code passes on throwaway Postgres; schema changes are additive and idempotent.
 - `npm run check` green: secret scan, docs check, index validation, lint, write-safety, core imports, token budgets.
 - No secret in code, docs, tests, logs, PR text or tool results (key-scan test; planted-value env test).
-- No real Vercel writes outside the scratch project, no production changes, no purchases (AGENTS hard limits).
+- **Development/test agent only:** No real Vercel writes outside authorized scratch fixtures, no production changes, no purchases (AGENTS hard limits). This must NOT restrict authenticated end users and their delegated agents. See END-USER-AUTHORITY.md.
 - Owner inputs are inputs, not things to invent: build the mechanism, keep the dependent behavior off, list the `IN-xx`.
 - Money shown in dollars and cents, stored in cents; times shown America/Denver, stored UTC.
 - The PR description carries the card's acceptance checklist with evidence.
@@ -47,7 +47,7 @@ next bounded implementation.
 
 ## Batch V — Developer tools (`designs/BATCH-V.md`)
 - [ ] Runs recorded and tagged; cleanup touches only recorded objects.
-- [ ] Preview per branch, preview env wiring, preview aliases, bypass for automation, build diagnosis, log tail, preview fetch, integration check, sandboxes within a minutes budget, signed test webhooks.
+- [ ] Preview per branch, preview env wiring, preview aliases, bypass for automation, build diagnosis, log tail, preview fetch, integration check, Sandboxes with atomic usage visibility but no mandatory daily quota (IN-13 owner amendment 2026-10-17), signed test webhooks.
 - [ ] Every tool refuses production.
 
 ## Batch N — Domains, DNS, certificates, registrar (`designs/BATCH-N.md`)

@@ -4,7 +4,7 @@ IN-13 was answered decisively: **no mandatory MCP Sandbox minutes/day limit**. T
 
 This is a broader repository-wide product-design correction: the coding agent's $0 spending, release and live-mutation restrictions must not become hard end-user limitations. Existing per-charge developer-like approvals, end-user spend/production defaults, read-only/guided-only substitutes and connection profile capabilities need an explicit source-to-provider audit/remediation under the ordered roadmap. Do **not** claim all other restrictions were fixed by this V-4/V-5 bundle. No customer/provider Sandbox charges, deployments or live mutations performed. Exact-head CI, self-review, merge and later deployed/native acceptance remain separate gates.
 
-## V-4/V-5 source verified — owner selection IN-13 blocks merge (October 17, 2026)
+## Historical pre-IN-13-answer source snapshot — superseded by owner correction above
 
 PR #216 on `ai/gpt6/v4-v5-preview-sandbox-webhook-20261016` includes both
 complete roadmap engineering subsections V-4 (Sandbox lifecycle) and V-5

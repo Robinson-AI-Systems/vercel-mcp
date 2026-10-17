@@ -8,6 +8,10 @@ or require replacing service-owned dispatch/state. Hub's H-1–H-3 work belongs 
 
 Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current state; [PLAN](PLAN.md) holds acceptance.
 
+## Owner-approved cross-cutting end-user authority correction (2026-10-17)
+
+The October 17 owner clarification supersedes interpretations of $0, preview-only, mandatory owner-per-transaction and no-production **developer/acceptance instructions** as enduring customer restrictions. This does not authorize any builder to perform paid/live operations. The actual code paths listed in [END-USER-AUTHORITY](END-USER-AUTHORITY.md) remain a **completion obligation** under existing B/C/U, D/V, O/P/R and applicable other batches, not a newly claimed delivered phase. Reconcile them against actual account permission, user delegation and provider limits before claiming unrestricted end-user parity. Finish current approved V-4/V-5 bundle and independently eligible acceptance/release duties; plan the cohesive shared authorization seam next without fragmenting into helper PRs or silently changing other providers.
+
 ## What is next
 
 **Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), independent U-1 discovery and seven scope-verified feature-flag metadata reads, plus R-1 owner-reviewed read-only pass requests based on merged C-2. D-1/D-2 code acceptance is complete but genuine hosted/provider/Hub acceptance remains pending. No vercel-mcp project appeared in the authorized provider inventory recheck. Re-enter D-2 when an authorized disposable deployment, custom HTTPS service and stored scoped account become available. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
