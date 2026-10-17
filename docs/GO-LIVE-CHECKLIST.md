@@ -17,6 +17,7 @@ Legend: **Owner** = only Chris · **Agent** = Claude can do it once you say go.
 | [ ] | Connector added in Claude, preview mode (Owner) | claude.ai → Settings → Connectors | Not added | Claude answers "who am I connected as in Vercel?" correctly |
 | [ ] | Spend limit confirmed (IN-08) | Ask Claude: "set my Vercel spend limit to $X" (Owner confirms) | $0 default | `vercel_whoami` shows the limit |
 | [ ] | Blob stores the server may look inside (IN-15; none by default) | Setup page → Blob stores (Owner types each store's key there) | None | `vercel_blob_list` on that store lists its files; other stores answer "not connected" |
+| [ ] | Variable-cost Sandbox authorization (V-4; optional, per transaction) | First ask the connected agent to preview a bounded Sandbox; inspect the resulting exact purchase reference on the authenticated setup page, check the non-guaranteed-cost acknowledgment, enter your chosen planning threshold and reenter your passphrase. Do **not** use developer-agent approvals | Never automatic | The one-use grant is consumed before the exact preview Sandbox starts; Vercel activity and `vercel_dev_list_runs` verify the owned session. The actual bill may exceed the advisory planning threshold |
 | [ ] | Scratch project and its project key (IN-06) | Vercel dashboard + setup page (Owner) | None | The X-2 report shows the scratch run passing |
 
 ## 2. Production changes, per team

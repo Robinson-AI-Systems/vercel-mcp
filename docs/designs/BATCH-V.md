@@ -127,3 +127,5 @@ private URLs refused; secret never in a result.
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-17 — V-4 scoped end-user cost approval (owner clarification 2026-10-16).** The 60-minute/day counter remains an atomic quota, not a monetary authorization. The precise finite Sandbox shape (1 vCPU, 2 GB, bounded session timeout, no persistence, deny-all outbound network) supports a separately authenticated owner approval for variable usage even though an advisory dollar value cannot be enforced as a provider billing limit. This is explicitly one operation `vercel_dev_sandbox_create`, using signed-in owner acknowledgment and one-use payload-bound grant; no other generic metered operation is implicitly enabled. This corrects the product's permanent developer-agent-limit leakage while preserving the implementation agent's $0 spend and nonproduction-only fixture policy. Provider execution/charge acceptance is not claimed.

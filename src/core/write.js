@@ -105,7 +105,7 @@ export function defineWrite(spec) {
         // purchase inherits this permission, and this agent cannot approve it.
         if(!(spec.name==='vercel_dev_sandbox_create'&&spec.risk?.ownerApprovedMetered===true&&
           purchase.cents===null&&purchase.recurring===true))
-          return refusal('Unbounded metered usage requires provider enforcement or a separately approved supported policy');
+          return refusal('Unbounded metered usage requires a provider-enforceable ceiling or a separately authenticated owner-approved supported policy');
       }
       if(typeof args.requestKey!=='string')
         return refusal('A stable explicit requestKey is mandatory for paid operations');
