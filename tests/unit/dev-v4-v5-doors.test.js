@@ -38,6 +38,9 @@ describe('V-4/V-5 real registry, direct and broker authorization doors',()=>{
     for(const name of names.filter(x=>x!=='vercel_dev_sandbox_read_file')){
       const exact=Object.fromEntries(Object.keys(registry.tools.find(t=>t.name===name).inputSchema.properties)
         .filter(k=>Object.hasOwn(args,k)).map(k=>[k,args[k]]));
+      // Production refusal must be reached with a valid per-tool schema.
+      // The run tool supports start/inspect, not the webhook send action.
+      if(name==='vercel_dev_sandbox_run')exact.action='start';
       const direct=await call(name,exact,'full');
       const delegated=await call('vercel_call',{name,args:exact},'full');
       expect(parse(direct).status).toBe('refused_by_guard');
