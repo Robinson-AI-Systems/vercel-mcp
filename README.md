@@ -1,5 +1,7 @@
 # Robinson Vercel MCP
 
+**Hub compatibility:** This server remains independently usable. Its coding agents should follow the [shared Hub compatibility checklist](docs/HUB-COMPATIBILITY.md) and the linked canonical Hub RTC contract; Hub initiates discovery and keeps provider schemas out of the agent's default tool menu.
+
 A hosted MCP server that lets Chris Robinson's AI agents build on and run his Vercel teams safely — previews,
 deployments, releases, environment variables, domains, security, logs, members, tokens and billing — with production
 changes and purchases always asking first, and no secret ever passing through an AI. It follows the Robinson Tool
