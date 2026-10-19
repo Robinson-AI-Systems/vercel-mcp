@@ -51,12 +51,20 @@ describe('RTC database-scoped credential lifecycle',()=>{
  });
  it('expires, caps, and limits passes across calls with no memory counter',async()=>{
   const a=await db.issueReadOnlyRtcPass({account:'team_FAKE',hours:1,areas:['server']});
-  for(let i=0;i<60;i++)expect((await db.authorizeRtcPass(a.token)).status).toBe('ok');
+  for(let i=0;i<120;i++)expect((await db.authorizeRtcPass(a.token)).status).toBe('ok');
   expect((await db.authorizeRtcPass(a.token)).status).toBe('rate_limited');
   await rawQuery('UPDATE rtc_passes SET expires_at=now()-interval \'1 second\' WHERE pass_id=$1',[a.id]);
   expect((await db.authorizeRtcPass(a.token)).status).toBe('pass_expired');
   await expect(db.issueReadOnlyRtcPass({account:'team_FAKE',hours:721})).rejects.toThrow();
- });
+   it('enforces an individually selected limit and refuses invalid rate policy',async()=>{
+   const p=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server'],rateLimitPerMinute:5});
+   expect((await db.inspectRtcPass(p.token)).rateLimitPerMinute).toBe(5);
+   for(let n=0;n<5;n++)expect((await db.authorizeRtcPass(p.token)).status).toBe('ok');
+   expect((await db.authorizeRtcPass(p.token)).status).toBe('rate_limited');
+   for(const invalid of [0,601,1.5])
+     await expect(db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server'],
+       rateLimitPerMinute:invalid})).rejects.toThrow();
+  });
 });
 
 describe('RTC cross-instance rate and revocation safety',()=>{
@@ -71,7 +79,7 @@ describe('RTC cross-instance rate and revocation safety',()=>{
        return (await second.query(statement,values)).rows;
      };
      const other=createDb(query);
-     const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server']});
+     const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server'],rateLimitPerMinute:60});
      const results=await Promise.all(Array.from({length:15},(_,i)=>
        (i%2?db:other).authorizeRtcPass(pass.token,6)));
      expect(results.filter(x=>x.status==='ok')).toHaveLength(10);
@@ -83,7 +91,7 @@ describe('RTC cross-instance rate and revocation safety',()=>{
      expect((await other.authorizeRtcPass(pass.token,0)).status).toBe('permission');
    }finally{await second.end();}
  });
- it('shares the atomic 60-per-minute budget across independent DB sessions',async()=>{
+ it('shares the atomic 120-per-minute budget across independent DB sessions',async()=>{
    const second=new pg.Client({connectionString:url});
    await second.connect();
    try{
@@ -95,10 +103,10 @@ describe('RTC cross-instance rate and revocation safety',()=>{
      };
      const other=createDb(query);
      const pass=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server']});
-     const outcomes=await Promise.all(Array.from({length:80},(_,i)=>
+     const outcomes=await Promise.all(Array.from({length:150},(_,i)=>
        (i%2?db:other).authorizeRtcPass(pass.token)));
-     expect(outcomes.filter(x=>x.status==='ok')).toHaveLength(60);
-     expect(outcomes.filter(x=>x.status==='rate_limited')).toHaveLength(20);
+     expect(outcomes.filter(x=>x.status==='ok')).toHaveLength(120);
+     expect(outcomes.filter(x=>x.status==='rate_limited')).toHaveLength(30);
      expect(await db.revokeRtcPass({account:'team_FAKE',id:pass.id})).toBe(true);
      expect((await other.authorizeRtcPass(pass.token)).status).toBe('pass_revoked');
    }finally{await second.end();}
