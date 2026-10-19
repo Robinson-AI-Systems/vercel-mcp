@@ -1,5 +1,8 @@
 # DEPLOY — Owner guide to setting up Robinson Vercel MCP
 
+**Branding/connection status (2026-10-19):** Public intended name is **Vercel by Robinson AI Systems** (unofficial and independently operated). Technical IDs, origins, OAuth grants and stored credentials stay stable. Source support for remote direct MCP does not establish client-specific login, refresh, provider read/write or revocation acceptance. A production deployment/real user action remains separate. The owner-approved directive does not permit unscheduled release, public publication or account changes.
+
+
 Status (2026-10-13): **initial hosting and owner credential setup verified**. The dedicated Vercel project is READY on the checked `live` revision, dedicated Neon schema initialized and an encrypted, team-scoped Robinson AI Systems credential stored. Public OAuth and RTC metadata respond over HTTPS; authenticated custom MCP, live D-2 provider file/log response, RTC direct/relay/Sandbox and revocation acceptance are still OPEN. Existing approved setup is not permission for additional provisioning, production writes or spending.
 
 This server has its own Vercel project and Neon database. It must never be installed into Appliance Desk or another existing business project. Start with a restricted Vercel team token and a preview/read-only connection; production writes require a separate approval and additional safety implementation.
