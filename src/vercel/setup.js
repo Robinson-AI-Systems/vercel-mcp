@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { encryptSecret, decryptSecret } from '../core/secret-box.js';
 import { evaluateLogin, clientIp, secretsMatch } from '../core/oauth.js';
+import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 import { escapeHtml, paramsOf, only, send } from '../core/http.js';
 import { storeToken, recheckStoredToken } from './tokens.js';
 import { pendingInputs } from '../core/pending-inputs.js';
@@ -29,7 +30,7 @@ function headers(res) {
 function page(title, content) {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>' + escapeHtml(title) + ' — Robinson Vercel MCP</title>' +
+    '<title>' + escapeHtml(title) + ' — ' + escapeHtml(SERVICE_DISPLAY_NAME) + '</title>' +
     '<style>body{font:16px system-ui;max-width:650px;margin:4vh auto;padding:20px}' +
     'form{display:grid;gap:12px;margin:24px 0;padding:12px;border:1px solid #ccc}' +
     'input,select,button{font:inherit;padding:10px}button{cursor:pointer}' +
