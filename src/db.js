@@ -102,7 +102,7 @@ export function createDb(query) {
         WHERE token_hash=${digest} AND revoked_at IS NULL
           AND expires_at>now() AND profile='read_only'
           AND (mode='preview' OR (mode='test' AND areas='["server"]'::jsonb))
-          AND AND rate_limit_per_minute BETWEEN 1 AND 600
+          AND rate_limit_per_minute BETWEEN 1 AND 600
           AND (window_started<=now()-interval '1 minute' OR window_count+${units}<=rate_limit_per_minute)
         RETURNING pass_id,vercel_account,profile,mode,listing,areas,rate_limit_per_minute`;
       if(rows.length===1){
