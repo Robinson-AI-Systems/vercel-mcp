@@ -1,4 +1,4 @@
-# DEPLOY — Owner guide to setting up Robinson Vercel MCP
+# DEPLOY — Owner guide to setting up Vercel by Robinson AI Systems
 
 **Branding/connection status (2026-10-19):** Public intended name is **Vercel by Robinson AI Systems** (unofficial and independently operated). Technical IDs, origins, OAuth grants and stored credentials stay stable. Source support for remote direct MCP does not establish client-specific login, refresh, provider read/write or revocation acceptance. A production deployment/real user action remains separate. The owner-approved directive does not permit unscheduled release, public publication or account changes.
 
