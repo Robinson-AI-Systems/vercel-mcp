@@ -68,6 +68,59 @@ describe('A-3b OAuth persistence on throwaway PostgreSQL', () => {
     expect(JSON.stringify(accounts)).not.toContain('token_enc');
   });
 
+  it('keeps legacy confidential client records authenticatable without migration',async()=>{
+    const h=createOAuthHandlers({db,env,service:createVercelLoginService(db)});
+    const reg=json(await call(h.register,request('POST',{redirect_uris:[callback]})));
+    await rawQuery("UPDATE oauth_clients SET data=data-'token_endpoint_auth_method' WHERE client_id=$1",[reg.client_id]);
+    const client=await db.getOAuthClient(reg.client_id);
+    expect(client.token_endpoint_auth_method).toBeUndefined();
+    const params={client_id:reg.client_id,redirect_uri:callback,response_type:'code',
+      code_challenge:challenge,code_challenge_method:'S256',resource,state:'legacy',
+      account:'team_persistent_fixture',mode:'preview',profile:'read_only',listing:'compact'};
+    const issued=await call(h.authorize,request('POST',{...params,passphrase:env.ADMIN_PASSPHRASE}));
+    expect(issued.statusCode).toBe(302);
+    const code=new URL(issued.headers.Location).searchParams.get('code');
+    const granted=await call(h.token,request('POST',{grant_type:'authorization_code',
+      client_id:reg.client_id,client_secret:reg.client_secret,redirect_uri:callback,
+      code,code_verifier:verifier,resource}));
+    expect(granted.statusCode).toBe(200);
+  });
+  it('keeps public-client no-secret PKCE exchanges isolated through real Postgres',async()=>{
+    const h=createOAuthHandlers({db,env,service:createVercelLoginService(db)});
+    const regResponse=await call(h.register,request('POST',{redirect_uris:[callback],
+      token_endpoint_auth_method:'none',client_name:'Public mobile fixture'}));
+    expect(regResponse.statusCode).toBe(201);
+    const c=json(regResponse);
+    expect(c).not.toHaveProperty('client_secret');
+    const stored=await db.getOAuthClient(c.client_id);
+    expect(stored).toMatchObject({token_endpoint_auth_method:'none',client_secret_hash:null});
+    const params={client_id:c.client_id,redirect_uri:callback,response_type:'code',
+      code_challenge:challenge,code_challenge_method:'S256',resource,state:'public',
+      account:'team_persistent_fixture',mode:'preview',profile:'read_only',listing:'compact'};
+    const issued=await call(h.authorize,request('POST',{...params,passphrase:env.ADMIN_PASSPHRASE}));
+    expect(issued.statusCode).toBe(302);
+    const code=new URL(issued.headers.Location).searchParams.get('code');
+    expect((await call(h.token,request('POST',{grant_type:'authorization_code',
+      client_id:c.client_id,client_secret:'forged',redirect_uri:callback,
+      code,code_verifier:verifier,resource}))).statusCode).toBe(401);
+    const granted=await call(h.token,request('POST',{grant_type:'authorization_code',
+      client_id:c.client_id,redirect_uri:callback,code,code_verifier:verifier,resource}));
+    expect(granted.statusCode).toBe(200);
+    const first=json(granted);
+    expect(await db.getAccessToken(first.access_token)).toMatchObject({
+      client_id:c.client_id,vercel_account:'team_persistent_fixture'});
+    const rotated=await Promise.all(Array.from({length:2},()=>call(h.token,request('POST',{
+      grant_type:'refresh_token',client_id:c.client_id,
+      refresh_token:first.refresh_token,resource}))));
+    expect(rotated.map(x=>x.statusCode).sort()).toEqual([200,400]);
+    const successful=json(rotated.find(x=>x.statusCode===200));
+    expect(await db.getAccessToken(successful.access_token)).toMatchObject({client_id:c.client_id});
+    const rows=await rawQuery('SELECT client_id,data FROM oauth_clients WHERE client_id=$1',[c.client_id]);
+    expect(rows).toHaveLength(1);
+    expect(JSON.stringify(rows[0])).not.toContain('client_secret');
+    expect(rows[0].data.client_secret_hash).toBeNull();
+  });
+
   it('completes an authorization-code exchange and refresh with persistent connection settings', async () => {
     const service = createVercelLoginService(db);
     const handlers = createOAuthHandlers({ db, env, service });
