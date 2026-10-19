@@ -952,8 +952,14 @@ export function createDb(query) {
         window_started TIMESTAMPTZ NOT NULL DEFAULT now(),
         window_count INTEGER NOT NULL DEFAULT 0,
         rate_limit_per_minute INTEGER NOT NULL DEFAULT 120 CHECK(rate_limit_per_minute BETWEEN 1 AND 600))`;
+      // Existing grants had an implicit 60/minute cap. Never widen an issued pass
+      // just because the new selectable default is 120.
       await run`ALTER TABLE rtc_passes ADD COLUMN IF NOT EXISTS rate_limit_per_minute
-        INTEGER NOT NULL DEFAULT 120 CHECK(rate_limit_per_minute BETWEEN 1 AND 600)`;
+        INTEGER CHECK(rate_limit_per_minute BETWEEN 1 AND 600)`;
+      await run`UPDATE rtc_passes SET rate_limit_per_minute=60
+        WHERE rate_limit_per_minute IS NULL`;
+      await run`ALTER TABLE rtc_passes ALTER COLUMN rate_limit_per_minute SET DEFAULT 120`;
+      await run`ALTER TABLE rtc_passes ALTER COLUMN rate_limit_per_minute SET NOT NULL`;
       await run`CREATE INDEX IF NOT EXISTS rtc_passes_owner
         ON rtc_passes(vercel_account,created_at DESC)`;
       await run`CREATE TABLE IF NOT EXISTS login_attempts (
