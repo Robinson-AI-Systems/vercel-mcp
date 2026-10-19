@@ -18,7 +18,7 @@ const db={
  async authorizeRtcPass(value){
    if(value!==pass)return {status:'permission'};
    return state==='ok'?{status:'ok',account:'team_FAKE',id:'pass_'+'b'.repeat(20),
-      profile:'read_only',mode:'test',listing:'catalog',areas:['server']}:
+      profile:'read_only',mode:'test',listing:'catalog',areas:['server'],rateLimitPerMinute:120}:
      {status:state};
  },
  async listVercelAccounts(){
