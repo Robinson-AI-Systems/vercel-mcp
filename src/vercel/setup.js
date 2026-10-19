@@ -152,6 +152,7 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label>Allowed areas, comma-separated (TEST requires server only)' +
     '<input name="areas" value="server" required></label>' +
     '<label>Lifetime in hours (1–720)<input name="hours" value="24" required></label>' +
+    '<label>Calls per minute (1–600; 120 default)<input name="rateLimitPerMinute" type="number" min="1" max="600" value="120" required></label>' +
     '<label><input type="checkbox" name="confirm" value="yes" required>Issue one scoped read-only pass</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
     '<button type="submit">Issue read-only pass</button></form>' +
@@ -305,7 +306,7 @@ export async function handleSetup(req, res, {
       if(params.action==='review_rtc_pass_request')
         return html(res,200,'Review read-only pass',
           '<p>No pass has been issued. Read-only '+escapeHtml(request.mode)+'; '+request.hours+
-          ' hours; areas: '+escapeHtml(request.areas.join(', '))+'. No spending or writes. TEST is service identity only.</p>'+
+          ' hours; areas: '+escapeHtml(request.areas.join(', '))+'; '+request.rateLimitPerMinute+' calls/minute. No spending or writes. TEST is service identity only.</p>'+
           '<form method="post">'+csrfInput(session.csrf)+
           '<input type="hidden" name="action" value="approve_rtc_pass_request">'+
           '<input type="hidden" name="account" value="'+escapeHtml(params.account)+'">'+
@@ -324,14 +325,16 @@ export async function handleSetup(req, res, {
       if(!approved||JSON.stringify(approved)!==JSON.stringify(request))
         return html(res,409,'Unavailable','<p>Request changed, expired, or was already consumed.</p>');
       const issued=await db.issueReadOnlyRtcPass({account:approved.account,
-        mode:approved.mode,hours:approved.hours,areas:approved.areas});
+        mode:approved.mode,hours:approved.hours,areas:approved.areas,
+        rateLimitPerMinute:approved.rateLimitPerMinute});
       if(!issued)return html(res,409,'Unavailable','<p>Pass was not issued; request is consumed.</p>');
       let once;
       try{
         const verifiedPass=await db.inspectRtcPass(issued.token);
         if(verifiedPass?.status!=='ok'||verifiedPass.id!==issued.id||verifiedPass.account!==approved.account||
           verifiedPass.profile!=='read_only'||verifiedPass.mode!==approved.mode||
-          JSON.stringify(verifiedPass.areas)!==JSON.stringify(approved.areas))
+          JSON.stringify(verifiedPass.areas)!==JSON.stringify(approved.areas)||
+          verifiedPass.rateLimitPerMinute!==approved.rateLimitPerMinute)
           throw new TypeError('Pass scope was not independently verified');
         once=await oneTimeSecrets({db,env,now}).issue({account:approved.account,
           kind:'rtc_pass',label:'Owner-approved read-only pass',value:issued.token,ttlMs:600000});
@@ -356,16 +359,18 @@ export async function handleSetup(req, res, {
         return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
       if(params.action==='issue_rtc_pass'){
         const hours=Number(params.hours);
+        const rateLimitPerMinute=Number(params.rateLimitPerMinute??120);
         const mode=params.mode??'preview';
         const areas=typeof params.areas==='string'?params.areas.split(',').map(x=>x.trim()):[];
         const validAreas=new Set(['server',...registry.tools.map(x=>x.area).filter(Boolean)]);
-        if(!Number.isInteger(hours)||hours<1||hours>720||!areas.length||
+        if(!Number.isInteger(hours)||hours<1||hours>720||
+          !Number.isInteger(rateLimitPerMinute)||rateLimitPerMinute<1||rateLimitPerMinute>600||!areas.length||
           areas.length>12||new Set(areas).size!==areas.length||
           areas.some(x=>!validAreas.has(x))||
           !['preview','test'].includes(mode)||
           (mode==='test'&&(areas.length!==1||areas[0]!=='server')))
           return html(res,400,'Invalid pass','<p>Choose known areas and a short lifetime.</p>');
-        const issued=await db.issueReadOnlyRtcPass({account:params.account,hours,areas,mode});
+        const issued=await db.issueReadOnlyRtcPass({account:params.account,hours,areas,mode,rateLimitPerMinute});
         if(!issued)return html(res,409,'Unavailable','<p>Pass was not issued.</p>');
         const once=await oneTimeSecrets({db,env,now}).issue({
           account:params.account,kind:'rtc_pass',label:'Read-only RTC pass',
