@@ -3,6 +3,7 @@ import {registry} from '../../src/tools/index.js';
 import {rtcManifest,rtcCatalog,rtcMetadata} from '../../src/core/rtc-contract.js';
 import contract from '../../api/contract.js';
 import openapi from '../../api/rtc-openapi.js';
+import { SERVICE_DISPLAY_NAME, SERVICE_TECHNICAL_NAME } from '../../src/service-identity.js';
 function response(){
   return {statusCode:0,headers:{},setHeader(k,v){this.headers[k]=v;return this;},
     status(n){this.statusCode=n;return this;},send(v){this.body=JSON.parse(v);return this;}};
@@ -10,7 +11,7 @@ function response(){
 describe('RTC 1 public manifest and scoped catalog',()=>{
   it('advertises independently countable tools and narrow metadata',()=>{
     const m=rtcManifest(registry),full=rtcCatalog(registry,{profile:'full',listing:'catalog'});
-    expect(m).toMatchObject({rtc:1,prefix:'vercel',devTools:false,
+    expect(m).toMatchObject({rtc:1,prefix:'vercel',server:SERVICE_TECHNICAL_NAME,devTools:false,
       counts:{tools:full.length}});
     expect(m.counts.writes).toBe(full.filter(x=>x.writes).length);
     expect(m.modes).toContain('test');
@@ -61,6 +62,7 @@ describe('RTC 1 public manifest and scoped catalog',()=>{
     const schema=response();openapi({method:'GET'},schema);
     expect(schema.statusCode).toBe(200);
     expect(schema.body.openapi).toMatch(/^3/);
+    expect(schema.body.info.title).toContain(SERVICE_DISPLAY_NAME);
     expect(Object.values(schema.body.paths)
       .flatMap(x=>Object.keys(x).filter(k=>['get','post'].includes(k))).length)
       .toBeLessThanOrEqual(30);
