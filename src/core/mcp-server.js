@@ -3,6 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { requireMcpToken } from './mcp-auth.js';
+import { SERVICE_TECHNICAL_NAME, SERVICE_DISPLAY_NAME, SERVICE_VERSION } from '../service-identity.js';
 import { visibleToProfile, listProfileTools, profileToolCounts as countByProfile } from './profiles.js';
 
 // Explicit local owner operations are the only writes permitted before the general gateway.
@@ -87,7 +88,7 @@ export function createMcpHandler({ db, registry, env = process.env, formatError,
   return async function mcp(req, res) {
     const connection = await requireMcpToken(req, res, db, env);
     if (!connection) return;
-    const server = new Server({ name: 'robinson-vercel-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
+    const server = new Server({ name: SERVICE_TECHNICAL_NAME, title: SERVICE_DISPLAY_NAME, version: SERVICE_VERSION }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: listMcpTools(registry, connection)
     }));
