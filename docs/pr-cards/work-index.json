@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-15",
+  "updated": "2026-10-19",
   "order": [
     "A",
     "B",
@@ -1489,13 +1489,13 @@
         "R-1"
       ],
       "card": "docs/pr-cards/R-2.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "rate_limits",
       "budget": 450,
       "units": [
         "R-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "CARD_WRITTEN",
       "ownerInputs": [
         "IN-10"
       ]
