@@ -1,5 +1,8 @@
 # Owner guide — what you can ask for
 
+**Current connection guidance (2026-10-19):** The independent, unofficial service is branded **Vercel by Robinson AI Systems**. Existing service-owned OAuth connections use `/api/mcp` directly; read-only RTC passes can use the HTTPS API without Hub. Hub is optional. Authenticated remote desktop/mobile support must be tested per actual client; login or handshake alone is not proof. The owner-selected per-pass rate policy proposed in draft PR #219 is NOT deployed or accepted. RTC write passes and user-controlled spend/production delegation are unfinished engineering. Read `PRODUCT-AUTHORITY-AUDIT.md` before treating older examples as guaranteed product behavior.
+
+
 Plain-English things to say to Claude once each part is built. Each line names the batch that delivers it; until then
 it does not work yet. This file is updated as features ship.
 
