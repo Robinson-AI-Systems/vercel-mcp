@@ -156,12 +156,15 @@ function validPassRecord(record){
     new Set(record.areas).size===record.areas.length&&
     record.areas.every(area=>typeof area==='string'&&AREA.test(area))&&
     (record.mode!=='test'||record.areas.length===1&&record.areas[0]==='server')&&
-    ['compact','catalog'].includes(record.listing));
+    ['compact','catalog'].includes(record.listing)&&
+    Number.isInteger(record.rateLimitPerMinute)&&record.rateLimitPerMinute>=1&&
+    record.rateLimitPerMinute<=600);
 }
 function samePassScope(before,after){
   return validPassRecord(after)&&before.id===after.id&&
     before.account===after.account&&before.profile===after.profile&&
     before.mode===after.mode&&before.listing===after.listing&&
+    before.rateLimitPerMinute===after.rateLimitPerMinute&&
     JSON.stringify(before.areas)===JSON.stringify(after.areas);
 }
 async function requirePass(req,db,res,route,registry){
@@ -223,7 +226,8 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       if(route==='whoami'){
         if(req.method!=='GET')return fail(res,'invalid_args');
         return send(res,200,{ok:true,result:{
-          profile:'read_only',mode:pass.mode,listing:pass.listing,areas:pass.areas}});
+          profile:'read_only',mode:pass.mode,listing:pass.listing,areas:pass.areas,
+           rateLimitPerMinute:pass.rateLimitPerMinute}});
       }
       if(route==='list'){
         if(req.method!=='GET')return fail(res,'invalid_args');
