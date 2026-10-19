@@ -117,7 +117,7 @@ describe('A-3b OAuth persistence on throwaway PostgreSQL', () => {
     expect(await db.getAccessToken(successful.access_token)).toMatchObject({client_id:c.client_id});
     const rows=await rawQuery('SELECT client_id,data FROM oauth_clients WHERE client_id=$1',[c.client_id]);
     expect(rows).toHaveLength(1);
-    expect(JSON.stringify(rows[0])).not.toContain('client_secret');
+    expect(rows[0].data).not.toHaveProperty('client_secret');
     expect(rows[0].data.client_secret_hash).toBeNull();
   });
 
