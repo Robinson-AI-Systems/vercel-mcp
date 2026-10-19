@@ -56,7 +56,8 @@ describe('RTC database-scoped credential lifecycle',()=>{
   await rawQuery('UPDATE rtc_passes SET expires_at=now()-interval \'1 second\' WHERE pass_id=$1',[a.id]);
   expect((await db.authorizeRtcPass(a.token)).status).toBe('pass_expired');
   await expect(db.issueReadOnlyRtcPass({account:'team_FAKE',hours:721})).rejects.toThrow();
-   it('enforces an individually selected limit and refuses invalid rate policy',async()=>{
+  });
+  it('enforces an individually selected limit and refuses invalid rate policy',async()=>{
    const p=await db.issueReadOnlyRtcPass({account:'team_FAKE',areas:['server'],rateLimitPerMinute:5});
    expect((await db.inspectRtcPass(p.token)).rateLimitPerMinute).toBe(5);
    for(let n=0;n<5;n++)expect((await db.authorizeRtcPass(p.token)).status).toBe('ok');
