@@ -1,5 +1,8 @@
 # MASTER ROADMAP — the one handoff
 
+**October 19 completion directive (IN PROGRESS):** Review `PRODUCT-AUTHORITY-AUDIT.md` for source-evidenced cross-cutting permission leaks, retention of provider/security controls, and open engineering. Draft R-2 PR #219 includes branding and per-pass rate control; R-1 full write passes and user-selected purchases/production authorization remain unfinished. Do not count new audit substeps as approved roadmap subsection deliveries. Direct standalone client/provider proof required; actual Hub connection is Hub-owned. No public listing or live mutation authorized.
+
+
 ## Gateway dependency correction — 2026-10-12
 
 Standalone RTC conformance and direct authorized service acceptance are mandatory. **Owner 2026-10-19:** successful live Hub discovery, connection, OAuth orchestration, routing, relay or Sandbox acceptance is Hub-owned, not a Vercel MCP completion requirement. Shared core adoption is also optional. See HUB-COMPATIBILITY.md. Hub's H-series remains its own project.
