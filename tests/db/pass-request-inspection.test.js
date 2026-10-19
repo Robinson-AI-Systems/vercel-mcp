@@ -16,7 +16,7 @@ it('keeps exact pass proposal encrypted, account-scoped, non-consuming until one
  const receipt=await requestPass({db,env,account,scope});
  const opts={db,env,account,reference:receipt.reference,knownAreas:['server','projects']};
  expect(await inspectPassRequest({...opts,account:'team_OTHER'})).toBeNull();
- const intended={version:1,account,...scope};
+ const intended={version:1,account,...scope,rateLimitPerMinute:120};
  expect(await inspectPassRequest(opts)).toEqual(intended);expect(await inspectPassRequest(opts)).toEqual(intended);
  const stored=(await rawQuery("SELECT ciphertext FROM one_time_secrets WHERE id='"+receipt.reference+"'"))[0];
  expect(stored.ciphertext).not.toContain('server');
