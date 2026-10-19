@@ -4,6 +4,7 @@ import {ownerWriteContext} from './owner-proposals.js';
 import {passScope,requestPass,inspectPassRequest} from '../vercel/pass-requests.js';
 const props={mode:{type:'string',enum:['preview','test']},hours:{type:'integer',minimum:1,maximum:720},
   areas:{type:'array',minItems:1,maxItems:12,items:{type:'string',maxLength:48},uniqueItems:true},
+  rateLimitPerMinute:{type:'integer',minimum:1,maximum:600},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}};
 const known=registry=>['server',...new Set(registry.tools.filter(t=>t.writes===false).map(t=>t.area).filter(Boolean))];
 const proposal=defineWrite({
@@ -15,12 +16,12 @@ const proposal=defineWrite({
      ctx.env?.VERCEL_ENV!=='production'||ctx.connection?.profile!=='full')throw new TypeError('Owner pass proposal unavailable');
    const account=ctx.connection.account;
    if(!(await ctx.db.listVercelAccounts()).some(x=>x.id===account))throw new TypeError('Configured account required');
-   return {account,scope:passScope(Object.fromEntries(['mode','hours','areas'].filter(k=>args[k]!==undefined).map(k=>[k,args[k]])),known(ctx.registry))};
+   return {account,scope:passScope(Object.fromEntries(['mode','hours','areas','rateLimitPerMinute'].filter(k=>args[k]!==undefined).map(k=>[k,args[k]])),known(ctx.registry))};
  },
  async preview(_args,_ctx,before){
    return 'Request owner approval for '+before.scope.hours+'-hour read-only '+before.scope.mode+
      ' pass on '+before.account+'; areas: '+before.scope.areas.join(', ')+
-     '; zero spending and no writes; TEST is service identity only. No bearer issued until owner reviews and reenters passphrase on setup.';
+     '; max '+before.scope.rateLimitPerMinute+' calls/minute; zero spending and no writes; TEST is service identity only. No bearer issued until owner reviews and reenters passphrase on setup.';
  },
  async production(){return {production:true,why:'Owner credential administration'};},
  async targets(_args,before){return [{kind:'account',id:before.account}];},
@@ -30,7 +31,8 @@ const proposal=defineWrite({
      reference:issued.reference,knownAreas:known(ctx.registry)});
    return {confirmed:saved?.account===before.account&&
      JSON.stringify(saved.areas)===JSON.stringify(before.scope.areas)&&
-     saved.hours===before.scope.hours&&saved.mode===before.scope.mode};
+     saved.hours===before.scope.hours&&saved.mode===before.scope.mode&&
+     saved.rateLimitPerMinute===before.scope.rateLimitPerMinute};
  }
 });
 export const passProposalTools={tools:[{
