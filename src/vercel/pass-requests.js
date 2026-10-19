@@ -6,14 +6,15 @@ const ACCOUNT=/^[a-zA-Z0-9_/-]{3,256}$/;
 const REF=/^[0-9a-f-]{36}$/;
 export function passScope(input,knownAreas){
   if(!input||typeof input!=='object'||Array.isArray(input)||
-    Object.keys(input).some(k=>!['mode','hours','areas'].includes(k)))
+    Object.keys(input).some(k=>!['mode','hours','areas','rateLimitPerMinute'].includes(k)))
     throw new TypeError('Invalid read-only pass scope');
-  const {mode='preview',hours=24,areas=['server']}=input;
+  const {mode='preview',hours=24,areas=['server'],rateLimitPerMinute=120}=input;
   if(!['preview','test'].includes(mode)||!Number.isInteger(hours)||hours<1||hours>720||
+    !Number.isInteger(rateLimitPerMinute)||rateLimitPerMinute<1||rateLimitPerMinute>600||
     !Array.isArray(areas)||areas.length<1||areas.length>12||new Set(areas).size!==areas.length||
     areas.some(x=>!knownAreas.includes(x))||mode==='test'&&(areas.length!==1||areas[0]!=='server'))
     throw new TypeError('Unsupported read-only pass scope');
-  return {mode,hours,areas:[...areas].sort()};
+  return {mode,hours,areas:[...areas].sort(),rateLimitPerMinute};
 }
 export async function requestPass({db,env,account,scope,now}){
   if(!ACCOUNT.test(account||'')||env?.VERCEL_ENV!=='production')throw new TypeError('Owner pass request unavailable');
@@ -28,8 +29,9 @@ function decode(value,account,knownAreas){
     const payload=JSON.parse(value);
     if(payload?.version!==1||payload.account!==account||
       !['mode','hours','areas'].every(k=>Object.hasOwn(payload,k))||
-      Object.keys(payload).some(k=>!['version','account','mode','hours','areas'].includes(k)))return null;
-    return {version:1,account,...passScope({mode:payload.mode,hours:payload.hours,areas:payload.areas},knownAreas)};
+      Object.keys(payload).some(k=>!['version','account','mode','hours','areas','rateLimitPerMinute'].includes(k)))return null;
+    return {version:1,account,...passScope({mode:payload.mode,hours:payload.hours,areas:payload.areas,
+      rateLimitPerMinute:payload.rateLimitPerMinute??120},knownAreas)};
   }catch{return null;}
 }
 export async function inspectPassRequest({db,env,account,reference,knownAreas,now=()=>Date.now()}){
