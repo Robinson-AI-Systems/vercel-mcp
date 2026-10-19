@@ -1,4 +1,4 @@
-# START HERE — Robinson Vercel MCP
+# START HERE — Vercel by Robinson AI Systems
 
 **Product identity / live capability notice (2026-10-19):** **Vercel by Robinson AI Systems** is an independent, unofficial connector, not the official or Vercel-endorsed integration. The public technical MCP ID, `vercel_*` tool names and saved OAuth connections remain stable. Read `PRODUCT-AUTHORITY-AUDIT.md` for actual known policy leaks. Service-owned remote HTTPS MCP is at `/api/mcp`; RTC manifest at `/api/contract`, read-only pass HTTP API at `/api/tools`; Hub is optional. Desktop and mobile compatibility depends on each coding-agent client's remote MCP/OAuth support and is not yet independently accepted. Prefer nonproduction and verified provider scope; do not paste credentials into chat. Do not mistake a successful OAuth screen, installed ChatGPT plugin or TEST whoami for true Vercel operations.
 
