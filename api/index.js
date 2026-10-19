@@ -11,6 +11,7 @@ export default function handler(req, res) {
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + SERVICE_DISPLAY_NAME + '</title></head><body>' +
     '<main><h1>' + SERVICE_DISPLAY_NAME + '</h1><p>Status: hosted service endpoint</p>' +
+    '<p>Independent third-party integration; not affiliated with or endorsed by Vercel.</p>' +
     '<p>Account connection and permissions are private; sign in through the authenticated setup page to inspect them. This public page does not certify live provider or RTC acceptance.</p>' +
     '<p>Registered tools: ' + registry.tools.length + '</p>' +
     '<p>Available by connection profile: read-only ' + counts.read_only +
