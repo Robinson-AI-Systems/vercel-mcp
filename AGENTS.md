@@ -2,7 +2,7 @@
 
 ## Universal Hub compatibility (owner-approved shared contract)
 
-Before changing RTC discovery, MCP transport, OAuth/provider consent, scoped meta-tools, tool pagination, or provider errors, follow [docs/HUB-COMPATIBILITY.md](docs/HUB-COMPATIBILITY.md), which links the canonical Hub contract. Hub discovers and connects to this **standalone** server; the server never calls Hub or installs bespoke Hub adapters. The agent and user plan, and Hub retains a small fixed gateway tool menu. This is a documentation-adoption instruction, **not** permission to change deployed auth or production data.
+Before changing RTC discovery, MCP transport, OAuth/provider consent, scoped meta-tools, tool pagination, or provider errors, follow [docs/HUB-COMPATIBILITY.md](docs/HUB-COMPATIBILITY.md), which links the canonical Hub contract. Hub discovers and connects to this **standalone** server; the server never calls Hub or installs bespoke Hub adapters. The agent and user plan, and Hub retains a small fixed gateway tool menu. This is a documentation-adoption instruction, **not** permission to change deployed auth or production data. **Owner completion boundary (2026-10-19):** prove this server's RTC 1/provider-specific manifest, standalone direct MCP/HTTPS, authorization, scope, negative cases, native provider calls and conformance; do not require Hub-originated discovery, OAuth connection orchestration, relay, Sandbox or Hub-routed reads for this server's completion. Hub integration is Hub-owned acceptance. Optional Hub OAuth profile is not a new mandatory RTC 1 transport.
 
 ## End-user capability authority — owner clarification 2026-10-16
 

@@ -9,6 +9,10 @@ the **Robinson Tool Contract** (RTC 1, authority: the hub's `docs/CONTRACT.md`):
 contract manifest. The `rtool` CLI, code SDK, local MCP and GitHub relay are built once, in the hub. This server never
 depends on the hub (AGENTS hard limit).
 
+## Owner correction — independent RTC completion, October 19, 2026
+
+This service completes after provider-owned RTC 1 conformance, deployed direct MCP/HTTPS manifest, search, describe, call, authorization, independent real direct positive/negative proof, denial and revocation. Live Hub discovery, connecting, optional Hub OAuth onboarding, routing, relay, Sandbox and successful Hub-routed tool execution belong to the Hub's acceptance, **not** this server's. The optional production OAuth transport described by Hub main `3cc7f4ad4332155d639125b23e8a5c4c13804a3d` does not silently replace frozen RTC 1 pass-compatible behavior. No service-owned engineering, CI, direct deployed or security gate is waived.
+
 ## 0. Verify before starting
 
 | # | Assumption | How to check |

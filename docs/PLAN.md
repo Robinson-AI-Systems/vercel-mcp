@@ -77,7 +77,9 @@ next bounded implementation.
 ## Batch U — Universal tools (`designs/BATCH-U.md`)
 - [ ] Four `vercel_api_*` tools; requests validated against the snapshot; spend, production and secret detection with safe defaults; hand-built tools win; same guards.
 
-## Batch R — Hub-ready doors, RTC 1 (`designs/BATCH-R.md`)
+## Batch R — standalone RTC 1 doors (`designs/BATCH-R.md`)
+
+**October 19 owner clarification:** Completion requires RTC 1 conformance, truthful provider-owned direct MCP/HTTPS endpoints, correctly scoped authentication and independent real deployed **direct** acceptance (including denial/revocation). Hub discovery, Hub-managed OAuth consent, Hub-routed calls, relay and Sandbox proof belong to the Hub and cannot block this standalone server. The Hub connection profile's additional OAuth path is optional to frozen RTC 1; if we claim it, independently verify it. All original R-1/R-2/R-3 checks remain.
 - [ ] Passes per RTC §2; HTTPS tool API, manifest and OpenAPI per RTC §1/§7; rate limit per pass shared across instances.
 - [ ] Same eight write-contract checks through MCP, `vercel_call` and HTTPS.
 - [ ] RTC 1 conformance green in CI (when the hub's package exists; never a blocker before).

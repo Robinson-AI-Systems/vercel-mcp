@@ -15,3 +15,7 @@
 ## Plan/check procedure
 
 Commit this frozen criteria card before making the policy edits. Then compare every edited source against the above criteria, run CI and evaluate whether further source implementation is required under existing R-series cards. Report exact source, deployment and remaining direct vs Hub-owned acceptance separately.
+
+## Delivery mapping
+
+The documented split now lives in AGENTS, HUB-COMPATIBILITY, PLAN Batch R, BATCH-R design, RTC-HUB-INTEGRATION, R-1 handoff, STATUS, MASTER-ROADMAP and DECISIONS. The active machine-readable work-index must also remove Hub-only acceptance dependencies. The pre-change original five criteria above remain intact. This is owner-directed requirements maintenance with zero product source changes, no fake pass/result claims and no external calls/releases. Existing original direct service acceptance remains pending, Hub independent integration still owned by Hub.

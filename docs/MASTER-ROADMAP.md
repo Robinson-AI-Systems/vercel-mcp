@@ -2,9 +2,7 @@
 
 ## Gateway dependency correction — 2026-10-12
 
-RTC interface work and authorized nonproduction Hub route acceptance are independent of K-3 package adoption.
-Follow current STATUS/index and service isolation/owner gates. Optional reuse must not block provider capability
-or require replacing service-owned dispatch/state. Hub's H-1–H-3 work belongs in its repository.
+Standalone RTC conformance and direct authorized service acceptance are mandatory. **Owner 2026-10-19:** successful live Hub discovery, connection, OAuth orchestration, routing, relay or Sandbox acceptance is Hub-owned, not a Vercel MCP completion requirement. Shared core adoption is also optional. See HUB-COMPATIBILITY.md. Hub's H-series remains its own project.
 
 Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current state; [PLAN](PLAN.md) holds acceptance.
 
@@ -14,7 +12,7 @@ The October 17 owner clarification supersedes interpretations of $0, preview-onl
 
 ## What is next
 
-**Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), independent U-1 discovery and seven scope-verified feature-flag metadata reads, plus R-1 owner-reviewed read-only pass requests based on merged C-2. D-1/D-2 code acceptance is complete but genuine hosted/provider/Hub acceptance remains pending. No vercel-mcp project appeared in the authorized provider inventory recheck. Re-enter D-2 when an authorized disposable deployment, custom HTTPS service and stored scoped account become available. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
+**Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), independent U-1 discovery and seven scope-verified feature-flag metadata reads, plus R-1 owner-reviewed read-only pass requests based on merged C-2. D-1/D-2 code acceptance is complete but genuine independent hosted/direct-provider acceptance remains pending; optional Hub routing belongs to Hub. No vercel-mcp project appeared in the authorized provider inventory recheck. Re-enter D-2 when an authorized disposable deployment, custom HTTPS service and stored scoped account become available. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
 
 **Rule:** session PR count/scope comes only from the current owner prompt,
 never from a standing quota or PR numbering. Prioritize real acceptance and usable
