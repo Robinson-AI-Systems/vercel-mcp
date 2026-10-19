@@ -1,7 +1,7 @@
 # Toolkit Hub RTC 1 — Vercel MCP integration and acceptance
 
 Reviewed Hub contract and agent setup 2026-10-12; pinned source commit `e76b1f8bc76e4658f404263ee47a9edbcbeda625`.
-This server remains independently usable over OAuth `/api/mcp`; no Toolkit Hub dependency is needed at runtime.
+This server remains independently usable over OAuth `/api/mcp`; no Toolkit Hub dependency is needed at runtime. **Owner 2026-10-19:** real Hub routing is NOT a provider completion gate. This server independently proves RTC 1, direct auth/provider behavior and revoked/expired denial. The historic Hub route plans below are Hub-owned optional integration handoffs.
 
 ## Implemented HTTP doors
 
@@ -28,7 +28,9 @@ Both OAuth MCP and RTC HTTPS refuse a tool falsely declaring itself read-only if
 
 The unit CI job installs the **reviewed** public Hub source and runs the hub's actual conformance tests against its reference fixture. The additional localhost end-to-end check invokes upstream `runConformance` for public manifest, OpenAPI and unauthenticated-denial checks and actual Hub `checkAgent` for read-only direct CLI invocation against **this server's** handlers. It tests denied write and revoked pass; DB tests exercise two independent SQL sessions. This proves a subset of RTC 1, **not** full conformance: the server intentionally does not grant full/write-enabled RTC passes, so upstream write/readback/full-catalog checks cannot yet certify the production service.
 
-## D-4 real-world handoff (pending)
+## Historical D-4 Hub-owned integration handoff (not server completion)
+
+The Hub's optional real direct/relay/Sandbox integration procedure below belongs to the Hub project. Its unexecuted tests must not be represented as passed, but they cannot block this server's independent RTC 1 completion. A specific provider-contract violation discovered during Hub tests remains actionable here.
 
 Owner approved narrowly scoped read-only, non-production tests on 2026-10-12. The next authorized integration agent must independently verify an actually deployed, fixed HTTPS service origin and correct Vercel dynamic route resolution, then use owner setup to issue a short-lived read_only **TEST** pass limited to `server` for service identity; never substitute a Vercel preview pass for the Hub TEST gate. Never paste a pass into chat, logs, code, query strings, CLI arguments or GitHub issues.
 
@@ -76,4 +78,4 @@ post-revocation 401. Never pass service credentials to the runner as
 CLI flags or store real passes in CI fixtures or repository files.
 See `docs/DEPLOY.md` §8. Its unit tests use fabricated bearer material;
 there is still **no** actual owner pass or genuine relay/Sandbox run
-recorded. A direct script success never counts as Hub route proof.
+recorded. A direct script success proves its named direct server scenario only; it does not prove a Hub route, which is not a service completion requirement.
