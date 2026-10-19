@@ -1498,7 +1498,19 @@
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [
         "IN-10"
-      ]
+      ],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next Vercel MCP implementer",
+        "reason": "Source HTTP door and manifest exist, but R-2 rate policy, full safety dispatch and real standalone connected acceptance remain incomplete; the original R-1 write-pass prerequisite is not yet merged.",
+        "nextAction": "Complete R-2 original HTTPS/RTC acceptance and tests including zero-write refusals, confirm inherited R-1 delegated write permissions are safely implemented before enabling write passes; verify direct provider client and account isolation with exact deployment evidence.",
+        "checkpoint": "At this PR exact-head verification and each subsequent session, before final R-2 status promotion",
+        "evidenceNeeded": "Exact-head check/unit/db/emulation and offline direct-client RTC tests plus independently scoped real provider/client read/write/readback, safe negative denials, expiry/revocation and deployment provenance; Hub routing is not required.",
+        "eligibilityCondition": "Existing RTC read-only door/rate/manifest can complete source on approved roadmap; full delegated write acceptance waits for R-1 implementation and verified account credentials.",
+        "dependencies": [
+          "R-1"
+        ]
+      }
     },
     {
       "id": "R-3",
