@@ -1,6 +1,6 @@
 # MASTER ROADMAP — the one handoff
 
-**October 19 completion directive (IN PROGRESS):** Review `PRODUCT-AUTHORITY-AUDIT.md` for source-evidenced cross-cutting permission leaks, retention of provider/security controls, and open engineering. Draft R-2 PR #219 includes branding and per-pass rate control; R-1 full write passes and user-selected purchases/production authorization remain unfinished. Do not count new audit substeps as approved roadmap subsection deliveries. Direct standalone client/provider proof required; actual Hub connection is Hub-owned. No public listing or live mutation authorized.
+**October 19 owner decisions (current):** Distribution, directory eligibility, publication applications and commercial launch strategy are the Robinson AI Systems organization's responsibility **outside this repository**. This server owns correct independent branding, direct MCP/provider authorization, specs, client interoperability and security only. No distribution milestone or owner input blocks Vercel MCP completion. [PRODUCT-AUTHORITY-AUDIT](PRODUCT-AUTHORITY-AUDIT.md) enumerates open engineering gaps. R-2 draft PR #219 implements public-client S256 PKCE, existing confidential OAuth compatibility, owner-configurable RTC read pass rates (120/min default; legacy 60/min preserved), branding and regression tests. Its source CI was green on `e43ad22ae9fedcfd79af4eaf9c1a06eda4306991` before this documentation reconciliation. **R-1/R-2 write-capable RTC, delegated paid authority and independent real client/provider acceptance remain unfinished.** Do not count R-2 complete based on a merged partial implementation. Hub live connection is Hub-owned, not this server's completion gate.
 
 
 ## Gateway dependency correction — 2026-10-12
@@ -24,7 +24,7 @@ environment evidence changes. Preserve all independent owner approvals,
 daily checked live promotion, disabled previews and $0 autonomous spend.
 A-1 through A-6 and B-1 through B-8 are merged (B-8 completed #40). The official OpenAPI remains pinned to 2026-10-11.
 Use [implementation guidance](implementation-guidance/README.md) for current helper paths, recipes and the B-8b worked
-example when writing the JIT card. No live database, token or deployment is configured; owner gates remain unchanged.
+example when writing the JIT card. A dedicated hosted Vercel project, initialized Neon schema and verified encrypted owner team credential were confirmed on 2026-10-13; independently authenticated full client/provider acceptance is separately pending. Owner gates remain unchanged.
 
 ## Order and why
 
