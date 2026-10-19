@@ -10,6 +10,8 @@ in `docs/designs/BATCH-A.md`). General-purpose across Chris's projects; apps tha
 get a project profile (Batch P), the first being the Appliance Desk rental app (`docs/APP-NEEDS-APPLIANCE-DESK.md`).
 Chris operates mostly from a phone; everything he reads must be plain language.
 
+**Direct desktop/mobile setup and reconnect:** [CLIENT-CONNECTIONS](CLIENT-CONNECTIONS.md); external client compatibility is not yet independently verified.
+
 ## Read only what this work needs
 
 1. Implementing a card: [SESSION-START](SESSION-START.md) (one page). Otherwise AGENTS — workflow and hard limits.
