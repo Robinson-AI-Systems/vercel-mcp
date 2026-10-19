@@ -1,5 +1,6 @@
 // RTC 1 public metadata; never publishes account identifiers, credentials or secret input.
 import {listMcpTools} from './mcp-server.js';
+import { SERVICE_TECHNICAL_NAME, SERVICE_DISPLAY_NAME } from '../service-identity.js';
 const IDENT=/^vercel_[a-z0-9_]+$/;
 const AREA=/^[a-z][a-z0-9_]{0,47}$/;
 const META_MUTATIONS=new Set(['vercel_call']);
@@ -62,7 +63,7 @@ export function rtcCatalog(registry,connection){
 export function rtcManifest(registry,version='0.1.0'){
   const all=rtcCatalog(registry,{profile:'full',listing:'catalog'});
   return {
-    rtc:1,server:'robinson-vercel-mcp',prefix:'vercel',version,
+    rtc:1,server:SERVICE_TECHNICAL_NAME,prefix:'vercel',version,
     apiVersion:'vercel-openapi-2026-10-11',
     areas:[...new Set(all.map(t=>t.area))].sort(),
     counts:{tools:all.length,writes:all.filter(t=>t.writes).length,
@@ -73,7 +74,7 @@ export function rtcManifest(registry,version='0.1.0'){
 }
 export function rtcOpenApi(){
   const noArgs={parameters:[],responses:{200:{description:'RTC JSON envelope'}}};
-  return {openapi:'3.1.0',info:{title:'Robinson Vercel RTC 1 HTTPS API',
+  return {openapi:'3.1.0',info:{title:SERVICE_DISPLAY_NAME+' — RTC 1 HTTPS API',
     version:'0.1.0'},paths:{
     '/api/contract':{get:{...noArgs,summary:'Public RTC manifest'}},
     '/api/openapi.json':{get:{...noArgs,summary:'Public HTTPS API documentation'}},
