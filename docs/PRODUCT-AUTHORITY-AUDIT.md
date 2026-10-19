@@ -41,6 +41,12 @@
 - OpenAI plugin guidelines: https://developers.openai.com/plugins/plugin-guidelines — unofficial third-party connector plugins may be ineligible for ChatGPT's public directory; no ranking manipulation. OpenAI app developer terms: https://openai.com/policies/developer-apps-terms/ — submission, consent, review and publication are distinct.
 - These references are review inputs, not an approval or a claim of legal clearance. The service is independent and **not** the official Vercel connector.
 
+## Public distribution eligibility — verified external policy 2026-10-19
+
+The [OpenAI published Plugin Guidelines](https://developers.openai.com/plugins/plugin-guidelines) explicitly state under “Unofficial connectors”: **“We cannot approve plugins that primarily function as unofficial connectors to third-party services, including pass-through intermediary software layers.”** This standalone custom Vercel MCP is exactly an independently developed third-party Vercel integration at present; consequently **public ChatGPT Plugin Directory approval cannot be assumed and should be treated as not eligible under the current rule absent a material independent qualifying product change or applicable authorized provider relationship**. Do not rename, pad metadata, misrepresent endorsement or submit prematurely to circumvent the rule. Private direct remote MCP and eligible private/workspace connections are different distribution paths, not a license to become public.
+
+[OpenAI Plugin review documentation](https://developers.openai.com/plugins/deploy/app-review) says private/workspace-only integrations should use a custom MCP connection rather than public listing. Verified individual/business identity, privacy policy, terms, accurate scopes, security and real cross-platform function remain applicable if a future authorized commercial channel becomes eligible. The provider [Vercel Trademark Policy](https://vercel.com/legal/trademark-policy) prohibits confusing affiliation; **“Vercel by Robinson AI Systems” is an attribution proposal, not provider approval**, so owner-controlled UI includes an explicit unofficial/no-endorsement description. Public promotion remains separately blocked on platform eligibility, owner decision and independent acceptance.
+
 ## Independent product acceptance matrix — not yet claimed
 
 | Scenario | Source test | Actual deployed/native evidence |
