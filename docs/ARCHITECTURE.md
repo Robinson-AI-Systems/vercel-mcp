@@ -1,5 +1,8 @@
 # ARCHITECTURE — runtime facts, as built
 
+**2026-10-19 draft PR #219 candidate — pending exact-head verification:** Service-owned remote MCP OAuth dynamic registration accepts confidential `client_secret_post` and secretless public `none` clients, both requiring S256 PKCE and exact MCP resource plus registered redirect. `oauth_clients.data` gains an optional `token_endpoint_auth_method` field; legacy confidential clients without it still work, and public records store a null secret hash. Refresh rotation is bound to the registered client ID and remains atomic in Postgres. This is an additive source change only: installed connections and credentials are unchanged; actual desktop/mobile client proof is not yet established.
+
+
 This file describes what **exists**, and is updated in the same PR that ships it (DRIFT-PROTOCOL checklist B). What the
 system is designed to become is in `docs/designs/`; do not copy design text here before it is built.
 
