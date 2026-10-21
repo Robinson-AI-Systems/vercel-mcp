@@ -1,3 +1,31 @@
+## 2026-10-21 — universal authorization directive: reconcile PR #219
+
+Reconciled existing source with newer reviewed main, preserving maximum-authority scope and
+original acceptance. Documentation/index conflicts resolved; exact-head checks and review
+remain mandatory. No deployment or real-client proof follows from this reconciliation.
+
+The owner requires distinct development, explicitly scoped product-administrator and ordinary
+production-user contexts, including Robinson AI Systems as a legitimate production tenant.
+Email/domain or organization membership alone grants neither administration nor a development
+restriction. Current owner-centered login still needs independent customer enrollment and tenant
+isolation. Native client OAuth is useful source progress, not that completed architecture.
+CAP-2/CAP-3/CAP-5 retain implementation and two-user/two-tenant/provider lifecycle acceptance.
+No developer credential fallback, default grant expansion or live migration is authorized here.
+
+## 2026-10-21 — owner-requested maximum-authority planning (source only)
+
+Inspected main `5d147c31926acc7604c5e2bdc8fcc5089016a828` and existing open work before editing. Added
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) and indexed CAP-1..CAP-5 as
+APPROVED / NOT IMPLEMENTED. Existing provider acceptance evidence is unchanged;
+no new live pass, deployment, paid action, credential, grant or production effect.
+This is explicitly requested planning maintenance: zero production lines and zero
+completed implementation subsections. Ordinary supported authorization gets every
+operation it can perform; God Mode only simplifies genuinely necessary additional
+authority. Separate developer/operator/customer contexts explicitly. Existing original
+unfinished cards keep ownership; no work is counted twice. Next: existing eligible
+acceptance/implementation first, then CAP-1 inventory and its dependency-ordered work.
+Exact-head checks/self-review and any existing reviews remain mandatory before merge.
+
 # STATUS — current verified state first; older dated sections are historical
 
 ## 2026-10-19 owner-directed PR #219 documentation and safe-merge reconciliation

@@ -1,5 +1,13 @@
 # MASTER ROADMAP — the one handoff
 
+## Maximum legitimate authority — owner-approved 2026-10-21
+
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) adds five indexed APPROVED,
+NOT IMPLEMENTED units CAP-1..CAP-5: operation inventory; ordinary fullest authority;
+secure additional credential lifecycle; advanced functional gaps; independent proof.
+Existing acceptance and unfinished original cards retain priority. Named-tool counts
+do not establish provider API coverage. No runtime grant or release change is implied.
+
 **October 19 owner decisions (current):** Distribution, directory eligibility, publication applications and commercial launch strategy are the Robinson AI Systems organization's responsibility **outside this repository**. This server owns correct independent branding, direct MCP/provider authorization, specs, client interoperability and security only. No distribution milestone or owner input blocks Vercel MCP completion. [PRODUCT-AUTHORITY-AUDIT](PRODUCT-AUTHORITY-AUDIT.md) enumerates open engineering gaps. R-2 source-stage PR #219 implements public-client S256 PKCE, existing confidential OAuth compatibility, owner-configurable RTC read pass rates (120/min default; legacy 60/min preserved), branding and regression tests. Its source CI was green on `e43ad22ae9fedcfd79af4eaf9c1a06eda4306991` before this documentation reconciliation. **R-1/R-2 write-capable RTC, delegated paid authority and independent real client/provider acceptance remain unfinished.** Do not count R-2 complete based on a merged partial implementation. Hub live connection is Hub-owned, not this server's completion gate.
 
 

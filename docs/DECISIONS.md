@@ -1,3 +1,12 @@
+## 2026-10-21 — approved maximum-authority expansion
+
+Owner requested adapting the completed GitHub planning job to all active custom MCPs.
+Approve [MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md), indexed CAP-1..CAP-5,
+with provider-specific interfaces, credential types, guardrails and open acceptance.
+No artificial God-Mode-only tools or percentage coverage from catalog counts.
+Existing user-selected policy/provider isolation and developer spending/release gates
+remain binding. This document is not implementation or live verification.
+
 # Decisions (dated)
 
 **2026-10-19 — Product distribution belongs to Robinson AI Systems outside this repository (owner decision).** This repository is responsible for implementing, documenting, securing, and independently verifying **Vercel by Robinson AI Systems** as a standalone MCP server. It does **not** own distribution-channel strategy, public catalog/plugin eligibility or applications, commercial publication, marketing, provider partnership negotiations or launch approval workflows. Those are managed outside this repository. Technical client interoperability, accurate independent-product attribution, credential/tenant security, and published protocol contract conformance **remain** Vercel MCP engineering obligations. Existing developer release, spend, data, permission and deployment restrictions remain binding; this clarification does not authorize publication or unapproved production changes. Historic distribution-related discussion in dated records is historical only.

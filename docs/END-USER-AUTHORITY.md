@@ -39,3 +39,27 @@ This is a **source-evidenced candidate inventory**, not a claim that an unrestri
 | Exact account scopes, Vercel plan/API limits, secret vault, no cross-tenant access, explicit revocation and replay-proof request identity | **(b) Real provider/security constraints** | Never bypass. Tests must continue refusing access outside the user's delegated token, unintended target or tenant, and unsafe credential/secret disclosure. |
 
 **Completion accounting:** V-4/V-5 PR #216 implements only the explicit IN-13 minute-quota correction. All other rows are unverified product parity work. Reconcile each against active cards and existing source before a future cohesive implementation bundle; do not create a speculative unapproved release or touch unrelated repos. Owner's cross-repository intent is recorded; every other MCP repository needs its own audited engineering and tests.
+
+## Maximum legitimate authority — 2026-10-21
+
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) and CAP-1..CAP-5 are the approved
+inventory, setup, additional-grant and coverage work. Standard includes the fullest
+ordinary supported authorization; God Mode is optional enrollment, never a provider
+or tenant bypass. Robinson AI Systems may act as developer/operator/customer in
+separately authorized contexts; company identity alone decides none of those roles.
+Provider-specific explicit approval rules remain as stated in the design.
+
+## Organizational identity and multi-user authority — owner 2026-10-21
+
+Robinson AI Systems is both developer/operator and a possible ordinary customer. Authorize each
+operation using explicit environment, authenticated principal, tenant/workspace membership, active
+role, owned provider connection and operation. Never infer these contexts from email/domain alone,
+share operator credentials with unrelated users, grant implicit global administration, or carry a
+builder's spend/production restrictions into customer policy. One identity may hold multiple roles;
+secure context switching must reauthorize each role and tenant. Preserve prior legitimate grants
+through reviewed migration; refresh/revoke/logout/account switching must remain owner-scoped.
+
+This is an implementation requirement in existing CAP-2/CAP-3/CAP-5, not a completion claim.
+Acceptance requires two independent users/tenants; Robinson's own tenant versus operator actions;
+role denial, cross-tenant/credential isolation, switching, refresh/revoke/reconnect and supported
+native clients. Source tests, merge, deployment and actual provider evidence remain separate.
