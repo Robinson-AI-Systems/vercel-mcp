@@ -121,6 +121,16 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
       tokens.set(row.token_hash, row);
       return { client_id: row.client_id, ...connectionSettings(row) };
     },
+    async revokeOAuthToken({token,clientId}) {
+      if(typeof token!=='string'||!token||typeof clientId!=='string'||!clientId)
+        throw new TypeError('Token and authenticated OAuth client required');
+      const hash=hashToken(token);
+      const row=[...tokens.values()].find(x=>x.client_id===clientId&&
+        x.kind==='connector'&&!x.revoked_at&&(x.token_hash===hash||x.refresh_hash===hash));
+      if(!row)return false;
+      row.revoked_at=clock()||1;
+      return true;
+    },
     async revokeAccessToken(accessToken) {
       if (typeof accessToken !== 'string' || !accessToken) return false;
       const row = tokens.get(hashToken(accessToken));

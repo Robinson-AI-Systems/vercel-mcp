@@ -702,6 +702,17 @@ export function createDb(query) {
         RETURNING client_id, vercel_account, mode, profile, listing`;
       return rows[0] || null;
     },
+    // Client disconnect must never revoke another caller or an RTC pass.
+    async revokeOAuthToken({token,clientId}) {
+      if(typeof token!=='string'||!token||typeof clientId!=='string'||!clientId)
+        throw new TypeError('Token and authenticated OAuth client required');
+      const run=getSql();
+      const rows=await run`UPDATE oauth_tokens SET revoked_at=now()
+        WHERE client_id=${clientId} AND kind='connector' AND revoked_at IS NULL
+          AND (token_hash=${hashToken(token)} OR refresh_hash=${hashToken(token)})
+        RETURNING token_hash`;
+      return rows.length>0;
+    },
     async revokeAccessToken(accessToken) {
       if (typeof accessToken !== 'string' || !accessToken) return false;
       const run = getSql();

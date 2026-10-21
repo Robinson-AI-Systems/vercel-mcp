@@ -1,3 +1,4 @@
+import {createOAuthRevocation} from './oauth-revocation.js';
 // Contract-generic OAuth HTTP handlers. Provider-specific behavior is injected via service.
 import {
   randomToken, hashToken, secretsMatch, verifyPkce, validRedirectUri,
@@ -208,6 +209,8 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       authorization_endpoint: origin + '/api/oauth/authorize',
       token_endpoint: origin + '/api/oauth/token',
       registration_endpoint: origin + '/api/oauth/register',
+      revocation_endpoint:origin+'/api/oauth/revoke',
+      revocation_endpoint_auth_methods_supported:['client_secret_post','none'],
       response_types_supported: ['code'],
       grant_types_supported: ['authorization_code', 'refresh_token'],
       code_challenge_methods_supported: ['S256'],
@@ -221,5 +224,6 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     return send(res, 200, { resource, authorization_servers: [origin] });
   }
 
-  return { register, authorize, token, metadata, resourceMetadata };
+  return { register, authorize, token, metadata, resourceMetadata,
+    revoke:createOAuthRevocation({db,env}) };
 }
