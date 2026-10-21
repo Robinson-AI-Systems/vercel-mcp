@@ -1,3 +1,15 @@
+## 2026-10-21 source: client-owned OAuth disconnect
+
+The native issuer exposes POST /api/oauth/revoke in source and advertises it through issuer
+metadata. core/oauth-revocation.js validates the registered client authentication method and
+atomically revokes only that client's matching connector row via revokeOAuthToken. It searches
+access and refresh hashes, ignores advisory type hints and returns an empty 200 for known,
+unknown, foreign or already-revoked values. Expired access can still stop its current refresh.
+No provider credential, RTC pass, sibling connection, production setting or grant is changed.
+Revocation addresses the current token row; obsolete tokens replaced by rotation are already
+invalid and do not locate subsequent descendants. This is not an independently verified live
+client disconnect or proof of full multi-user customer enrollment. See STATUS and the A-3 card.
+
 # ARCHITECTURE — verified runtime facts and limitations
 
 **Source baseline reviewed: 2026-10-19.** `main` at `5d147c31926acc7604c5e2bdc8fcc5089016a828`, implementation [PR #219](https://github.com/Robinson-AI-Systems/vercel-mcp/pull/219); `live` and the most recent observed **READY** production deployment are at `cb60c6f4c32f8a3a139d5a68fa514aead65a4da6`. Source code on the PR is **not automatically deployed**. The Vercel deployment inventory confirms READY state and that `live` source SHA; it does not independently prove a specific public alias, real client connection or provider mutation. Review [STATUS](STATUS.md) and the actual Vercel deployment before relying on a later revision.

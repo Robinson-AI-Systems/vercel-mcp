@@ -1,3 +1,15 @@
+## 2026-10-21 — client-owned native OAuth revocation source implementation
+
+Confirmed missing standard client disconnect despite internal token revocation. Added RFC7009
+POST /api/oauth/revoke and issuer discovery, bound to the client's persisted authentication method
+and atomic current grant ownership. Access or refresh revocation stops both on the selected row;
+foreign-client, unknown and already-revoked inputs do not leak existence or affect other grants.
+RTC/provider credentials, independent money-out protections, production flags and releases remain
+unchanged. See [frozen acceptance](pr-cards/A-3-CLIENT-REVOCATION.md). Source tests and exact-head
+CI are required before merge; actual released-client disconnect/refresh refusal remains OPEN.
+Independent customer enrollment and complete tenant/role separation remain unfinished engineering
+on CAP-2/CAP-3/CAP-5, not an external blocker or completed bundle.
+
 ## 2026-10-21 — universal authorization directive: reconcile PR #219
 
 Reconciled existing source with newer reviewed main, preserving maximum-authority scope and
