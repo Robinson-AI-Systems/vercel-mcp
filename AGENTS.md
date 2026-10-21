@@ -1,5 +1,9 @@
 # AGENTS.md — the rules. Read this first, every session.
 
+## Remaining universal permissions and identity implementation
+
+Owner-requested Sol 5.6 preparation (2026-10-21): read [the concrete implementation handoff](docs/UNIVERSAL-IDENTITY-HANDOFF.md) with the existing session workflow and selected cards. It maps remaining code, storage/migration contracts, regression fixtures, dependencies and source-versus-live acceptance to existing units. Reuse merged work; this documentation update implements no runtime feature and changes no release/security approval.
+
 ## Product-versus-distribution responsibility (owner direction 2026-10-19)
 
 This repository owns the **Vercel by Robinson AI Systems** standalone MCP product: genuine direct transport, current contract conformance, correct provider/user identity and delegation, data isolation, accurate owner-controlled product attribution, security, tests and real client/provider acceptance. **It does not own** public plugin directory eligibility, distribution applications, commercial launch, marketing, publisher relationships or publication policy design. Those belong to Robinson AI Systems outside this service repository. Do not create or block engineering cards on distribution tasks. Preserve the separate developer approval, release, account/data, spending and deployment rules here; this boundary grants no publication permission and does not waive accurate independent-product/no-endorsement labeling.
