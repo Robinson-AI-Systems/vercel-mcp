@@ -24,14 +24,19 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
       }));
     },
 
-    async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
-      if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
+    async createOAuthClient({ clientId, clientSecret, redirectUris, clientName,
+      tokenEndpointAuthMethod = 'client_secret_post' }) {
+      if (!clientId || !Array.isArray(redirectUris) || !redirectUris.length ||
+        !['client_secret_post','none'].includes(tokenEndpointAuthMethod) ||
+        (tokenEndpointAuthMethod === 'none' ? clientSecret !== null :
+          typeof clientSecret !== 'string' || clientSecret.length < 1)) {
         throw new TypeError('Missing OAuth client registration fields');
       }
       if (clients.has(clientId)) throw new Error('duplicate client');
       clients.set(clientId, {
         client_id: clientId,
-        client_secret_hash: hashToken(clientSecret),
+        client_secret_hash: tokenEndpointAuthMethod === 'none' ? null : hashToken(clientSecret),
+        token_endpoint_auth_method: tokenEndpointAuthMethod,
         redirect_uris: structuredClone(redirectUris),
         client_name: clientName || null
       });

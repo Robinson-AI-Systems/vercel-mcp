@@ -23,7 +23,7 @@ function fixture(){
   },complete:async({key,result})=>replays.set(key,{state:'completed',result})}),
   issueReadOnlyRtcPass:vi.fn(async scope=>{
     const token='rtc_pass_'+randomBytes(32).toString('base64url'),id='pass_'+'a'.repeat(20);
-    passes.set(token,{status:'ok',id,account:scope.account,profile:'read_only',mode:scope.mode,areas:scope.areas});
+    passes.set(token,{status:'ok',id,account:scope.account,profile:'read_only',mode:scope.mode,areas:scope.areas,rateLimitPerMinute:scope.rateLimitPerMinute});
     return {id,token};
   }),inspectRtcPass:vi.fn(async token=>passes.get(token)),revokeRtcPass:vi.fn(async()=>true),
   countRecentFailedLogins:async()=>0,recordLoginAttempt:async()=>1,markLoginAttemptSucceeded:async()=>{}
@@ -57,14 +57,14 @@ describe('R-1 service-owned owner-reviewed read-only pass requests',()=>{
    expect(parse(await f.call({confirm:true},{...f.connection,mode:'preview'})).status).toBe('refused_by_guard');
    expect(parse(await f.call({confirm:true},f.connection,{...f.env,VERCEL_ENV:'preview'})).status).toBe('refused_by_guard');
    for(const args of [{mode:'production'},{mode:'test',areas:['projects']},{areas:['unknown']},
-    {areas:['server','server']},{hours:721},{allow_writes:true},{spendLimit:100},{account:'team_OTHER'}])
+    {areas:['server','server']},{hours:721},{rateLimitPerMinute:0},{rateLimitPerMinute:601},{allow_writes:true},{spendLimit:100},{account:'team_OTHER'}])
     expect(parse(await f.call({...args,confirm:true})).status).toBe('refused_by_guard');
    expect(f.rows.size).toBe(0);
  });
  it('reviews exact sealed scope without consuming or issuing',async()=>{
    const f=fixture(),r=parse(await f.call({mode:'test',areas:['server'],hours:1,confirm:true}));
    const res=await f.send({action:'review_rtc_pass_request',account,reference:r.reference,csrf});
-   expect(res.statusCode).toBe(200);expect(res.body).toContain('Read-only test; 1 hours; areas: server');
+   expect(res.statusCode).toBe(200);expect(res.body).toContain('Read-only test; 1 hours; areas: server; 120 calls/minute');
    expect(f.rows.size).toBe(1);expect(f.db.issueReadOnlyRtcPass).not.toHaveBeenCalled();
  });
  it('requires owner session, CSRF, fresh passphrase and exact account before consumption',async()=>{
@@ -78,7 +78,7 @@ describe('R-1 service-owned owner-reviewed read-only pass requests',()=>{
    const f=fixture(),r=parse(await f.call({mode:'test',hours:1,areas:['server'],confirm:true}));
    const body={...approve(r.reference,f.env),mode:'production',hours:'720',areas:'projects'};
    const res=await f.send(body);expect(res.statusCode).toBe(200);
-   expect(f.db.issueReadOnlyRtcPass).toHaveBeenCalledExactlyOnceWith({account,mode:'test',hours:1,areas:['server']});
+   expect(f.db.issueReadOnlyRtcPass).toHaveBeenCalledExactlyOnceWith({account,mode:'test',hours:1,areas:['server'],rateLimitPerMinute:120});
    expect(f.db.inspectRtcPass).toHaveBeenCalledOnce();
    expect(res.body).not.toContain([...f.passes.keys()][0]);
    expect([...f.rows.values()][0].kind).toBe('rtc_pass');

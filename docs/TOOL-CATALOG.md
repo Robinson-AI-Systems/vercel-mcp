@@ -1,5 +1,8 @@
 # Tool catalog
 
+**2026-10-19 R-2 transport and pass settings (draft PR #219):** The independently operated service display name is **Vercel by Robinson AI Systems**; stable `vercel_*` tool IDs do not change. `vercel_create_pass` proposals now accept optional `rateLimitPerMinute` (integer 1–600, default 120); independently authenticated owner setup reviews and issues this scope. Existing issued RTC passes retain the legacy 60/min on additive migration; new pass limits are atomically enforced across serverless instances. The proposal is **read-only**, not a grant to write, spend, or change production. See `docs/PRODUCT-AUTHORITY-AUDIT.md` for the unfinished customer authority work. Exact-head CI and deployed/live client proof remain pending.
+
+
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 

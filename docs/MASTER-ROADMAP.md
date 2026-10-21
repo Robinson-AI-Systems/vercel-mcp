@@ -8,6 +8,8 @@ secure additional credential lifecycle; advanced functional gaps; independent pr
 Existing acceptance and unfinished original cards retain priority. Named-tool counts
 do not establish provider API coverage. No runtime grant or release change is implied.
 
+**October 19 owner decisions (current):** Distribution, directory eligibility, publication applications and commercial launch strategy are the Robinson AI Systems organization's responsibility **outside this repository**. This server owns correct independent branding, direct MCP/provider authorization, specs, client interoperability and security only. No distribution milestone or owner input blocks Vercel MCP completion. [PRODUCT-AUTHORITY-AUDIT](PRODUCT-AUTHORITY-AUDIT.md) enumerates open engineering gaps. R-2 source-stage PR #219 implements public-client S256 PKCE, existing confidential OAuth compatibility, owner-configurable RTC read pass rates (120/min default; legacy 60/min preserved), branding and regression tests. Its source CI was green on `e43ad22ae9fedcfd79af4eaf9c1a06eda4306991` before this documentation reconciliation. **R-1/R-2 write-capable RTC, delegated paid authority and independent real client/provider acceptance remain unfinished.** Do not count R-2 complete based on a merged partial implementation. Hub live connection is Hub-owned, not this server's completion gate.
+
 
 ## Gateway dependency correction — 2026-10-12
 
@@ -17,11 +19,11 @@ Written 2026-10-10 for an empty repository. [STATUS](STATUS.md) holds current st
 
 ## Owner-approved cross-cutting end-user authority correction (2026-10-17)
 
-The October 17 owner clarification supersedes interpretations of $0, preview-only, mandatory owner-per-transaction and no-production **developer/acceptance instructions** as enduring customer restrictions. This does not authorize any builder to perform paid/live operations. The actual code paths listed in [END-USER-AUTHORITY](END-USER-AUTHORITY.md) remain a **completion obligation** under existing B/C/U, D/V, O/P/R and applicable other batches, not a newly claimed delivered phase. Reconcile them against actual account permission, user delegation and provider limits before claiming unrestricted end-user parity. Finish current approved V-4/V-5 bundle and independently eligible acceptance/release duties; plan the cohesive shared authorization seam next without fragmenting into helper PRs or silently changing other providers.
+The October 17 owner clarification supersedes interpretations of $0, preview-only, mandatory owner-per-transaction and no-production **developer/acceptance instructions** as enduring customer restrictions. This does not authorize any builder to perform paid/live operations. The actual code paths listed in [END-USER-AUTHORITY](END-USER-AUTHORITY.md) remain a **completion obligation** under existing B/C/U, D/V, O/P/R and applicable other batches, not a newly claimed delivered phase. Reconcile them against actual account permission, user delegation and provider limits before claiming unrestricted end-user parity. V-4/V-5 source already merged in #216; finish the remaining R-1/R-2 authority and R-3 conformance, then the coherent shared customer-delegation seam and actual owner-authorized client/provider acceptance. No helper-sized credit or changes to other providers.
 
 ## What is next
 
-**Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), independent U-1 discovery and seven scope-verified feature-flag metadata reads, plus R-1 owner-reviewed read-only pass requests based on merged C-2. D-1/D-2 code acceptance is complete but genuine independent hosted/direct-provider acceptance remains pending; optional Hub routing belongs to Hub. No vercel-mcp project appeared in the authorized provider inventory recheck. Re-enter D-2 when an authorized disposable deployment, custom HTTPS service and stored scoped account become available. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
+**Current user/developer outcome:** guarded owner team administration (O-1 profile, privacy/security and standard new-project authentication), independent U-1 discovery and seven scope-verified feature-flag metadata reads, plus R-1 owner-reviewed read-only pass requests based on merged C-2. D-1/D-2 code acceptance is complete but genuine independent hosted/direct-provider acceptance remains pending; optional Hub routing belongs to Hub. The independently hosted Vercel MCP project, dedicated Neon schema and owner token are already configured; D-2 native runtime-log acceptance still needs a genuine authorized deployment containing events. Do not re-provision existing infrastructure. O-1 SAML/auto-join, retention and directory mappings require lockout, destructive inventory and cost evidence; no unverified owner mutation.
 
 **Rule:** session PR count/scope comes only from the current owner prompt,
 never from a standing quota or PR numbering. Prioritize real acceptance and usable
@@ -30,7 +32,7 @@ environment evidence changes. Preserve all independent owner approvals,
 daily checked live promotion, disabled previews and $0 autonomous spend.
 A-1 through A-6 and B-1 through B-8 are merged (B-8 completed #40). The official OpenAPI remains pinned to 2026-10-11.
 Use [implementation guidance](implementation-guidance/README.md) for current helper paths, recipes and the B-8b worked
-example when writing the JIT card. No live database, token or deployment is configured; owner gates remain unchanged.
+example when writing the JIT card. A dedicated hosted Vercel project, initialized Neon schema and verified encrypted owner team credential were confirmed on 2026-10-13; independently authenticated full client/provider acceptance is separately pending. Owner gates remain unchanged.
 
 ## Order and why
 
@@ -42,7 +44,7 @@ example when writing the JIT card. No live database, token or deployment is conf
 | 4 The rest of the platform | N → F → M | Domains/DNS/registrar, security and traffic, monitoring and integrations | IN-08 for real purchases (never in tests) |
 | 5 Owner | O | Team, members, tokens, billing, admin overview and every dashboard setting | — |
 | 6 Projects | P → W | Optional project profiles and readiness for any app (Appliance Desk first), then the one-sentence jobs | IN-11 (Appliance Desk release rule) |
-| 7 Everything else | U → R | Universal access; the contract doors Robinson's Toolkit (the hub) uses | IN-10 (pass rate limit) |
+| 7 Everything else | U → R | Universal access and independently accessible RTC 1 tool API; Hub optional | IN-10 answered 2026-10-19 (120/min default; owner selected per pass) |
 | 8 Close-out | X | Undo, real-team smoke test and scratch run | IN-06 |
 | Production | GO-LIVE-CHECKLIST | Only after Chris enables production per team | IN-09 |
 

@@ -1,7 +1,9 @@
-# Owner guide — what you can ask for
+# Owner guide — Vercel by Robinson AI Systems
 
-Plain-English things to say to Claude once each part is built. Each line names the batch that delivers it; until then
-it does not work yet. This file is updated as features ship.
+**Current connection guidance (2026-10-19):** The independent, unofficial service is branded **Vercel by Robinson AI Systems**. Existing service-owned OAuth connections use `/api/mcp` directly; read-only RTC passes can use the HTTPS API without Hub. Hub is optional. Authenticated remote desktop/mobile support must be tested per actual client; login or handshake alone is not proof. The configurable RTC read-pass rate policy is implemented in PR #219 source (1–600/minute, 120 default; old grants retain 60) and passed prior exact-head CI; it is **not on live** or independently provider-accepted until a checked scheduled release. RTC write passes and user-controlled spend/production delegation are unfinished engineering. Read `PRODUCT-AUTHORITY-AUDIT.md` before treating older examples as guaranteed product behavior.
+
+
+Examples of intended owner operations by batch, **not** a certification that every operation is deployed, owner-authorized or tested with actual Vercel resources. Several already have source implementations and fake-provider tests; verify the current connection profile, release and [STATUS](STATUS.md) acceptance row before relying on live mutations.
 
 | Say something like… | What happens | Batch |
 |---|---|---|
@@ -28,7 +30,7 @@ it does not work yet. This file is updated as features ship.
 | "Propose a different default account, daily spend cap or exact connector revocation." | An authorized full production-mode connector can submit an encrypted one-use request; you must review, confirm and reenter your passphrase on the separate setup page before anything changes. Current source still defaults to $0; this is a tracked delegation-parity defect, not the owner-approved mandatory customer policy. | B |
 | "What changed in Vercel through Claude this week?" | The change log | B |
 | "Undo that." | Reverses the last change when it has a clean opposite; says plainly when it doesn't | X |
-| "Make a 24-hour read-only pass for Codex." | A pass shown once on your setup page; the agent uses it through Robinson's Toolkit (`rtool`) or the HTTPS API | R |
+| "Make a 24-hour read-only pass for Codex." | A pass shown once via owner setup; the agent uses the standalone HTTPS RTC API directly, without requiring the optional Hub | R |
 | Anything else in Vercel | The universal tools find the right Vercel operation and run it with the same safety | U |
 
 For instructions on owner-controlled activation of this server (without sharing keys with an AI), see [DEPLOY.md](DEPLOY.md). No Vercel team is connected or deployed as part of completing Batch A.

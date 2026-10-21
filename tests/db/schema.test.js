@@ -63,6 +63,10 @@ it('enforces safe defaults and has no plaintext token columns', async () => {
     if (table === 'oauth_tokens') expect(defaults.kind).toMatch(/connector/);
   }
 
+  const rtcDefaults=await rawQuery("SELECT column_name,column_default,is_nullable FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='rtc_passes'");
+  const rtcLimit=rtcDefaults.find(x=>x.column_name==='rate_limit_per_minute');
+  expect(rtcLimit.column_default).toBe('120');
+  expect(rtcLimit.is_nullable).toBe('NO');
   const productionDefault = await rawQuery(
     "SELECT column_default FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'change_log' AND column_name = 'production'"
   );

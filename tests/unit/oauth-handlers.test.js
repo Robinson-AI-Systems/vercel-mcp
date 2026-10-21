@@ -86,7 +86,7 @@ describe('OAuth registration and authorization endpoints', () => {
     const duplicate = await call(handlers.register, request('POST', { redirect_uris: [callback, callback] }));
     expect(duplicate.statusCode).toBe(400);
     const authMethod = await call(handlers.register, request('POST', {
-      redirect_uris: [callback], token_endpoint_auth_method: 'none'
+      redirect_uris: [callback], token_endpoint_auth_method: 'client_secret_basic'
     }));
     expect(authMethod.statusCode).toBe(400);
   });
@@ -175,6 +175,7 @@ describe('OAuth registration and authorization endpoints', () => {
     const metadata = json(await call(handlers.metadata, request('GET', {})));
     expect(metadata.issuer).toBe(baseEnv.PUBLIC_BASE_URL);
     expect(metadata.code_challenge_methods_supported).toEqual(['S256']);
+    expect(metadata.token_endpoint_auth_methods_supported).toEqual(['client_secret_post','none']);
     const resourceMetadata = json(await call(handlers.resourceMetadata, request('GET', {})));
     expect(resourceMetadata).toEqual({
       resource,
@@ -238,4 +239,71 @@ describe('OAuth registration and authorization endpoints', () => {
     expect(replayedRefresh.statusCode).toBe(400);
   });
 
+  it('registers secretless public clients and enforces S256 PKCE with one-time refresh',async()=>{
+    const fixture=createFixture();
+    const registration=await call(fixture.handlers.register,request('POST',{
+      redirect_uris:[callback],client_name:'Mobile public fixture',token_endpoint_auth_method:'none'
+    }));
+    expect(registration.statusCode).toBe(201);
+    const client=json(registration);
+    expect(client.token_endpoint_auth_method).toBe('none');
+    expect(client).not.toHaveProperty('client_secret');
+    expect(client).not.toHaveProperty('client_secret_expires_at');
+    expect(await fixture.db.getOAuthClient(client.client_id)).toMatchObject({
+      token_endpoint_auth_method:'none',client_secret_hash:null
+    });
+    const params=authorizeArgs(client);
+    const badChallenge=await call(fixture.handlers.authorize,request('POST',{
+      ...params,code_challenge:'not-a-real-pkce-challenge',
+      passphrase:baseEnv.ADMIN_PASSPHRASE
+    }));
+    expect(badChallenge.statusCode).toBe(400);
+    const signed=await call(fixture.handlers.authorize,request('POST',{
+      ...params,passphrase:baseEnv.ADMIN_PASSPHRASE
+    }));
+    expect(signed.statusCode).toBe(302);
+    const code=new URL(signed.headers.Location).searchParams.get('code');
+    const suppliedSecret=await call(fixture.handlers.token,request('POST',{
+      client_id:client.client_id,client_secret:'forged-public-secret',grant_type:'authorization_code',
+      redirect_uri:callback,code,code_verifier:verifier,resource
+    }));
+    expect(suppliedSecret.statusCode).toBe(401);
+    const wrongResource=await call(fixture.handlers.token,request('POST',{
+      client_id:client.client_id,grant_type:'authorization_code',
+      redirect_uri:callback,code,code_verifier:verifier,resource:'https://other.example.test/api/mcp'
+    }));
+    expect(wrongResource.statusCode).toBe(400);
+    const access=await call(fixture.handlers.token,request('POST',{
+      client_id:client.client_id,grant_type:'authorization_code',
+      redirect_uri:callback,code,code_verifier:verifier,resource
+    }));
+    expect(access.statusCode).toBe(200);
+    const granted=json(access);
+    expect(await fixture.db.getAccessToken(granted.access_token)).toMatchObject({
+      client_id:client.client_id,vercel_account:'team_fixture',mode:'preview',profile:'full'
+    });
+    expect((await call(fixture.handlers.token,request('POST',{
+      client_id:client.client_id,grant_type:'authorization_code',
+      redirect_uri:callback,code,code_verifier:verifier,resource
+    }))).statusCode).toBe(400);
+    const other=json(await call(fixture.handlers.register,request('POST',{
+      redirect_uris:[callback],token_endpoint_auth_method:'none'
+    })));
+    expect((await call(fixture.handlers.token,request('POST',{
+      client_id:other.client_id,grant_type:'refresh_token',
+      refresh_token:granted.refresh_token,resource
+    }))).statusCode).toBe(400);
+    const refresh=await call(fixture.handlers.token,request('POST',{
+      client_id:client.client_id,grant_type:'refresh_token',
+      refresh_token:granted.refresh_token,resource
+    }));
+    expect(refresh.statusCode).toBe(200);
+    expect((await call(fixture.handlers.token,request('POST',{
+      client_id:client.client_id,grant_type:'refresh_token',
+      refresh_token:granted.refresh_token,resource
+    }))).statusCode).toBe(400);
+    expect(await fixture.db.getAccessToken(json(refresh).access_token)).toMatchObject({
+      client_id:client.client_id,vercel_account:'team_fixture'
+    });
+  });
 });

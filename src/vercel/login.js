@@ -1,7 +1,8 @@
 // Vercel-specific account binding for the generic OAuth handlers.
+import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 export function createVercelLoginService(db) {
   return {
-    name: 'Vercel',
+    name: SERVICE_DISPLAY_NAME,
     accountLabel: 'Vercel team',
     listAccounts: () => db.listVercelAccounts(),
     modesFor(account, env = process.env) {

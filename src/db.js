@@ -37,13 +37,14 @@ export function createDb(query) {
 
     // RTC 1: only owner setup calls this. A pass never allows writes,
     // production mode or financial outflow. Store only SHA-256, not bearer.
-    async issueReadOnlyRtcPass({account,hours=24,areas=['server'],mode='preview'}) {
+    async issueReadOnlyRtcPass({account,hours=24,areas=['server'],mode='preview',rateLimitPerMinute=120}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
         !Number.isInteger(hours)||hours<1||hours>720||
         !Array.isArray(areas)||areas.length<1||areas.length>12||
         new Set(areas).size!==areas.length||
         areas.some(x=>typeof x!=='string'||!/^[a-z][a-z0-9_]{0,47}$/.test(x))||
-        !rtcModeSafe(mode,areas))
+        !rtcModeSafe(mode,areas)||!Number.isInteger(rateLimitPerMinute)||
+        rateLimitPerMinute<1||rateLimitPerMinute>600)
         throw new TypeError('Invalid RTC pass scope');
       const token='rtc_pass_'+randomBytes(32).toString('base64url');
       const digest=hashToken(token),id='pass_'+digest.slice(0,20);
@@ -51,9 +52,9 @@ export function createDb(query) {
       // Issuance and its audit are one statement: a failed audit cannot
       // leave behind an active undisclosed pass after an insertion.
       const rows=await run`WITH issued AS (
-        INSERT INTO rtc_passes (pass_id,token_hash,vercel_account,mode,areas,expires_at)
+        INSERT INTO rtc_passes (pass_id,token_hash,vercel_account,mode,areas,rate_limit_per_minute,expires_at)
         SELECT ${id},${digest},id,${mode},${JSON.stringify(areas)}::jsonb,
-          now()+${hours} * interval '1 hour'
+          ${rateLimitPerMinute},now()+${hours} * interval '1 hour'
         FROM vercel_accounts WHERE id=${account}
         RETURNING pass_id,expires_at,vercel_account,mode
       ), audited AS (
@@ -74,14 +75,17 @@ export function createDb(query) {
         return {status:'permission'};
       const run=getSql(),digest=hashToken(token);
       const rows=await run`SELECT pass_id,vercel_account,profile,mode,listing,
-          areas,expires_at,revoked_at FROM rtc_passes WHERE token_hash=${digest}`;
+          areas,rate_limit_per_minute,expires_at,revoked_at FROM rtc_passes WHERE token_hash=${digest}`;
       if(rows.length!==1)return {status:'permission'};
       const row=rows[0];
       if(row.revoked_at)return {status:'pass_revoked'};
       if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
-      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only')return {status:'permission'};
+      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only'||
+        !Number.isInteger(row.rate_limit_per_minute)||row.rate_limit_per_minute<1||
+        row.rate_limit_per_minute>600)return {status:'permission'};
       return {status:'ok',id:row.pass_id,account:row.vercel_account,
-        profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas};
+        profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas,
+        rateLimitPerMinute:row.rate_limit_per_minute};
     },
     async authorizeRtcPass(token,units=1) {
       // Each batch tool consumes one unit. Validate before touching SQL.
@@ -98,29 +102,34 @@ export function createDb(query) {
         WHERE token_hash=${digest} AND revoked_at IS NULL
           AND expires_at>now() AND profile='read_only'
           AND (mode='preview' OR (mode='test' AND areas='["server"]'::jsonb))
-          AND (window_started<=now()-interval '1 minute' OR window_count+${units}<=60)
-        RETURNING pass_id,vercel_account,profile,mode,listing,areas`;
+          AND rate_limit_per_minute BETWEEN 1 AND 600
+          AND (window_started<=now()-interval '1 minute' OR window_count+${units}<=rate_limit_per_minute)
+        RETURNING pass_id,vercel_account,profile,mode,listing,areas,rate_limit_per_minute`;
       if(rows.length===1){
         const row=rows[0];
         if(!Array.isArray(row.areas)||row.areas.length<1||
-          !rtcModeSafe(row.mode,row.areas))return {status:'permission'};
+          !rtcModeSafe(row.mode,row.areas)||!Number.isInteger(row.rate_limit_per_minute)||
+          row.rate_limit_per_minute<1||row.rate_limit_per_minute>600)return {status:'permission'};
         return {status:'ok',id:row.pass_id,account:row.vercel_account,
-          profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas};
+          profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas,
+          rateLimitPerMinute:row.rate_limit_per_minute};
       }
-      const reason=await run`SELECT expires_at,revoked_at,mode,profile,areas,window_count,window_started
+      const reason=await run`SELECT expires_at,revoked_at,mode,profile,areas,rate_limit_per_minute,window_count,window_started
         FROM rtc_passes WHERE token_hash=${digest}`;
       if(reason.length!==1)return {status:'permission'};
       const row=reason[0];
       if(row.revoked_at)return {status:'pass_revoked'};
       if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
-      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only')return {status:'permission'};
+      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only'||
+        !Number.isInteger(row.rate_limit_per_minute)||row.rate_limit_per_minute<1||
+        row.rate_limit_per_minute>600)return {status:'permission'};
       return {status:'rate_limited'};
     },
     async listRtcPasses(account) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||''))
         throw new TypeError('Invalid RTC account');
       const run=getSql();
-      return run`SELECT pass_id,mode,areas,expires_at,revoked_at,created_at
+      return run`SELECT pass_id,mode,areas,rate_limit_per_minute,expires_at,revoked_at,created_at
         FROM rtc_passes WHERE vercel_account=${account}
         ORDER BY created_at DESC LIMIT 20`;
     },
@@ -606,13 +615,18 @@ export function createDb(query) {
       const after=await this.listProtectedResources(account);
       return Array.isArray(after)&&after.every(x=>x.kind!=='project');
     },
-    async createOAuthClient({ clientId, clientSecret, redirectUris, clientName }) {
-      if (!clientId || !clientSecret || !Array.isArray(redirectUris) || !redirectUris.length) {
+    async createOAuthClient({ clientId, clientSecret, redirectUris, clientName,
+      tokenEndpointAuthMethod = 'client_secret_post' }) {
+      if (!clientId || !Array.isArray(redirectUris) || !redirectUris.length ||
+        !['client_secret_post','none'].includes(tokenEndpointAuthMethod) ||
+        (tokenEndpointAuthMethod === 'none' ? clientSecret !== null :
+          typeof clientSecret !== 'string' || clientSecret.length < 1)) {
         throw new TypeError('Missing OAuth client registration fields');
       }
       const run = getSql();
       const data = JSON.stringify({
-        client_secret_hash: hashToken(clientSecret),
+        client_secret_hash: tokenEndpointAuthMethod === 'none' ? null : hashToken(clientSecret),
+        token_endpoint_auth_method: tokenEndpointAuthMethod,
         redirect_uris: redirectUris,
         client_name: clientName || null
       });
@@ -941,7 +955,16 @@ export function createDb(query) {
         areas JSONB NOT NULL,expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),revoked_at TIMESTAMPTZ,
         window_started TIMESTAMPTZ NOT NULL DEFAULT now(),
-        window_count INTEGER NOT NULL DEFAULT 0)`;
+        window_count INTEGER NOT NULL DEFAULT 0,
+        rate_limit_per_minute INTEGER NOT NULL DEFAULT 120 CHECK(rate_limit_per_minute BETWEEN 1 AND 600))`;
+      // Existing grants had an implicit 60/minute cap. Never widen an issued pass
+      // just because the new selectable default is 120.
+      await run`ALTER TABLE rtc_passes ADD COLUMN IF NOT EXISTS rate_limit_per_minute
+        INTEGER CHECK(rate_limit_per_minute BETWEEN 1 AND 600)`;
+      await run`UPDATE rtc_passes SET rate_limit_per_minute=60
+        WHERE rate_limit_per_minute IS NULL`;
+      await run`ALTER TABLE rtc_passes ALTER COLUMN rate_limit_per_minute SET DEFAULT 120`;
+      await run`ALTER TABLE rtc_passes ALTER COLUMN rate_limit_per_minute SET NOT NULL`;
       await run`CREATE INDEX IF NOT EXISTS rtc_passes_owner
         ON rtc_passes(vercel_account,created_at DESC)`;
       await run`CREATE TABLE IF NOT EXISTS login_attempts (

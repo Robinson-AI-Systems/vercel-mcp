@@ -1,6 +1,9 @@
-# DEPLOY — Owner guide to setting up Robinson Vercel MCP
+# DEPLOY — Owner guide to setting up Vercel by Robinson AI Systems
 
-Status (2026-10-13): **initial hosting and owner credential setup verified**. The dedicated Vercel project is READY on the checked `live` revision, dedicated Neon schema initialized and an encrypted, team-scoped Robinson AI Systems credential stored. Public OAuth and RTC metadata respond over HTTPS; authenticated custom MCP, live D-2 provider file/log response, RTC direct/relay/Sandbox and revocation acceptance are still OPEN. Existing approved setup is not permission for additional provisioning, production writes or spending.
+**Branding/connection status (2026-10-19):** Owner-controlled service display name is **Vercel by Robinson AI Systems** (unofficial and independently operated). Technical IDs, origins, OAuth grants and stored credentials stay stable. Source support for remote direct MCP does not establish client-specific login, refresh, provider read/write or revocation acceptance. A production deployment/real user action remains separate. The owner-approved directive does not permit unscheduled release, distribution decisions (owned outside this repository) or account changes.
+
+
+**Already completed, do not provision again:** 2026-10-13 initial hosting and owner credential setup verified. Sections 1–5 below describe the original first-time setup or authorized recovery, not remaining required provisioning. The dedicated Vercel project is READY on the checked `live` revision, dedicated Neon schema initialized and an encrypted, team-scoped Robinson AI Systems credential stored. Public OAuth and RTC metadata respond over HTTPS; authenticated custom MCP, live D-2 provider file/log response, standalone direct OAuth/RTC client and provider revocation acceptance remain OPEN; Hub routing/relay/Sandbox testing is Hub-owned. Existing approved setup is not permission for additional provisioning, production writes or spending.
 
 This server has its own Vercel project and Neon database. It must never be installed into Appliance Desk or another existing business project. Start with a restricted Vercel team token and a preview/read-only connection; production writes require a separate approval and additional safety implementation.
 
@@ -71,7 +74,7 @@ The same authenticated setup page supports **one-use pending inputs** (a tool's 
 ## 6. Connect Claude to the hosted MCP
 
 1. In Claude's settings, navigate to **Customize → Connectors → Add custom connector** (wording may vary by plan).
-2. Name it `Robinson Vercel MCP`, and use exactly `https://<your-mcp-host>/api/mcp` as the remote MCP endpoint.
+2. Name the client connection `Vercel by Robinson AI Systems` (the independently developed, unofficial service), and use exactly `https://<your-mcp-host>/api/mcp` as the remote MCP endpoint.
 3. Choose the OAuth sign-in/authentication option rather than a static bearer token in a chat. During authorization, select the connected team, **PREVIEW** mode, and **read_only** profile. The server's login page asks for the admin passphrase; Claude does not receive it.
 4. Enable the connector for a conversation and test `vercel_whoami`, then `vercel_list_accounts`. The result must identify the expected team and contain no token values.
 5. Do not request deployment changes, DNS changes, purchases, or production operations; those tools are intentionally unavailable until subsequent approved batches.

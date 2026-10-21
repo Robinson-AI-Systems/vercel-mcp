@@ -1,3 +1,17 @@
+## 2026-10-21 — universal authorization directive: reconcile PR #219
+
+Reconciled existing source with newer reviewed main, preserving maximum-authority scope and
+original acceptance. Documentation/index conflicts resolved; exact-head checks and review
+remain mandatory. No deployment or real-client proof follows from this reconciliation.
+
+The owner requires distinct development, explicitly scoped product-administrator and ordinary
+production-user contexts, including Robinson AI Systems as a legitimate production tenant.
+Email/domain or organization membership alone grants neither administration nor a development
+restriction. Current owner-centered login still needs independent customer enrollment and tenant
+isolation. Native client OAuth is useful source progress, not that completed architecture.
+CAP-2/CAP-3/CAP-5 retain implementation and two-user/two-tenant/provider lifecycle acceptance.
+No developer credential fallback, default grant expansion or live migration is authorized here.
+
 ## 2026-10-21 — owner-requested maximum-authority planning (source only)
 
 Inspected main `5d147c31926acc7604c5e2bdc8fcc5089016a828` and existing open work before editing. Added
@@ -12,7 +26,24 @@ unfinished cards keep ownership; no work is counted twice. Next: existing eligib
 acceptance/implementation first, then CAP-1 inventory and its dependency-ordered work.
 Exact-head checks/self-review and any existing reviews remain mandatory before merge.
 
+# STATUS — current verified state first; older dated sections are historical
+
+## 2026-10-19 owner-directed PR #219 documentation and safe-merge reconciliation
+
+**Owner responsibility decision:** This Vercel MCP repository does **not** own plugin/public-directory distribution eligibility, applications, marketing or commercial launch. Robinson AI Systems manages distribution outside the repository. This project still owns truthful **Vercel by Robinson AI Systems** service metadata, standalone direct MCP OAuth/RTC, actual supported client interoperability, user/provider authorization, security and independent provider acceptance. No distribution gate may prevent software engineering completion. See [DECISIONS](DECISIONS.md) and [AGENTS](../AGENTS.md).
+
+**Git and release observations:** Baseline main `5d147c31926acc7604c5e2bdc8fcc5089016a828`; live `cb60c6f4c32f8a3a139d5a68fa514aead65a4da6`. Vercel provider returned most recent production deployment as **READY** sourced from that live SHA; independently resolving the public serving alias was not demonstrated. The encrypted owner team credential, dedicated Neon schema and project were previously verified on 2026-10-13. No new production mutation, charges, new user invites, credentials or unscheduled release performed.
+
+**PR #219 engineering state:** Source changes add public-client `none` OAuth with mandatory S256 PKCE, retains old confidential `client_secret_post`, preserves technical MCP IDs, adds owner-controlled service display name, and 1–600/minute owner-selected read-pass rate (new default 120, legacy 60 preserved). Earlier exact-head source `e43ad22ae9fedcfd79af4eaf9c1a06eda4306991` passed all required CI jobs (check/unit/real disposable-Postgres/emulator and release-policy); **the final PR must have green exact-head checks**. Source implementation **does not** provide broad write-capable RTC passes, a complete delegated money/production authority model or independent desktop/mobile/provider write/revocation acceptance. [R-2 card](pr-cards/R-2.md) remains **IN_PROGRESS**; if a safe partial PR merges with explicit owner direction, **zero R-2 subsection completion credit** is taken and remaining implementation stays indexed. Distribution is not remaining R-2 work.
+
+**Acceptance queue:** All 35 preexisting release rows retain their recorded evidence/status: one historical V-1 native run-list read PASSED; 34 PENDING. Neither fake-hosted conformance nor successful OAuth page proves provider read/write or client operation. No new acceptance row marked PASSED. Next engineering: R-1/R-2 scoped pass authority and full safe HTTP tool routing; customer-controlled consent/paid limits; original R-3 provider-side conformance. Later acceptance requires genuinely authorized desktop/mobile clients and safe disposable Vercel reads/writes/readback, grant rotation, expiry and revocation. Hub routing remains Hub-owned.
+
 ## Owner Hub-completion boundary — October 19, 2026
+
+## 2026-10-19 — Universal MCP directive implementation is IN PROGRESS (PR #219)
+
+The owner requires independently usable standards-compliant direct remote MCP for supported desktop/mobile clients, the human display name **Vercel by Robinson AI Systems**, and a repository-wide distinction between developer-only restrictions, end-user delegation and legitimate security rules. See [PRODUCT-AUTHORITY-AUDIT](PRODUCT-AUTHORITY-AUDIT.md) for an open restriction inventory; source, CI, production and real client/provider acceptance are separate. R-2 plan is frozen before source at commit `51afc0a701368e6d95bbdd1ddac3794485ed240d` on baseline `5d147c31926acc7604c5e2bdc8fcc5089016a828`. Draft PR #219 adds owner-controlled display attribution without changing stable MCP IDs, a per-RTC-pass rate limit of 1–600/min (120 default), atomic SQL and concurrency tests, and independently registered secretless public OAuth clients with S256 PKCE plus retained confidential-client authentication. R-1 write-capable passes, user-configured financial/developer-policy parity, full client tests, exact-head CI, deployment and independent acceptance remain unfinished. Initial reconciliation: main `5d147c31926acc7604c5e2bdc8fcc5089016a828`, live and latest READY Vercel-reported deployment `cb60c6f4c32f8a3a139d5a68fa514aead65a4da6` (actual serving alias unverified). Acceptance queue: 35 checks, 1 historical PASSED, 34 PENDING; none newly passed. No live release, provider write, charges or public listing. Hub connection success is Hub-owned, not provider completion.
+
 
 The provider's completion is **NOT** conditional on a successful Hub connection, Hub OAuth onboarding or actual Hub-routed live read/relay/Sandbox. Hub recently added `docs/HUB-CONNECTION-SPEC.md`; compliance with the frozen RTC 1 and provider-side parts of that specification is the server's responsibility, including its own direct MCP/HTTPS, metadata/pagination/tool calls, authentication/scope, source conformance, independently deployed real direct operations, and denied/revoked credentials. Additional production OAuth transport in that guide is optional to RTC 1, but claimed provider OAuth must independently work. Hub-owned discovery, routing, caller grants and connection lifecycle tests live in the Hub project. The active index now removes those Hub-only test prerequisites; prior historical Hub testing references are not evidence or mandatory provider gates. No missing direct RTC/provider acceptance is marked PASSED. See HUB-COMPATIBILITY.md and the owner-directed pre-change plan card HUB-BOUNDARY.md. Reviewed Hub main `3cc7f4ad4332155d639125b23e8a5c4c13804a3d`; no runtime code, customer data, provider charges, Hub repo changes or releases in this policy correction.
 

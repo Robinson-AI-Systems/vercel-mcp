@@ -1490,16 +1490,28 @@
         "R-1"
       ],
       "card": "docs/pr-cards/R-2.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "rate_limits",
       "budget": 450,
       "units": [
         "R-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "CARD_WRITTEN",
       "ownerInputs": [
         "IN-10"
-      ]
+      ],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next Vercel MCP implementer",
+        "reason": "Read-only HTTPS RTC door, manifest and per-pass rate policy are implemented and source-tested in partial PR #219; full R-2 write-contract HTTPS access and original R-1 write-capable-pass prerequisite remain incomplete, plus independently authenticated client/provider acceptance.",
+        "nextAction": "Implement correctly delegated R-1 write-capable RTC pass grant with all scope/resource/spend/replay checks, then R-2 HTTP write-contract and original rate/window/source conformance; independently verify client/provider positive+denied operations and revocation.",
+        "checkpoint": "At safe partial PR #219 handoff/merge and each subsequent original R-1/R-2 engineering session; no full completion before original criteria pass",
+        "evidenceNeeded": "R-1 authorized pass issuance and write refusal/positive proofs; original R-2 HTTP write-contract tests, exact-head safety/CI/DB concurrency including cleanup, and separately recorded actual serving source and independent desktop/mobile/provider acceptance; Hub integration not required.",
+        "eligibilityCondition": "Read-only door, owner per-pass limits, public OAuth and source test completion checked; full HTTP write delegation needs completed R-1 authorization boundary and service-owned verification, not distribution eligibility.",
+        "dependencies": [
+          "R-1"
+        ]
+      }
     },
     {
       "id": "R-3",

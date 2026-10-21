@@ -1,11 +1,11 @@
-# START HERE — Robinson Vercel MCP
+# START HERE — Vercel by Robinson AI Systems
 
-A hosted MCP server (Node 24, plain ES modules, Vercel serverless + Neon Postgres) that gives Chris's AI agents safe,
-almost-complete control of his Vercel teams — for building, owning and operating. Same family and conventions as
-`Robinson-AI-Systems/stripe-mcp` (the reference plan) and `Robinson-AI-Systems/google-workspace-mcp` (reused code is named
-in `docs/designs/BATCH-A.md`). General-purpose across Chris's projects; apps that manage parts of their own Vercel setup
-get a project profile (Batch P), the first being the Appliance Desk rental app (`docs/APP-NEEDS-APPLIANCE-DESK.md`).
-Chris operates mostly from a phone; everything he reads must be plain language.
+**Product identity / live capability notice (2026-10-19):** **Vercel by Robinson AI Systems** is an independent, unofficial connector, not the official or Vercel-endorsed integration. The public technical MCP ID, `vercel_*` tool names and saved OAuth connections remain stable. Read `PRODUCT-AUTHORITY-AUDIT.md` for actual known policy leaks. Service-owned remote HTTPS MCP is at `/api/mcp`; RTC manifest at `/api/contract`, read-only pass HTTP API at `/api/tools`; Hub is optional. Desktop and mobile compatibility depends on each coding-agent client's remote MCP/OAuth support and is not yet independently accepted. Prefer nonproduction and verified provider scope; do not paste credentials into chat. Do not mistake a successful OAuth screen, installed ChatGPT plugin or TEST whoami for true Vercel operations.
+
+
+A standalone, hosted Node 24 / ESM Vercel MCP service using a dedicated Vercel deployment and Neon PostgreSQL. It already has broad provider-specific read and guarded-write code across projects, deployment, environment/configuration, team/security and developer tools; availability is **not** the same as fully delegated or real-world accepted behavior. Source-level direct MCP/RTC, owner setup and OAuth are implemented; write-capable RTC grants, customer-defined spending/approval policies, and independently tested mobile/desktop connections remain incomplete. Legacy developer-only restrictions must not become customer policy, but present safety guards cannot be bypassed. A separate verified V-1 native run-list read exists; most acceptance is still pending.
+
+**Direct desktop/mobile setup and reconnect:** [CLIENT-CONNECTIONS](CLIENT-CONNECTIONS.md); external client compatibility is not yet independently verified.
 
 ## Read only what this work needs
 
@@ -20,17 +20,9 @@ For concrete files, mappings, tests and successor contracts, select one recipe f
 [implementation guidance](implementation-guidance/README.md). It also maps remaining batches and works through B-8b;
 these are execution aids, not prewritten distant cards or changes to the approved designs.
 
-## Code map (target; confirm the actual path before editing)
+## Code map — current implemented locations
 
-`api/` Vercel functions (`mcp.js` connector, `oauth/*` login, `vercel/setup.js` token page, one-time secrets, pending
-inputs and the protected-resources editor, `tools/*` HTTPS API, `contract.js` RTC manifest) · `src/core/`
-contract-generic code (no Vercel imports; extracted later into `robinson-mcp-core`) · `src/vercel/` the only Vercel
-client, operation table, OpenAPI index, production rules, spend table, shaping · `src/tools/` one module per area
-(`projects.js`, `deployments.js`, `releases.js`, `env.js`, `domains.js`, `dns.js`, `registrar.js`, `protection.js`,
-`firewall.js`, …) plus `self-guard.js`, `app-guard.js`, `production-guard.js`, `summaries.js`, `errors.js`,
-`server.js`, `index.js` · `src/dev/` scenarios and build-failure rules · `src/data/dashboard-map.js` guided settings ·
-`src/db.js` all SQL · `tests/unit|db|emulate|doors` · `scripts/` checks · `vendor/vercel-openapi/` Vercel's published
-API description, dated snapshot.
+`api/`: standalone `mcp.js`, OAuth and well-known discovery, `vercel/setup.js`, RTC contract and scoped `tools/*`/result HTTP doors. `src/core/`: MCP/OAuth, profile-aware registry and write safety. `src/rtc/`: RTC manifest/HTTP pass dispatch. `src/tools/`: real registered project/deployment/config/security/team/universal/developer families, not the old placeholder modules. `src/vercel/`: provider client, pinned operations, ownership, setup, spend and guard integration. `src/developer/` and `src/dev/`: developer/run behavior. `src/db.js`: Neon-shaped SQL and additive migration. `tests/unit/`, `tests/db/`, `tests/emulate/`: source/DB/HTTP emulator verification; no `tests/doors/` directory. `scripts/`: checks, release/acceptance tooling; `vendor/vercel-openapi/`: pinned provider schema. Read [ARCHITECTURE](ARCHITECTURE.md) for exact current boundaries.
 
 ## One authority per fact
 

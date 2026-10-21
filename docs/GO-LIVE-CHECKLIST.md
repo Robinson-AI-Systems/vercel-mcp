@@ -1,6 +1,8 @@
 # Go-live checklist — everything that must be switched on before this server changes anything live
 
-Written for Chris (not a developer). Rule: everything is built and tested with fakes, the `emulate` stand-in and, at
+**Current checkpoint (2026-10-19):** Initial dedicated Vercel/Neon hosting, owner secrets and encrypted selected-team credential were verified 2026-10-13. These are completed setup prerequisites, **not** proof of native client/provider acceptance or approval for live resource mutations. This is a service *operation/acceptance* checklist only; distribution and commercial launch belong outside this repository. Do not repeat completed setup or reactivate paid capability without authorization.
+
+Written for the owner (not a developer). Rule: everything is built and tested with fakes, the `emulate` stand-in and, at
 the end, one scratch project; anything that could change a live site or spend money is off until you complete the step
 here. Tick a box only after the "how you know it worked" check is done. Every PR that adds a switch adds a line here.
 
@@ -10,9 +12,9 @@ Legend: **Owner** = only Chris · **Agent** = Claude can do it once you say go.
 
 | Done | Item | Where / how | Today | How you know it worked |
 |---|---|---|---|---|
-| [ ] | Vercel project and Neon database created (IN-02) | Vercel and Neon connectors (Agent, after you say go) | Not created | The server's home page shows its tool counts |
-| [ ] | `ADMIN_PASSPHRASE` and `TOKEN_ENCRYPTION_KEY` set (IN-03) | Vercel → Environment Variables (Owner) | Not set | The setup page asks for the passphrase and accepts a key |
-| [ ] | Team key added (IN-04, IN-05) | Vercel → Account Settings → Tokens (team scope, 90 days), then the server's setup page (Owner) | None | `vercel_whoami` shows the team, PREVIEW, key scope, last 4 and expiry date |
+| [x] | Dedicated Vercel project and Neon database created (IN-02) | Verified initial owner setup 2026-10-13 | Exists; deployment on live at cb60c6f4 reported READY 2026-10-19 | Hosting and initialized Neon schema recorded in STATUS; public metadata alone is not client acceptance |
+| [x] | Owner login passphrase and encryption key set (IN-03) | Verified through secure owner setup 2026-10-13; never disclose values | Configured | Owner login independently verified; no credential value in this repo |
+| [x] | Encrypted team-scoped Vercel credential enrolled (IN-04, IN-05) | Selected Robinson AI Systems team, independently provider-verified 2026-10-13 | Configured; saved key has **no expiration**, separate rotation planning required | Team visibility verified; does not establish full API permissions or connected desktop/mobile MCP acceptance |
 | [ ] | Protected projects list confirmed (IN-07) | Setup page (Owner) | Defaults | `vercel_list_protected_resources` shows the list |
 | [ ] | Connector added in Claude, preview mode (Owner) | claude.ai → Settings → Connectors | Not added | Claude answers "who am I connected as in Vercel?" correctly |
 | [ ] | Legacy spending control (IN-08) | Existing server requires owner setup before charged operations; future user-selected spending/authorization policy must replace developer-era default $0. | $0 currently in code; **not an owner-approved restriction on customers** | `vercel_whoami` exposes legacy value; record actual delegated-mode acceptance only after implemented |
@@ -45,7 +47,7 @@ authority for the app's launch.
 
 | Done | Item | Today |
 |---|---|---|
-| [ ] | Release rule confirmed (IN-11): live site changes only through the `live` branch, emergency rollback allowed | Not decided |
+| [ ] | Release rule confirmed (IN-11): live site changes only through the `live` branch, emergency rollback allowed | Owner rule recorded IN-11; feature/application verification remains open |
 | [ ] | Production branch tracking set to `live` (the app's IN-68) | Open there |
 | [ ] | Every expected variable present in Production and Preview (names) | Mostly |
 | [ ] | Preview database differs from production (checked without showing values) | Verified by the app |
@@ -56,7 +58,7 @@ authority for the app's launch.
 
 | Done | Item | Where / how | Today | How you know it worked |
 |---|---|---|---|---|
-| [ ] | Choose the default connected Vercel account for *new* connectors only | Owner: production-server setup page, authenticated session, CSRF, explicit confirmation, reenter passphrase | No server or account is live; no change made | After the owner selects an existing team, owner setup lists it first; existing connections keep their account and mode. Does **not** permit agent-initiated default changes or spending |
+| [ ] | Choose the default connected Vercel account for *new* connectors only | Owner: production-server setup page, authenticated session, CSRF, explicit confirmation, reenter passphrase | Server and owner credential configured; **default-account change not applied** | After the owner selects an existing team, owner setup lists it first; existing connections keep their account and mode. Does **not** permit agent-initiated default changes or spending |
 
 ## Daily deployment cost controls (2026-10-12)
 

@@ -48,3 +48,18 @@ ordinary supported authorization; God Mode is optional enrollment, never a provi
 or tenant bypass. Robinson AI Systems may act as developer/operator/customer in
 separately authorized contexts; company identity alone decides none of those roles.
 Provider-specific explicit approval rules remain as stated in the design.
+
+## Organizational identity and multi-user authority — owner 2026-10-21
+
+Robinson AI Systems is both developer/operator and a possible ordinary customer. Authorize each
+operation using explicit environment, authenticated principal, tenant/workspace membership, active
+role, owned provider connection and operation. Never infer these contexts from email/domain alone,
+share operator credentials with unrelated users, grant implicit global administration, or carry a
+builder's spend/production restrictions into customer policy. One identity may hold multiple roles;
+secure context switching must reauthorize each role and tenant. Preserve prior legitimate grants
+through reviewed migration; refresh/revoke/logout/account switching must remain owner-scoped.
+
+This is an implementation requirement in existing CAP-2/CAP-3/CAP-5, not a completion claim.
+Acceptance requires two independent users/tenants; Robinson's own tenant versus operator actions;
+role denial, cross-tenant/credential isolation, switching, refresh/revoke/reconnect and supported
+native clients. Source tests, merge, deployment and actual provider evidence remain separate.

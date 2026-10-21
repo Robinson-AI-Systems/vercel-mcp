@@ -35,18 +35,23 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       new Set(params.redirect_uris).size !== params.redirect_uris.length) {
       return bad(res, 400, 'invalid_client_metadata', 'One to eight valid, distinct redirect URIs required');
     }
-    if (params.token_endpoint_auth_method && params.token_endpoint_auth_method !== 'client_secret_post') {
-      return bad(res, 400, 'invalid_client_metadata', 'Only client_secret_post is supported');
+    const authMethod = params.token_endpoint_auth_method ?? 'client_secret_post';
+    if (!['client_secret_post', 'none'].includes(authMethod)) {
+      return bad(res, 400, 'invalid_client_metadata', 'Unsupported client authentication');
     }
     const clientId = randomToken(24);
-    const clientSecret = randomToken(32);
+    // Public OAuth clients cannot securely hold a static client secret. PKCE
+    // S256 and an exact, registered redirect protect their authorization code.
+    const clientSecret = authMethod === 'client_secret_post' ? randomToken(32) : null;
     await db.createOAuthClient({
       clientId, clientSecret, redirectUris: params.redirect_uris,
+      tokenEndpointAuthMethod: authMethod,
       clientName: str(params.client_name).slice(0, 100)
     });
     return send(res, 201, {
-      client_id: clientId, client_secret: clientSecret, client_secret_expires_at: 0,
-      redirect_uris: params.redirect_uris, token_endpoint_auth_method: 'client_secret_post',
+      client_id: clientId,
+      ...(clientSecret === null ? {} : {client_secret: clientSecret, client_secret_expires_at: 0}),
+      redirect_uris: params.redirect_uris, token_endpoint_auth_method: authMethod,
       grant_types: ['authorization_code', 'refresh_token'], response_types: ['code']
     });
   }
@@ -151,8 +156,16 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     }
     if (!validateResource(params.resource)) return bad(res, 400, 'invalid_target', 'Token resource must be this MCP');
     const client = await db.getOAuthClient(str(params.client_id));
-    if (!client || typeof params.client_secret !== 'string' || !params.client_secret ||
-      !secretsMatch(hashToken(params.client_secret), client.client_secret_hash)) {
+    // Legacy records without an explicit authentication method remain
+    // confidential clients; a public client never treats a client ID as proof
+    // of possession of a non-existent client secret.
+    const authMethod = client?.token_endpoint_auth_method ?? 'client_secret_post';
+    const authenticated = authMethod === 'none' ?
+      client?.client_secret_hash === null && !Object.hasOwn(params, 'client_secret') :
+      authMethod === 'client_secret_post' && typeof params.client_secret === 'string' &&
+      params.client_secret.length > 0 && typeof client?.client_secret_hash === 'string' &&
+      secretsMatch(hashToken(params.client_secret), client.client_secret_hash);
+    if (!client || !authenticated) {
       return bad(res, 401, 'invalid_client', 'Client credentials rejected');
     }
     if (params.grant_type === 'authorization_code') {
@@ -198,7 +211,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       response_types_supported: ['code'],
       grant_types_supported: ['authorization_code', 'refresh_token'],
       code_challenge_methods_supported: ['S256'],
-      token_endpoint_auth_methods_supported: ['client_secret_post']
+      token_endpoint_auth_methods_supported: ['client_secret_post', 'none']
     });
   }
 

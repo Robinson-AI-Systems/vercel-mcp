@@ -29,7 +29,7 @@ function fixture(){
  return {db,issued,send};
 }
 const common={action:'issue_rtc_pass',account:'team_FAKE',hours:'24',
-  areas:'server,projects',csrf,confirm:'yes',passphrase:env.ADMIN_PASSPHRASE};
+  areas:'server,projects',rateLimitPerMinute:'120',csrf,confirm:'yes',passphrase:env.ADMIN_PASSPHRASE};
 describe('RTC owner setup issue and revoke',()=>{
  it('refuses forged CSRF, absent session, wrong passphrase, production bypass and overbroad lifetime',async()=>{
   const f=fixture();
@@ -38,6 +38,8 @@ describe('RTC owner setup issue and revoke',()=>{
    [{...common,passphrase:'wrong'},cookie,env],
    [common,cookie,{...env,VERCEL_ENV:'preview'}],
    [{...common,hours:'721'},cookie,env],
+   [{...common,rateLimitPerMinute:'601'},cookie,env],
+   [{...common,rateLimitPerMinute:'0'},cookie,env],
    [{...common,areas:'unknown'} ,cookie,env]
   ])expect((await f.send(body,c,e)).statusCode).not.toBe(200);
   expect(f.db.issueReadOnlyRtcPass).not.toHaveBeenCalled();
@@ -46,7 +48,7 @@ describe('RTC owner setup issue and revoke',()=>{
   const f=fixture(),res=await f.send(common);
   expect(res.statusCode).toBe(200);
   expect(f.db.issueReadOnlyRtcPass).toHaveBeenCalledExactlyOnceWith({
-   account:'team_FAKE',hours:24,areas:['server','projects'],mode:'preview'});
+   account:'team_FAKE',hours:24,areas:['server','projects'],mode:'preview',rateLimitPerMinute:120});
   expect(f.db.insertOneTimeSecret).toHaveBeenCalledOnce();
   expect(res.body).not.toContain(f.issued);
  });
@@ -54,8 +56,9 @@ describe('RTC owner setup issue and revoke',()=>{
   const f=fixture();
   expect((await f.send({...common,mode:'test',areas:'server'})).statusCode).toBe(200);
   expect(f.db.issueReadOnlyRtcPass).toHaveBeenCalledWith({
-    account:'team_FAKE',hours:24,areas:['server'],mode:'test'});
+    account:'team_FAKE',hours:24,areas:['server'],mode:'test',rateLimitPerMinute:120});
   for(const bad of [
+    {...common,rateLimitPerMinute:'10.5'},
     {...common,mode:'test',areas:'projects'},
     {...common,mode:'test',areas:'server,projects'},
     {...common,mode:'production',areas:'server'}

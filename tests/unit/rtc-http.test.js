@@ -3,7 +3,7 @@ import {randomBytes} from 'node:crypto';
 import {rtcDoor} from '../../src/rtc/door.js';
 const pass='rtc_pass_'+randomBytes(32).toString('base64url');
 const a={account:'team_FAKE',id:'pass_'+'a'.repeat(20),profile:'read_only',
- mode:'preview',listing:'catalog',areas:['server']};
+ mode:'preview',listing:'catalog',areas:['server'],rateLimitPerMinute:120};
 const out=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
 function fixture(){
  const read=vi.fn(async()=>out({label:'safe'}));
@@ -93,7 +93,7 @@ describe('RTC 1 read-only HTTPS door',()=>{
     {account:''},{account:'../team'},{id:'pass_FAKE'},
     {areas:['server','server']},{areas:['server','INVALID']},
     {areas:[{}]},{areas:[]},{listing:'unknown'},
-    {profile:'full'},{mode:'production'}
+    {profile:'full'},{mode:'production'},{rateLimitPerMinute:0},{rateLimitPerMinute:601}
   ]){
     const f=fixture();
     f.db.authorizeRtcPass.mockResolvedValueOnce({...a,...invalid,status:'ok'});
