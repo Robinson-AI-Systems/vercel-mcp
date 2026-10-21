@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-15",
+  "updated": "2026-10-21",
   "order": [
     "A",
     "B",
@@ -16,7 +16,8 @@
     "W",
     "U",
     "R",
-    "X"
+    "X",
+    "CAP"
   ],
   "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400–800 changed production-code lines and 2–5 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims. Owner clarification 2026-10-14: PR workload accounting counts whole predefined batch subsections in the authoritative roadmap/design, never a function, UI hookup, guard, helper or execution-packet subtask. Partial subsections count zero completed batch subsections; count each subsection once with full eligible engineering and pre-merge evidence. Group related subsections into substantial PRs; use focused checks during work and full required gates on the coherent PR. Existing acceptance and safety gates remain.",
   "cards": [
@@ -1562,6 +1563,98 @@
       "ownerInputs": [
         "IN-06"
       ]
+    },
+    {
+      "id": "CAP-1",
+      "title": "Operation and credential coverage inventory",
+      "batch": "CAP",
+      "design": "docs/designs/MAXIMUM-AUTHORITY.md",
+      "dependencies": [],
+      "card": "docs/pr-cards/CAP-1.md",
+      "status": "APPROVED",
+      "migration": "JIT contract before implementation",
+      "budget": 650,
+      "units": [
+        "CAP-1"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
+      "id": "CAP-2",
+      "title": "Standard fullest authorization and effective-access recovery",
+      "batch": "CAP",
+      "design": "docs/designs/MAXIMUM-AUTHORITY.md",
+      "dependencies": [
+        "CAP-1"
+      ],
+      "card": "docs/pr-cards/CAP-2.md",
+      "status": "APPROVED",
+      "migration": "JIT contract before implementation",
+      "budget": 650,
+      "units": [
+        "CAP-2"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
+      "id": "CAP-3",
+      "title": "Guided additional authority lifecycle",
+      "batch": "CAP",
+      "design": "docs/designs/MAXIMUM-AUTHORITY.md",
+      "dependencies": [
+        "CAP-1"
+      ],
+      "card": "docs/pr-cards/CAP-3.md",
+      "status": "APPROVED",
+      "migration": "JIT contract before implementation",
+      "budget": 650,
+      "units": [
+        "CAP-3"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
+      "id": "CAP-4",
+      "title": "Advanced functional workflow gap closure",
+      "batch": "CAP",
+      "design": "docs/designs/MAXIMUM-AUTHORITY.md",
+      "dependencies": [
+        "CAP-1",
+        "CAP-2",
+        "CAP-3"
+      ],
+      "card": "docs/pr-cards/CAP-4.md",
+      "status": "APPROVED",
+      "migration": "JIT contract before implementation",
+      "budget": 650,
+      "units": [
+        "CAP-4"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
+      "id": "CAP-5",
+      "title": "Independent authority acceptance and coverage reporting",
+      "batch": "CAP",
+      "design": "docs/designs/MAXIMUM-AUTHORITY.md",
+      "dependencies": [
+        "CAP-2",
+        "CAP-3",
+        "CAP-4"
+      ],
+      "card": "docs/pr-cards/CAP-5.md",
+      "status": "APPROVED",
+      "migration": "JIT contract before implementation",
+      "budget": 650,
+      "units": [
+        "CAP-5"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
     }
   ],
   "gatewayBoundary": {

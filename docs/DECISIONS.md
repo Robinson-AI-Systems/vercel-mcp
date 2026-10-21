@@ -1,3 +1,12 @@
+## 2026-10-21 — approved maximum-authority expansion
+
+Owner requested adapting the completed GitHub planning job to all active custom MCPs.
+Approve [MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md), indexed CAP-1..CAP-5,
+with provider-specific interfaces, credential types, guardrails and open acceptance.
+No artificial God-Mode-only tools or percentage coverage from catalog counts.
+Existing user-selected policy/provider isolation and developer spending/release gates
+remain binding. This document is not implementation or live verification.
+
 # Decisions (dated)
 
 One entry per design decision. Current latest binding clarifications appear immediately below; earlier records remain historical. Reasons live here; current rules live in AGENTS and the designs.

@@ -1,5 +1,14 @@
 # MASTER ROADMAP — the one handoff
 
+## Maximum legitimate authority — owner-approved 2026-10-21
+
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) adds five indexed APPROVED,
+NOT IMPLEMENTED units CAP-1..CAP-5: operation inventory; ordinary fullest authority;
+secure additional credential lifecycle; advanced functional gaps; independent proof.
+Existing acceptance and unfinished original cards retain priority. Named-tool counts
+do not establish provider API coverage. No runtime grant or release change is implied.
+
+
 ## Gateway dependency correction — 2026-10-12
 
 Standalone RTC conformance and direct authorized service acceptance are mandatory. **Owner 2026-10-19:** successful live Hub discovery, connection, OAuth orchestration, routing, relay or Sandbox acceptance is Hub-owned, not a Vercel MCP completion requirement. Shared core adoption is also optional. See HUB-COMPATIBILITY.md. Hub's H-series remains its own project.

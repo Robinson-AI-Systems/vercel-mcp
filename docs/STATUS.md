@@ -1,3 +1,17 @@
+## 2026-10-21 — owner-requested maximum-authority planning (source only)
+
+Inspected main `5d147c31926acc7604c5e2bdc8fcc5089016a828` and existing open work before editing. Added
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) and indexed CAP-1..CAP-5 as
+APPROVED / NOT IMPLEMENTED. Existing provider acceptance evidence is unchanged;
+no new live pass, deployment, paid action, credential, grant or production effect.
+This is explicitly requested planning maintenance: zero production lines and zero
+completed implementation subsections. Ordinary supported authorization gets every
+operation it can perform; God Mode only simplifies genuinely necessary additional
+authority. Separate developer/operator/customer contexts explicitly. Existing original
+unfinished cards keep ownership; no work is counted twice. Next: existing eligible
+acceptance/implementation first, then CAP-1 inventory and its dependency-ordered work.
+Exact-head checks/self-review and any existing reviews remain mandatory before merge.
+
 ## Owner Hub-completion boundary — October 19, 2026
 
 The provider's completion is **NOT** conditional on a successful Hub connection, Hub OAuth onboarding or actual Hub-routed live read/relay/Sandbox. Hub recently added `docs/HUB-CONNECTION-SPEC.md`; compliance with the frozen RTC 1 and provider-side parts of that specification is the server's responsibility, including its own direct MCP/HTTPS, metadata/pagination/tool calls, authentication/scope, source conformance, independently deployed real direct operations, and denied/revoked credentials. Additional production OAuth transport in that guide is optional to RTC 1, but claimed provider OAuth must independently work. Hub-owned discovery, routing, caller grants and connection lifecycle tests live in the Hub project. The active index now removes those Hub-only test prerequisites; prior historical Hub testing references are not evidence or mandatory provider gates. No missing direct RTC/provider acceptance is marked PASSED. See HUB-COMPATIBILITY.md and the owner-directed pre-change plan card HUB-BOUNDARY.md. Reviewed Hub main `3cc7f4ad4332155d639125b23e8a5c4c13804a3d`; no runtime code, customer data, provider charges, Hub repo changes or releases in this policy correction.
