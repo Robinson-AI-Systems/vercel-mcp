@@ -1,3 +1,7 @@
+## 2026-10-21 — Sol 5.6 remaining identity/permissions implementation contract
+
+Owner requested repo-specific preparation for the next implementer. See [concrete handoff](UNIVERSAL-IDENTITY-HANDOFF.md) for actual source/test paths, mapped original units, migration and ownership invariants, two-user/role fixtures, required checks and separate external prerequisites. The merged fixes listed there are source evidence; full tenant/role/capability work remains OPEN. This docs-only update changes no runtime, provider grant, deployment or acceptance result. Follow current original cards/queue and do not restart completed work.
+
 ## 2026-10-21 — client-owned native OAuth revocation source implementation
 
 Confirmed missing standard client disconnect despite internal token revocation. Added RFC7009

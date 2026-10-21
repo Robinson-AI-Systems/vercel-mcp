@@ -144,3 +144,7 @@ References checked 2026-10-21:
 - https://vercel.com/docs/rest-api
 - https://vercel.com/docs/rest-api/reference/authentication
 - https://vercel.com/docs/integrations/create-integration/marketplace-api
+
+## Sol 5.6 implementation entry — owner 2026-10-21
+
+The [concrete implementation handoff](../UNIVERSAL-IDENTITY-HANDOFF.md) maps these existing units to current files, migration boundaries, negative/positive fixtures and exact verification families. Use it with the original cards; no units, approval states or acceptance results change. Independent user/tenant/role/grant implementation is eligible engineering, not a live-provider prerequisite. Reconcile original unfinished work before dependent expansion.
