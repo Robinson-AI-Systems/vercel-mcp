@@ -6,7 +6,14 @@ export const STORE=/^ecfg_[A-Za-z0-9_-]{3,124}$/;
 export const SLUG=/^[A-Za-z0-9_-]{1,64}$/;
 export const KEY=/^[A-Za-z_][A-Za-z0-9_./-]{0,127}$/;
 export const ID=/^prj_[A-Za-z0-9_-]{3,124}$/;
-export const output=x=>({content:[{type:'text',text:JSON.stringify(compact(x))}]});
+// AUD-D (design D-D, VMCP-010): output() no longer imposes the 8 KB inline
+// display bound itself. It redacts at the result store's own 1 MB cap and
+// hands the result to the shared delivery path (shapeStoredMcpResult),
+// which returns it inline when it fits and stores + handles it when it
+// does not — the same contract as every other tool family. Results at or
+// under the inline bound are byte-identical to the previous behavior.
+export const RESULT_STORE_CAP=1048576;
+export const output=x=>({content:[{type:'text',text:JSON.stringify(compact(x,RESULT_STORE_CAP))}]});
 export const schema=(properties,required=[])=>({
   type:'object',properties,required,additionalProperties:false
 });
@@ -93,7 +100,7 @@ export function safeItems(raw){
     if(value===undefined||typeof value==='function'||
       typeof value==='symbol'||typeof value==='bigint')
       throw new TypeError('Unpresentable Global Config item');
-    return {key,data:compact(value)};
+    return {key,data:compact(value,RESULT_STORE_CAP)};
   });
   // Never represent an unverified API response as globally complete.
   return {items:all.slice(0,20),shown:Math.min(20,all.length),
