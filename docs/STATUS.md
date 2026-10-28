@@ -1,3 +1,11 @@
+## 2026-10-28 — Owner direction IN-16 filed: end-user onboarding becomes "Log in with Vercel" (register VMCP-026; docs-only filing)
+
+The owner directed (2026-10-28): "When we're done developing and testing, we need a normal setup where an end user logs into THEIR OWN Vercel account — like the GitHub MCP does it: you link up, there's a connection page, and it logs into your GitHub. We need something very similar to log into Vercel."
+
+**Verified current state (shipped code, same day):** enrollment on the setup page (`src/vercel/setup.js`) is token-paste BYOK only — "Add or rotate a Vercel token," verified against Vercel and stored encrypted. Per-user authority exists once a token is enrolled, but there is no provider OAuth sign-in anywhere in the product, and the owner's own connection rides the same developer posture (Administrator-passphrase-gated grants over his enrolled token).
+
+**Filed:** `docs/OWNER-INPUTS.md` gains **IN-16** (direction given; design questions open — token enrollment as an advanced fallback, OAuth-token mapping onto the account/mode/profile machinery, scope selection at consent, revocation from both sides) and the audit register gains **VMCP-026** (P1 · D11), with VMCP-025 noted as reserved for the consent-page production-mode discoverability candidate the owner found live the same day. Register totals: 25 findings, P1 16, six closed. This filing is docs-only — no code changed, nothing scheduled: sequencing (after the VMCP-023 → narrowed-remainders queue, or jumping it) is the owner's pending ruling.
+
 ## 2026-10-28 — VMCP-023 delta: deployment execution segment fixed in code (card AUD-H; branch `ai/vivienne/vmcp-023-deploy-fix`, base main `898918c`)
 
 The owner directed this delta the same day ("Vercel MCP is today's first priority"). Diagnosis ran from source, the vendored OpenAPI snapshot and the S7 evidence; three defects were discriminated, two of them proven outright and the third proven by this card's own legibility fix during local reproduction:
