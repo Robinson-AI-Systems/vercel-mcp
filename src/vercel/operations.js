@@ -11,6 +11,10 @@ export const OPS = Object.freeze({
   // endpoint takes teamId in the path, not as a redundant query parameter.
   teams_members_list: Object.freeze({ method: 'GET', path: '/v3/teams/{teamId}/members', teamScoped: false }),
   projects_list: Object.freeze({ method: 'GET', path: '/v10/projects' }),
+  // Scope-inferred variants for the AUD-F project-scoped enrollment probe:
+  // Vercel infers a scoped token's scope, and teamId applies only to
+  // full-account tokens, so these reads must not attach it.
+  projects_list_unscoped: Object.freeze({ method: 'GET', path: '/v10/projects', teamScoped: false }),
   rolling_billing_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release/billing' }),
   rolling_config_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release/config' }),
   rolling_active_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release' }),
@@ -40,6 +44,7 @@ export const OPS = Object.freeze({
   checks_run_get: Object.freeze({ method: 'GET', path: '/v2/deployments/{deploymentId}/check-runs/{checkRunId}' }),
   checks_project_list: Object.freeze({ method: 'GET', path: '/v2/projects/{projectIdOrName}/checks' }),
   projects_get: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}' }),
+  projects_get_unscoped: Object.freeze({ method: 'GET', path: '/v9/projects/{idOrName}', teamScoped: false }),
   project_env_list: Object.freeze({ method: 'GET', path: '/v10/projects/{idOrName}/env' }),
   project_env_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/env/{id}' }),
   project_env_create: Object.freeze({ method: 'POST', path: '/v10/projects/{idOrName}/env' }),

@@ -131,5 +131,28 @@ export function makeFakeVercel({ base = DEFAULT_BASE, now = () => Date.now() } =
     if (unmatched.length) throw new Error(`fake-vercel: unexpected calls: ${unmatched.join(', ')}`);
   }
 
-  return { fetch: fakeFetch, calls, unmatched, when, verify };
+  /**
+   * Model a genuinely project-scoped token (AUD-F / VMCP-022): the user and
+   * teams reads are outside the token's scope — refused with a provider-style
+   * 403 by default, or empty when `teams: 'empty'` — while the projects read
+   * returns exactly the scoped project (or none) and the direct project read
+   * returns that project, whose `accountId` names its owning team. Register
+   * this after any broader `when()` rules for the same paths; newest wins.
+   */
+  function scopedProject(project, { teams = 'refuse' } = {}) {
+    when('GET', '/v2/user').rejects(403);
+    if (teams === 'empty') {
+      when('GET', '/v2/teams').resolves({ teams: [], pagination: { next: null } });
+    } else {
+      when('GET', '/v2/teams').rejects(403);
+    }
+    when('GET', '/v10/projects').resolves({
+      projects: project ? [project] : [], pagination: { next: null }
+    });
+    if (project) when('GET', '/v9/projects/{idOrName}').resolves(project);
+    return api;
+  }
+
+  const api = { fetch: fakeFetch, calls, unmatched, when, verify, scopedProject };
+  return api;
 }
