@@ -20,6 +20,8 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         id: account.id, team_id: account.team_id, team_slug: account.team_slug,
         label: account.label, scope: account.scope, project_id: account.project_id,
         project_name: account.project_name, production_enabled: Boolean(account.production_enabled),
+        production_enable_strictness: account.production_enable_strictness === 'passphrase' ?
+          'passphrase' : 'word',
         is_default: Boolean(account.is_default),
         spend_limit_cents: account.spend_limit_cents ?? 0,
         purchase_budget_cents: account.purchase_budget_cents ?? null,
@@ -34,6 +36,23 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
       if (!account) return null;
       return { budgetCents: account.purchase_budget_cents ?? null,
         grantRequired: Boolean(account.purchase_grant_required) };
+    },
+
+    async getProductionEnableStrictness(id) {
+      const account = accountRows.get(id);
+      if (!account) return null;
+      return account.production_enable_strictness === 'passphrase' ?
+        'passphrase' : 'word';
+    },
+
+    async setProductionEnableStrictness(id, strictness) {
+      if (!['word', 'passphrase'].includes(strictness)) {
+        throw new TypeError('Invalid account or production enable strictness');
+      }
+      const account = accountRows.get(id);
+      if (!account) return false;
+      account.production_enable_strictness = strictness;
+      return true;
     },
 
     async setPurchasePolicy(id, policy) {

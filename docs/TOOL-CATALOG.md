@@ -68,7 +68,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_check_token` | Re-probe the stored token with bounded GETs; report selected team/project read access, not expiry or write permissions | — | O | R | — | B-8b read-only built #26 |
 | `vercel_list_connections` | Claude connections and passes: account, mode, profile, listing, last used, expiry | — | O | R | — | B-8 |
 | `vercel_revoke_connection` | Propose revoking an exact current OAuth connector; independently authenticated owner must approve | C | O | F | — | B-8b built #40 |
-| `vercel_enable_production` | Request a ten-minute team production approval; only owner passphrase reentry on setup can enable it | C | O | F | — | B-2 |
+| `vercel_enable_production` | Enable team production access on the owner's confirmed word; teams whose owner chose passphrase strictness on setup keep the ten-minute passphrase reentry step instead | C | O | F | — | B-2; AUD-B |
 | `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | C | O | F | — | B-2 |
 | `vercel_set_spend_limit` | Propose a tenant-scoped exact-cent daily limit for separate owner approval; no spending or default change | C | O | F | — | B-8b built #39 |
 | `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
