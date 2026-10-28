@@ -51,6 +51,51 @@ export function safeShape(ctx, value) {
   }
   return output;
 }
+// AUD-D (design D-D, VMCP-008): the 8 KB bound is a display bound, not an
+// existence bound. A value that shapes safely but exceeds the inline bound
+// is stored through the result store — under the same connection-scoped
+// rules as stored reads — and replaced by its stored reference, so the
+// write proceeds to confirmation instead of refusing. The reference mirrors
+// the read path's stored receipt (handle, expiry, count, preview, next
+// step). Two cases keep today's behavior exactly: a value that cannot shape
+// safely at all (the shaper throws for a non-size reason — cycles, depth,
+// secret-screening failures) still throws here and still refuses in
+// preflight; and with no usable result store on the context, an oversized
+// value throws the same error safeShape throws, so nothing is silently
+// truncated and the cap is never raised. Shaping runs at the result store's
+// own 1 MB cap: a shaper that refuses on size alone (the real write
+// contexts use compact itself as the shaper) is re-run at that cap so the
+// safely shaped value can be stored.
+export async function safeShapeStored(ctx, value, label = 'vercel_write') {
+  if (typeof ctx.shape !== 'function') throw new Error('Output shaper is unavailable');
+  let output;
+  try {
+    output = compact(ctx.shape(value), 1048576);
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    output = compact(value, 1048576);
+  }
+  const encoded = JSON.stringify(output);
+  if (output === undefined || !encoded) {
+    throw new Error('Output cannot be safely shaped within 8 KB');
+  }
+  if (Buffer.byteLength(encoded) <= 8192) return output;
+  const db = ctx.db, conn = ctx.connection;
+  if (typeof db?.putResult !== 'function' || !conn?.resultOwner || !conn?.account) {
+    throw new Error('Output cannot be safely shaped within 8 KB');
+  }
+  const count = Array.isArray(output) ? output.length :
+    Array.isArray(output?.rows) ? output.rows.length : 1;
+  const summary = String(label).slice(0, 100) + ': ' + count + ' saved record(s)';
+  const issued = await db.putResult({
+    account: conn.account, owner: conn.resultOwner, summary, body: output
+  });
+  return {
+    status: 'stored', handle: issued.handle, expiresAt: issued.expiresAt,
+    count, summary, preview: encoded.slice(0, 500),
+    next: 'Call vercel_get_result with this handle and optional page/fields'
+  };
+}
 export async function writePreflight(spec, args, ctx) {
   const conn = ctx?.connection;
   if (!conn?.account || !['preview','production'].includes(conn.mode) ||
@@ -68,7 +113,7 @@ export async function writePreflight(spec, args, ctx) {
     before = await spec.before(args, ctx);
     production = await spec.production(args, ctx, before);
     targets = await spec.targets(args, before, ctx);
-    summary = safeShape(ctx, await spec.preview(args, ctx, before));
+    summary = await safeShapeStored(ctx, await spec.preview(args, ctx, before), spec.name);
     if (typeof production?.production !== 'boolean' ||
       typeof production.why !== 'string' || !Array.isArray(targets)) {
       return { refused: refusal('Unknown production status or affected targets') };

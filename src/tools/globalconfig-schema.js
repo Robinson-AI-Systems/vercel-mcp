@@ -5,7 +5,7 @@ import Ajv from 'ajv';
 import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
-import {STORE,SLUG,KEY,exact,strictArgs,schema,output} from './globalconfig-common.js';
+import {STORE,SLUG,KEY,exact,strictArgs,schema,output,RESULT_STORE_CAP} from './globalconfig-common.js';
 import {store,allItems,targets,classification,context} from './globalconfig-mutate.js';
 
 const REQUEST=/^[A-Za-z0-9_-]{8,128}$/;
@@ -227,7 +227,7 @@ export const globalConfigSchemaTools={
       strictArgs(args,['id']);
       const {client,row}=await exact(ctx,args.id);
       const definition=await getSchema(client,row.id);
-      return output({store:row.id,schema:compact(definition),
+      return output({store:row.id,schema:compact(definition,RESULT_STORE_CAP),
         hasSchema:definition!==null,hasSecretValues:false});
     },
     vercel_globalconfig_set_schema:bindGuardedWrite(write,context,out)

@@ -1,7 +1,7 @@
 // Generic safe write executor. No Vercel-specific imports or provider I/O.
 // The caller must supply a durable replay store, audit writer and safe shaper.
 import { createHash } from 'node:crypto';
-import { refusal, safeShape, writePreflight } from './write-preflight.js';
+import { refusal, safeShape, safeShapeStored, writePreflight } from './write-preflight.js';
 
 // A definite pre-dispatch safety refusal is never a provider-write failure.
 export class PreDispatchRefusal extends Error {}
@@ -90,10 +90,14 @@ export function defineWrite(spec) {
     // purchase (null on every other path). It is journaled on the change-log
     // row and returned in the applied result under the same name.
     const delegation = purchase?.delegation ?? null;
+    // AUD-D (D-D, VMCP-008): an oversized target list is stored and
+    // referenced by handle in the audit/change-log row, like the preview —
+    // the 8 KB bound displays, it does not block the write. Unshapable
+    // targets still throw here, before any dispatch.
     const auditBase = {
       tool: spec.name, account: ctx.connection.account, mode: ctx.connection.mode,
       requestKey, production: production.production,
-      summary, targets: safeShape(ctx, targets), moneyLine, spendCents: spendCents??null,
+      summary, targets: await safeShapeStored(ctx, targets, spec.name), moneyLine, spendCents: spendCents??null,
       ...(delegation ? { delegation } : {})
     };
     if (args.dryRun === true) {
