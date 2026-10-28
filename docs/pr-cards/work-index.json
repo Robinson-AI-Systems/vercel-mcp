@@ -221,7 +221,8 @@
         "eligibilityCondition": "Eligible now; IN-09 ruled 2026-10-27 and no further owner input is needed.",
         "dependencies": [
           "B-1"
-        ]
+        ],
+        "resolution": "AUD-B implemented (audit pipeline S6, 2026-10-28): vercel_accounts gains production_enable_strictness (TEXT NOT NULL DEFAULT 'word'), additively; db.getProductionEnableStrictness/setProductionEnableStrictness sit beside setProductionEnabled with read-back verification and a journaled vercel_enable_production change_log row per set (summary names the new strictness); the setter is setup-only. requestProductionEnable branches on the team's strictness after the unchanged authorized/A12/already-enabled/dry-run/confirm steps: word completes through the one shared performProductionEnable effect (setProductionEnabled + one recordChange) with an account read-back, returning productionEnabled true with no receipt issued or passphrase consumed; passphrase keeps the receipt flow verbatim. approveProductionEnable calls the same shared effect, so the audit trail never forks. The setup page gains a Production enable strictness section (sibling set_production_strictness action on the existing owner seam) showing each team's production state and strictness, and approve_production reports a word team as word-enabled (no receipt needed) while still consuming receipts for passphrase teams. Tool description and catalog row state the switch plainly; a tool call carrying a strictness argument is refused. Disable is unchanged; pass/read-only connections are refused in both modes and the A12 preview-deployment block fires in both modes (test-proven). VMCP-002 closes only at S7 live verification."
       }
     },
     {

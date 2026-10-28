@@ -22,4 +22,36 @@ describe('B-2 durable production switch and revocation',()=>{
     expect(rows.find(x=>x.token_hash==='fake_other').revoked_at).toBeNull();
     expect((await rawQuery("SELECT production_enabled FROM vercel_accounts WHERE id='team_FAKE'"))[0].production_enabled).toBe(false);
   });
+  it('AUD-B: strictness defaults to word on a fresh account',async()=>{
+    expect((await rawQuery("SELECT production_enable_strictness FROM vercel_accounts WHERE id='team_FAKE'"))[0].production_enable_strictness).toBe('word');
+    expect(await db.getProductionEnableStrictness('team_FAKE')).toBe('word');
+    expect(await db.getProductionEnableStrictness('team_UNKNOWN')).toBeNull();
+  });
+  it('AUD-B: setProductionEnableStrictness round-trips and journals every successful set',async()=>{
+    expect(await db.setProductionEnableStrictness('team_FAKE','passphrase')).toBe(true);
+    expect(await db.getProductionEnableStrictness('team_FAKE')).toBe('passphrase');
+    expect((await rawQuery("SELECT production_enable_strictness FROM vercel_accounts WHERE id='team_FAKE'"))[0].production_enable_strictness).toBe('passphrase');
+    expect(await db.setProductionEnableStrictness('team_FAKE','word')).toBe(true);
+    expect(await db.getProductionEnableStrictness('team_FAKE')).toBe('word');
+    const logs=await rawQuery("SELECT vercel_account,tool,summary,after,dry_run,production FROM change_log WHERE tool='vercel_enable_production' AND summary LIKE 'Owner set the production enable strictness%' ORDER BY id");
+    expect(logs).toHaveLength(2);
+    expect(logs[0].summary).toContain('passphrase');
+    expect(logs[0].after).toEqual({strictness:'passphrase'});
+    expect(logs[1].summary).toContain('word');
+    expect(logs[1].after).toEqual({strictness:'word'});
+    expect(logs.every(r=>r.production===true&&r.dry_run===false)).toBe(true);
+    // Setting strictness never enables production by itself.
+    expect((await rawQuery("SELECT production_enabled FROM vercel_accounts WHERE id='team_FAKE'"))[0].production_enabled).toBe(false);
+  });
+  it('AUD-B: rejects invalid strictness and missing accounts without journaling',async()=>{
+    for(const invalid of ['ceremony','WORD','',null,undefined,true,0]){
+      await expect(db.setProductionEnableStrictness('team_FAKE',invalid)).rejects.toThrow();
+    }
+    await expect(db.setProductionEnableStrictness('bad name','word')).rejects.toThrow();
+    await expect(db.getProductionEnableStrictness('bad name')).rejects.toThrow();
+    expect(await db.setProductionEnableStrictness('team_UNKNOWN','word')).toBe(false);
+    const logs=await rawQuery("SELECT id FROM change_log WHERE tool='vercel_enable_production' AND summary LIKE 'Owner set the production enable strictness%'");
+    expect(logs).toHaveLength(2);
+    expect(await db.getProductionEnableStrictness('team_FAKE')).toBe('word');
+  });
 });

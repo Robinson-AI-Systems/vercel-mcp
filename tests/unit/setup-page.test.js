@@ -288,6 +288,52 @@ describe('A-5 owner-only setup security', () => {
     expect(fail.statusCode).toBe(400);
     expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
   });
+  it('sets the production enable strictness only with owner session, CSRF, confirmation and fresh passphrase (AUD-B)', async () => {
+    const h = harness();
+    const auth = await signIn(h), prod = {...env, VERCEL_ENV:'production'};
+    const page = await h.call('GET', null, auth.cookie);
+    expect(page.body).toContain('Production enable strictness (owner only)');
+    expect(page.body).toContain('enable strictness word');
+    expect(page.body).toContain('passphrase teams only');
+    const body = {action:'set_production_strictness',account:'team_FAKE',confirm:'yes',
+      csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE,strictness:'passphrase'};
+    const attempt = (payload, cookie = auth.cookie, extra={env:prod}) =>
+      h.call('POST',payload,cookie,extra);
+    expect((await attempt(body,null)).statusCode).toBe(403);
+    expect((await attempt({...body,csrf:'wrong'})).statusCode).toBe(403);
+    expect((await attempt({...body,account:'team_OTHER'})).statusCode).toBe(403);
+    expect((await attempt({...body,confirm:'no'})).statusCode).toBe(403);
+    expect((await attempt({...body,strictness:'ceremony'})).statusCode).toBe(403);
+    // Preview deployments cannot change the strictness.
+    expect((await h.call('POST',body,auth.cookie)).statusCode).toBe(403);
+    expect((await attempt({...body,passphrase:'incorrect'})).statusCode).toBe(401);
+    expect(await h.db.getProductionEnableStrictness('team_FAKE')).toBe('word');
+    expect(h.provider).not.toHaveBeenCalled();
+    const yes = await attempt(body);
+    expect(yes.statusCode).toBe(200);
+    expect(yes.body).toContain('strictness saved as passphrase');
+    expect(yes.body).toContain('No production access was enabled');
+    expect(await h.db.getProductionEnableStrictness('team_FAKE')).toBe('passphrase');
+    const after = await h.call('GET', null, auth.cookie);
+    expect(after.body).toContain('enable strictness passphrase');
+    const back = await attempt({...body,strictness:'word'});
+    expect(back.statusCode).toBe(200);
+    expect(await h.db.getProductionEnableStrictness('team_FAKE')).toBe('word');
+    expect(yes.body).not.toContain(env.ADMIN_PASSPHRASE);
+    expect(yes.body).not.toContain(env.TOKEN_ENCRYPTION_KEY);
+  });
+  it('does not report production-strictness success when verification fails or exceptions occur (AUD-B)', async () => {
+    const h = harness(), auth = await signIn(h), prod = {...env, VERCEL_ENV:'production'};
+    const body = {action:'set_production_strictness',account:'team_FAKE',confirm:'yes',csrf:auth.csrf,
+      passphrase:env.ADMIN_PASSPHRASE,strictness:'passphrase'};
+    const no = await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setProductionEnableStrictness:async()=>false}});
+    expect(no.statusCode).toBe(409);
+    const fail = await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setProductionEnableStrictness:async()=>{throw Error('DO_NOT_ECHO_DB');}}});
+    expect(fail.statusCode).toBe(400);
+    expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
+  });
   it('revokes exactly the selected connector after session, CSRF and fresh passphrase',async()=>{
     const h=harness(),revoke=vi.fn(async()=>true);
     h.db.revokeOwnerConnection=revoke;

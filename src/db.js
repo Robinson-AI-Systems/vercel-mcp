@@ -153,7 +153,7 @@ export function createDb(query) {
     async listVercelAccounts() {
       const run = getSql();
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
-        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents,
+        production_enabled, production_enable_strictness, is_default, token_last4, token_expires_at, spend_limit_cents,
         purchase_budget_cents, purchase_grant_required FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
 
@@ -404,7 +404,7 @@ export function createDb(query) {
       }
       const run = getSql();
       const rows = await run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
-        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents,
+        production_enabled, production_enable_strictness, is_default, token_last4, token_expires_at, spend_limit_cents,
         purchase_budget_cents, purchase_grant_required
         FROM vercel_accounts WHERE id = ${id} LIMIT 1`;
       return rows[0] ?? null;
@@ -630,6 +630,63 @@ export function createDb(query) {
       const rows = await run`UPDATE vercel_accounts SET production_enabled = ${enabled}
         WHERE id = ${accountId} RETURNING id`;
       return rows.length === 1;
+    },
+
+    /**
+     * AUD-B (design D-B, ruling IN-09): the per-team production-enable
+     * strictness — 'word' (default: enable completes on the owner's
+     * confirmed word) or 'passphrase' (the owner chose the two-step setup
+     * ceremony for this team). Returns null when the account does not
+     * exist; a missing/unknown stored value reads back as 'word', the
+     * ruled default.
+     */
+    async getProductionEnableStrictness(id) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id)) {
+        throw new TypeError('Invalid Vercel account');
+      }
+      const run = getSql();
+      const rows = await run`SELECT production_enable_strictness
+        FROM vercel_accounts WHERE id = ${id}`;
+      if (rows.length !== 1) return null;
+      return rows[0].production_enable_strictness === 'passphrase' ?
+        'passphrase' : 'word';
+    },
+
+    /**
+     * Independently authenticated owner setup only — strictness is never
+     * settable through a tool. Atomic account-scoped update and audit,
+     * with the same read-back verification pattern as setPurchasePolicy.
+     * The change_log row is recorded under vercel_enable_production and
+     * its summary names the new strictness (packet AUD-B build contract).
+     */
+    async setProductionEnableStrictness(id, strictness) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id) ||
+        !['word', 'passphrase'].includes(strictness)) {
+        throw new TypeError('Invalid account or production enable strictness');
+      }
+      const summary = 'Owner set the production enable strictness to ' +
+        strictness + ' for this team';
+      const run = getSql();
+      const rows = await run`WITH changed AS (
+          UPDATE vercel_accounts
+          SET production_enable_strictness = ${strictness}
+          WHERE id = ${id}
+          RETURNING id
+        ), audit AS (
+          INSERT INTO change_log
+            (vercel_account, mode, tool, summary, dry_run, production, after)
+          SELECT ${id}, 'production', 'vercel_enable_production',
+            ${summary}, FALSE, TRUE,
+            jsonb_build_object('strictness', ${strictness}::text)
+          FROM changed RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM changed) AS changed_count,
+          (SELECT COUNT(*) FROM audit) AS audit_count`;
+      if (Number(rows[0]?.changed_count) !== 1 || Number(rows[0]?.audit_count) !== 1) {
+        return false;
+      }
+      const verified = await this.getProductionEnableStrictness(id);
+      return verified === strictness;
     },
     async revokeProductionTokens(accountId) {
       if (typeof accountId !== 'string' || !accountId) throw new TypeError('Invalid account');
@@ -1013,12 +1070,16 @@ export function createDb(query) {
         token_expires_at TIMESTAMPTZ, token_checked_at TIMESTAMPTZ, token_probe JSONB,
         production_enabled BOOLEAN NOT NULL DEFAULT FALSE, spend_limit_cents INTEGER NOT NULL DEFAULT 0,
         purchase_budget_cents INTEGER, purchase_grant_required BOOLEAN NOT NULL DEFAULT FALSE,
+        production_enable_strictness TEXT NOT NULL DEFAULT 'word',
         sandbox_minutes_per_day INTEGER, is_default BOOLEAN NOT NULL DEFAULT FALSE,
         added_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
       // AUD-A1 (D-A/OP-2): standing purchase policy on existing tables.
       await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS purchase_budget_cents INTEGER`;
       await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS
         purchase_grant_required BOOLEAN NOT NULL DEFAULT FALSE`;
+      // AUD-B (D-B/IN-09): per-team production enable strictness.
+      await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS
+        production_enable_strictness TEXT NOT NULL DEFAULT 'word'`;
       await run`CREATE TABLE IF NOT EXISTS schema_migrations (
         name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
       // One-time carry of an existing positive owner spend limit into the
