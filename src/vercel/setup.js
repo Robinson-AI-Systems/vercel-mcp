@@ -6,6 +6,7 @@ import { evaluateLogin, clientIp, secretsMatch } from '../core/oauth.js';
 import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 import { escapeHtml, paramsOf, only, send } from '../core/http.js';
 import { storeToken, recheckStoredToken } from './tokens.js';
+import { tokenExpiryPosture } from './token-expiry.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
@@ -98,8 +99,20 @@ function ownerRequestSummary(req) {
 function panel(accounts, csrf, message = '', connections = []) {
   const options = accounts.map(a => '<option value="' + escapeHtml(a.id) + '">' +
     escapeHtml(a.label) + '</option>').join('');
-  const list = accounts.length ? '<ul>' + accounts.map(a => '<li>' +
-    escapeHtml(a.label) + ' — ' + escapeHtml(a.scope) + '</li>').join('') + '</ul>' :
+  // AUD-E (D-E/VMCP-003/IN-04): each account row states its token expiry
+  // posture from the same stored values vercel_whoami reports. Unknown and
+  // attested-no-expiry accounts never trigger the banner; the banner sits
+  // at the top of the account list and fires only inside the 14-day window
+  // or once expired.
+  const postures = accounts.map(a => tokenExpiryPosture(a));
+  const banner = accounts.map((a, i) => ({ a, p: postures[i] })).filter(x => x.p.inWindow)
+    .map(x => '<p role="alert">' + escapeHtml(x.p.posture === 'expired' ?
+      'Vercel token for ' + x.a.label + ' expired; rotate it using this setup page.' :
+      'Vercel token for ' + x.a.label + ' ' + x.p.label +
+        '; verify renewal through owner setup.') + '</p>').join('');
+  const list = accounts.length ? banner + '<ul>' + accounts.map((a, i) => '<li>' +
+    escapeHtml(a.label) + ' — ' + escapeHtml(a.scope) + ' — ' +
+    escapeHtml(postures[i].label) + '</li>').join('') + '</ul>' :
     '<p>No Vercel accounts connected yet.</p>';
   return (message ? '<p role="status">' + escapeHtml(message) + '</p>' : '') +
     '<p>Setup is limited to this account owner. Production changes are disabled by default.</p>' +
@@ -153,6 +166,23 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this account policy</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Update purchase policy</button></form></section>' +
+    '<section><h2>Token expiry (owner only)</h2>' +
+    '<p>Current state: ' + (accounts.map((a, i) =>
+      escapeHtml(a.label) + ' — ' + escapeHtml(postures[i].label)).join('; ') || 'none') +
+    '. A token enrolled here records no expiry date, so its state is ' +
+    '"expiry not recorded for this token" until you attest otherwise. ' +
+    'If the enrolled key has no expiry — your choice when you created it — ' +
+    'attest that below and the account will state “no expiry — owner’s ' +
+    'choice”. An attestation belongs to the token enrolled now: enrolling ' +
+    'or rotating a token clears it. Saving changes only the server ' +
+    'database; preview deployments cannot change it.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="set_token_no_expiry">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label><input type="checkbox" name="noExpiry" value="yes">The enrolled token for this account has no expiry (owner’s choice)</label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this attestation (leave the box above unchecked to clear an attestation)</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Save token expiry attestation</button></form></section>' +
     '<section><h2>Review an agent pass request</h2>' +
     '<p>Review the exact read-only scope before issuing a pass. Agents cannot approve their own requests.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -497,6 +527,37 @@ export async function handleSetup(req, res, {
         (parsed === null ? 'no agent budget set' : 'agent budget ' + dollars(parsed)) +
         (grantRequired ? '; per-purchase grant required.' : '; per-purchase grant not required.') +
         ' No spending, purchase or production access was authorized.';
+    } else if (params.action === 'set_token_no_expiry') {
+      // AUD-E: sibling action on the same authenticated owner seam as
+      // set_purchase_policy (session, CSRF, production-only, fresh
+      // passphrase). Setup-only by design: no MCP tool can set the
+      // attestation, so an agent can never present its own claim as the
+      // owner's choice.
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Token expiry attestation changes require the production server.</p>');
+      }
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes') {
+        return html(res, 403, 'Permission denied', '<p>Select an account and confirm the attestation change.</p>');
+      }
+      const approval = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (approval.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (approval.status !== 'ok') {
+        return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      }
+      const attested = params.noExpiry === 'yes';
+      if (typeof db.setTokenNoExpiry !== 'function' ||
+          !(await db.setTokenNoExpiry(params.account, attested))) {
+        return html(res, 409, 'Unavailable', '<p>Token expiry attestation change could not be verified.</p>');
+      }
+      message = attested ?
+        "No-expiry attestation saved: the enrolled token is stated as no expiry — owner's choice." :
+        'No-expiry attestation cleared: the enrolled token expiry is not recorded.';
     } else if (params.action === 'revoke_connection') {
       if (env.VERCEL_ENV !== 'production') {
         return html(res, 403, 'Unavailable', '<p>Revocation requires the production server.</p>');

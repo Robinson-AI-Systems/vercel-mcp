@@ -22,8 +22,8 @@ function request(method, body, cookie) {
     'x-real-ip': '127.0.0.1', ...(cookie ? { cookie } : {})
   } };
 }
-function harness() {
-  const db = createFakeDb({ accounts: [{ id: 'team_FAKE', team_id: 'team_FAKE',
+function harness(accounts) {
+  const db = createFakeDb({ accounts: accounts ?? [{ id: 'team_FAKE', team_id: 'team_FAKE',
     team_slug: 'fixture', label: 'Fixture', scope: 'team' }] });
   const protectedProjects = [];
   const pending = new Map(), once = new Map();
@@ -285,6 +285,88 @@ describe('A-5 owner-only setup security', () => {
     expect(no.statusCode).toBe(409);
     const fail = await h.call('POST',body,auth.cookie,{env:prod,
       db:{...h.db,setPurchasePolicy:async()=>{throw Error('DO_NOT_ECHO_DB');}}});
+    expect(fail.statusCode).toBe(400);
+    expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
+  });
+  it('shows expiry not recorded for an unattested token, never owner choice, with no banner (AUD-E)', async () => {
+    const h = harness();
+    const auth = await signIn(h);
+    const page = await h.call('GET', null, auth.cookie);
+    expect(page.body).toContain('Token expiry (owner only)');
+    expect(page.body).toContain('expiry not recorded for this token');
+    expect(page.body).not.toContain('no expiry — owner&#39;s choice');
+    // The token banner is the only role="alert" element on the panel.
+    expect(page.body).not.toContain('role="alert"');
+  });
+  it('shows expires in 10 days and the banner inside the 14-day window (AUD-E)', async () => {
+    const h = harness([{ id: 'team_FAKE', team_id: 'team_FAKE', team_slug: 'fixture',
+      label: 'Fixture', scope: 'team',
+      token_expires_at: new Date(Date.now() + 10 * 86400000).toISOString() }]);
+    const auth = await signIn(h);
+    const page = await h.call('GET', null, auth.cookie);
+    expect(page.body).toContain('Fixture — team — expires in 10 days');
+    expect(page.body).toContain('role="alert"');
+    expect(page.body).toContain('Vercel token for Fixture expires in 10 days');
+  });
+  it('shows a token expiring in 30 days with no banner (AUD-E window discipline)', async () => {
+    const h = harness([{ id: 'team_FAKE', team_id: 'team_FAKE', team_slug: 'fixture',
+      label: 'Fixture', scope: 'team',
+      token_expires_at: new Date(Date.now() + 30 * 86400000).toISOString() }]);
+    const auth = await signIn(h);
+    const page = await h.call('GET', null, auth.cookie);
+    expect(page.body).toContain('expires in 30 days');
+    expect(page.body).not.toContain('role="alert"');
+  });
+  it('shows expired state and the banner for an expired token (AUD-E)', async () => {
+    const h = harness([{ id: 'team_FAKE', team_id: 'team_FAKE', team_slug: 'fixture',
+      label: 'Fixture', scope: 'team',
+      token_expires_at: new Date(Date.now() - 86400000).toISOString() }]);
+    const auth = await signIn(h);
+    const page = await h.call('GET', null, auth.cookie);
+    expect(page.body).toContain('Fixture — team — expired');
+    expect(page.body).toContain('Vercel token for Fixture expired');
+  });
+  it('sets and clears the no-expiry attestation only with owner session, CSRF, confirmation and fresh passphrase (AUD-E)', async () => {
+    const h = harness();
+    const auth = await signIn(h), prod = {...env, VERCEL_ENV:'production'};
+    const body = {action:'set_token_no_expiry',account:'team_FAKE',confirm:'yes',
+      csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE,noExpiry:'yes'};
+    const attempt = (payload, cookie = auth.cookie, extra={env:prod}) =>
+      h.call('POST',payload,cookie,extra);
+    expect((await attempt(body,null)).statusCode).toBe(403);
+    expect((await attempt({...body,csrf:'wrong'})).statusCode).toBe(403);
+    expect((await attempt({...body,account:'team_OTHER'})).statusCode).toBe(403);
+    expect((await attempt({...body,confirm:'no'})).statusCode).toBe(403);
+    // Preview deployments cannot change the attestation.
+    expect((await h.call('POST',body,auth.cookie)).statusCode).toBe(403);
+    expect((await attempt({...body,passphrase:'incorrect'})).statusCode).toBe(401);
+    expect(await h.db.getTokenNoExpiry('team_FAKE')).toBe(false);
+    expect(h.provider).not.toHaveBeenCalled();
+    const yes = await attempt(body);
+    expect(yes.statusCode).toBe(200);
+    expect(yes.body).toContain('no expiry — owner&#39;s choice');
+    expect(await h.db.getTokenNoExpiry('team_FAKE')).toBe(true);
+    const after = await h.call('GET', null, auth.cookie);
+    expect(after.body).toContain('no expiry — owner&#39;s choice');
+    expect(after.body).not.toContain('role="alert"');
+    const cleared = await attempt({...body,noExpiry:undefined});
+    expect(cleared.statusCode).toBe(200);
+    expect(await h.db.getTokenNoExpiry('team_FAKE')).toBe(false);
+    const afterClear = await h.call('GET', null, auth.cookie);
+    expect(afterClear.body).toContain('expiry not recorded for this token');
+    expect(afterClear.body).not.toContain('no expiry — owner&#39;s choice');
+    expect(yes.body).not.toContain(env.ADMIN_PASSPHRASE);
+    expect(yes.body).not.toContain(env.TOKEN_ENCRYPTION_KEY);
+  });
+  it('does not report attestation success when verification fails or exceptions occur (AUD-E)', async () => {
+    const h = harness(), auth = await signIn(h), prod = {...env, VERCEL_ENV:'production'};
+    const body = {action:'set_token_no_expiry',account:'team_FAKE',confirm:'yes',csrf:auth.csrf,
+      passphrase:env.ADMIN_PASSPHRASE,noExpiry:'yes'};
+    const no = await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setTokenNoExpiry:async()=>false}});
+    expect(no.statusCode).toBe(409);
+    const fail = await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setTokenNoExpiry:async()=>{throw Error('DO_NOT_ECHO_DB');}}});
     expect(fail.statusCode).toBe(400);
     expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
   });
