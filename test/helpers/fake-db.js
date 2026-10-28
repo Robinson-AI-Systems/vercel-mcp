@@ -27,8 +27,28 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         purchase_budget_cents: account.purchase_budget_cents ?? null,
         purchase_grant_required: Boolean(account.purchase_grant_required),
         token_last4: account.token_last4 ?? null,
-        token_expires_at: account.token_expires_at ?? null
+        token_expires_at: account.token_expires_at ?? null,
+        token_no_expiry: Boolean(account.token_no_expiry),
+        token_version: account.token_version ?? null
       }));
+    },
+
+    async getTokenNoExpiry(id) {
+      const account = accountRows.get(id);
+      if (!account) return null;
+      return Boolean(account.token_no_expiry);
+    },
+
+    async setTokenNoExpiry(id, attested, expectedVersion) {
+      if (typeof attested !== 'boolean' ||
+        typeof expectedVersion !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedVersion)) {
+        throw new TypeError('Invalid account or no-expiry attestation');
+      }
+      const account = accountRows.get(id);
+      if (!account || account.token_version !== expectedVersion) return false;
+      account.token_no_expiry = attested;
+      return true;
     },
 
     async getPurchasePolicy(id) {
