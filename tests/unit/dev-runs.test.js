@@ -307,3 +307,54 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     expect(f.fake.calls).toHaveLength(0);
   });
 });
+describe('AUD-H real provider shapes in seed and cleanup (VMCP-023)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();loadToken.mockResolvedValue({
+    token:'vcp_FAKE_DEV_TOKEN',account:{id:account,scope:'team',team_id:team}
+  });});
+  it('cleans an unaliased preview deployment whose object carries target:null',async()=>{
+    const f=fixture([object('deployment',deployment)]);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}')
+      .resolves({uid:deployment,projectId:project,target:null,
+        readyState:'CANCELED',alias:[]})
+      .resolves({uid:deployment,projectId:project,target:null,
+        readyState:'CANCELED',alias:[]})
+      .rejects(404);
+    f.fake.when('DELETE','/v13/deployments/{id}').resolves({},204);
+    const done=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'cleanupNullTarget1'}));
+    expect(done).toMatchObject({status:'applied',confirmed:true});
+    expect(f.rows.get(runId)[0].status).toBe('cleaned');
+    f.fake.verify();
+  });
+  it('seeds a preview deployment against the real provider shapes',async()=>{
+    const seedRun='run_20261028_audh000001';
+    const name='rtc-'+seedRun.replaceAll('_','-')+'-static-site';
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.db.createDevRun=async({id,account:acct})=>{
+      if(acct!==account)return {created:false};
+      f.runs.set(id,{id,description:'Synthetic static-site',status:'active',
+        created_at:new Date().toISOString(),cleaned_at:null});
+      f.rows.set(id,[]);return {created:true};
+    };
+    f.db.addDevRunObject=async({id,type,objectId,projectId,detail})=>{
+      f.rows.get(id)?.push(object(type,objectId,projectId??project,detail??{}));
+      return true;
+    };
+    const projectRow={id:project,name,accountId:team};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .rejects(404).rejects(404).rejects(404).resolves(projectRow);
+    f.fake.when('POST','/v11/projects').resolves(projectRow);
+    f.fake.when('POST','/v2/files').resolves({urls:['example-upload.aws.com']},200);
+    const deploymentRow={id:deployment,projectId:project,target:null,
+      readyState:'QUEUED',meta:{rtc_run:seedRun}};
+    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
+    const out=parse(await f.call('vercel_dev_seed',
+      {scenario:'static-site',runId:seedRun,outsideApp:true,confirm:true,
+        requestKey:'seedAudH00001'},{...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+});

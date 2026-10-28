@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch,PreDispatchRefusal,purchaseDelegationFor} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
+import {deploymentTargetMatches} from '../vercel/deployment-target.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {seedManifest,DEV_SCENARIOS} from '../dev/scenarios.js';
 import {checkProtected} from './self-guard.js';
@@ -207,7 +208,8 @@ const seed=defineWrite({
       shapeResult:row=>{
         const id=row?.id??row?.uid;
         if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
-           row.projectId!==created.id||row.target!=='preview')
+           row.projectId!==created.id||
+           !deploymentTargetMatches(row.target,'preview'))
           throw new TypeError('Provider did not prove seeded preview identity');
         return {id};
       }});
@@ -228,7 +230,8 @@ const seed=defineWrite({
       ctx.db.listDevRunObjects({account:scope(ctx),id:b.runId})]);
     return {confirmed:project?.id===r.projectId&&project.name===b.name&&
       (deployment?.uid??deployment?.id)===r.deploymentId&&
-      deployment.projectId===r.projectId&&deployment.target==='preview'&&
+      deployment.projectId===r.projectId&&
+      deploymentTargetMatches(deployment.target,'preview')&&
       deployment.meta?.rtc_run===b.runId&&
       objects.some(o=>o.object_id===r.projectId&&o.object_type==='project')&&
       objects.some(o=>o.object_id===r.deploymentId&&o.object_type==='deployment')};
@@ -255,7 +258,8 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
       if((alias?.uid??alias?.id)!==o.object_id||alias.alias!==name||
          (alias.deploymentId??alias.deployment?.id)!==deploy||
          (target?.uid??target?.id)!==deploy||
-         target.projectId!==project||target.target!=='preview')
+         target.projectId!==project||
+         !deploymentTargetMatches(target.target,'preview'))
         throw new PreDispatchRefusal('Alias no longer resolves exclusively to recorded preview');
     };
     try{await inspect();}catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
@@ -324,13 +328,15 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
   if(o.object_type==='deployment'){
     const row=await provider.read('deployments_get',{path:{idOrUrl:o.object_id}});
     if((row?.uid??row?.id)!==o.object_id||row.projectId!==project||
-       row.target!=='preview'||!Array.isArray(row.alias)||row.alias.length||
+       !deploymentTargetMatches(row.target,'preview')||
+       !Array.isArray(row.alias)||row.alias.length||
        row.aliases!=null&&(!Array.isArray(row.aliases)||row.aliases.length))
       return 'Deployment is serving, production, aliased or no longer identified';
     await requirePreDispatch(async()=>{
       const fresh=await provider.read('deployments_get',{path:{idOrUrl:o.object_id}});
       if((fresh?.uid??fresh?.id)!==o.object_id||fresh.projectId!==project||
-         fresh.target!=='preview'||!Array.isArray(fresh.alias)||fresh.alias.length)
+         !deploymentTargetMatches(fresh.target,'preview')||
+         !Array.isArray(fresh.alias)||fresh.alias.length)
         throw new Error('Preview safety proof changed');
     });
     await provider.write('deployments_delete',{path:{id:o.object_id}},

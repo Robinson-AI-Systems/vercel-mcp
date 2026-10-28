@@ -194,3 +194,95 @@ describe('binary upload HTTP transport (offline fake only)',()=>{
     expect(fake.calls).toHaveLength(1);expect(keys).toHaveLength(1);
   });
 });
+describe('AUD-H legible upload failures (VMCP-023)',()=>{
+  const store=()=>({claim:async c=>({state:'claimed',claimId:c.key}),
+    complete:async()=>{}});
+  const bytes=Buffer.from('legible'),sha=createHash('sha1')
+    .update(bytes).digest('hex');
+  it('names the upload leg and HTTP status class on a provider refusal',async()=>{
+    const fake=makeFakeVercel();
+    fake.when('POST','/v2/files').rejects(503);
+    const client=makeVercelClient({token:'vcp_FAKE_token',account,
+      fetchImpl:fake.fetch,replayStore:store()});
+    await expect(client.uploadFile({bytes,sha},{requestKey:'fileUploadFAKE05',
+      tool:'vercel_deploy_create_from_files'}))
+      .rejects.toMatchObject({code:'outcome_unknown',
+        leg:'deployments_file_upload',failureClass:'http_status',status:503});
+    expect(fake.calls).toHaveLength(1);
+  });
+  it('classifies an aborted upload fetch as a timeout, never retrying',async()=>{
+    let calls=0;
+    const fetchImpl=async()=>{calls++;
+      const e=new Error('The operation timed out');e.name='TimeoutError';throw e;};
+    const client=makeVercelClient({token:'vcp_FAKE_token',account,
+      fetchImpl,replayStore:store()});
+    await expect(client.uploadFile({bytes,sha},{requestKey:'fileUploadFAKE06',
+      tool:'vercel_deploy_create_from_files'}))
+      .rejects.toMatchObject({code:'outcome_unknown',
+        leg:'deployments_file_upload',failureClass:'timeout'});
+    expect(calls).toBe(1);
+  });
+  it('classifies a refused upload fetch as network failure',async()=>{
+    const fetchImpl=async()=>{throw new TypeError('fetch failed');};
+    const client=makeVercelClient({token:'vcp_FAKE_token',account,
+      fetchImpl,replayStore:store()});
+    await expect(client.uploadFile({bytes,sha},{requestKey:'fileUploadFAKE07',
+      tool:'vercel_deploy_create_from_files'}))
+      .rejects.toMatchObject({code:'outcome_unknown',
+        leg:'deployments_file_upload',failureClass:'network'});
+  });
+});
+describe('AUD-H real provider shapes through the guarded tool (VMCP-023)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();
+    loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
+  const deploymentId='dpl_FAKEDEPLOY01';
+  // The provider's documented encoding: a preview deployment object carries
+  // target:null (the vendored snapshot: null indicates a preview deployment).
+  const deploymentRow={id:deploymentId,projectId:project,target:null,
+    readyState:'QUEUED',url:'my-app-git-preview.vercel.app'};
+  const ownerConn={...connection,kind:'connector'};
+  function ownerFixture(){
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    return f;
+  }
+  it('applies a confirmed preview deployment against the real shapes',async()=>{
+    const f=ownerFixture();
+    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+  it('names the upload leg when the upload fails',async()=>{
+    const f=ownerFixture();
+    f.fake.when('POST','/v2/files').rejects(503);
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_file_upload',failureClass:'http_status',
+        status:503}});
+    f.fake.verify();
+  });
+  it('names the create leg and provider code when creation is refused',async()=>{
+    const f=ownerFixture();
+    f.fake.when('POST','/v13/deployments').rejects(400,
+      {error:{code:'missing_files',message:'do-not-leak-marker'}});
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_create',code:'missing_files',status:400}});
+    expect(JSON.stringify(out)).not.toContain('do-not-leak-marker');
+    f.fake.verify();
+  });
+  it('names an unverified create response shape without leaking it',async()=>{
+    const f=ownerFixture();
+    f.fake.when('POST','/v13/deployments')
+      .resolves({id:deploymentId,projectId:'prj_OTHER',target:null});
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_create',code:'response_shape_unverified'}});
+    f.fake.verify();
+  });
+});

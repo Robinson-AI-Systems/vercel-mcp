@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
+import {deploymentTargetMatches} from '../vercel/deployment-target.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
@@ -151,7 +152,8 @@ const create=defineWrite({
     },{requestKey,tool:'vercel_deploy_create_from_files',shapeResult:row=>{
       const id=row?.id??row?.uid;
       if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
-        row.projectId!==before.project||row.target!==before.target)
+        row.projectId!==before.project||
+        !deploymentTargetMatches(row.target,before.target))
         throw new TypeError('Created deployment identity/target unverified');
       return {id};
     }});
@@ -162,7 +164,8 @@ const create=defineWrite({
     if(account.team_id!==before.teamId)return {confirmed:null};
     const row=await client.request('deployments_get',{path:{idOrUrl:created.id}});
     return {confirmed:(row?.uid??row?.id)===created.id&&
-      row.projectId===before.project&&row.target===before.target,
+      row.projectId===before.project&&
+      deploymentTargetMatches(row.target,before.target),
       deployment:created.id};
   }
 });

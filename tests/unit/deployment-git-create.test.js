@@ -108,3 +108,20 @@ describe('D-3 Git deployment source and cost-safe nonproduction gates',()=>{
     expect(f.fake.calls.some(x=>x.method==='POST')).toBe(false);
   });
 });
+describe('AUD-H real provider shapes (VMCP-023)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();
+    loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
+  it('applies a confirmed preview deployment whose object carries target:null',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    const deploymentRow={id:'dpl_FAKEGITDEP01',projectId:project,target:null,
+      readyState:'QUEUED'};
+    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
+    const out=decode(await f.call({...args,confirm:true},
+      {...connection,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+});
