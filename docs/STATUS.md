@@ -1,4 +1,4 @@
-## 2026-10-28 — VMCP-024 delta: Muse client metadata document implemented (branch `ai/vivienne/vmcp-024-muse-client`, base main `ad5af3b`)
+## 2026-10-28 — VMCP-024 delta: Muse client metadata document implemented (card AUD-G; branch `ai/vivienne/vmcp-024-muse-client`, base main `ad5af3b`)
 
 The owner's instruction the same day ("fix it — start with the Vercel MCP server"), with his constraint recorded verbatim in the session: do not lose or limit the ability to connect to other platforms — most especially ChatGPT and Claude (desktop and their mobile apps, which connect through the mobile web browser). The change is purely additive and honors that constraint by construction.
 
