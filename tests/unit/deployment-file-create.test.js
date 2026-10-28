@@ -257,6 +257,24 @@ describe('AUD-H real provider shapes through the guarded tool (VMCP-023)',()=>{
     expect(out).toMatchObject({status:'applied',confirmed:true});
     f.fake.verify();
   });
+  it('echoes the project record settings into the create body (AUD-J)',async()=>{
+    const configured={...row,framework:'nextjs',buildCommand:'next build'};
+    const f=fixture(configured);
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create.body.projectSettings).toEqual({
+      buildCommand:'next build',devCommand:null,framework:'nextjs',
+      installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
   it('names the upload leg when the upload fails',async()=>{
     const f=ownerFixture();
     f.fake.when('POST','/v2/files').rejects(503);
