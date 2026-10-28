@@ -59,7 +59,7 @@ it('enforces safe defaults and has no plaintext token columns', async () => {
     const defaults = Object.fromEntries(rows.map((row) => [row.column_name, row.column_default]));
     expect(defaults.mode).toMatch(/preview/);
     expect(defaults.profile).toMatch(/everyday/);
-    expect(defaults.listing).toMatch(/catalog/);
+    expect(defaults.listing).toMatch(/front_door/);
     if (table === 'oauth_tokens') expect(defaults.kind).toMatch(/connector/);
   }
 
@@ -80,6 +80,25 @@ it('enforces safe defaults and has no plaintext token columns', async () => {
     "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema() AND column_name IN ('access_token', 'refresh_token', 'token', 'value', 'plaintext')"
   );
   expect(plaintextColumns).toEqual([]);
+});
+
+it('defaults a fresh oauth row to front_door and keeps an explicit catalog choice (AUD-C)', async () => {
+  await rawQuery(
+    "INSERT INTO oauth_codes (code, client_id, data, expires_at) VALUES ('code_fixture_default', 'client_fixture', '{}'::jsonb, now() + interval '1 hour')"
+  );
+  await rawQuery(
+    "INSERT INTO oauth_tokens (token_hash, client_id, expires_at) VALUES ('hash_fixture_default', 'client_fixture', now() + interval '1 hour')"
+  );
+  await rawQuery(
+    "INSERT INTO oauth_tokens (token_hash, client_id, listing, expires_at) VALUES ('hash_fixture_catalog', 'client_fixture', 'catalog', now() + interval '1 hour')"
+  );
+  const codeRows = await rawQuery("SELECT listing FROM oauth_codes WHERE code = 'code_fixture_default'");
+  expect(codeRows[0].listing).toBe('front_door');
+  const tokenRows = await rawQuery(
+    "SELECT token_hash, listing FROM oauth_tokens WHERE token_hash IN ('hash_fixture_default', 'hash_fixture_catalog') ORDER BY token_hash"
+  );
+  expect(tokenRows.find((row) => row.token_hash === 'hash_fixture_catalog').listing).toBe('catalog');
+  expect(tokenRows.find((row) => row.token_hash === 'hash_fixture_default').listing).toBe('front_door');
 });
 
 it('rejects duplicate protected resources globally and per account', async () => {

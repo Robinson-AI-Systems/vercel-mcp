@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { publicOrigin, send } from './http.js';
 
 const PROFILES = ['read_only', 'everyday', 'full'];
-const LISTINGS = ['catalog', 'compact'];
+const LISTINGS = ['catalog', 'compact', 'front_door'];
 const MODES = ['preview', 'production'];
 
 function reject(res, challenge, code, description) {
