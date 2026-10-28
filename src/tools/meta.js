@@ -66,7 +66,10 @@ export const metaTools={
           (call.args!==undefined && (!call.args || typeof call.args!=='object' ||
             Array.isArray(call.args))))return denied();
         const def=registry?.tools.find(t=>t.name===call.name);
-        if(!def || def.writes!==false || !visibleToProfile(def,connection?.profile))
+        // A delegate may not be batched: vercel_call is declared a read but
+        // can dispatch a write, so batches contain direct read tools only.
+        if(!def || call.name==='vercel_call' || def.writes!==false ||
+          !visibleToProfile(def,connection?.profile))
           return denied();
       }
       const results=[];

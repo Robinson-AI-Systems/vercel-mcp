@@ -19,7 +19,7 @@
     "X",
     "CAP"
   ],
-  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400–800 changed production-code lines and 2–5 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims. Owner clarification 2026-10-14: PR workload accounting counts whole predefined batch subsections in the authoritative roadmap/design, never a function, UI hookup, guard, helper or execution-packet subtask. Partial subsections count zero completed batch subsections; count each subsection once with full eligible engineering and pre-merge evidence. Group related subsections into substantial PRs; use focused checks during work and full required gates on the coherent PR. Existing acceptance and safety gates remain.",
+  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400\u2013800 changed production-code lines and 2\u20135 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims. Owner clarification 2026-10-14: PR workload accounting counts whole predefined batch subsections in the authoritative roadmap/design, never a function, UI hookup, guard, helper or execution-packet subtask. Partial subsections count zero completed batch subsections; count each subsection once with full eligible engineering and pre-merge evidence. Group related subsections into substantial PRs; use focused checks during work and full required gates on the coherent PR. Existing acceptance and safety gates remain.",
   "cards": [
     {
       "id": "A-1",
@@ -579,8 +579,8 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-3 implementer",
-        "reason": "All five D-3 tool source paths now implemented (#173/#175/#191/#192/#193 candidate); new redeploy, Git and bounded UTF-8 files builds require unbounded provider costs so confirmed execution is fail-closed under IN-08. No live build/provider acceptance claimed.",
-        "nextAction": "After exact-head #193 CI, keep D-3 file/Git/redeploy charged test acceptance queued for a genuine Vercel-enforceable per-operation total spending cap, separately independently approved owner grant and authorized disposable fixtures. Continue eligible non-billable approved roadmap reads and denial checks.",
+        "reason": "All five D-3 tool source paths implemented and merged (#173/#175/#191/#192/#193, #193 merged 15735e1). New redeploy, Git and bounded UTF-8 files builds require unbounded provider costs so confirmed execution is fail-closed under IN-08. No live build/provider acceptance claimed.",
+        "nextAction": "Keep D-3 file/Git/redeploy charged test acceptance queued for a genuine Vercel-enforceable per-operation total spending cap, separately independently approved owner grant and authorized disposable fixtures. Continue eligible non-billable approved roadmap reads and denial checks.",
         "checkpoint": "At each substantive D-3 PR boundary and on provision of isolated scratch project per IN-06",
         "evidenceNeeded": "An owner-approved disposable preview deployment (ERROR or CANCELED) with independent proof of empty aliases, a narrow team/project credential and post-deletion 404; test production/foreign denials and preserve $0 spending. Separate cost approval required for metered creation/redeploy.",
         "eligibilityCondition": "Implementation and fake provider regression are eligible immediately; genuine cancellation requires an approved disposable in-progress preview, while metered write activation remains separately gated by IN-08.",
@@ -682,14 +682,15 @@
       "ownerInputs": [],
       "pr": [
         194,
-        197
+        197,
+        198
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-2 implementer",
-        "reason": "E-2 metadata reads #194 and guarded custom lifecycle #197 merged; shared-variable four-mode set/unlink/delete source candidate needs exact-head CI/main merge. Owner-scoped live acceptance requires separately verified checked release and TEST fixtures.",
-        "nextAction": "Complete and merge guarded E-2 shared-variable lifecycle only after exact-head checks and review; advance to next eligible E-3 Global Config design in roadmap order. Independently revisit native E-1/E-2 acceptance after checked live release and owner-granted TEST fixtures.",
-        "checkpoint": "Exact-head shared-variable candidate PR, next E-3 roadmap work and checked production release",
+        "reason": "E-2 metadata reads #194 and guarded custom lifecycle #197 merged; shared-variable four-mode set/unlink/delete merged in PR #198 (6b0cb04) \u2014 vercel_shared_env_set/delete are registered. Owner-scoped live acceptance requires separately verified checked release and TEST fixtures.",
+        "nextAction": "Independently revisit native E-1/E-2 acceptance after checked live release and owner-granted TEST fixtures; advance to next eligible roadmap work in order.",
+        "checkpoint": "Checked live release and owner-granted TEST fixtures; next eligible roadmap work",
         "evidenceNeeded": "Approved four-mode shared variable CI and real TEST provider set/update/unlink/delete with exact scope, values hidden, complete inventory, independent readback and cleanup",
         "eligibilityCondition": "Code/fake tests eligible now; owner-signed TEST fixture plus release required only for genuine acceptance",
         "dependencies": [
@@ -715,13 +716,14 @@
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [],
       "pr": [
-        199
+        199,
+        201
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-3 implementer",
-        "reason": "Global Config source list/read/create/patch/delete merged #199, guarded one-time token and exact-version restore merged #201; complete-inventory newest-before-UTC restore selection source candidate pending CI and native provider acceptance.",
-        "nextAction": "Merge next cohesive schema/backup enhancement only after exact-head CI/review; revisit native E3 acceptance after checked deployment and owner-signed TEST fixture.",
+        "reason": "Global Config source list/read/create/patch/delete merged #199, guarded one-time token and exact-version restore merged #201; newest-before-UTC restore selection is implemented (newestBefore in src/tools/globalconfig-remaining.js). Native provider acceptance still pending.",
+        "nextAction": "Revisit native E-3 acceptance after checked deployment and owner-signed TEST fixture; advance to next eligible roadmap work in order.",
         "checkpoint": "At first E-3 PR merge, next E-3 implementation session and checked live release",
         "evidenceNeeded": "Exact-head CI and genuine native TEST selected-team create/reveal/revoke/restore and safe readback, confirmed cleanup",
         "eligibilityCondition": "Source and synthetic tests eligible now; owner TEST access and checked release required only for live acceptance",
@@ -747,13 +749,15 @@
       ],
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [],
-      "pr": [],
+      "pr": [
+        202
+      ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-4 implementer",
-        "reason": "E-4 native token inventory/revoke merged #201; schema read and compatible set/remove source candidate pending exact-head CI/merge. Native owner TEST acceptance still queued.",
-        "nextAction": "Verify and merge E-4 schema lifecycle when exact-head CI/review passes, then automatically advance to next eligible approved roadmap work in repository order. Retain all native owner TEST acceptance tasks.",
-        "checkpoint": "Current candidate PR head and next E-4 schema implementation session; on next checked release",
+        "reason": "E-4 native token inventory/revoke merged #201; schema read and compatible set/remove merged in PR #202 (41dc332) \u2014 vercel_globalconfig_get/set_schema are registered. Native owner TEST acceptance still queued.",
+        "nextAction": "Retain native owner TEST acceptance tasks; advance to next eligible approved roadmap work in repository order.",
+        "checkpoint": "Next E-4 acceptance session; on next checked release",
         "evidenceNeeded": "Full CI/schema compatibility regression, pinned GET/POST/DELETE path proof, protected/project/production denial, provider schema readback and owner-approved native TEST fixture cleanup",
         "eligibilityCondition": "Schema source/test work eligible now; live TEST acceptance needs checked release and explicit fixture approval",
         "dependencies": [
@@ -888,10 +892,10 @@
       "revisit": {
         "trigger": "owner-input-resolved",
         "owner": "next Vercel MCP implementation/acceptance agent",
-        "reason": "Original frozen 60-minute cap was rejected by owner IN-13; candidate replacement records use without quota and still needs final exact-head PR CI/merge and real provider acceptance.",
-        "nextAction": "After corrected exact-head CI and source review, safely merge PR #216; then execute separately authorized deployed/native provider Sandbox acceptance.",
-        "checkpoint": "On PR #216 final CI/review/merge and first eligible serving READY revision",
-        "evidenceNeeded": "Successful exact-head check/unit/db/emulate/ci/release-policy, completed review, confirmed source merge and owner-authorized metered native provider test receipt.",
+        "reason": "PR #216 merged (0705ba5). Sandbox source is complete; real provider acceptance is not yet proven.",
+        "nextAction": "Execute separately authorized deployed/native provider acceptance (metered Sandbox receipt for V-4; signed scratch receiver for V-5).",
+        "checkpoint": "First eligible serving READY revision and owner-authorized fixture",
+        "evidenceNeeded": "Owner-authorized metered native provider test receipt (V-4) / signed real scratch receiver evidence (V-5).",
         "eligibilityCondition": "Engineering verification currently eligible; charged provider acceptance requires deployed READY revision and independent end-user scoped fixture authority; developer agent must not spend.",
         "dependencies": [
           "V-1"
@@ -925,10 +929,10 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementation/acceptance agent",
-        "reason": "Synthetic signed webhook source candidate is on the shared V-4/V-5 PR; exact-head CI/merge and native controlled receiver acceptance are not yet proven.",
-        "nextAction": "After corrected exact-head CI and source review, safely merge PR #216; then execute separately authorized native synthetic webhook scratch receiver acceptance.",
-        "checkpoint": "On PR #216 final CI/review/merge and first eligible serving READY revision",
-        "evidenceNeeded": "Successful exact-head check/unit/db/emulate/ci/release-policy, completed review/merge and signed real scratch receiver evidence.",
+        "reason": "PR #216 merged (0705ba5). Synthetic webhook source is complete; real provider acceptance is not yet proven.",
+        "nextAction": "Execute separately authorized deployed/native provider acceptance (metered Sandbox receipt for V-4; signed scratch receiver for V-5).",
+        "checkpoint": "First eligible serving READY revision and owner-authorized fixture",
+        "evidenceNeeded": "Owner-authorized metered native provider test receipt (V-4) / signed real scratch receiver evidence (V-5).",
         "eligibilityCondition": "Engineering verification currently eligible; charged provider acceptance requires deployed READY revision and independent end-user scoped fixture authority; developer agent must not spend.",
         "dependencies": [
           "V-1"
@@ -944,14 +948,26 @@
         "D-1"
       ],
       "card": "docs/pr-cards/N-1.md",
-      "status": "APPROVED",
+      "status": "IN_PROGRESS",
       "migration": "none",
       "budget": 400,
       "units": [
         "N-1"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "revisit": {
+        "trigger": "next-implementation-slice",
+        "owner": "next N-1 implementer/acceptance agent",
+        "reason": "All 11 N-1 domain tools implemented on branch marley/audit-vercel-mcp-20261025 (src/tools/domains.js, 12 pinned operations, 19 fake-provider unit tests); not yet merged, no PR. Live/provider acceptance pending.",
+        "nextAction": "Review the branch, merge when authorized, then execute native acceptance on an owner-authorised fixture (IN-06 scratch or equivalent): domain attach + config readback, remove-refused-while-aliases-exist, branch-domain production classification.",
+        "checkpoint": "At merge of the N-1 branch and first eligible serving READY revision",
+        "evidenceNeeded": "Exact-head CI on the branch, review, merge, and native TEST provider read/write/readback evidence per docs/pr-cards/N-1.md",
+        "eligibilityCondition": "Source and fake tests eligible now; live acceptance needs checked release and owner-authorised fixture",
+        "dependencies": [
+          "D-1"
+        ]
+      }
     },
     {
       "id": "N-2",
@@ -1503,15 +1519,18 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Read-only HTTPS RTC door, manifest and per-pass rate policy are implemented and source-tested in partial PR #219; full R-2 write-contract HTTPS access and original R-1 write-capable-pass prerequisite remain incomplete, plus independently authenticated client/provider acceptance.",
+        "reason": "Read-only HTTPS RTC door, manifest and per-pass rate policy are implemented and source-tested; merged in PR #219. Full R-2 write-contract HTTPS access and original R-1 write-capable-pass prerequisite remain incomplete, plus independently authenticated client/provider acceptance.",
         "nextAction": "Implement correctly delegated R-1 write-capable RTC pass grant with all scope/resource/spend/replay checks, then R-2 HTTP write-contract and original rate/window/source conformance; independently verify client/provider positive+denied operations and revocation.",
-        "checkpoint": "At safe partial PR #219 handoff/merge and each subsequent original R-1/R-2 engineering session; no full completion before original criteria pass",
+        "checkpoint": "At merged PR #219 and each subsequent original R-1/R-2 engineering session; no full completion before original criteria pass",
         "evidenceNeeded": "R-1 authorized pass issuance and write refusal/positive proofs; original R-2 HTTP write-contract tests, exact-head safety/CI/DB concurrency including cleanup, and separately recorded actual serving source and independent desktop/mobile/provider acceptance; Hub integration not required.",
         "eligibilityCondition": "Read-only door, owner per-pass limits, public OAuth and source test completion checked; full HTTP write delegation needs completed R-1 authorization boundary and service-owned verification, not distribution eligibility.",
         "dependencies": [
           "R-1"
         ]
-      }
+      },
+      "pr": [
+        219
+      ]
     },
     {
       "id": "R-3",
