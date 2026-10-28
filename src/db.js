@@ -7,7 +7,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -153,7 +153,8 @@ export function createDb(query) {
     async listVercelAccounts() {
       const run = getSql();
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
-        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
+        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents,
+        purchase_budget_cents, purchase_grant_required FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
 
     /**
@@ -217,6 +218,71 @@ export function createDb(query) {
       }
       const verified = await run`SELECT spend_limit_cents FROM vercel_accounts WHERE id = ${id}`;
       return verified.length === 1 && verified[0].spend_limit_cents === cents;
+    },
+
+    /**
+     * AUD-A1 (design D-A, owner ruling OP-2): the account's standing purchase
+     * policy — an optional owner-set agent budget (NULL = no budget) and the
+     * owner's opt-in to per-purchase grants. Storage only in this packet:
+     * reading or setting the policy never authorizes a purchase, and the
+     * executor keeps its current grant behavior until AUD-A2.
+     * Returns null when the account does not exist.
+     */
+    async getPurchasePolicy(id) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id)) {
+        throw new TypeError('Invalid Vercel account');
+      }
+      const run = getSql();
+      const rows = await run`SELECT purchase_budget_cents, purchase_grant_required
+        FROM vercel_accounts WHERE id = ${id}`;
+      if (rows.length !== 1) return null;
+      return { budgetCents: rows[0].purchase_budget_cents ?? null,
+        grantRequired: Boolean(rows[0].purchase_grant_required) };
+    },
+
+    /**
+     * Independently authenticated owner setup only. Atomic account-scoped
+     * purchase-policy update and audit, with the same read-back verification
+     * pattern as setOwnerSpendLimit. Every successful set is journaled.
+     */
+    async setPurchasePolicy(id, policy) {
+      const { budgetCents, grantRequired } = policy ?? {};
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id) ||
+        !(budgetCents === null || (Number.isInteger(budgetCents) &&
+          budgetCents >= 0 && budgetCents <= 2147483647)) ||
+        typeof grantRequired !== 'boolean') {
+        throw new TypeError('Invalid account or purchase policy');
+      }
+      const budgetText = budgetCents === null ? 'no agent budget' :
+        'agent budget $' + Math.floor(budgetCents / 100) + '.' +
+          String(budgetCents % 100).padStart(2, '0');
+      const summary = 'Owner set the purchase policy: ' + budgetText +
+        (grantRequired ? '; per-purchase grant required' :
+          '; per-purchase grant not required');
+      const run = getSql();
+      const rows = await run`WITH changed AS (
+          UPDATE vercel_accounts
+          SET purchase_budget_cents = ${budgetCents},
+            purchase_grant_required = ${grantRequired}
+          WHERE id = ${id}
+          RETURNING id
+        ), audit AS (
+          INSERT INTO change_log
+            (vercel_account, mode, tool, summary, dry_run, production, after)
+          SELECT ${id}, 'production', 'vercel_set_purchase_policy',
+            ${summary}, FALSE, TRUE,
+            jsonb_build_object('budgetCents', ${budgetCents}::integer,
+              'grantRequired', ${grantRequired}::boolean)
+          FROM changed RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM changed) AS changed_count,
+          (SELECT COUNT(*) FROM audit) AS audit_count`;
+      if (Number(rows[0]?.changed_count) !== 1 || Number(rows[0]?.audit_count) !== 1) {
+        return false;
+      }
+      const verified = await this.getPurchasePolicy(id);
+      return verified !== null && verified.budgetCents === budgetCents &&
+        verified.grantRequired === grantRequired;
     },
 
 
@@ -338,7 +404,8 @@ export function createDb(query) {
       }
       const run = getSql();
       const rows = await run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
-        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents
+        production_enabled, is_default, token_last4, token_expires_at, spend_limit_cents,
+        purchase_budget_cents, purchase_grant_required
         FROM vercel_accounts WHERE id = ${id} LIMIT 1`;
       return rows[0] ?? null;
     },
@@ -945,8 +1012,31 @@ export function createDb(query) {
         scope TEXT NOT NULL, project_id TEXT, project_name TEXT, token_enc TEXT NOT NULL, token_last4 TEXT NOT NULL,
         token_expires_at TIMESTAMPTZ, token_checked_at TIMESTAMPTZ, token_probe JSONB,
         production_enabled BOOLEAN NOT NULL DEFAULT FALSE, spend_limit_cents INTEGER NOT NULL DEFAULT 0,
+        purchase_budget_cents INTEGER, purchase_grant_required BOOLEAN NOT NULL DEFAULT FALSE,
         sandbox_minutes_per_day INTEGER, is_default BOOLEAN NOT NULL DEFAULT FALSE,
         added_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+      // AUD-A1 (D-A/OP-2): standing purchase policy on existing tables.
+      await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS purchase_budget_cents INTEGER`;
+      await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS
+        purchase_grant_required BOOLEAN NOT NULL DEFAULT FALSE`;
+      await run`CREATE TABLE IF NOT EXISTS schema_migrations (
+        name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+      // One-time carry of an existing positive owner spend limit into the
+      // new optional agent budget, gated on a durable marker row.
+      // initSchema() runs on requests, so an unguarded IS NULL update would
+      // resurrect a budget the owner later cleared back to NULL. The marker
+      // insert and the carry are one statement — they commit together or
+      // not at all — and once the marker exists this is inert.
+      await run`WITH marker AS (
+          INSERT INTO schema_migrations (name)
+          VALUES ('aud_a1_purchase_policy_carry_v1')
+          ON CONFLICT (name) DO NOTHING RETURNING name
+        ), carried AS (
+          UPDATE vercel_accounts SET purchase_budget_cents = spend_limit_cents
+          WHERE spend_limit_cents > 0 AND EXISTS (SELECT 1 FROM marker)
+          RETURNING id
+        ) SELECT (SELECT COUNT(*) FROM marker) AS marker_count,
+          (SELECT COUNT(*) FROM carried) AS carried_count`;
       await run`CREATE TABLE IF NOT EXISTS oauth_clients (
         client_id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
       await run`CREATE TABLE IF NOT EXISTS oauth_codes (

@@ -20,8 +20,34 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         id: account.id, team_id: account.team_id, team_slug: account.team_slug,
         label: account.label, scope: account.scope, project_id: account.project_id,
         project_name: account.project_name, production_enabled: Boolean(account.production_enabled),
-        is_default: Boolean(account.is_default)
+        is_default: Boolean(account.is_default),
+        spend_limit_cents: account.spend_limit_cents ?? 0,
+        purchase_budget_cents: account.purchase_budget_cents ?? null,
+        purchase_grant_required: Boolean(account.purchase_grant_required),
+        token_last4: account.token_last4 ?? null,
+        token_expires_at: account.token_expires_at ?? null
       }));
+    },
+
+    async getPurchasePolicy(id) {
+      const account = accountRows.get(id);
+      if (!account) return null;
+      return { budgetCents: account.purchase_budget_cents ?? null,
+        grantRequired: Boolean(account.purchase_grant_required) };
+    },
+
+    async setPurchasePolicy(id, policy) {
+      const { budgetCents, grantRequired } = policy ?? {};
+      if (!(budgetCents === null || (Number.isInteger(budgetCents) &&
+          budgetCents >= 0 && budgetCents <= 2147483647)) ||
+        typeof grantRequired !== 'boolean') {
+        throw new TypeError('Invalid account or purchase policy');
+      }
+      const account = accountRows.get(id);
+      if (!account) return false;
+      account.purchase_budget_cents = budgetCents;
+      account.purchase_grant_required = grantRequired;
+      return true;
     },
 
     async createOAuthClient({ clientId, clientSecret, redirectUris, clientName,

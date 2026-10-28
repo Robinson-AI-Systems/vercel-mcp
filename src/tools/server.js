@@ -79,6 +79,8 @@ export const serverTools = {
       return asText({ account: safe(row), mode: connection.mode,
         profile: connection.profile, listing: connection.listing,
         spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent,
+        purchaseBudgetCents: row.purchase_budget_cents ?? null,
+        purchaseGrantRequired: Boolean(row.purchase_grant_required),
         tokenWarning });
     },
     async vercel_list_accounts(args, { connection, db }) {

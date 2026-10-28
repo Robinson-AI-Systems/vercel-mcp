@@ -132,6 +132,27 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this account limit</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Update daily spend limit</button></form></section>' +
+    '<section><h2>Purchase policy (owner only)</h2>' +
+    '<p>Current policy: ' + (accounts.map(a =>
+      escapeHtml(a.label) + ' — ' +
+      escapeHtml(a.purchase_budget_cents == null ? 'no agent budget set' :
+        'agent budget ' + dollars(a.purchase_budget_cents)) + '; ' +
+      escapeHtml(a.purchase_grant_required ?
+        'per-purchase grant required' : 'per-purchase grant not required')).join('; ') || 'none') +
+    '. The agent budget is optional and frames cost disclosure; it is your ' +
+    'standing delegation setting, separate from the legacy daily spend limit ' +
+    'above. Checking the grant box opts this account into the strictest ' +
+    'setting, where each purchase needs its own one-time owner grant. ' +
+    'Saving a policy changes only the server database and does not itself ' +
+    'authorize any purchase; preview deployments cannot change it.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="set_purchase_policy">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Agent budget in USD (leave blank for no budget)<input name="budgetDollars" inputmode="decimal"></label>' +
+    '<label><input type="checkbox" name="grantRequired" value="yes">Require a per-purchase owner grant (strictest setting)</label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this account policy</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Update purchase policy</button></form></section>' +
     '<section><h2>Review an agent pass request</h2>' +
     '<p>Review the exact read-only scope before issuing a pass. Agents cannot approve their own requests.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -441,6 +462,41 @@ export async function handleSetup(req, res, {
       }
       message = 'Daily spending limit saved as ' + dollars(cents) +
         '. No spending, purchase or production access was authorized.';
+    } else if (params.action === 'set_purchase_policy') {
+      // AUD-A1: sibling action on the same authenticated owner seam as
+      // set_spend_limit (session, CSRF, production-only, fresh passphrase).
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Purchase policy changes require the production server.</p>');
+      }
+      const rawBudget = typeof params.budgetDollars === 'string' ?
+        params.budgetDollars.trim() : params.budgetDollars;
+      const parsed = rawBudget === '' || rawBudget === undefined ?
+        null : exactDollarCents(rawBudget);
+      const budgetInvalid = !(rawBudget === '' || rawBudget === undefined) && parsed === null;
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes' || budgetInvalid) {
+        return html(res, 403, 'Permission denied', '<p>Select an account, confirm, and enter an exact USD budget or leave it blank.</p>');
+      }
+      const approval = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (approval.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (approval.status !== 'ok') {
+        return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      }
+      const grantRequired = params.grantRequired === 'yes';
+      if (typeof db.setPurchasePolicy !== 'function' ||
+          !(await db.setPurchasePolicy(params.account,
+            { budgetCents: parsed, grantRequired }))) {
+        return html(res, 409, 'Unavailable', '<p>Purchase policy change could not be verified.</p>');
+      }
+      message = 'Purchase policy saved: ' +
+        (parsed === null ? 'no agent budget set' : 'agent budget ' + dollars(parsed)) +
+        (grantRequired ? '; per-purchase grant required.' : '; per-purchase grant not required.') +
+        ' No spending, purchase or production access was authorized.';
     } else if (params.action === 'revoke_connection') {
       if (env.VERCEL_ENV !== 'production') {
         return html(res, 403, 'Unavailable', '<p>Revocation requires the production server.</p>');
