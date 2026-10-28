@@ -100,7 +100,7 @@ describe('N-1 team and project domains',()=>{
   });
   it('gets one domain with its verification record and empty usage',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v5/domains/{domain}').resolves(domainRow);
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
     f.fake.when('GET','/v9/domains/{domain}/verification').resolves({
       txtRecord:'vercel-domain-verify=example.test,FAKE123',
       verificationDomain:'_vercel.example.test'});
@@ -152,7 +152,7 @@ describe('N-1 team and project domains',()=>{
   });
   it('adds a team domain with preview, confirm and independent read-back',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v5/domains/{domain}').rejects(404).rejects(404).rejects(404).resolves(domainRow);
+    f.fake.when('GET','/v5/domains/{domain}').rejects(404).rejects(404).rejects(404).resolves({domain:domainRow});
     f.fake.when('POST','/v7/domains').resolves({domain:domainRow});
     const preview=value(await f.call('vercel_domain_add_to_team',
       {domain,zone:true,outsideApp:true,dryRun:true},production));
@@ -172,7 +172,7 @@ describe('N-1 team and project domains',()=>{
   });
   it('refuses adding a domain already on the team and a preview-mode add',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v5/domains/{domain}').resolves(domainRow);
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
     expect(value(await f.call('vercel_domain_add_to_team',
       {domain,outsideApp:true,confirm:true},production)).status)
       .toBe('refused_by_guard');
@@ -189,7 +189,7 @@ describe('N-1 team and project domains',()=>{
   });
   it('moves a team domain out and proves absence, and updates ECH with read-back',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v5/domains/{domain}').resolves(domainRow).resolves(domainRow).rejects(404);
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow}).resolves({domain:domainRow}).rejects(404);
     f.fake.when('PATCH','/v3/domains/{domain}').resolves({moved:true});
     const moved=value(await f.call('vercel_domain_update',
       {domain,destination:'team_OTHER',outsideApp:true,confirm:true},production));
@@ -197,7 +197,7 @@ describe('N-1 team and project domains',()=>{
     expect(f.fake.calls.find(x=>x.method==='PATCH').body)
       .toEqual({op:'move-out',destination:'team_OTHER'});
     const g=fixture();
-    g.fake.when('GET','/v5/domains/{domain}').resolves({...domainRow,echMode:'auto'});
+    g.fake.when('GET','/v5/domains/{domain}').resolves({domain:{...domainRow,echMode:'auto'}});
     g.fake.when('PATCH','/v3/domains/{domain}').resolves({echMode:'auto'});
     const updated=value(await g.call('vercel_domain_update',
       {domain,echMode:'auto',outsideApp:true,confirm:true},production));
@@ -208,7 +208,7 @@ describe('N-1 team and project domains',()=>{
   });
   it('refuses removing a domain while aliases and a project still use it',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v5/domains/{domain}').resolves(domainRow);
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
     f.fake.when('GET','/v4/aliases').resolves({aliases:[{alias:domain,
       projectId:project,deploymentId:'dpl_FAKE_ONE'}],pagination:{next:null}});
     f.fake.when('GET','/v10/projects').resolves({
@@ -230,7 +230,7 @@ describe('N-1 team and project domains',()=>{
   });
   it('removes an unused team domain with absence read-back',async()=>{
     const f=fixture();
-    f.fake.when('GET','/v5/domains/{domain}').resolves(domainRow).resolves(domainRow).rejects(404);
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow}).resolves({domain:domainRow}).rejects(404);
     emptyUsage(f.fake);
     f.fake.when('DELETE','/v6/domains/{domain}').resolves({uid:'dom_FAKE_ONE'});
     const applied=value(await f.call('vercel_domain_remove_from_team',
@@ -290,6 +290,23 @@ describe('N-1 team and project domains',()=>{
     expect(applied).toMatchObject({status:'applied',confirmed:true});
     expect(f.fake.calls.find(x=>x.method==='PATCH').body)
       .toEqual({redirect:'other.test',redirectStatusCode:307});
+    f.fake.verify();
+  });
+  it('treats moving a production domain to a branch as production',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}/domains/{domain}')
+      .resolves(projectDomainRow);
+    f.fake.when('PATCH','/v9/projects/{idOrName}/domains/{domain}')
+      .resolves({...projectDomainRow,gitBranch:'feature-x'});
+    const preview=value(await f.call('vercel_domain_update_project_domain',
+      {project,domain,gitBranch:'feature-x',outsideApp:true,dryRun:true},production));
+    expect(preview.status).toBe('preview');
+    expect(preview.preview).toContain('production traffic');
+    const refused=value(await f.call('vercel_domain_update_project_domain',
+      {project,domain,gitBranch:'feature-x',outsideApp:true,confirm:true},connection));
+    expect(refused.status).toBe('refused_by_guard');
+    expect(refused.reason).toMatch(/preview connection/i);
+    expect(f.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
     f.fake.verify();
   });
   it('detaches a project domain and reports a read-back mismatch honestly',async()=>{

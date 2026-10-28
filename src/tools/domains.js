@@ -64,6 +64,15 @@ async function teamContext(ctx){
     throw new TypeError('Team domains are not available to a project-scoped connection');
   return {client,account};
 }
+// GET /v5/domains/{domain} wraps the record in a {domain} envelope (pinned
+// OpenAPI snapshot); unwrap it once here so every caller sees the bare row.
+async function getTeamDomain(client,domain){
+  const reply=await client.request('domains_get',{path:{domain}});
+  const row=reply?.domain;
+  if(!row||typeof row!=='object'||Array.isArray(row))
+    throw new TypeError('Invalid domain response');
+  return row;
+}
 function domainSummary(row,teamId){
   if(!row||typeof row!=='object'||Array.isArray(row))
     throw new TypeError('Invalid domain response');
@@ -170,8 +179,15 @@ function context({db,connection,env,fetchImpl}){
 const out=result=>({isError:['refused_by_guard','outcome_unknown'].includes(result.status),
   content:[{type:'text',text:JSON.stringify(result)}]});
 function productionTarget(before){
-  return domainIsProduction({gitBranch:before.gitBranch??null,
-    customEnvironmentId:before.customEnvironmentId??null});
+  if(domainIsProduction({gitBranch:before.gitBranch??null,
+    customEnvironmentId:before.customEnvironmentId??null}))return true;
+  // Update flows carry the pre-update record in before.before: moving a
+  // domain that currently serves production changes production routing
+  // even when the requested state is a branch or custom environment.
+  const current=before.before;
+  if(current)return domainIsProduction({gitBranch:current.gitBranch??null,
+    customEnvironmentId:current.customEnvironmentId??null});
+  return false;
 }
 function productionWhy(before,production){
   return production?'A production domain changes live traffic and mail':
@@ -230,7 +246,7 @@ const readHandlers={
     exactArgs(args,['domain']);
     const domain=safeAlias(args.domain);
     const {client,account}=await teamContext(ctx);
-    const row=await client.request('domains_get',{path:{domain}});
+    const row=await getTeamDomain(client,domain);
     const summary=domainSummary(row,account.team_id);
     const verification=await client.request('domains_verification',{path:{domain}});
     if(typeof verification?.txtRecord!=='string'||
@@ -287,7 +303,7 @@ async function addBefore(args,ctx){
       ...(args.cdnEnabled!==undefined?{cdnEnabled:args.cdnEnabled}:{})}});
   const {client,account}=await teamContext(ctx);
   try{
-    await client.request('domains_get',{path:{domain}});
+    await getTeamDomain(client,domain);
   }catch(error){
     if(error?.status===404)return {domain,teamId:account.team_id,
       zone:args.zone??null,cdnEnabled:args.cdnEnabled??null};
@@ -332,7 +348,7 @@ const addWrite=defineWrite({
     try{
       const {client,account}=await teamContext(ctx);
       if(account.team_id!==before.teamId)return {confirmed:null};
-      const row=await client.request('domains_get',{path:{domain:before.domain}});
+      const row=await getTeamDomain(client,before.domain);
       return {confirmed:row?.name===before.domain,domain:before.domain};
     }catch{return {confirmed:null};}
   }
@@ -357,7 +373,7 @@ async function updateBefore(args,ctx){
   validateRequest('domains_update',{path:{domain},
     query:{teamId:'team_FAKE_validation'},body});
   const {client,account}=await teamContext(ctx);
-  const row=await client.request('domains_get',{path:{domain}});
+  const row=await getTeamDomain(client,domain);
   const current=domainSummary(row,account.team_id);
   return {domain,teamId:account.team_id,move,
     destination:move?args.destination:null,
@@ -408,13 +424,13 @@ const updateWrite=defineWrite({
       if(account.team_id!==before.teamId)return {confirmed:null};
       if(before.move){
         try{
-          await client.request('domains_get',{path:{domain:before.domain}});
+          await getTeamDomain(client,before.domain);
           return {confirmed:false,domain:before.domain};
         }catch(error){
           return {confirmed:error?.status===404?true:null,domain:before.domain};
         }
       }
-      const row=await client.request('domains_get',{path:{domain:before.domain}});
+      const row=await getTeamDomain(client,before.domain);
       if(row?.name!==before.domain)return {confirmed:false,domain:before.domain};
       if(before.echMode!==null)
         return {confirmed:row.echMode===before.echMode,domain:before.domain};
@@ -429,7 +445,7 @@ async function removeBefore(args,ctx){
   validateRequest('domains_remove',{path:{domain},
     query:{teamId:'team_FAKE_validation'}});
   const {client,account}=await teamContext(ctx);
-  const row=await client.request('domains_get',{path:{domain}});
+  const row=await getTeamDomain(client,domain);
   const current=domainSummary(row,account.team_id);
   const usedBy=await domainUsage(client,account,domain);
   const inUse=[...usedBy.projects.map(item=>({project:item.project,domain:item.name})),
@@ -476,7 +492,7 @@ const removeWrite=defineWrite({
       const {client,account}=await teamContext(ctx);
       if(account.team_id!==before.teamId)return {confirmed:null};
       try{
-        await client.request('domains_get',{path:{domain:before.domain}});
+        await getTeamDomain(client,before.domain);
         return {confirmed:false,domain:before.domain};
       }catch(error){
         return {confirmed:error?.status===404?true:null,domain:before.domain};
