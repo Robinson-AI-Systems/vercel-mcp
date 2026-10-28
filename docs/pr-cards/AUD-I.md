@@ -1,6 +1,6 @@
 # AUD-I — "Log in with Vercel": Integrations connect tier, dynamic box choice, explicit god-mode tier (VMCP-026 / IN-16)
 
-Status: CARDED 2026-10-28 (design + acceptance filed ahead of the build, S5 pattern) — build starts when VMCP-023 closes, per the owner's sequencing ruling 2026-10-28 (this build next; the narrowed remainders VMCP-003/011/016 and VMCP-025 follow). VMCP-026 stays **open** until its acceptance probes pass live. Design addenda the same day: the two-layer box model (granted ceiling / working box); the **research verdict that corrected this card's mechanism** — Tier 1 is the Vercel **Integrations** connect flow, not Sign in with Vercel (see Step 0); and the owner's **account-layer correction** — Account-wide is a tier capability at the account layer, never a sum of team installs (see "Account-wide is a layer, not a sum").
+Status: CARDED 2026-10-28 (design + acceptance filed ahead of the build, S5 pattern) — build starts when VMCP-023 closes, per the owner's sequencing ruling 2026-10-28 (this build next; the narrowed remainders VMCP-003/011/016 and VMCP-025 follow). VMCP-026 stays **open** until its acceptance probes pass live. Design addenda the same day: the two-layer box model (granted ceiling / working box); the **research verdict that corrected this card's mechanism** — Tier 1 is the Vercel **Integrations** connect flow, not Sign in with Vercel (see Step 0); the owner's **account-layer correction** — Account-wide is a tier capability at the account layer, never a sum of team installs (see "Account-wide is a layer, not a sum"); and the **connection-page design** — one page, two doors, mirroring the GitHub MCP (see "The one flow").
 
 **Why this card exists:** IN-16 (owner direction, 2026-10-28) ruled that when development and testing are done, end-user onboarding becomes a normal sign-in: the user logs into THEIR OWN Vercel account, the way the GitHub MCP links a GitHub account — a connection page, the provider authenticates them, and the server receives a scoped credential without the user ever handling a raw key. The same day's addenda completed the shape: the SAME two-tier authority as the GitHub MCP (standard login tier + owner-chosen god mode), and a **dynamic box choice at sign-in** (the user picks one project / a team / the whole account, in plain words, and the backing credential changes to match). Current state, verified in the shipped code: enrollment is token-paste only (`src/vercel/setup.js`, "Add or rotate a Vercel token"); no Vercel OAuth sign-in exists anywhere in the product.
 
@@ -16,13 +16,32 @@ This card was originally written against an assumption — that "Sign in with Ve
 
 What remains for build time (verification, not research): the integration must exist and be installable — created in the Integrations Console as a **connectable account** integration with this server's redirect URL and the declared API scopes, through Vercel's review/approval or sharing path as the docs require; the exact exchange-response fields (`teamId`, `configurationId`) and webhook needs are confirmed against the docs at build time and cited by the test fakes. If any of those mechanics have changed since 2026-10-28, the card is amended with the new evidence before code follows it — the stop-and-return discipline stands.
 
-### The one flow
+### The one flow — one connection page, two doors (owner design, 2026-10-28)
 
-A connection page on this server's origin presents the two tiers in plain words, in one flow:
+Mirror the GitHub MCP's connection process: **one connection page, two doors.**
 
-1. **Pick your box** — one project / a team / the whole account — each with what it lets the agent reach, stated plainly at the moment of choice.
-2. **The credential follows the choice** (mapping below). On the standard tier the user picks the team and the projects **on Vercel's own install pages**; the server receives the installation's token from the code exchange and **stamps the working box from the user's plain-words pick, enforced per call**. The user is never asked twice for the same decision, and never silently re-boxed.
+**Door 1 (the default, easy door):** sign in / install via the Integrations flow → team seats. No token ever touches the user's hands.
+
+**Door 2 (account-wide):** offered in plain words on the same page — *"Want account-wide control?"* — a guided token walk-through, GitHub-style (below).
+
+Whichever door, the flow is:
+
+1. **Pick your box** — one project / a team / the whole account — each with what it lets the agent reach, stated plainly at the moment of choice. The box routes the user to the door that can grant it (Project/Team → Door 1; Account-wide → Door 2).
+2. **The credential follows the choice** (mapping below). On Door 1 the user picks the team and the projects **on Vercel's own install pages**; the server receives the installation's token from the code exchange and **stamps the working box from the user's plain-words pick, enforced per call**. The user is never asked twice for the same decision, and never silently re-boxed.
 3. **The connection binds as today** — the existing consent machinery (account, mode, profile, listing) completes the connection; the standard tier lands on the server's standard profiles, where the restraint lives (the integration credential is broad inside its installation; IN-16 addendum).
+
+### Door 2 in detail — the guided token walk-through
+
+A button on the connection page opens Vercel's Account Tokens page (`https://vercel.com/account/tokens`), and **our page shows the short plain steps beside the paste box**:
+
+1. Name it anything.
+2. Scope: **Full Account**.
+3. Expiration: **your choice — including No Expiration** (IN-04: the key owner chooses; the server's duty is to warn ahead, never to choose for them).
+4. Create → copy the token (it is shown **only once**) → paste it here.
+
+On paste, the server **probes the token and reads its scope back to the user — confirming "Account-wide" — before the seat activates**, with the declared-box/probe honesty of the next sections intact (where the probe's visibility heuristic cannot fully prove the scope, that caveat is shown, not smoothed over). If a narrower token is pasted at this door, the read-back names its actual scope and the seat activates as *that* box, plainly labeled — never as account-wide by courtesy. After enrollment, restraint lives in **our profiles** (read_only / everyday / full), because Vercel tokens have no per-permission checkboxes to offer the user.
+
+**Verified constraint (Vercel docs, access-tokens page updated 2026-09-08, read 2026-10-28):** Vercel documents **no URL pre-fill** for the tokens page — unlike GitHub, the link cannot land with the scope pre-checked. The mirror is therefore **guided steps, not a pre-set form; do not fake a prefill** (no look-alike parameters, no implying the page was pre-answered). Two more facts from the same page shape the implementation: the token value shows only once at creation (copy-then-paste *is* the flow), and Full Account tokens still take a `teamId` per target team on API calls — **the server handles that invisibly**; the user never sees team plumbing.
 
 ### Box → credential mapping
 
@@ -89,7 +108,7 @@ The integration's client credentials are server environment values set by the op
 
 ## Acceptance (live probes — merged code never closes the finding)
 
-- **A-1 (team box, install flow):** a fresh end-user-shaped connect: no pre-enrolled token; the user installs the integration on **a team** from Vercel's own pages (pure clicks — the user never handles a token value), completes the standard connection; `vercel_whoami` shows the declared box (team), the standard profile, and the agent performs standard-tier work on that team inside the integration's declared scopes.
+- **A-1 (team box, install flow):** a fresh end-user-shaped connect starting at the connection page's **Door 1**: no pre-enrolled token; the user installs the integration on **a team** from Vercel's own pages (pure clicks — the user never handles a token value), completes the standard connection; `vercel_whoami` shows the declared box (team), the standard profile, and the agent performs standard-tier work on that team inside the integration's declared scopes.
 - **A-2 (project box):** the same flow with the working box stamped at **one project**: a read outside it is refused by our per-call enforcement and says so plainly; where the install granted selected projects only, the install's set corroborates the pin.
 - **A-3 (whole-account box):** the flow routes to the token tier with the reason stated; after enrollment with the explicit choice, the account reads back its declared box (whole account) and its expiry posture.
 - **A-4 (the credential follows the grant, not the setting):** choosing a different box *at sign-in*, or widening beyond the ceiling through a new grant, re-issues/re-enrolls the credential to match, and the prior credential's state is verified dead or honestly reported. **In-ceiling working-box flips (A-8) are settings changes only — the credential behind the connection is preserved untouched** (no rotation, no re-enrollment), and the probe verifies the same credential identity before and after each flip.
@@ -102,6 +121,7 @@ The integration's client credentials are server environment values set by the op
 - **A-11 (a second team onboards as clicks, not tokens):** with Team A installed and in use, the user wants Team B reachable: the agent offers the install, the user completes it on Vercel's pages, and the connection then reports both ceilings with independent working boxes per team — no token handled by the user at any point, and Team A's box, flips and journal are untouched by Team B's arrival.
 - **A-12 (an account-level ask from a team seat is answered honestly):** on a Tier 1 connection, the user asks for an account-layer action (create a team): the answer states plainly that this seat cannot reach the account layer and offers the token tier as the route to that power. No team is created, no install bundle is silently substituted, and the journal shows no attempted write.
 - **A-13 (account-layer reference probe — owner-gated):** gated on the owner's god-mode enrollment having landed AND his word at run time: through his own full-account connection, create a scratch team (empty — no members, no projects), read back that it exists, delete it, and read back that it is gone. This proves the account layer end-to-end on the reference implementation: the one box no install can imitate, exercised and then removed, minutes-lived.
+- **A-14 (Door 2 walk-through, end to end):** a fresh end-user-shaped connect at the connection page's **Door 2**, following only the page's own steps: the tokens button opens Vercel's plain Account Tokens page (the documented URL, no prefill of any kind); the user creates a Full Account token with an expiration of their choosing, pastes it once; the server probes it and **reads back "Account-wide" for the user's confirmation before the seat activates**; the activated seat then works at the account layer, restrained by the connection's chosen profile. A narrower token pasted at the same door reads back its true scope and activates as that box, labeled as such.
 
 ## Build notes
 
