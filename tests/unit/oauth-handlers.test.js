@@ -307,3 +307,67 @@ describe('OAuth registration and authorization endpoints', () => {
     });
   });
 });
+
+describe('Muse client metadata document', () => {
+  const museClientId = baseEnv.PUBLIC_BASE_URL + '/.well-known/muse-client.json';
+  const museCallback = 'https://agent.meta.ai/api/hatch/oauth/callback';
+  function museAuthorizeArgs(extra = {}) {
+    return {
+      client_id: museClientId, redirect_uri: museCallback, response_type: 'code',
+      code_challenge: challenge, code_challenge_method: 'S256', state: 'state-fixture',
+      resource, account: 'team_fixture', mode: 'preview', profile: 'full', listing: 'front_door',
+      ...extra
+    };
+  }
+
+  it('serves the client document Muse connects with and advertises CIMD support', async () => {
+    const { handlers } = createFixture();
+    const doc = json(await call(handlers.museClient, request('GET', {})));
+    expect(doc).toEqual({
+      client_id: museClientId, client_name: 'Muse',
+      grant_types: ['authorization_code', 'refresh_token'],
+      redirect_uris: [museCallback], response_types: ['code'],
+      token_endpoint_auth_method: 'none'
+    });
+    const metadata = json(await call(handlers.metadata, request('GET', {})));
+    expect(metadata.client_id_metadata_document_supported).toBe(true);
+  });
+
+  it('runs the full code + PKCE + refresh flow for the Muse client without registration', async () => {
+    const { db, handlers } = createFixture();
+    expect(await db.getOAuthClient(museClientId)).toBeNull();
+    const page = await call(handlers.authorize, request('GET', museAuthorizeArgs()));
+    expect(page.statusCode).toBe(200);
+    const wrongRedirect = await call(handlers.authorize, request('GET',
+      museAuthorizeArgs({ redirect_uri: callback })));
+    expect(wrongRedirect.statusCode).toBe(400);
+    const authorized = await call(handlers.authorize, request('POST', {
+      ...museAuthorizeArgs(), passphrase: baseEnv.ADMIN_PASSPHRASE
+    }));
+    expect(authorized.statusCode).toBe(302);
+    const destination = new URL(authorized.headers.Location);
+    expect(destination.origin + destination.pathname).toBe(museCallback);
+    const code = destination.searchParams.get('code');
+    expect(code).toBeTruthy();
+    const suppliedSecret = await call(handlers.token, request('POST', {
+      client_id: museClientId, client_secret: 'forged-public-secret', grant_type: 'authorization_code',
+      redirect_uri: museCallback, code, code_verifier: verifier, resource
+    }));
+    expect(suppliedSecret.statusCode).toBe(401);
+    const granted = await call(handlers.token, request('POST', {
+      client_id: museClientId, grant_type: 'authorization_code',
+      redirect_uri: museCallback, code, code_verifier: verifier, resource
+    }));
+    expect(granted.statusCode).toBe(200);
+    const tokens = json(granted);
+    expect(tokens.refresh_token).toBeTruthy();
+    expect(await db.getAccessToken(tokens.access_token)).toMatchObject({
+      client_id: museClientId, vercel_account: 'team_fixture', listing: 'front_door'
+    });
+    const refreshed = await call(handlers.token, request('POST', {
+      client_id: museClientId, grant_type: 'refresh_token',
+      refresh_token: tokens.refresh_token, resource
+    }));
+    expect(refreshed.statusCode).toBe(200);
+  });
+});
