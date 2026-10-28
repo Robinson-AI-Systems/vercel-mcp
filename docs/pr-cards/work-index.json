@@ -174,7 +174,19 @@
       "ownerInputs": [],
       "pr": [
         17
-      ]
+      ],
+      "revisit": {
+        "reason": "Audit finding VMCP-001 (docs/MCP-AUDIT-2026-10-27.md, P0): the executor demands a one-use separately-authenticated purchase grant for every paid write and refuses recurring or unquantified spend outright. Owner ruling OP-2 (2026-10-27) replaces that product-scope wall with a standing owner policy: an optional owner-set agent budget plus an optional grant-required opt-in; the owner's word executes and is journaled. Design D-A is filed as a BATCH-B amendment (2026-10-27); remediation issues #108-#110, #116 and #119 describe the same mandatory grant shape for end users. VMCP-020 (return the effective request key in applied write results, plus stable-key guidance) rides the same executor seam as a separate PR under the BATCH-B amendment note.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (AUD-A1, then AUD-A2)",
+        "checkpoint": "At the AUD-A1 PR boundary (policy storage and setup surface live) and again at the AUD-A2 boundary (executor behavior).",
+        "nextAction": "Implement packet docs/pr-cards/AUD-A1.md (standing policy model, storage, setup surface), then packet docs/pr-cards/AUD-A2.md (executor behavior and migration of enforcement off the mandatory grant for owner connections; delegated and builder connections unchanged). Separately, per the BATCH-B VMCP-020 note: return the effective request key in every applied write result and add stable-key guidance where request keys are introduced; do not fold that change into AUD-A2's risk boundary.",
+        "evidenceNeeded": "The AUD-A1 and AUD-A2 acceptance evidence named in the packets: an owner-connection paid write completing with no purchase intent created and the change-log delegation block reading basis owner_word; an over-budget owner write journaled overBudget true; a delegated connection refused exactly as today; the builder-cannot-purchase regression green. For VMCP-020, a captured applied write result showing the effective request key.",
+        "eligibilityCondition": "Eligible now; OP-2 ruled 2026-10-27 and no further owner input is needed.",
+        "dependencies": [
+          "A-5"
+        ]
+      }
     },
     {
       "id": "B-2",
@@ -197,7 +209,19 @@
       ],
       "pr": [
         18
-      ]
+      ],
+      "revisit": {
+        "reason": "Audit finding VMCP-002 (docs/MCP-AUDIT-2026-10-27.md): the switch this card built is asymmetric - an agent can turn production off but enabling still requires the setup passphrase ceremony. IN-09 was ruled by the owner on 2026-10-27: production changes stay on, the enable/disable switch belongs to the end user at any time, and their agent must be able to flip it with their approval; the two-step ceremony is superseded as a gate. Design D-B is filed as a BATCH-B amendment (2026-10-27): enable completes on confirm under a per-team word strictness (default); passphrase survives only as an owner-chosen strictness.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (AUD-B)",
+        "checkpoint": "At the AUD-B PR boundary, and again when R-1/R-2 passes are built against the amended switch.",
+        "nextAction": "Implement packet docs/pr-cards/AUD-B.md: word-strictness enable completing on confirm for the owner's full connection with read-back and journal, the production_enable_strictness setting on the setup page only, the passphrase flow preserved verbatim under passphrase strictness, disable unchanged, pass connections refused in both modes.",
+        "evidenceNeeded": "AUD-B acceptance evidence: enable returning productionEnabled true with no passphrase consumed under word strictness; the passphrase flow intact under passphrase strictness; disable and pass-refusal regressions green; the A12 preview-deployment block proven in both modes.",
+        "eligibilityCondition": "Eligible now; IN-09 ruled 2026-10-27 and no further owner input is needed.",
+        "dependencies": [
+          "B-1"
+        ]
+      }
     },
     {
       "id": "B-3",
@@ -341,7 +365,19 @@
         38,
         39,
         40
-      ]
+      ],
+      "revisit": {
+        "reason": "Two audit findings land on this card's surface (docs/MCP-AUDIT-2026-10-27.md). VMCP-007: this card's owner-admin tools (vercel_set_spend_limit, vercel_rotate_key, vercel_revoke_pass, vercel_revoke_connector, vercel_issue_rtc_pass) still route through owner proposals on the owner's own full connection, contradicting IN-08's direct path; the BATCH-B amendment note (2026-10-27) converts them to direct execution on owner connections while passes keep proposals. VMCP-019: the setup page works as an approval terminal but no single surface shows the owner their current authority state (mode, production switch and strictness, budget and grant policy, token expiry posture, connected accounts); the BATCH-B amendment note assigns the assembled panel to this card's setup surface.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (B-8 revisit)",
+        "checkpoint": "VMCP-007 leg: after packet AUD-A1 lands (it redefines what the spend-limit setting means). VMCP-019 leg: after AUD-A1, AUD-B and AUD-E land, since the panel quotes the values those packets ship.",
+        "nextAction": "VMCP-007: convert the five owner-admin tools to the defineWrite guarded path on owner full connections (confirm + journal + read-back; key rotation keeps its pending_inputs one-time-secret handling), keeping proposal behavior on pass and delegated connections. VMCP-019: add the setup status-and-choices panel assembling connection mode/profile, production state and strictness, agent budget and grant policy, key expiry posture and connected accounts from the same stored values the tools read (one source of truth, two surfaces), each row deep-linking to its existing control.",
+        "evidenceNeeded": "For VMCP-007: owner-connection executions of each converted tool with journal rows and read-back, and pass-connection proposal behavior unchanged. For VMCP-019: a setup-page test rendering the panel from fixture state matching the values the corresponding tools report.",
+        "eligibilityCondition": "Eligible in the order the checkpoint states; IN-08 and IN-09 are already ruled and OP-1/OP-2 were ruled 2026-10-27, so no further owner input is needed.",
+        "dependencies": [
+          "B-6"
+        ]
+      }
     },
     {
       "id": "C-1",
@@ -364,7 +400,19 @@
         41,
         42,
         43
-      ]
+      ],
+      "revisit": {
+        "reason": "Audit findings VMCP-011, VMCP-008 and VMCP-010 (docs/MCP-AUDIT-2026-10-27.md) all break this card's stored-overflow promise on one side or another: an oversized guarded write throws after the provider write has landed because the stored fallback exists only on the read branch of src/vercel/result-delivery.js; the write-preflight safeShape throw turns the 8 KB ceiling into a refusal of the whole change; and the globalconfig family self-shapes past the fallback in src/tools/globalconfig-common.js. Design D-D is filed as a BATCH-C amendment (2026-10-27): symmetry - the stored-result contract applies to writes, previews and every tool family.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (AUD-D)",
+        "checkpoint": "At the AUD-D PR boundary; sequence after packet AUD-A2 because both edit src/core/write-preflight.js.",
+        "nextAction": "Implement packet docs/pr-cards/AUD-D.md: the write branch of shapeMcpResult gains the stored fallback returning the verified receipt plus a res_ handle; oversized previews store and reference instead of refusing (secret-bearing previews still refuse); self-shaped families route through the shared delivery path, proven by a repo-wide grep recorded in the PR.",
+        "evidenceNeeded": "AUD-D acceptance evidence: the audit's three executed probes reproduced as tests - oversized write returning receipt plus handle with vercel_get_result serving the full result; oversized preview completing with a stored reference; a globalconfig oversized output returning the same stored-handle contract.",
+        "eligibilityCondition": "Eligible now; no owner input needed. Sequencing after AUD-A2 is a file-contention rule, not an owner gate.",
+        "dependencies": [
+          "B-8"
+        ]
+      }
     },
     {
       "id": "C-2",
@@ -393,7 +441,7 @@
         "trigger": "design-amendment",
         "owner": "next Vercel MCP implementer (C-2 revisit)",
         "checkpoint": "At the PR boundary that changes listing defaults, and again at each audit delta review of front-door membership.",
-        "nextAction": "Implement the D-C design (BATCH-C amendment, 2026-10-27): default listing = compact meta-tools + measured most-used tools + compound tools, tokenizer-measured under 5,000 tokens at every profile; record the 5,000 cap in scripts/check-budgets.mjs as owner policy citing OP-1; keep the catalog listing available on request; version the membership list in-repo.",
+        "nextAction": "Implement the D-C design (BATCH-C amendment, 2026-10-27): default listing = compact meta-tools + measured most-used tools + compound tools, tokenizer-measured under 5,000 tokens at every profile; record the 5,000 cap in scripts/check-budgets.mjs as owner policy citing OP-1; keep the catalog listing available on request; version the membership list in-repo. Implementation vehicle: packet docs/pr-cards/AUD-C.md (audit pipeline S5, filed 2026-10-27), whose drift check records the as-built defaults (auth-code parameter and both oauth tables default to catalog; RTC passes default to compact) and whose acceptance reproduces this action's evidence list.",
         "evidenceNeeded": "check-budgets output showing the default listing under 5,000 tokens at read_only, everyday and full profiles; the versioned membership list in-repo; the usage-measurement method recorded in the implementing PR.",
         "eligibilityCondition": "Eligible now; no further owner input needed (OP-1 ruled 2026-10-27).",
         "dependencies": [
@@ -1247,7 +1295,7 @@
         "resolution": "Owner ruling recorded in docs/OWNER-INPUTS.md (IN-04) and docs/DECISIONS.md on 2026-10-27: the server respects the expiry the owner chose and its only duty is to notify ahead of an upcoming expiration (14 days before) for keys that have one.",
         "owner": "next Vercel MCP implementer (O-3)",
         "checkpoint": "When the O-3 card is written at start (WRITE_CARD_AT_START) and again at its PR boundary.",
-        "nextAction": "Write the O-3 card with token list/create/remove shaped by the ruling: the expiry the owner chose (or none) is what is stored and displayed, no default term is imposed at creation, and notify-ahead behavior is covered for expiring keys. Include the D-E expiry surface: vercel_whoami and the setup page show expiry state and days-left for the enrolled token, and the notify-ahead warning fires inside the 14-day window; never-expiring tokens show no warning.",
+        "nextAction": "Write the O-3 card with token list/create/remove shaped by the ruling: the expiry the owner chose (or none) is what is stored and displayed, no default term is imposed at creation, and notify-ahead behavior is covered for expiring keys. Include the D-E expiry surface: vercel_whoami and the setup page show expiry state and days-left for the enrolled token, and the notify-ahead warning fires inside the 14-day window; never-expiring tokens show no warning. The enrolled-token leg is packetized separately as docs/pr-cards/AUD-E.md (audit pipeline S5, filed 2026-10-27) and may land independently of the O-3 token tools; AUD-E's drift check corrects the baseline: vercel_whoami already computes days-left and warns inside the window, so the packet adds the explicit posture fields, the no-expiry statement and the setup display rather than rebuilding the warning.",
         "evidenceNeeded": "Token tool tests covering never-expiring and owner-dated keys, notify-ahead behavior, and no imposed expiry appearing in creation flows. whoami/setup tests showing days-left for an expiring enrolled token, silence for a never-expiring one, and the notify-ahead warning inside the window.",
         "eligibilityCondition": "Eligible once O-1 lands; no further owner input needed.",
         "dependencies": [
@@ -1271,7 +1319,19 @@
         "O-4"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "revisit": {
+        "reason": "Audit finding VMCP-004 (docs/MCP-AUDIT-2026-10-27.md): the server tracks its own spend total and its own daily limit (the owner's spendLimitCents setting) while nothing anywhere in the codebase references Vercel's own Spend Management state - no read of the configured limit, threshold or notification state. IN-12 was ruled by the owner on 2026-10-27: spend alerts belong to Vercel's Spend Management, existing only if the user set them there; the MCP reads and reports, never controls or enforces. The BATCH-O amendment note (2026-10-27) assigns the read/report surface to this card's billing family.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (O-4)",
+        "checkpoint": "When the O-4 card is written at start (WRITE_CARD_AT_START), and again at its PR boundary.",
+        "nextAction": "First step, before any tool is built: run the VMCP-018 reach probe for the Spend Management surface and record the route and its evidence in the BATCH-O amendment (API operation in the vendored snapshot, this server's own RTC/HTTPS surface acting as the user, or a dashboard-only route with the evidence attached). Then, in this card's billing scope: read Vercel's configured spend-management state and report it inside the existing billing/usage tools; where the API cannot reach it, the tools say so plainly and link the dashboard route. Build no write surface for spend alerts.",
+        "evidenceNeeded": "The recorded probe outcome in the BATCH-O amendment; billing tool output from fixtures showing configured limit/threshold/notification state as Vercel reports it (or the plain not-reachable statement with the dashboard link); absence of any spend-alert write tool.",
+        "eligibilityCondition": "Eligible once O-1 lands; IN-12 ruled 2026-10-27, no further owner input needed. The probe result decides the shape, not a builder preference.",
+        "dependencies": [
+          "O-1"
+        ]
+      }
     },
     {
       "id": "O-5",
@@ -1294,7 +1354,20 @@
         "O-5"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "revisit": {
+        "reason": "Audit finding VMCP-021 (docs/MCP-AUDIT-2026-10-27.md): revocation and connection removal are strong, but no surface exports the server's own records - the change journal, saved large results and account metadata exist only inside the running service, so a user leaving takes nothing with them except a manual database dump. The BATCH-O amendment note (2026-10-27) assigns a records export to this card's admin scope: exit is a feature of the same surface that governs the account.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (O-5)",
+        "checkpoint": "When the O-5 card is written at start (WRITE_CARD_AT_START), scoped as one component of the admin overview rather than a separate subsection.",
+        "nextAction": "Include in the O-5 card a one-call records export (setup-page action and/or admin tool, implementer's choice recorded in the card): a dated bundle of the change journal, saved results and account metadata for the owner's accounts, produced through the stored-result delivery so large exports return a handle; secrets are excluded by construction (the export reads journal/result/account metadata only, never token material).",
+        "evidenceNeeded": "An export produced from fixture state whose contents are enumerated in the test (journal rows, result handles, account metadata) and a negative test proving no token or secret field appears anywhere in the bundle.",
+        "eligibilityCondition": "Eligible with the rest of O-5 once its dependencies land; no owner input needed.",
+        "dependencies": [
+          "O-3",
+          "O-4"
+        ]
+      }
     },
     {
       "id": "P-1",
@@ -1519,8 +1592,8 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Bounded scope-verified universal feature-flag GET source and significant incomplete universal REST surface remain; independently authorized direct provider/MCP acceptance is unverified. Hub routing is owned and accepted in Hub, not a U-1 blocker.",
-        "nextAction": "Secure private direct/preview TEST passes plus approved disposable nonproduction deployment to execute #160 runner and verify provider project/flag payload mapping; continue next substantive approved independent U-1/O-1 work while external evidence is unavailable.",
+        "reason": "Bounded scope-verified universal feature-flag GET source and significant incomplete universal REST surface remain; independently authorized direct provider/MCP acceptance is unverified. Hub routing is owned and accepted in Hub, not a U-1 blocker. Audit finding VMCP-013 (2026-10-27) adds the missing write half of this card's universal surface: vercel_api_read is built and vercel_api_write is not, so any unbuilt provider write is impossible through the server even though Batch U designed it (U1-U8).",
+        "nextAction": "Secure private direct/preview TEST passes plus approved disposable nonproduction deployment to execute #160 runner and verify provider project/flag payload mapping; continue next substantive approved independent U-1/O-1 work while external evidence is unavailable. VMCP-013 direction (2026-10-27): build vercel_api_write to the BATCH-U design (U1-U8) as a substantive U-1 slice - not a narrower substitute; its U4 spend detection consumes the D-A delegation model (packet AUD-A2) and its U6 production detection the D-B switch (packet AUD-B), so sequence the write slice after those two packets land.",
         "checkpoint": "After #165 aligned session close-out and at every PR/session start; immediately upon owner-issued scoped passes and approved nonproduction evidence",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
         "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
@@ -1640,7 +1713,19 @@
         "X-1"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "revisit": {
+        "reason": "Audit finding VMCP-012 (docs/MCP-AUDIT-2026-10-27.md), as corrected at S4 review: the journal's storage seam for undo exists (change_log.inverse) but capture is per-tool and almost nothing supplies it - src/core/write.js stores spec.inverse when a tool provides one and NULL otherwise, and only the globalconfig-schema family provides one at baseline - so vercel_undo_change cannot be built on today's journal. The BATCH-X amendment note (2026-10-27) makes inverse capture the first X-1 work unit.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (X-1)",
+        "checkpoint": "When the X-1 card is written at start (WRITE_CARD_AT_START): the card's first work unit is the per-family inverse-capture pass, before the undo tool itself.",
+        "nextAction": "In the X-1 card: (1) add spec.inverse capture per write-tool family per the BATCH-X amendment (families whose actions have no safe inverse record that disposition explicitly instead of a null that looks like an oversight); (2) build vercel_undo_change on the journal with the X1-X8 safety rules unchanged. The undo tool joins the OP-1 front door under the same 5,000-token budget once packet AUD-C's membership mechanism exists.",
+        "evidenceNeeded": "A per-family inverse-capture inventory in the implementing PR (captured / no-safe-inverse with reason); undo acceptance from BATCH-X run against journaled changes whose inverses were captured by the new pass, not hand-seeded fixtures.",
+        "eligibilityCondition": "Eligible under X-1's existing dependencies; no owner input needed.",
+        "dependencies": [
+          "D-4"
+        ]
+      }
     },
     {
       "id": "X-2",
