@@ -99,3 +99,13 @@ expected result; every `verifyWith` points at a real read tool and field; team/a
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-27 — D-E design: the expiry surface for the server's own token (audit VMCP-003; card O-3 scope; IN-04 ruling).** The enrolled service token's expiry is already captured (`vercel_accounts.token_expires_at`, parsed from token metadata in `src/vercel/tokens.js`) but is surfaced nowhere, and nothing notifies ahead — while the IN-04 ruling makes notify-ahead the server's one duty around expiry.
+
+- `vercel_whoami` reports the enrolled token's expiry posture on the caller's own account: `expiresAt` (local time) plus `daysLeft` when the token has an expiry, or an explicit "no expiry — owner's choice" when it does not. A never-expiring token carries no warning of any kind.
+- The setup account list shows the same state per account, from the same stored value — one source, two surfaces.
+- **Notify-ahead** rides the surfaces an owner already sees: a warning line in `vercel_whoami` and a setup-page banner, both appearing only inside the 14-day window ahead of expiry (the window already used for domain warnings in O-5's overview). No email, push notification or new channel is built. An expired token already errors with a pointer to setup; keep that.
+- **O5 correction:** the "requires an expiry (≤1 year)" rule for `vercel_token_create` is superseded for end users by the IN-04 ruling — the creator chooses the expiry, including none; the tool presents the choice and records it. (Card O-3's revisit carries the same ruled shape.)
+- **Acceptance:** a fixture token expiring in 10 days reports `daysLeft: 10` in whoami plus the warning line and the setup banner; a never-expiring token reports "no expiry" and no warning anywhere; the banner appears only inside the window.
+
+**2026-10-27 — Owner export (audit VMCP-021; card O-5 scope).** A user leaving takes their data in files they own; today the journal is paged reads only. Design: an owner-authenticated setup-page action exports, per account, a JSON bundle of the change-log journal (the same rows `vercel_recent_changes` pages), connection and pass configuration metadata (never token or secret material), the protected-resource list, and account settings including the D-A delegation policy. The B5 secret-screening rules apply to the export path as to any other surface. **Acceptance:** a fixture account's export contains the journal rows and settings, contains no secret-shaped values (screened), and the action refuses non-owner sessions.

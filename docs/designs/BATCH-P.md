@@ -97,3 +97,5 @@ a profile.
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-27 — App-guard state confirmed; P-1 is the fix (audit VMCP-005; IN-11).** At the audit baseline (216b83a9) `src/tools/app-guard.js` is still the B-7 constant-allow stub ("Batch P supplies known-app profiles. Until then no profiles exist"): the profile-guard hook is wired into every write's `targets()` path and defers to nothing, because no profile data or deference behavior exists yet. IN-11's deference therefore has a hook and no behavior until P-1 lands. The P-1 work unit and its tests above are unchanged and are the fix. Sequencing note from the audit: P-1 lands before any M-4 cleanup claims against Appliance Desk stores, because IN-15's app contract depends on the same guard telling the truth.

@@ -387,7 +387,19 @@
         44,
         45,
         46
-      ]
+      ],
+      "revisit": {
+        "reason": "Audit finding VMCP-009 (docs/MCP-AUDIT-2026-10-27.md): new connections default to the catalog listing (everyday \u2248 15,347 tokens by the repo tokenizer) while the compact listing (7 tools, \u2248 1,016 tokens) is opt-in, and the full-profile catalog (24,878) exceeds the builder-set 20,000 line unenforced. Owner ruling OP-1 (2026-10-27) makes the curated front door the default under a 5,000-token owner-policy budget.",
+        "trigger": "design-amendment",
+        "owner": "next Vercel MCP implementer (C-2 revisit)",
+        "checkpoint": "At the PR boundary that changes listing defaults, and again at each audit delta review of front-door membership.",
+        "nextAction": "Implement the D-C design (BATCH-C amendment, 2026-10-27): default listing = compact meta-tools + measured most-used tools + compound tools, tokenizer-measured under 5,000 tokens at every profile; record the 5,000 cap in scripts/check-budgets.mjs as owner policy citing OP-1; keep the catalog listing available on request; version the membership list in-repo.",
+        "evidenceNeeded": "check-budgets output showing the default listing under 5,000 tokens at read_only, everyday and full profiles; the versioned membership list in-repo; the usage-measurement method recorded in the implementing PR.",
+        "eligibilityCondition": "Eligible now; no further owner input needed (OP-1 ruled 2026-10-27).",
+        "dependencies": [
+          "C-1"
+        ]
+      }
     },
     {
       "id": "D-1",
@@ -579,11 +591,11 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-3 implementer",
-        "reason": "All five D-3 tool source paths implemented and merged (#173/#175/#191/#192/#193, #193 merged 15735e1). New redeploy, Git and bounded UTF-8 files builds require unbounded provider costs so confirmed execution is fail-closed under IN-08. No live build/provider acceptance claimed.",
+        "reason": "All five D-3 tool source paths implemented and merged (#173/#175/#191/#192/#193, #193 merged 15735e1). New redeploy, Git and bounded UTF-8 files builds require unbounded provider costs so confirmed execution is fail-closed under IN-08. No live build/provider acceptance claimed. Refresh 2026-10-27 (audit S3, VMCP-014): the IN-08 framing in this entry predates the recorded answer. IN-08 was answered 2026-10-17 and OP-2 was ruled 2026-10-27: for end users the owner's word executes (optional budget; the word overrides the budget) and the mandatory one-use grant is retired as the end-user path. Builder acceptance activity remains $0 and grant-bound; any real charged run still needs the owner's own authorization, now shaped by OP-2 and design D-A (BATCH-B amendment, 2026-10-27).",
         "nextAction": "Keep D-3 file/Git/redeploy charged test acceptance queued for a genuine Vercel-enforceable per-operation total spending cap, separately independently approved owner grant and authorized disposable fixtures. Continue eligible non-billable approved roadmap reads and denial checks.",
         "checkpoint": "At each substantive D-3 PR boundary and on provision of isolated scratch project per IN-06",
         "evidenceNeeded": "An owner-approved disposable preview deployment (ERROR or CANCELED) with independent proof of empty aliases, a narrow team/project credential and post-deletion 404; test production/foreign denials and preserve $0 spending. Separate cost approval required for metered creation/redeploy.",
-        "eligibilityCondition": "Implementation and fake provider regression are eligible immediately; genuine cancellation requires an approved disposable in-progress preview, while metered write activation remains separately gated by IN-08.",
+        "eligibilityCondition": "Implementation and fake provider regression are eligible immediately; genuine cancellation requires an approved disposable in-progress preview, while metered write activation remains separately gated by IN-08. (Refreshed 2026-10-27: builder-side gating unchanged; end-user framing per the IN-08 answer and OP-2.)",
         "dependencies": [
           "D-2"
         ]
@@ -1227,7 +1239,7 @@
         "IN-04"
       ],
       "revisit": {
-        "reason": "IN-04 was revisited and ruled by the owner on 2026-10-27: key expiry is a choice belonging to the key owner at creation (including never); the imposed 90-day term is retired as policy. The O-3 token tools must be built to the ruled shape.",
+        "reason": "IN-04 was revisited and ruled by the owner on 2026-10-27: key expiry is a choice belonging to the key owner at creation (including never); the imposed 90-day term is retired as policy. The O-3 token tools must be built to the ruled shape. Audit finding VMCP-003 (2026-10-27) adds the enrolled-token leg: the server account token's expiry (token_expires_at, src/vercel/tokens.js) is surfaced nowhere and nothing notifies ahead; design D-E is filed as a BATCH-O amendment (2026-10-27).",
         "trigger": "owner-input-answered",
         "ownerInputRefs": [
           "IN-04"
@@ -1235,8 +1247,8 @@
         "resolution": "Owner ruling recorded in docs/OWNER-INPUTS.md (IN-04) and docs/DECISIONS.md on 2026-10-27: the server respects the expiry the owner chose and its only duty is to notify ahead of an upcoming expiration (14 days before) for keys that have one.",
         "owner": "next Vercel MCP implementer (O-3)",
         "checkpoint": "When the O-3 card is written at start (WRITE_CARD_AT_START) and again at its PR boundary.",
-        "nextAction": "Write the O-3 card with token list/create/remove shaped by the ruling: the expiry the owner chose (or none) is what is stored and displayed, no default term is imposed at creation, and notify-ahead behavior is covered for expiring keys.",
-        "evidenceNeeded": "Token tool tests covering never-expiring and owner-dated keys, notify-ahead behavior, and no imposed expiry appearing in creation flows.",
+        "nextAction": "Write the O-3 card with token list/create/remove shaped by the ruling: the expiry the owner chose (or none) is what is stored and displayed, no default term is imposed at creation, and notify-ahead behavior is covered for expiring keys. Include the D-E expiry surface: vercel_whoami and the setup page show expiry state and days-left for the enrolled token, and the notify-ahead warning fires inside the 14-day window; never-expiring tokens show no warning.",
+        "evidenceNeeded": "Token tool tests covering never-expiring and owner-dated keys, notify-ahead behavior, and no imposed expiry appearing in creation flows. whoami/setup tests showing days-left for an expiring enrolled token, silence for a never-expiring one, and the notify-ahead warning inside the window.",
         "eligibilityCondition": "Eligible once O-1 lands; no further owner input needed.",
         "dependencies": [
           "O-1"
@@ -1309,7 +1321,7 @@
         "IN-11"
       ],
       "revisit": {
-        "reason": "IN-11 was answered YES by the owner on 2026-10-27: the server defers to the release workflow Appliance Desk declares. The P-1 policy gate is cleared; the card is written when its dependencies land.",
+        "reason": "IN-11 was answered YES by the owner on 2026-10-27: the server defers to the release workflow Appliance Desk declares. The P-1 policy gate is cleared; the card is written when its dependencies land. Audit finding VMCP-005 (2026-10-27) confirms the current code state: src/tools/app-guard.js is still the B-7 constant-allow stub, so the deference this revisit describes has a hook and no behavior until P-1 lands; a dated note is filed in BATCH-P (2026-10-27).",
         "trigger": "owner-input-answered",
         "ownerInputRefs": [
           "IN-11"
@@ -1317,7 +1329,7 @@
         "resolution": "Owner answer recorded in docs/OWNER-INPUTS.md (IN-11) and docs/DECISIONS.md on 2026-10-27, including the generalization: deference attaches to any connected project that declares its own release workflow; projects without one get ordinary deploy capability.",
         "owner": "next Vercel MCP implementer (P-1)",
         "checkpoint": "When the P-1 card is written at start (WRITE_CARD_AT_START) and again at its PR boundary.",
-        "nextAction": "Seed the Appliance Desk profile with release_rule branch and production_branch live per docs/APP-NEEDS-APPLIANCE-DESK.md; verify promotion refusal without outsideApp and labelled emergency rollback.",
+        "nextAction": "Seed the Appliance Desk profile with release_rule branch and production_branch live per docs/APP-NEEDS-APPLIANCE-DESK.md; verify promotion refusal without outsideApp and labelled emergency rollback. Fill checkApp from known_apps per the P-1 work unit; the audit's sequencing note applies: P-1 lands before any M-4 cleanup claims against Appliance Desk stores (IN-15's app contract depends on the same guard).",
         "evidenceNeeded": "Profile-guard tests proving promotion refusal without outsideApp, emergency rollback allowed and labelled with owner approval, and no deference applied to a project without a declared release workflow.",
         "eligibilityCondition": "Eligible when P-1 dependencies land; no further owner input needed.",
         "dependencies": [
@@ -1578,7 +1590,7 @@
         ],
         "owner": "next Vercel MCP implementer",
         "reason": "Read-only HTTPS RTC door, manifest and per-pass rate policy are implemented and source-tested; merged in PR #219. Full R-2 write-contract HTTPS access and original R-1 write-capable-pass prerequisite remain incomplete, plus independently authenticated client/provider acceptance.",
-        "nextAction": "Implement correctly delegated R-1 write-capable RTC pass grant with all scope/resource/spend/replay checks, then R-2 HTTP write-contract and original rate/window/source conformance; independently verify client/provider positive+denied operations and revocation. Production behavior follows the owner 2026-10-27 IN-09 ruling: production stays on and the enable/disable switch is owned by the end user, flippable by their agent with their approval; the passphrase enable ceremony is not the product gate.",
+        "nextAction": "Implement correctly delegated R-1 write-capable RTC pass grant with all scope/resource/spend/replay checks, then R-2 HTTP write-contract and original rate/window/source conformance; independently verify client/provider positive+denied operations and revocation. Production behavior follows the owner 2026-10-27 IN-09 ruling: production stays on and the enable/disable switch is owned by the end user, flippable by their agent with their approval; the passphrase enable ceremony is not the product gate. Audit finding VMCP-002 (2026-10-27): the production enable leg is still ceremony-bound in code (vercel_enable_production returns awaiting_owner_passphrase and enables nothing); implement the D-B design (BATCH-B amendment, 2026-10-27) so enable completes on confirm for owner full connections, with the passphrase step retained only as an owner-chosen per-team strictness setting.",
         "checkpoint": "At merged PR #219 and each subsequent original R-1/R-2 engineering session; no full completion before original criteria pass",
         "evidenceNeeded": "R-1 authorized pass issuance and write refusal/positive proofs; original R-2 HTTP write-contract tests, exact-head safety/CI/DB concurrency including cleanup, and separately recorded actual serving source and independent desktop/mobile/provider acceptance; Hub integration not required.",
         "eligibilityCondition": "Read-only door, owner per-pass limits, public OAuth and source test completion checked; full HTTP write delegation needs completed R-1 authorization boundary and service-owned verification, not distribution eligibility.",
