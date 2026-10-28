@@ -13,6 +13,12 @@ Written 2026-10-10 for an empty repository. Order is in [MASTER-ROADMAP](MASTER-
 [STATUS](STATUS.md). AGENTS owns workflow rules. This file owns acceptance; designs own semantic decisions; cards own the
 next bounded implementation.
 
+**Checkbox meaning (2026-10-26):** `[x]` means the source is merged *and* its CI checks pass at the head; it does not by
+itself claim live provider acceptance — that is tracked per item in the STATUS.md acceptance queue. Batches A and B were
+merged before this convention was written down, so their boxes were checked retroactively against `work-index.json`
+(A-1…A-6 MERGED, B-1…B-8 MERGED) on 2026-10-26. D, E, V, O-1, U-1 and R-1/R-2 stay `[ ]` here until their live acceptance
+rows pass, even where the source is merged.
+
 ## Rules that apply to every batch
 
 - Every write tool passes the eight write-contract checks (`docs/designs/BATCH-B.md` §3) through every door that exists.
@@ -26,18 +32,18 @@ next bounded implementation.
 - The PR description carries the card's acceptance checklist with evidence.
 
 ## Batch A — Foundation (`designs/BATCH-A.md`)
-- [ ] CI runs check, unit, database and emulate jobs on every PR; a failing test turns it red.
-- [ ] Connector login with account, mode (preview only until enabled), profile and listing; lockout after 5 tries in 15 minutes (database-counted); tokens stored hashed; settings survive refresh.
-- [ ] Vercel tokens stored only encrypted; added only on the setup page; scope probed; full-account tokens refused by default; key-scan test passes.
-- [ ] One Vercel client through an operation table whose every entry is in the vendored snapshot; safe retries without idempotency keys; rate limits respected.
-- [ ] One-time-secret page and pending inputs work (each used once, then gone); protected resources seeded.
-- [ ] `docs/DEPLOY.md` followable by Chris.
+- [x] CI runs check, unit, database and emulate jobs on every PR; a failing test turns it red.
+- [x] Connector login with account, mode (preview only until enabled), profile and listing; lockout on the 6th failed try in 15 minutes (database-counted, `MAX_FAILED_LOGINS=5`, lock when the count exceeds 5 — `src/core/oauth.js`); tokens stored hashed; settings survive refresh.
+- [x] Vercel tokens stored only encrypted; added only on the setup page; scope probed; full-account tokens refused by default; key-scan test passes.
+- [x] One Vercel client through an operation table whose every entry is in the vendored snapshot; safe retries without idempotency keys; rate limits respected.
+- [x] One-time-secret page and pending inputs work (each used once, then gone); protected resources seeded.
+- [x] `docs/DEPLOY.md` followable by Chris.
 
 ## Batch B — Trust layer (`designs/BATCH-B.md`)
-- [ ] `defineWrite` with production, spend, access, secret and target declarations; dollar preview; spend limit; read-back/verify; inverse.
-- [ ] Production guard with two-step enable; self-protection; profile-guard hook; plain-English errors; shaping that hides every secret; profiles.
-- [ ] `check-writes` fails on every missing declaration.
-- [ ] Server tools (change log, connections, spend limit, production enable/disable, token check, protected-resource list, where-is-setting).
+- [x] `defineWrite` with production, spend, access, secret and target declarations; dollar preview; spend limit; read-back/verify; inverse.
+- [x] Production guard with two-step enable; self-protection; profile-guard hook; plain-English errors; shaping that hides every secret; profiles.
+- [x] `check-writes` fails on every missing declaration.
+- [ ] Server tools (change log, connections, spend limit, production enable/disable, token check, protected-resource list, where-is-setting). Source merged, but `work-index.json` says B-8 MERGED while `docs/designs/B-8B-OWNER-BOUNDARY.md` §5 says B-8 remains IN_PROGRESS: the MCP tools are proposals-only (applied on the setup page) and targeted revocation and spend-limit setting are still future work. This line stays unchecked until that contradiction is resolved by an amendment.
 
 ## Batch C — Cheap on context (`designs/BATCH-C.md`)
 - [x] Summaries (env summaries never carry values), `fields`, `detail`, handles, annotations, structured output; logs summarized.
@@ -55,8 +61,9 @@ next bounded implementation.
 - [ ] Global Config on `/v1/global-config/*` only; Global Config tokens never returned; schema changes previewed against current items (E-4).
 
 ## Batch V — Developer tools (`designs/BATCH-V.md`)
-- [ ] Runs recorded and tagged; cleanup touches only recorded objects.
-- [ ] Preview per branch, preview env wiring, preview aliases, bypass for automation, build diagnosis, log tail, preview fetch, integration check, Sandboxes with atomic usage visibility but no mandatory daily quota (IN-13 owner amendment 2026-10-17), signed test webhooks.
+- [ ] Runs recorded and tagged; cleanup touches only recorded objects. (V-1 source merged #206; live acceptance pending.)
+- [ ] Preview per branch, preview env wiring, preview aliases, bypass for automation, build diagnosis, log tail, preview fetch, integration check. (V-2/V-3 source merged #207/#209; live acceptance pending.)
+- [ ] Sandboxes with atomic usage visibility but no mandatory daily quota (IN-13 owner amendment 2026-10-17), signed test webhooks. (V-4/V-5 source merged #216; live acceptance pending — IN-13 was answered 2026-10-17, not unanswered.)
 - [ ] Every tool refuses production.
 
 ## Batch N — Domains, DNS, certificates, registrar (`designs/BATCH-N.md`)
@@ -84,7 +91,7 @@ next bounded implementation.
 - [ ] All 12 workflows; one preview and one confirm per write workflow; shipping gated; rollback honest; all writes logged.
 
 ## Batch U — Universal tools (`designs/BATCH-U.md`)
-- [ ] Four `vercel_api_*` tools; requests validated against the snapshot; spend, production and secret detection with safe defaults; hand-built tools win; same guards.
+- [ ] Three of four `vercel_api_*` tools built (`vercel_api_search`, `vercel_api_describe`, `vercel_api_read` — flag reads only); requests validated against the snapshot; spend, production and secret detection with safe defaults; hand-built tools win; same guards. **`vercel_api_write` is not built** — there is no write handler in `src/` and no `src/vercel/spend-operations.js` table; the write side of U-1 remains open work.
 
 ## Batch R — standalone RTC 1 doors (`designs/BATCH-R.md`)
 

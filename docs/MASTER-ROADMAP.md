@@ -68,17 +68,17 @@ covered by the approved design; write the card when its predecessor is real.
 | Batch | Cards | Card status |
 |---|---|---|
 | A Foundation | A-1 repo, CI, checks · A-2 schema · A-3 login · A-4 Vercel client + OpenAPI snapshot · A-5 token store, setup page, one-time secrets, pending inputs · A-6 DEPLOY.md | A-1 MERGED (#1) · A-2 MERGED (#6) · A-3 MERGED (#7, #8) · A-4 MERGED (#12) · A-5 MERGED (#13/#14/#15) · A-6 MERGED (#16, subject to final CI) |
-| B Trust | B-1 safety + declarations · B-2 production guard · B-3 self-protection + profile hook · B-4 errors · B-5 shaping + secrets · B-6 profiles · B-7 check-writes · B-8 server tools | JIT |
-| C Context | C-1 small results · C-2 listing modes + budgets | JIT |
-| D Projects and deployments | D-1 projects/members/crons/Git · D-2 deployment reads/logs/checks · D-3 deployment changes · D-4 releases | JIT |
-| E Variables and config | E-1 project env · E-2 shared env + custom environments · E-3 Global Config · E-4 Global Config tokens + schema | JIT |
-| V Developer tools | V-1 runs/seed/cleanup · V-2 previews/env/aliases/bypass · V-3 logs/diagnosis/fetch/check · V-4 sandboxes · V-5 test webhooks | JIT |
-| N Domains | N-1 domains · N-2 DNS + certificates · N-3 registrar | JIT |
-| F Security and traffic | F-1 protection · F-2 firewall · F-3 routes/redirects/cache | JIT |
-| M Monitoring and integrations | M-1 logs/analytics · M-2 drains/webhooks · M-3 integrations/storage · M-4 Blob files | JIT |
-| O Owner | O-1 team/security · O-2 members/access groups · O-3 tokens · O-4 billing/activity · O-5 admin overview + dashboard map | JIT |
-| P Project profiles | P-1 known_apps + Appliance Desk · P-2 readiness · P-3 project setup + draft | JIT |
-| W Workflows | W-1 … W-6 (`designs/BATCH-W.md` §4 table) | JIT |
-| U Universal | U-1 | JIT |
-| R Hub-ready doors (RTC 1) | R-1 passes · R-2 HTTPS API, manifest, rate limit · R-3 conformance in CI | JIT |
-| X Close-out | X-1 undo · X-2 smoke + scratch run | JIT |
+| B Trust | B-1 safety + declarations · B-2 production guard · B-3 self-protection + profile hook · B-4 errors · B-5 shaping + secrets · B-6 profiles · B-7 check-writes · B-8 server tools | MERGED ×8 (#17–#40) |
+| C Context | C-1 small results · C-2 listing modes + budgets | MERGED ×2 (#41–#46) |
+| D Projects and deployments | D-1 projects/members/crons/Git · D-2 deployment reads/logs/checks · D-3 deployment changes · D-4 releases | IN_PROGRESS ×4 (source largely merged, live acceptance pending) |
+| E Variables and config | E-1 project env · E-2 shared env + custom environments · E-3 Global Config · E-4 Global Config tokens + schema | IN_PROGRESS ×4 (source largely merged, live acceptance pending) |
+| V Developer tools | V-1 runs/seed/cleanup · V-2 previews/env/aliases/bypass · V-3 logs/diagnosis/fetch/check · V-4 sandboxes · V-5 test webhooks | V-1/V-2/V-3 MERGED (#206/#207/#209); V-4/V-5 IN_PROGRESS (source merged #216, live acceptance pending) |
+| N Domains | N-1 domains · N-2 DNS + certificates · N-3 registrar | N-1 IN_PROGRESS (source on branch `marley/audit-vercel-mcp-20261025`, live acceptance pending); N-2/N-3 APPROVED |
+| F Security and traffic | F-1 protection · F-2 firewall · F-3 routes/redirects/cache | APPROVED |
+| M Monitoring and integrations | M-1 logs/analytics · M-2 drains/webhooks · M-3 integrations/storage · M-4 Blob files | APPROVED |
+| O Owner | O-1 team/security · O-2 members/access groups · O-3 tokens · O-4 billing/activity · O-5 admin overview + dashboard map | O-1 IN_PROGRESS (#144–#147); O-2–O-5 APPROVED |
+| P Project profiles | P-1 known_apps + Appliance Desk · P-2 readiness · P-3 project setup + draft | APPROVED |
+| W Workflows | W-1 … W-6 (`designs/BATCH-W.md` §4 table) | APPROVED |
+| U Universal | U-1 | IN_PROGRESS (discovery + flag reads merged; `vercel_api_write` not built) |
+| R Hub-ready doors (RTC 1) | R-1 passes · R-2 HTTPS API, manifest, rate limit · R-3 conformance in CI | R-1/R-2 IN_PROGRESS (read-only passes/doors only); R-3 APPROVED |
+| X Close-out | X-1 undo · X-2 smoke + scratch run | APPROVED |

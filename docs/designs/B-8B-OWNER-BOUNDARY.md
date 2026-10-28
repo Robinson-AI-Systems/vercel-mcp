@@ -78,3 +78,11 @@ route is explicitly outside OAuth tool dispatch and does not create a general pr
 B-8 remains IN_PROGRESS after the owner default setup action. Finishing named MCP tools,
 targeted revocation, spend limit and full write-contract evidence is still required before B-8
 can close and C can start. This document grants no authority to alter owner inputs or deploy.
+
+**2026-10-26 note — status contradiction, unresolved:** `docs/pr-cards/work-index.json` lists B-8 as MERGED
+(PRs #24–#40), while this section says B-8 remains IN_PROGRESS because the MCP owner tools are proposals-only
+(applied on the setup page) and targeted revocation and spend-limit setting are still future work. Both cannot be
+true as a completion record. C-1/C-2 are merged, so the "before C can start" gate in this section is already
+overtaken by events. The index was not changed to match this document (and vice versa) — an amendment must decide
+whether B-8 closes as proposals-only with the remaining apply paths tracked as new work, or stays IN_PROGRESS
+until they are implemented. Until then, do not cite either source as proof B-8 is closed.

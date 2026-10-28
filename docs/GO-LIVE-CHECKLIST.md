@@ -18,7 +18,7 @@ Legend: **Owner** = only Chris · **Agent** = Claude can do it once you say go.
 | [ ] | Protected projects list confirmed (IN-07) | Setup page (Owner) | Defaults | `vercel_list_protected_resources` shows the list |
 | [ ] | Connector added in Claude, preview mode (Owner) | claude.ai → Settings → Connectors | Not added | Claude answers "who am I connected as in Vercel?" correctly |
 | [ ] | Legacy spending control (IN-08) | Existing server requires owner setup before charged operations; future user-selected spending/authorization policy must replace developer-era default $0. | $0 currently in code; **not an owner-approved restriction on customers** | `vercel_whoami` exposes legacy value; record actual delegated-mode acceptance only after implemented |
-| [ ] | Blob stores the server may look inside (IN-15; none by default) | Setup page → Blob stores (Owner types each store's key there) | None | `vercel_blob_list` on that store lists its files; other stores answer "not connected" |
+| [ ] | Blob stores the server may look inside (IN-15; none by default) | Setup page → Blob stores (Owner types each store's key there) | None | Not built yet (Batch M-4): `vercel_blob_list` does not exist and no Blob store is connected; no store answers until M-4 is implemented and an owner selects a store |
 | [ ] | Variable-cost Sandbox authorization (V-4; optional, per transaction) | First ask the connected agent to preview a bounded Sandbox; inspect the resulting exact purchase reference on the authenticated setup page, check the non-guaranteed-cost acknowledgment, enter your chosen planning threshold and reenter your passphrase. Do **not** use developer-agent approvals | Never automatic | The one-use grant is consumed before the exact preview Sandbox starts; Vercel activity and `vercel_dev_list_runs` verify the owned session. The actual bill may exceed the advisory planning threshold |
 | [ ] | Scratch project and its project key (IN-06) | Vercel dashboard + setup page (Owner) | None | The X-2 report shows the scratch run passing |
 
@@ -41,7 +41,7 @@ Legend: **Owner** = only Chris · **Agent** = Claude can do it once you say go.
 
 ### Appliance Desk
 
-Run `vercel_workflow_app_readiness` for Appliance Desk and work through what it lists. The full list with explanations
+Run `vercel_workflow_app_readiness` for Appliance Desk and work through what it lists. (Not built yet — Batch P-2; until it exists, work through the list in `docs/APP-NEEDS-APPLIANCE-DESK.md` directly.) The full list with explanations
 is `docs/APP-NEEDS-APPLIANCE-DESK.md`; the app's own checklist (`appliance-desk/docs/GO-LIVE-CHECKLIST.md`) stays the
 authority for the app's launch.
 

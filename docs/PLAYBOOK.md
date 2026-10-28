@@ -92,7 +92,7 @@ Vercel token (`vcp_…`, `vci_…`, `vca_…`, `vercel_blob_rw_…`), Stripe key
 | Any tool | `npx vitest run tests/unit/<area>.test.js tests/unit/write-contract.test.js` |
 | A Vercel call | `npx vitest run tests/unit/vercel-client.test.js tests/unit/openapi-validate.test.js tests/unit/openapi-snapshot.test.js` (validates recorded requests against the snapshot) and, when `emulate` covers it, `npm run test:emulate -- tests/emulate/<area>.test.js` (`scripts/emulate.sh` starts `emulate@<pinned>` on `localhost:4000` and stops it) |
 | SQL / `src/db.js` | `npm run test:db -- tests/db/<file>.test.js` (`scripts/local-postgres-test.sh`: disposable **localhost** Postgres, never Neon). If no Postgres binaries exist in your workspace, push and let CI run it; say so in the PR |
-| A door (HTTPS API, `vercel_call`) | `npx vitest run tests/doors/` |
+| A door (HTTPS API, `vercel_call`) | `npx vitest run tests/unit/meta-dispatch.test.js tests/unit/rtc-api.test.js tests/unit/rtc-manifest.test.js` (there is no `tests/doors/` directory) |
 | Listing or descriptions | `node scripts/check-budgets.mjs --print` |
 
 **GitHub REST testing fallback (mandatory without a local runner).** When this environment has no terminal,
@@ -107,7 +107,7 @@ the previous CI cycle is running. Say clearly in the PR that tests ran in GitHub
 ### 4c. Registries that break CI when you forget them
 
 `src/tools/index.js` module list · `src/vercel/operations.js` · TOOL-CATALOG row · `profiles` metadata ·
-`src/vercel/spend-operations.js` (spend tools) · `src/vercel/hand-built-map.js` (after U-1) · `known_apps` seed (P-1) ·
+`src/vercel/spend.js` (spend helpers) · `src/vercel/hand-built-map.js` (after U-1) · `known_apps` seed (P-1) ·
 `src/data/dashboard-map.js` (guided settings) · `work-index.json`.
 
 ## Step 5 — Pushing and CI
@@ -153,11 +153,9 @@ what is not included; CI runs used. Delete the resume note in the final commit.
 
 ## Step 8 — Preview
 
-Once the Vercel project exists (IN-02; until then skip this step and say so in the PR), Vercel builds a preview of this
-server per branch. Previews share the production database, so they must never enable
-production mode: `api/vercel/setup.js` and the login page treat `production_enabled` as false on non-production
-deployments (A-5, A12). For a card that changes a door or login, open the preview's home page and confirm the tool
-counts shown match the PR. Never point a preview of this server at a real team's production.
+Once the Vercel project exists (IN-02; until then skip this step and say so in the PR), note that Vercel does **not** build previews of this server: `vercel.json` disables automatic deployments except on `live` (`git.deploymentEnabled: {"**": false, "live": true}`), and the daily job promotes `main` → `live`. There is no per-branch preview to open. Previews share the production database, so they must never enable
+production mode: production mode is only offered when the stored account has `production_enabled` **and** `VERCEL_ENV === 'production'` (`src/vercel/login.js`, `src/core/mcp-auth.js:29`). For a card that changes a door or login, verify the tool
+counts in the unit tests (`tests/unit/registry.test.js`) and the `live` deployment after the daily promotion instead of opening a preview. Never point a preview of this server at a real team's production.
 
 ## Step 9 — Merge (authorized when all are true)
 
