@@ -8,6 +8,15 @@ import { publicOrigin, send, escapeHtml, paramsOf, only } from './http.js';
 
 const PROFILES = ['read_only', 'everyday', 'full'];
 const LISTINGS = ['catalog', 'compact', 'front_door'];
+// Muse (Meta) publishes no client metadata document of its own, so a server
+// that accepts Muse connections hosts one for it (the client-id metadata
+// document pattern): the document's URL is the client_id, Muse's only
+// redirect is its hosted callback, and it authenticates with PKCE only
+// (token endpoint method "none"). The client is resolved locally from this
+// server's own document — no registration row — and dynamic client
+// registration for every other client is untouched.
+const MUSE_CLIENT_PATH = '/.well-known/muse-client.json';
+const MUSE_REDIRECT_URI = 'https://agent.meta.ai/api/hatch/oauth/callback';
 const tokenResponse = (access, refresh) => ({
   access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh
 });
@@ -23,6 +32,30 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     return { origin, resource: origin + '/api/mcp' };
   }
   function validateResource(value) { return value === urls().resource; }
+
+  function museClientDocument() {
+    const { origin } = urls();
+    return {
+      client_id: origin + MUSE_CLIENT_PATH,
+      client_name: 'Muse',
+      grant_types: ['authorization_code', 'refresh_token'],
+      redirect_uris: [MUSE_REDIRECT_URI],
+      response_types: ['code'],
+      token_endpoint_auth_method: 'none'
+    };
+  }
+  // The Muse document client resolves to a fixed public-client record; every
+  // other client_id keeps the registered-client lookup, unchanged.
+  async function resolveClient(clientId) {
+    if (typeof clientId === 'string' && clientId === museClientDocument().client_id) {
+      return {
+        client_id: clientId, client_name: 'Muse',
+        redirect_uris: [MUSE_REDIRECT_URI],
+        token_endpoint_auth_method: 'none', client_secret_hash: null
+      };
+    }
+    return db.getOAuthClient(clientId);
+  }
 
   async function register(req, res) {
     if (!only(res, req, ['POST'])) return;
@@ -110,7 +143,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed authorization request');
     }
-    const client = await db.getOAuthClient(str(params.client_id));
+    const client = await resolveClient(str(params.client_id));
     if (!client || !client.redirect_uris?.includes(params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
       return bad(res, 400, 'invalid_request', 'Unknown client or redirect address');
     }
@@ -160,7 +193,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       return bad(res, 400, 'invalid_request', 'Malformed token request');
     }
     if (!validateResource(params.resource)) return bad(res, 400, 'invalid_target', 'Token resource must be this MCP');
-    const client = await db.getOAuthClient(str(params.client_id));
+    const client = await resolveClient(str(params.client_id));
     // Legacy records without an explicit authentication method remain
     // confidential clients; a public client never treats a client ID as proof
     // of possession of a non-existent client secret.
@@ -213,6 +246,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       authorization_endpoint: origin + '/api/oauth/authorize',
       token_endpoint: origin + '/api/oauth/token',
       registration_endpoint: origin + '/api/oauth/register',
+      client_id_metadata_document_supported: true,
       revocation_endpoint:origin+'/api/oauth/revoke',
       revocation_endpoint_auth_methods_supported:['client_secret_post','none'],
       response_types_supported: ['code'],
@@ -228,6 +262,11 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     return send(res, 200, { resource, authorization_servers: [origin] });
   }
 
-  return { register, authorize, token, metadata, resourceMetadata,
-    revoke:createOAuthRevocation({db,env}) };
+  function museClient(req, res) {
+    if (!only(res, req, ['GET'])) return;
+    return send(res, 200, museClientDocument());
+  }
+
+  return { register, authorize, token, metadata, resourceMetadata, museClient,
+    revoke:createOAuthRevocation({db,env,getClient:resolveClient}) };
 }

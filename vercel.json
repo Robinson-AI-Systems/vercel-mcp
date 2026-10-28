@@ -13,6 +13,10 @@
       "destination": "/api/well-known/oauth-protected-resource"
     },
     {
+      "source": "/.well-known/muse-client.json",
+      "destination": "/api/well-known/muse-client"
+    },
+    {
       "source": "/",
       "destination": "/api/index"
     }
