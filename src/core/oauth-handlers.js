@@ -7,7 +7,7 @@ import {
 import { publicOrigin, send, escapeHtml, paramsOf, only } from './http.js';
 
 const PROFILES = ['read_only', 'everyday', 'full'];
-const LISTINGS = ['catalog', 'compact'];
+const LISTINGS = ['catalog', 'compact', 'front_door'];
 const tokenResponse = (access, refresh) => ({
   access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh
 });
@@ -79,8 +79,12 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     const profileList = PROFILES.map((profile) =>
       '<option value="' + profile + '"' + (params.profile === profile ? ' selected' : '') + '>' + profile + '</option>'
     ).join('');
+    // No listing choice on the authorize page means the OP-1 front door
+    // (AUD-C/D-C): preselect it; an explicit catalog/compact choice is
+    // honored exactly as chosen.
+    const selectedListing = LISTINGS.includes(params.listing) ? params.listing : 'front_door';
     const listingList = LISTINGS.map((listing) =>
-      '<option value="' + listing + '"' + (params.listing === listing ? ' selected' : '') + '>' + listing + '</option>'
+      '<option value="' + listing + '"' + (selectedListing === listing ? ' selected' : '') + '>' + listing + '</option>'
     ).join('');
     return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +

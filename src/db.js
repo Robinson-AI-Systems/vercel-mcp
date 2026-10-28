@@ -639,7 +639,7 @@ export function createDb(query) {
     },
     async createAuthCode({
       code, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',
-      vercelAccount = null, mode = 'preview', profile = 'everyday', listing = 'catalog', ttlSeconds = 600
+      vercelAccount = null, mode = 'preview', profile = 'everyday', listing = 'front_door', ttlSeconds = 600
     }) {
       const run = getSql();
       const data = JSON.stringify({
@@ -664,7 +664,7 @@ export function createDb(query) {
     },
     async createAccessToken({
       accessToken, refreshToken, clientId, vercelAccount = null,
-      mode = 'preview', profile = 'everyday', listing = 'catalog', ttlSeconds = 3600
+      mode = 'preview', profile = 'everyday', listing = 'front_door', ttlSeconds = 3600
     }) {
       const run = getSql();
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
@@ -952,13 +952,18 @@ export function createDb(query) {
       await run`CREATE TABLE IF NOT EXISTS oauth_codes (
         code TEXT PRIMARY KEY, client_id TEXT NOT NULL, data JSONB NOT NULL, vercel_account TEXT,
         mode TEXT NOT NULL DEFAULT 'preview', profile TEXT NOT NULL DEFAULT 'everyday',
-        listing TEXT NOT NULL DEFAULT 'catalog', expires_at TIMESTAMPTZ NOT NULL)`;
+        listing TEXT NOT NULL DEFAULT 'front_door', expires_at TIMESTAMPTZ NOT NULL)`;
       await run`CREATE TABLE IF NOT EXISTS oauth_tokens (
         token_hash TEXT PRIMARY KEY, client_id TEXT, refresh_hash TEXT, vercel_account TEXT,
         mode TEXT NOT NULL DEFAULT 'preview', profile TEXT NOT NULL DEFAULT 'everyday',
-        listing TEXT NOT NULL DEFAULT 'catalog', kind TEXT NOT NULL DEFAULT 'connector',
+        listing TEXT NOT NULL DEFAULT 'front_door', kind TEXT NOT NULL DEFAULT 'connector',
         expires_at TIMESTAMPTZ, last_used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+      // AUD-C (OP-1/D-C): new issuances default to the front_door listing.
+      // Align the column defaults on tables created before this change;
+      // stored rows keep the listing they were issued with — never rewritten.
+      await run`ALTER TABLE oauth_codes ALTER COLUMN listing SET DEFAULT 'front_door'`;
+      await run`ALTER TABLE oauth_tokens ALTER COLUMN listing SET DEFAULT 'front_door'`;
       await run`CREATE TABLE IF NOT EXISTS rtc_passes (
         pass_id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,
         vercel_account TEXT NOT NULL,profile TEXT NOT NULL DEFAULT 'read_only',

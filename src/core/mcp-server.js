@@ -5,16 +5,25 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { requireMcpToken } from './mcp-auth.js';
 import { SERVICE_TECHNICAL_NAME, SERVICE_DISPLAY_NAME, SERVICE_VERSION } from '../service-identity.js';
 import { visibleToProfile, listProfileTools, profileToolCounts as countByProfile } from './profiles.js';
+import { FRONT_DOOR_TOOLS } from '../data/front-door.js';
 
 // Explicit local owner operations are the only writes permitted before the general gateway.
 const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection', 'vercel_create_pass'];
+const COMPACT_TOOLS = ['vercel_whoami','vercel_search_tools','vercel_describe_tool',
+  'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'];
+const FRONT_DOOR_SET = new Set(FRONT_DOOR_TOOLS);
 export const listMcpTools = (registry, connection) =>
   listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS })
-    .filter(tool=>connection?.listing!=='compact' ||
-      ['vercel_whoami','vercel_search_tools','vercel_describe_tool',
-        'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'].includes(tool.name) ||
-      tool.name.startsWith('vercel_workflow_'))
+    .filter(tool=>{
+      // front_door (OP-1/D-C): the versioned membership in src/data/front-door.json
+      // intersected with this connection's profile-permitted tools; compound
+      // workflow tools join the front door as they are built (BATCH-C D-C).
+      if (connection?.listing==='front_door')
+        return FRONT_DOOR_SET.has(tool.name) || tool.name.startsWith('vercel_workflow_');
+      if (connection?.listing!=='compact') return true;
+      return COMPACT_TOOLS.includes(tool.name) || tool.name.startsWith('vercel_workflow_');
+    })
     .map(tool=>{
       // Public descriptors have writes stripped; use authenticated metadata.
       const read=registry.tools.find(item=>item.name===tool.name)?.writes===false;
