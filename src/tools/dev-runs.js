@@ -7,6 +7,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch,PreDispatchRefusal,purch
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {deploymentTargetMatches} from '../vercel/deployment-target.js';
+import {deploymentProjectSettings} from '../vercel/project-settings.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {seedManifest,DEV_SCENARIOS} from '../dev/scenarios.js';
 import {checkProtected} from './self-guard.js';
@@ -129,12 +130,20 @@ const seed=defineWrite({
     const files=fixture.files.map(f=>({file:f.file,
       sha:createHash('sha1').update(f.content).digest('hex'),
       size:Buffer.byteLength(f.content,'utf8')}));
+    // A seed deployment is always its project's FIRST deployment, and the
+    // provider requires projectSettings for a first deployment (vendored
+    // OpenAPI description; omitting them is the 400 missing_project_settings
+    // of the 2026-10-28 live probe). The scenario declares the framework;
+    // every other setting stays null (provider auto-detects).
+    const projectSettings=deploymentProjectSettings(
+      {framework:fixture.framework});
     validateRequest('projects_create',{query:{teamId:account.team_id},
       body:{name,...(fixture.framework?{framework:fixture.framework}:{})}});
     validateRequest('deployments_create',{query:{teamId:account.team_id},
-      body:{name,project:name,files,target:'preview',meta:{rtc_run:runId}}});
+      body:{name,project:name,files,target:'preview',meta:{rtc_run:runId},
+        projectSettings}});
     return {runId,name,files,teamId:account.team_id,scenario:args.scenario,
-      framework:fixture.framework,note:fixture.note};
+      framework:fixture.framework,projectSettings,note:fixture.note};
   },
   async preview(_args,_ctx,b){
     return 'Create isolated synthetic '+b.scenario+' preview in '+b.name+
@@ -203,7 +212,7 @@ const seed=defineWrite({
       detail:{operation:'deployments_create',name:b.name,target:'preview'}});
     const deployment=await provider.write('deployments_create',{
       body:{name:b.name,project:b.name,target:'preview',files:b.files,
-        meta:{rtc_run:b.runId}}
+        meta:{rtc_run:b.runId},projectSettings:b.projectSettings}
     },{requestKey,tool:'vercel_dev_seed',mutationId:'seed-preview',
       shapeResult:row=>{
         const id=row?.id??row?.uid;

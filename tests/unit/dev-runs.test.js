@@ -80,7 +80,9 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
       sha:'a'.repeat(40),size:Buffer.byteLength(f.content)}));
     expect(validateRequest('deployments_create',{
       query:{teamId:team},body:{name:'rtc-test-preview',project:'rtc-test-preview',
-        target:'preview',files,meta:{rtc_run:run}}
+        target:'preview',files,meta:{rtc_run:run},
+        projectSettings:{buildCommand:null,devCommand:null,framework:null,
+          installCommand:null,outputDirectory:null,rootDirectory:null}}
     })).toBe(true);
   });
   it('forbids production connections, cross-tenant creation, and metered seed execution',async()=>{
@@ -355,6 +357,73 @@ describe('AUD-H real provider shapes in seed and cleanup (VMCP-023)',()=>{
       {scenario:'static-site',runId:seedRun,outsideApp:true,confirm:true,
         requestKey:'seedAudH00001'},{...owner,kind:'connector'}));
     expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+});
+describe('AUD-J first-deployment projectSettings in seed (VMCP-023)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();loadToken.mockResolvedValue({
+    token:'vcp_FAKE_DEV_TOKEN',account:{id:account,scope:'team',team_id:team}
+  });});
+  // The provider requires projectSettings for a project's FIRST deployment
+  // (vendored OpenAPI description) and refuses without them:
+  // 400 missing_project_settings — the live probe's failure of 2026-10-28.
+  // A seed deployment is always a first deployment, so the create call must
+  // carry the settings, with the scenario's framework and nulls elsewhere.
+  function seedFixture(){
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.db.createDevRun=async({id,account:acct})=>{
+      if(acct!==account)return {created:false};
+      f.runs.set(id,{id,description:'Synthetic seed',status:'active',
+        created_at:new Date().toISOString(),cleaned_at:null});
+      f.rows.set(id,[]);return {created:true};
+    };
+    f.db.addDevRunObject=async({id,type,objectId,projectId,detail})=>{
+      f.rows.get(id)?.push(object(type,objectId,projectId??project,detail??{}));
+      return true;
+    };
+    return f;
+  }
+  function wireSeed(f,seedRun,name){
+    const projectRow={id:project,name,accountId:team};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .rejects(404).rejects(404).rejects(404).resolves(projectRow);
+    f.fake.when('POST','/v11/projects').resolves(projectRow);
+    f.fake.when('POST','/v2/files').resolves({urls:['example-upload.aws.com']},200);
+    const deploymentRow={id:deployment,projectId:project,target:null,
+      readyState:'QUEUED',meta:{rtc_run:seedRun}};
+    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
+  }
+  it('sends null-framework projectSettings for a static-site seed',async()=>{
+    const seedRun='run_20261028_audj000001';
+    const name='rtc-'+seedRun.replaceAll('_','-')+'-static-site';
+    const f=seedFixture();wireSeed(f,seedRun,name);
+    const out=parse(await f.call('vercel_dev_seed',
+      {scenario:'static-site',runId:seedRun,outsideApp:true,confirm:true,
+        requestKey:'seedAudJ00001'},{...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create.body.projectSettings).toEqual({
+      buildCommand:null,devCommand:null,framework:null,
+      installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
+  it('sends the scenario framework for a nextjs-hello seed',async()=>{
+    const seedRun='run_20261028_audj000002';
+    const name='rtc-'+seedRun.replaceAll('_','-')+'-nextjs-hello';
+    const f=seedFixture();wireSeed(f,seedRun,name);
+    const out=parse(await f.call('vercel_dev_seed',
+      {scenario:'nextjs-hello',runId:seedRun,outsideApp:true,confirm:true,
+        requestKey:'seedAudJ00002'},{...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create.body.projectSettings).toEqual({
+      buildCommand:null,devCommand:null,framework:'nextjs',
+      installCommand:null,outputDirectory:null,rootDirectory:null});
     f.fake.verify();
   });
 });

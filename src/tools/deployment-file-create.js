@@ -6,6 +6,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} f
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {deploymentTargetMatches} from '../vercel/deployment-target.js';
+import {deploymentProjectSettings} from '../vercel/project-settings.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
@@ -75,20 +76,29 @@ async function checkProject(ctx,id,name){
   if(row?.id!==id||row.name!==name||
     row.accountId!=null&&row.accountId!==account.team_id)
     throw new TypeError('Stored team/project identity mismatch');
-  return {client,account};
+  return {client,account,row};
 }
 const create=defineWrite({
   name:'vercel_deploy_create_from_files',risk:{spend:true},
   async before(args,ctx){
     const files=manifest(args);
     if(ctx.connection?.profile!=='full')throw new TypeError('Full profile required');
-    const {account}=await checkProject(ctx,args.project,args.expectedName);
+    const {account,row}=await checkProject(ctx,args.project,args.expectedName);
+    // The provider requires projectSettings for a project's FIRST
+    // deployment and saves what it is given for later ones (vendored
+    // OpenAPI description; omitting them against a settings-less project
+    // is the 400 missing_project_settings of VMCP-023's 2026-10-28 live
+    // probe). Echo the project record's own stored fields back unchanged,
+    // so configured projects keep exactly their settings and a
+    // never-deployed project gets its record's values (null = the
+    // provider auto-detects) as its first saved settings.
+    const projectSettings=deploymentProjectSettings(row);
     const body={name:args.expectedName,project:args.expectedName,
-      files:files.items,target:args.target};
+      files:files.items,target:args.target,projectSettings};
     validateRequest('deployments_create',{query:{teamId:'team_FAKE_validation'},body});
     return {project:args.project,name:args.expectedName,
       target:args.target,files:files.items,total:files.total,
-      teamId:account.team_id};
+      projectSettings,teamId:account.team_id};
   },
   async preview(_args,_ctx,before){
     return 'Create a '+before.target+' deployment of '+before.name+
@@ -148,7 +158,8 @@ const create=defineWrite({
     }
     return provider.write('deployments_create',{
       body:{name:before.name,project:before.name,
-        files:before.files,target:before.target}
+        files:before.files,target:before.target,
+        projectSettings:before.projectSettings}
     },{requestKey,tool:'vercel_deploy_create_from_files',shapeResult:row=>{
       const id=row?.id??row?.uid;
       if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
