@@ -1,3 +1,9 @@
+## 2026-10-28 — IN-16 requirement added: dynamic box choice at sign-in
+
+The owner's second follow-up the same day makes the box a sign-in choice, not an enrollment consequence: **one sign-in flow where the user picks their box in plain words — one project / a team / the whole account — with what each box lets their agent reach stated plainly at the moment of choice, and the backing credential changes to match the choice.** Build from the pieces that already exist where possible: the consent page's account/mode/profile/listing picks, the setup page's scope probe-and-record, and Vercel's own install-scope choice on the OAuth tier. The connection must always show its current box back (`vercel_whoami` already reports scope — kept).
+
+Filed into IN-16 and the VMCP-026 entry, with one honesty note carried into both, verified in the shipped enrollment code for this entry: the recorded scope label is a visibility heuristic — `probeTeamVisible` records `full` only when the token can see more than one team, so a genuine full-account token belonging to a single-team user records `team`, and the stored probe itself carries `scopeVerified: false` because REST reads cannot prove a token's complete privilege set. The plain-words box display the card builds must not claim more certainty than the probe has. Docs-only; sequencing remains the owner's pending ruling.
+
 ## 2026-10-28 — IN-16 addendum filed: the two-tier authority shape (Tier 1 OAuth sign-in, Tier 2 token "god mode")
 
 The owner's follow-up the same day: the Vercel product gets the SAME two-tier authority shape as his GitHub MCP — (1) a standard login tier: sign in through the provider's page, get that login's authority and the standard tool set; (2) an owner-chosen "god mode": the user creates a token with everything on, unlocking more tools/capabilities, with user-set expiration (even never) and the system warning ahead of expiry.
