@@ -467,8 +467,9 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
   imports nothing Vercel-specific, so the hub can extract it into `robinson-mcp-core`.
 - **Vercel only through `src/vercel/client.js`** and its operation table `src/vercel/operations.js` (each operation's
   path version pinned and present in the vendored OpenAPI snapshot). Never call an undocumented endpoint; never move a
-  path version or the snapshot outside its own card. The one exception is Blob files, which go through the pinned
-  official `@vercel/blob` package in `src/vercel/blob.js` (`docs/designs/BATCH-M.md` M6).
+  path version or the snapshot outside its own card. The one exception is Blob files (Batch M-4, not built yet): when M-4
+  is implemented, Blob files will go through the pinned official `@vercel/blob` package in `src/vercel/blob.js`
+  (`docs/designs/BATCH-M.md` M6). Neither the package nor that file exists yet — do not cite them as current code.
 - **Every tool name starts with `vercel_`** (`docs/TOOL-CATALOG.md` "Naming").
 - **No secret ever returned:** environment variable values of any type, tokens, bypass secrets, webhook secrets, Global
   Config tokens, transfer codes, passes. Created secrets go to the one-time-secret page; secret inputs come from the

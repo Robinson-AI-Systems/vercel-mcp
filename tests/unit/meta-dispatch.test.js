@@ -49,6 +49,15 @@ describe('C-2b guarded meta invocation',()=>{
     expect(f.read).not.toHaveBeenCalled();
     expect(f.write).not.toHaveBeenCalled();
   });
+  it('refuses a batch containing vercel_call even when it only wraps a read',async()=>{
+    const f=fixture();
+    const reply=await f.call('vercel_batch',{calls:[
+      {name:'vercel_fixture_read',args:{label:'x'}},
+      {name:'vercel_call',args:{name:'vercel_fixture_read',args:{label:'y'}}}
+    ]});
+    expect(reply.isError).toBe(true);
+    expect(f.read).not.toHaveBeenCalled();
+  });
   it('executes up to ten read-only items using the wrapped dispatch',async()=>{
     const f=fixture(),calls=Array.from({length:10},(_,i)=>({
       name:'vercel_fixture_read',args:{label:String(i)}

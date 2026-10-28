@@ -1,10 +1,12 @@
 # Tool catalog
 
-**2026-10-19 R-2 transport and pass settings (draft PR #219):** The independently operated service display name is **Vercel by Robinson AI Systems**; stable `vercel_*` tool IDs do not change. `vercel_create_pass` proposals now accept optional `rateLimitPerMinute` (integer 1–600, default 120); independently authenticated owner setup reviews and issues this scope. Existing issued RTC passes retain the legacy 60/min on additive migration; new pass limits are atomically enforced across serverless instances. The proposal is **read-only**, not a grant to write, spend, or change production. See `docs/PRODUCT-AUTHORITY-AUDIT.md` for the unfinished customer authority work. Exact-head CI and deployed/live client proof remain pending.
+**2026-10-19 R-2 transport and pass settings (merged in PR #219, 2026-10-21; PRs #220–#222 also merged):** The independently operated service display name is **Vercel by Robinson AI Systems**; stable `vercel_*` tool IDs do not change. `vercel_create_pass` proposals now accept optional `rateLimitPerMinute` (integer 1–600, default 120); independently authenticated owner setup reviews and issues this scope. Existing issued RTC passes retain the legacy 60/min on additive migration; new pass limits are atomically enforced across serverless instances. The proposal is **read-only**, not a grant to write, spend, or change production. See `docs/PRODUCT-AUTHORITY-AUDIT.md` for the unfinished customer authority work. Exact-head CI and deployed/live client proof remain pending.
 
 
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
+
+**Built vs planned (2026-10-26 audit, HEAD `03b1e4b` + N-1 branch work): 123 of the 236 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 113 are planned scope for approved batches N-2/N-3, F, M, O-2–O-5, P, W, X and the write side of U-1, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
 
 **Naming.** Every tool name starts with `vercel_` (DECISIONS 2026-10-10 "Every tool name starts with `vercel_`"):
 Vercel, Neon and GitHub share nouns such as *project* and *branch*, and two connectors attached to one Claude chat must
@@ -67,7 +69,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_list_connections` | Claude connections and passes: account, mode, profile, listing, last used, expiry | — | O | R | — | B-8 |
 | `vercel_revoke_connection` | Propose revoking an exact current OAuth connector; independently authenticated owner must approve | C | O | F | — | B-8b built #40 |
 | `vercel_enable_production` | Request a ten-minute team production approval; only owner passphrase reentry on setup can enable it | C | O | F | — | B-2 |
-| `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | P | O | F | — | B-2 |
+| `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | C | O | F | — | B-2 |
 | `vercel_set_spend_limit` | Propose a tenant-scoped exact-cent daily limit for separate owner approval; no spending or default change | C | O | F | — | B-8b built #39 |
 | `vercel_list_protected_resources` | Projects, domains and tokens this server refuses to change, and where Chris edits the list (setup page only) | — | O | R | — | B-3 | 
 Protected-resource listings now include both global and team-scoped rules; the editor is additive-only under owner sign-in.
@@ -92,7 +94,7 @@ Protected-resource listings now include both global and team-scoped rules; the e
 | `vercel_call` | Call a profile-eligible tool through the same guarded MCP dispatcher | as the tool | B O Op | R | — | C-2b built #45 |
 | `vercel_batch` | Preflight and dispatch up to 10 authorized reads; refuse mixed writes | — | B O Op | R | — | C-2b built #45 |
 | `vercel_get_result` | Retrieve a 20-row page of the caller's scoped 24-hour sanitized result handle | — | B O Op | R | — | C-1 built #43 |
-| `vercel_create_pass` | Propose a read-only pass (server area, preview, 24h, $0); owner reviews sealed scope and reauthenticates before one-time issuance | C | O | F | — | R-1 (approval-only tool #151; access and one-time bearer stay on owner setup) |
+| `vercel_create_pass` | Propose a read-only pass (server area, preview, 1–720h, default 24h, $0); owner reviews sealed scope and reauthenticates before one-time issuance | C | O | F | — | R-1 (approval-only tool #151; access and one-time bearer stay on owner setup) |
 | `vercel_where_is_setting` | Structured steps (link, numbered actions, expected result, read-back check) for any dashboard-only setting | — G | O Op | R | — | B-8, O-5 |
 
 **D-1 execution safety review (#81):** Project/member execution proofs and paid Git imports use one final write-capable token binding; owner spending is rechecked after Git lookups. Definite pre-dispatch denial releases only its owned logical replay reservation for retry, while provider-write uncertainty remains pending. Project scalar and hostname safety use canonical credential detection. Deletion previews report complete deployment counts without disregarding the conservative `hasDeployments` signal. No new owner-granted operations or production activation.
@@ -146,9 +148,9 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_deploy_create_from_git` | Guarded linked-GitHub project commit/ref and exact project/team/target proof; metered build dispatch remains blocked by IN-08 until owner-approved enforceable cost ceiling | $ Cp | B Op | E | y | D-3 (guarded Git create #192 candidate; external cost/fixture acceptance gated) |
-| `vercel_deploy_create_from_files` | Up to 2 MiB in ≤4 safe UTF-8 text files; SHA-1/byte-count checked before pinned binary POST /v2/files, durable per-file replay and reference-based POST /v13/deployments; metered build dispatch blocked under owner ceiling policy | $ Cp | B Op | E | y | D-3 (bounded files code #193 candidate; provider cost/fixture acceptance gated) |
-| `vercel_deploy_redeploy` | Guarded exact source redeploy retaining original preview/production target; metered builds blocked until separately approved provider-enforceable ceiling | $ P | B Op | E | y | D-3 (guarded code #191 candidate; provider use gated) |
+| `vercel_deploy_create_from_git` | Guarded linked-GitHub project commit/ref and exact project/team/target proof; metered build dispatch remains blocked by IN-08 until owner-approved enforceable cost ceiling | $ Cp | B Op | F | y | D-3 (guarded Git create #192 candidate; external cost/fixture acceptance gated) |
+| `vercel_deploy_create_from_files` | Up to 2 MiB in ≤4 safe UTF-8 text files; SHA-1/byte-count checked before pinned binary POST /v2/files, durable per-file replay and reference-based POST /v13/deployments; metered build dispatch blocked under owner ceiling policy | $ Cp | B Op | F | y | D-3 (bounded files code #193 candidate; provider cost/fixture acceptance gated) |
+| `vercel_deploy_redeploy` | Guarded exact source redeploy retaining original preview/production target; metered builds blocked until separately approved provider-enforceable ceiling | $ P | B Op | F | y | D-3 (guarded code #191 candidate; provider use gated) |
 | `vercel_deploy_cancel` | Cancel only an independently project-verified, unfinished PREVIEW deployment; guarded confirmation, scope/state recheck, durable replay and independent CANCELED readback | Cp | B Op | E | y | D-3 (candidate #173) |
 | `vercel_deploy_delete` | Guarded irreversible cleanup of exact failed/canceled unaliased preview only; no production, READY or missing alias proof; fresh pre-delete check and independent 404 readback | D Cp | Op | F | y | D-3 (candidate #175, terminal preview only) |
 
@@ -156,18 +158,18 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_deploy_promote` | Point production traffic at a ready deployment; preview shows what is live now and what will be | PR | Op | E | y | D-4 (partial source candidate; native TEST pending) |
-| `vercel_deploy_rollback` | Point production back at an earlier production deployment (instant rollback), with a reason note | PR | Op | E | y | D-4 (partial source candidate; native TEST pending) |
+| `vercel_deploy_promote` | Point production traffic at a ready deployment; preview shows what is live now and what will be | PR | Op | F | y | D-4 (partial source candidate; native TEST pending) |
+| `vercel_deploy_rollback` | Point production back at an earlier production deployment (instant rollback), with a reason note | PR | Op | F | y | D-4 (partial source candidate; native TEST pending) |
 | `vercel_deploy_list_promote_aliases` | Which production aliases moved (or are still moving) during the last promote or rollback | — | Op | R | — | D-4 (partial source candidate; native TEST pending) |
 | `vercel_alias_list` | Aliases (custom URLs) by project or deployment | — | B Op | R | — | D-4 (partial source candidate; native TEST pending) |
 | `vercel_alias_get` | One alias and the deployment it points to | — | B Op | R | — | D-4 (partial source candidate; native TEST pending) |
-| `vercel_alias_assign` | Point an alias at a deployment (production when the alias is a production domain) | Cp | B Op | E | y | D-4 (partial source candidate; native TEST pending) |
+| `vercel_alias_assign` | Point an alias at a deployment (production when the alias is a production domain) | Cp | B Op | F | y | D-4 (partial source candidate; native TEST pending) |
 | `vercel_alias_delete` | Remove an alias | D Cp | Op | F | y | D-4 (partial source candidate; native TEST pending) |
 | `vercel_rolling_get` | Rolling-release settings, the active release and its stage, and billing status | — | Op | R | — | D-4 (candidate PR #205, CI/native TEST pending) |
 | `vercel_rolling_update_config` | Turn rolling releases on/off for a project and set stages (may be billed) | PR $ | O | F | y | D-4 (candidate PR #205, CI/native TEST pending) |
-| `vercel_rolling_start` | Start a rolling release of a deployment | PR $ | Op | E | y | D-4 (candidate PR #205, CI/native TEST pending) |
-| `vercel_rolling_approve_stage` | Move the active rolling release to its next stage | PR | Op | E | y | D-4 (candidate PR #205, CI/native TEST pending) |
-| `vercel_rolling_complete` | Finish the rolling release (100% of traffic) | PR | Op | E | y | D-4 (candidate PR #205, CI/native TEST pending) |
+| `vercel_rolling_start` | Start a rolling release of a deployment | PR $ | Op | F | y | D-4 (candidate PR #205, CI/native TEST pending) |
+| `vercel_rolling_approve_stage` | Move the active rolling release to its next stage | PR | Op | F | y | D-4 (candidate PR #205, CI/native TEST pending) |
+| `vercel_rolling_complete` | Finish the rolling release (100% of traffic) | PR | Op | F | y | D-4 (candidate PR #205, CI/native TEST pending) |
 
 ## Environment variables (`vercel_env_*`) — 9
 
@@ -191,7 +193,7 @@ names, targets, kind (Config/Secret), branch and dates come out.
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
 | `vercel_shared_env_list` | Selected team bounded shared-variable names, kinds, links and targets, with provider cursor; never values/digests or falsely complete inventory | — | O Op | R | — | E-2 (source merged #194; native provider pending) |
-| `vercel_shared_env_set` | Create or change a shared variable and its project links | Cp | O | F | y | E-2 (guarded source candidate; native provider pending) |
+| `vercel_shared_env_set` | Create or change a shared variable and its project links | Cp | O | E | y | E-2 (guarded source candidate; native provider pending) |
 | `vercel_shared_env_delete` | Delete a shared variable, or unlink it from one project | D Cp | O | F | y | E-2 (guarded source candidate; native provider pending) |
 | `vercel_environment_list` | Project-verified bounded custom environment slugs, branch rules, timestamps and domain count; no secrets or domain proofs | — | B O | R | — | E-2 (source merged #194; native provider pending) |
 | `vercel_environment_create` | Add a custom environment (branch rule, copy variables from another environment) | P | B O | E | — | E-2 (guarded code candidate; live acceptance pending) |
@@ -487,7 +489,7 @@ OpenAPI snapshot. The server never guesses an operation or a parameter.
 | `vercel_api_write` | Any POST/PUT/PATCH/DELETE operation through the full safety layer: always `confirm`; spend table; production detection; hand-built tools win | C (always) | B O Op | F | y | U-1 |
 
 How `vercel_api_write` stays safe (details `docs/designs/BATCH-U.md`): always `confirm`, supports `dryRun`; spend
-detection from a table (`src/vercel/spend-operations.js`) with a safe default (unknown operations whose summary says buy,
+detection from a table (`src/vercel/spend-operations.js`, planned file — not present yet) with a safe default (unknown operations whose summary says buy,
 purchase, renew, upgrade, credits or billing are treated as spend); production detection from the target (B2); secret
 rule (operations that return or take credentials are refused and named); hand-built tools win (refused, naming the
 tool); self-protection and profile guards apply; read-back when the response has an ID; change log; `full` profile only;

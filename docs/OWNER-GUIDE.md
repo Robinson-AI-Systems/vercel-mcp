@@ -5,6 +5,8 @@
 
 Examples of intended owner operations by batch, **not** a certification that every operation is deployed, owner-authorized or tested with actual Vercel resources. Several already have source implementations and fake-provider tests; verify the current connection profile, release and [STATUS](STATUS.md) acceptance row before relying on live mutations.
 
+**Not built yet (2026-10-26):** the rows for buying a domain (Batch N-3), blocking an IP / firewall (Batch F), inviting team members and billing (Batches O-2/O-4), Appliance Desk readiness and project setup (Batch P), and the ship/rollback workflows (Batch W) describe intended behaviour of approved but unimplemented batches — they do not work today. Domain attach (N-1) is in progress on the audit branch and is not merged.
+
 | Say something like… | What happens | Batch |
 |---|---|---|
 | "Who am I connected to in Vercel?" | Team, PREVIEW or PRODUCTION, your key's expiry, today's spend limit | A/B |

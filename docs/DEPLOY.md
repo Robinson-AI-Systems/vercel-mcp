@@ -9,7 +9,7 @@ This server has its own Vercel project and Neon database. It must never be insta
 
 ## 1. Before starting
 
-- GitHub repo: [Robinson-AI-Systems/vercel-mcp](https://github.com/Robinson-AI-Systems/vercel-mcp). Use its latest tested `main`.
+- GitHub repo: [Robinson-AI-Systems/vercel-mcp](https://github.com/Robinson-AI-Systems/vercel-mcp). Development happens on `main`; the Vercel production branch is the checked `live` branch (see §3), which the daily job promotes from `main`. Do not point a Vercel project at `main` as its production branch.
 - Have access to your Vercel account and to [Neon](https://console.neon.tech/).
 - Review [OWNER-INPUTS.md](OWNER-INPUTS.md): IN-02 approves the dedicated Vercel project/Neon database, IN-03 covers owner-managed credentials, IN-04/05 choose token scope/team, IN-07 protects projects, and IN-09 keeps production changes disabled.
 - Review the provider's current pricing **before** clicking Create/Upgrade. The intended starting point is a suitable free tier; do not select paid plans or add-ons without a separate decision.
@@ -67,7 +67,7 @@ Reference: [Vercel environment variables](https://vercel.com/docs/environment-va
 3. Create a **team-scoped** Vercel API token in the Vercel account's own token settings; choose the intended team, the smallest available scope and a short expiry (target 90 days if supported). Do **not** use a full-account token by default. Project-scoped tokens may be added for narrower access.
 4. Enter the token into the setup page only. Provide the chosen Vercel team ID, and optionally the project ID for a project-scoped credential. The server performs read-only probes of the specified team/project and encrypts the token in Neon; the page returns only a receipt, never the full token.
 5. If the provider appears to expose multiple teams or a broader account, the setup form requires an explicit owner checkbox. A successful visibility probe **does not prove the full privilege scope of the token**; production/write rules still need the Batch B safety guards and separate authorization.
-6. Once connected, confirm the account label and scope. The two initial read-only tools are `vercel_whoami` and `vercel_list_accounts`. Token creation/removal and all other management tools come in later batches. Current storage may not know the credential's actual expiration date; record it separately in your password manager until reminder/renewal functionality is built.
+6. Once connected, confirm the account label and scope. Start with the read-only checks `vercel_whoami` and `vercel_list_accounts`. The server now has 112 registered tools (projects, deployments, releases, environment variables, Global Config, teams, developer tools — see `docs/TOOL-CATALOG.md` for which are built and which are still planned); deployment, environment and release writes are guarded by profile, production mode, `confirm` and spend gates, and metered builds stay refused without a separate owner purchase approval (IN-08). Token creation/removal (`vercel_token_*`, O-3), domains/DNS/registrar, firewall and billing tools are not built yet. Current storage may not know the credential's actual expiration date; record it separately in your password manager until reminder/renewal functionality is built.
 
 The same authenticated setup page supports **one-use pending inputs** (a tool's secret value is entered here, not supplied through an AI message) and authorized **one-time secret reveal**. Once a value has been revealed, that record cannot be opened again.
 
@@ -77,7 +77,7 @@ The same authenticated setup page supports **one-use pending inputs** (a tool's 
 2. Name the client connection `Vercel by Robinson AI Systems` (the independently developed, unofficial service), and use exactly `https://<your-mcp-host>/api/mcp` as the remote MCP endpoint.
 3. Choose the OAuth sign-in/authentication option rather than a static bearer token in a chat. During authorization, select the connected team, **PREVIEW** mode, and **read_only** profile. The server's login page asks for the admin passphrase; Claude does not receive it.
 4. Enable the connector for a conversation and test `vercel_whoami`, then `vercel_list_accounts`. The result must identify the expected team and contain no token values.
-5. Do not request deployment changes, DNS changes, purchases, or production operations; those tools are intentionally unavailable until subsequent approved batches.
+5. Do not request DNS changes, domain purchases, or production operations through this server yet: domain/DNS/registrar tools (Batch N) and production traffic changes are not all built, and the ones that are built stay gated by profile, production mode, `confirm` and spend approval. Deployment, environment and release changes that are built are available only under those same guards, never by default.
 
 Reference: [Claude's remote MCP custom connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
