@@ -50,4 +50,17 @@ describe('durable write audit with zero secret values', () => {
     const rows = await rawQuery('SELECT count(*)::integer AS count FROM change_log');
     expect(rows[0].count).toBe(3);
   });
+  it('AUD-A2: persists the owner-word delegation block in the result JSONB and refuses malformed blocks', async () => {
+    const delegation = { basis: 'owner_word', budgetCents: 2500, quotedCents: 500, overBudget: false };
+    const id = await db.recordChange({ ...base, dryRun: false, spendCents: 500,
+      requestKey: 'ownerWordDbFAKE1', result: { status: 'applied' }, delegation });
+    const rows = await rawQuery('SELECT result, spend_cents FROM change_log WHERE id = $1', [id]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].result).toEqual({ status: 'applied', delegation });
+    expect(Number(rows[0].spend_cents)).toBe(500);
+    await expect(db.recordChange({ ...base, delegation: { basis: 'owner_word', budgetCents: -1, quotedCents: 500, overBudget: false } }))
+      .rejects.toThrow(/delegation/);
+    await expect(db.recordChange({ ...base, delegation: { basis: 'caller_says_so', budgetCents: null, quotedCents: null, overBudget: false } }))
+      .rejects.toThrow(/delegation/);
+  });
 });

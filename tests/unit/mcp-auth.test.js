@@ -46,7 +46,9 @@ describe('MCP bearer authentication', () => {
     expect(JSON.stringify(connection)).not.toContain('resown_');
     expect(connection).toEqual({
       clientId: 'client_fixture', account: 'team_fixture',
-      mode: 'preview', profile: 'everyday', listing: 'catalog'
+      mode: 'preview', profile: 'everyday', listing: 'catalog',
+      // AUD-A2: server-minted classification of the owner's own connection.
+      kind: 'connector'
     });
   });
 

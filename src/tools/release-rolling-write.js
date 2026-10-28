@@ -1,5 +1,5 @@
 // D-4: complete owner-gated production rolling-release lifecycle.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {accountSpendGuard} from '../vercel/spend.js';
@@ -175,7 +175,7 @@ function factory(kind){
       if(kind==='config')return 'UPDATE rolling-release configuration for '+
         b.project+' from '+JSON.stringify(b.previous)+' to '+
         JSON.stringify(b.desired)+'. Current active releases must be absent. '+
-        (b.desired.enabled?'Enabling may bill the account; independently approved provider-enforceable total charge ceiling required.':
+        (b.desired.enabled?'Enabling may bill the account; execution follows the account purchase policy (owner word or owner grant).':
           'Disabling prevents new rolling releases; no active rollout is modified.');
       if(kind==='start')return 'START rolling release from '+b.current+
         ' to staged READY production deployment '+b.canary+
@@ -206,8 +206,12 @@ function factory(kind){
         const current=await candidate(a,ctx,kind);
         if(!sameBefore(current,b))
           throw new TypeError('Rolling-release state/configuration changed before dispatch');
+        // Purchase authority (AUD-A2): a consumed owner grant on the grant
+        // path, or the executor's owner-word delegation on an owner
+        // connection whose policy does not require a grant.
         if((kind==='config'&&b.desired.enabled||
           kind==='start')&&
+          !purchaseDelegationFor(ctx,name,requestKey)&&
           (ctx.purchaseApproval?.operation!==name||
             ctx.purchaseApproval?.requestKey!==requestKey))
           throw new TypeError('Independent charge approval unavailable');
@@ -261,8 +265,8 @@ export const rollingWriteTools={
   tools:Object.entries(names).map(([kind,name])=>({
     name,writes:true,guardedWrite:true,area:'releases',
     profiles:['full'],description:{
-      config:'Guarded version-bound rolling-release stages/disable with strict owner charge ceiling policy.',
-      start:'Start a verified staged production canary only with owner-approved metered charge ceiling.',
+      config:'Guarded version-bound rolling-release stages/disable under the account purchase policy.',
+      start:'Start a verified staged production canary; metered charges follow the account purchase policy.',
       approve:'Advance exactly one expected manual rolling-release stage under production confirmation.',
       complete:'Complete the exact active canary with independently confirmed production readback.'
     }[kind],

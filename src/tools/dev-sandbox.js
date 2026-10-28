@@ -360,7 +360,7 @@ function spec(name,schema,profile,readOnly,handler){
     ...(readOnly?{writes:false}:{writes:true,guardedWrite:true,writeContract:handler.writeContract}),
     annotations:{readOnlyHint:readOnly,destructiveHint:name==='vercel_dev_sandbox_stop'},
     description:{
-      vercel_dev_sandbox_create:'Provision one time-bounded, recorded preview Sandbox with separate metered-purchase approval.',
+      vercel_dev_sandbox_create:'Provision one time-bounded, recorded preview Sandbox; metered cost follows the account purchase policy.',
       vercel_dev_sandbox_run:'Start an owned Sandbox command or inspect its exact ID for bounded output and bearer-scoped full result handle.',
       vercel_dev_sandbox_write_files:'Upload up to five bounded, safe relative files into the owned active Sandbox.',
       vercel_dev_sandbox_read_file:'Read one bounded file from the exact owned active preview Sandbox with secret-safe shaping.',

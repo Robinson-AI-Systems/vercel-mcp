@@ -13,8 +13,14 @@ export function classifySpend({ cents, recurring = false, description = '' }) {
   return { cents, recurring, description: description.trim() };
 }
 // Legacy daily-limit helper is advisory only. A positive owner limit and
-// AI confirm do not authorize a purchase; all paid writes use the separately
-// authenticated one-use purchase ledger in core/write.js.
+// AI confirm do not authorize a purchase on a delegated or builder
+// connection, or where the owner opted into purchase_grant_required: those
+// paid writes use the separately authenticated one-use purchase ledger in
+// core/write.js. On the account owner's own connection with
+// grantRequired = false, AUD-A2 (design D-A, OP-2) supersedes this helper's
+// refusal codes — the executor frames the budget as disclosure and executes
+// on the owner's word (docs/END-USER-AUTHORITY.md). This helper's remaining
+// callers are the $0 advisory checkSpend paths, where its codes still apply.
 export function spendPreflight({ declaration, spentTodayCents, spendLimitCents, confirm = false }) {
   const quote = classifySpend(declaration);
   if (!Number.isSafeInteger(spendLimitCents) || spendLimitCents < 0 ||
@@ -37,8 +43,10 @@ export function spendPreflight({ declaration, spentTodayCents, spendLimitCents, 
   return {allowed:true, code:'allowed', explanation:line};
 }
 
-// Legacy account-bound advisory adapter; never authorizes a charge. No cost or
-// account selection is accepted from MCP caller arguments.
+// Legacy account-bound advisory adapter; never authorizes a charge on its
+// own (owner-word authority is evaluated by the executor's policy branch in
+// core/write-preflight.js, not here). No cost or account selection is
+// accepted from MCP caller arguments.
 export function accountSpendGuard({db,account}){
   if(typeof account!=='string'||!account ||
     typeof db?.getVercelAccountSafe!=='function'||
