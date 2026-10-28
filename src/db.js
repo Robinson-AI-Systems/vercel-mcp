@@ -153,7 +153,8 @@ export function createDb(query) {
     async listVercelAccounts() {
       const run = getSql();
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
-        production_enabled, production_enable_strictness, is_default, token_last4, token_expires_at, spend_limit_cents,
+        production_enabled, production_enable_strictness, is_default, token_last4,
+        token_expires_at, token_no_expiry, token_version, spend_limit_cents,
         purchase_budget_cents, purchase_grant_required FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
 
@@ -285,6 +286,70 @@ export function createDb(query) {
         verified.grantRequired === grantRequired;
     },
 
+    /**
+     * AUD-E (design D-E, ruling IN-04): the owner's no-expiry attestation
+     * for the enrolled token. A null token_expires_at establishes nothing —
+     * storeToken writes it unconditionally — so "no expiry — owner's
+     * choice" may be shown only when this flag is positively set. Returns
+     * null when the account does not exist.
+     */
+    async getTokenNoExpiry(id) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id)) {
+        throw new TypeError('Invalid Vercel account');
+      }
+      const run = getSql();
+      const rows = await run`SELECT token_no_expiry
+        FROM vercel_accounts WHERE id = ${id}`;
+      if (rows.length !== 1) return null;
+      return Boolean(rows[0].token_no_expiry);
+    },
+
+    /**
+     * Independently authenticated owner setup only — no MCP tool may call
+     * this. Atomic account-scoped attestation update and audit, with the
+     * same read-back verification pattern as setPurchasePolicy. Every
+     * successful set or clear writes a change_log row.
+     */
+    async setTokenNoExpiry(id, attested, expectedVersion) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id) ||
+        typeof attested !== 'boolean' ||
+        typeof expectedVersion !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedVersion)) {
+        throw new TypeError('Invalid account or no-expiry attestation');
+      }
+      const summary = attested
+        ? 'Owner attested the enrolled token has no expiry'
+        : 'Owner cleared the no-expiry attestation for the enrolled token';
+      const run = getSql();
+      // The attestation is bound to the enrolled token's non-secret version:
+      // the update lands only while token_version still equals the version
+      // the setup form was rendered for, so a form opened before a token
+      // rotation can never attest the replacement token.
+      const rows = await run`WITH changed AS (
+          UPDATE vercel_accounts
+          SET token_no_expiry = ${attested}
+          WHERE id = ${id} AND token_version = ${expectedVersion}
+          RETURNING id
+        ), audit AS (
+          INSERT INTO change_log
+            (vercel_account, mode, tool, summary, dry_run, production, after)
+          SELECT ${id}, 'production', 'vercel_set_token_no_expiry',
+            ${summary}, FALSE, TRUE,
+            jsonb_build_object('tokenNoExpiry', ${attested}::boolean)
+          FROM changed RETURNING id
+        )
+        SELECT (SELECT COUNT(*) FROM changed) AS changed_count,
+          (SELECT COUNT(*) FROM audit) AS audit_count`;
+      if (Number(rows[0]?.changed_count) !== 1 || Number(rows[0]?.audit_count) !== 1) {
+        return false;
+      }
+      const verified = await run`SELECT token_no_expiry, token_version
+        FROM vercel_accounts WHERE id = ${id}`;
+      return verified.length === 1 &&
+        Boolean(verified[0].token_no_expiry) === attested &&
+        verified[0].token_version === expectedVersion;
+    },
+
 
     // IN-08: AI calls can request a priced operation, but cannot approve it.
     // Only the separately authenticated setup endpoint may invoke approval.
@@ -404,7 +469,8 @@ export function createDb(query) {
       }
       const run = getSql();
       const rows = await run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
-        production_enabled, production_enable_strictness, is_default, token_last4, token_expires_at, spend_limit_cents,
+        production_enabled, production_enable_strictness, is_default, token_last4,
+        token_expires_at, token_no_expiry, token_version, spend_limit_cents,
         purchase_budget_cents, purchase_grant_required
         FROM vercel_accounts WHERE id = ${id} LIMIT 1`;
       return rows[0] ?? null;
@@ -536,16 +602,26 @@ export function createDb(query) {
         (scope === 'project' && !projectId)) throw new TypeError('Invalid Vercel account');
       const run = getSql();
       const summary = JSON.stringify(probe);
+      // AUD-E: a newly enrolled or rotated token carries no attestation of
+      // its own — the ON CONFLICT update resets token_no_expiry to FALSE so
+      // a previous key's attestation can never be presented as this key's,
+      // and every enrollment mints a fresh non-secret token_version that
+      // attestation submissions are bound to.
+      const tokenVersion = randomUUID();
       await run`INSERT INTO vercel_accounts
         (id, team_id, team_slug, label, scope, project_id, project_name,
-          token_enc, token_last4, token_expires_at, token_checked_at, token_probe)
+          token_enc, token_last4, token_expires_at, token_checked_at, token_probe,
+          token_version)
         VALUES (${id}, ${teamId}, ${teamSlug}, ${label}, ${scope}, ${projectId}, ${projectName},
-          ${tokenEnc}, ${tokenLast4}, ${expiresAt}, now(), ${summary}::jsonb)
+          ${tokenEnc}, ${tokenLast4}, ${expiresAt}, now(), ${summary}::jsonb,
+          ${tokenVersion})
         ON CONFLICT (id) DO UPDATE SET
           team_slug = EXCLUDED.team_slug, label = EXCLUDED.label, scope = EXCLUDED.scope,
           project_id = EXCLUDED.project_id, project_name = EXCLUDED.project_name,
           token_enc = EXCLUDED.token_enc, token_last4 = EXCLUDED.token_last4,
           token_expires_at = EXCLUDED.token_expires_at,
+          token_no_expiry = FALSE,
+          token_version = EXCLUDED.token_version,
           token_checked_at = now(), token_probe = EXCLUDED.token_probe`;
     },
     async getAccountCredential(id) {
@@ -1068,11 +1144,21 @@ export function createDb(query) {
         id TEXT PRIMARY KEY, team_id TEXT NOT NULL, team_slug TEXT NOT NULL, label TEXT NOT NULL,
         scope TEXT NOT NULL, project_id TEXT, project_name TEXT, token_enc TEXT NOT NULL, token_last4 TEXT NOT NULL,
         token_expires_at TIMESTAMPTZ, token_checked_at TIMESTAMPTZ, token_probe JSONB,
+        token_no_expiry BOOLEAN NOT NULL DEFAULT FALSE, token_version TEXT,
         production_enabled BOOLEAN NOT NULL DEFAULT FALSE, spend_limit_cents INTEGER NOT NULL DEFAULT 0,
         purchase_budget_cents INTEGER, purchase_grant_required BOOLEAN NOT NULL DEFAULT FALSE,
         production_enable_strictness TEXT NOT NULL DEFAULT 'word',
         sandbox_minutes_per_day INTEGER, is_default BOOLEAN NOT NULL DEFAULT FALSE,
         added_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+      // AUD-E (D-E/IN-04): the owner's no-expiry attestation on existing tables.
+      await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS
+        token_no_expiry BOOLEAN NOT NULL DEFAULT FALSE`;
+      await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS
+        token_version TEXT`;
+      // Backfill a non-secret version for tokens enrolled before AUD-E;
+      // inert once every row carries one (enrollment mints its own).
+      await run`UPDATE vercel_accounts SET token_version = gen_random_uuid()::text
+        WHERE token_version IS NULL`;
       // AUD-A1 (D-A/OP-2): standing purchase policy on existing tables.
       await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS purchase_budget_cents INTEGER`;
       await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS

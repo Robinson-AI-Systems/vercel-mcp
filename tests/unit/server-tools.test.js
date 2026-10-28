@@ -34,6 +34,88 @@ describe('A-5 account read tools', () => {
     expect(parsed.purchaseBudgetCents).toBeNull();
     expect(parsed.purchaseGrantRequired).toBe(false);
   });
+  it('whoami reports an expiring token with daysLeft, posture and the existing warning (AUD-E)', async () => {
+    const expiring = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
+      production_enabled: false, token_last4: '1234',
+      token_expires_at: new Date(Date.now() + 10 * 86400000).toISOString(),
+      spend_limit_cents: 0 }];
+    const expDb = { listVercelAccounts: async () => expiring,
+      getTodaySpendCents: async () => 0,
+      getVercelAccountSafe: async id => expiring.find(row => row.id === id) || null };
+    const parsed = JSON.parse((await dispatchReadOnlyTool({
+      registry, name: 'vercel_whoami', connection: conn, db: expDb })).content[0].text);
+    expect(parsed.expiryPosture).toBe('expiring');
+    expect(parsed.daysLeft).toBe(10);
+    expect(parsed.expiresAt).toBe(expiring[0].token_expires_at);
+    expect(parsed.expiresAtLocal).toBeTruthy();
+    expect(parsed.account.tokenExpiresAt).toBe(expiring[0].token_expires_at);
+    expect(parsed.tokenWarning).toBe(
+      'Vercel token expires within 10 days; verify renewal through owner setup.');
+  });
+  it('whoami reports a token expiring in 30 days with posture fields but no warning (AUD-E)', async () => {
+    const later = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
+      production_enabled: false, token_last4: '1234',
+      token_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+      spend_limit_cents: 0 }];
+    const laterDb = { listVercelAccounts: async () => later,
+      getTodaySpendCents: async () => 0,
+      getVercelAccountSafe: async id => later.find(row => row.id === id) || null };
+    const parsed = JSON.parse((await dispatchReadOnlyTool({
+      registry, name: 'vercel_whoami', connection: conn, db: laterDb })).content[0].text);
+    expect(parsed.expiryPosture).toBe('expiring');
+    expect(parsed.daysLeft).toBe(30);
+    expect(parsed.tokenWarning).toBeNull();
+  });
+  it('whoami reports an expired token with the expired posture and warning intact (AUD-E)', async () => {
+    const expired = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
+      production_enabled: false, token_last4: '1234',
+      token_expires_at: new Date(Date.now() - 86400000).toISOString(),
+      spend_limit_cents: 0 }];
+    const expDb = { listVercelAccounts: async () => expired,
+      getTodaySpendCents: async () => 0,
+      getVercelAccountSafe: async id => expired.find(row => row.id === id) || null };
+    const parsed = JSON.parse((await dispatchReadOnlyTool({
+      registry, name: 'vercel_whoami', connection: conn, db: expDb })).content[0].text);
+    expect(parsed.expiryPosture).toBe('expired');
+    expect(parsed.daysLeft).toBeLessThanOrEqual(0);
+    expect(parsed.tokenWarning).toBe(
+      'Vercel token expired; rotate it using the authenticated owner setup page.');
+  });
+  it('whoami reports an attested never-expiring token as no_expiry — owner choice, no warning (AUD-E)', async () => {
+    const attested = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
+      production_enabled: false, token_last4: '1234', token_expires_at: null,
+      token_no_expiry: true, spend_limit_cents: 0 }];
+    const attDb = { listVercelAccounts: async () => attested,
+      getTodaySpendCents: async () => 0,
+      getVercelAccountSafe: async id => attested.find(row => row.id === id) || null };
+    const parsed = JSON.parse((await dispatchReadOnlyTool({
+      registry, name: 'vercel_whoami', connection: conn, db: attDb })).content[0].text);
+    expect(parsed.expiryPosture).toBe('no_expiry');
+    expect(parsed.expiryPostureText).toBe("no expiry — owner's choice");
+    expect(parsed.expiresAt).toBeNull();
+    expect(parsed.daysLeft).toBeNull();
+    expect(parsed.tokenWarning).toBeNull();
+    expect(parsed.account.tokenNoExpiry).toBe(true);
+  });
+  it('whoami reports an unattested null-expiry token as unknown, never owner choice (AUD-E regression)', async () => {
+    // The default fixture row is exactly today's enrollment shape:
+    // token_expires_at null (storeToken writes null unconditionally) and
+    // no attestation recorded.
+    const parsed = JSON.parse((await call('vercel_whoami')).content[0].text);
+    expect(parsed.expiryPosture).toBe('unknown');
+    expect(parsed.expiryPostureText).toBe('expiry not recorded for this token');
+    expect(parsed.expiryPostureText).not.toContain("owner's choice");
+    expect(parsed.expiresAt).toBeNull();
+    expect(parsed.daysLeft).toBeNull();
+    expect(parsed.tokenWarning).toBeNull();
+  });
+  it('no MCP tool can set the no-expiry attestation — it is setup-only (AUD-E)', async () => {
+    const attempt = await dispatchReadOnlyTool({
+      registry, name: 'vercel_set_token_no_expiry',
+      args: { attested: true }, connection: conn, db });
+    expect(attempt.isError).toBe(true);
+    expect(registry.tools.some(tool => /no_expiry|attest/i.test(tool.name))).toBe(false);
+  });
   it('TEST whoami never loads account records or provider resources',async()=>{
     const noAccounts={listVercelAccounts:async()=>{throw new Error('must not query');}};
     const result=await dispatchReadOnlyTool({registry,name:'vercel_whoami',

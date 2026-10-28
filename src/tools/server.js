@@ -1,5 +1,6 @@
 // Account-information tools: strict read-only, never return credentials.
 import { recheckStoredToken } from '../vercel/tokens.js';
+import { tokenExpiryPosture } from '../vercel/token-expiry.js';
 import {prepareResult} from '../core/result-rules.js';
 const PROFILES = ['read_only', 'everyday', 'full'];
 const asText = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
@@ -7,7 +8,8 @@ function safe(row) {
   return { id: row.id, team: row.team_slug, label: row.label,
     scope: row.scope, project: row.project_name || null,
     productionEnabled: Boolean(row.production_enabled),
-    lastFour: row.token_last4 || null, tokenExpiresAt: row.token_expires_at || null };
+    lastFour: row.token_last4 || null, tokenExpiresAt: row.token_expires_at || null,
+    tokenNoExpiry: Boolean(row.token_no_expiry) };
 }
 export const serverTools = {
   tools: [
@@ -76,11 +78,18 @@ export const serverTools = {
         'Vercel token expired; rotate it using the authenticated owner setup page.' :
         daysLeft <= 14 ? 'Vercel token expires within ' + daysLeft +
           ' days; verify renewal through owner setup.' : null;
+      // AUD-E (D-E/VMCP-003/IN-04): the explicit four-state posture beside
+      // the unchanged warning. A null date with no attestation is 'unknown'
+      // ("expiry not recorded for this token") — never owner's choice.
+      const posture = tokenExpiryPosture(row);
       return asText({ account: safe(row), mode: connection.mode,
         profile: connection.profile, listing: connection.listing,
         spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent,
         purchaseBudgetCents: row.purchase_budget_cents ?? null,
         purchaseGrantRequired: Boolean(row.purchase_grant_required),
+        expiresAt: posture.expiresAt, expiresAtLocal: posture.expiresAtLocal,
+        daysLeft: posture.daysLeft, expiryPosture: posture.posture,
+        expiryPostureText: posture.label,
         tokenWarning });
     },
     async vercel_list_accounts(args, { connection, db }) {
