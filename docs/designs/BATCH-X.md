@@ -37,7 +37,7 @@ opposite; undo of an undo; production undo refused on a preview connection.
 Done when: report committed; every failure fixed or listed as a known gap with its card.
 ## 5. Stop-and-ask points
 
-1. IN-06 not answered: X-2 runs the read-only part only and says so.
+1. IN-06 not answered, or answered but the scratch fixture not yet created: X-2 runs the read-only part only and says so. (IN-06 answered YES 2026-10-27; creating the scratch project and its project key is the remaining owner step.)
 
 ## 6. Acceptance mapping
 

@@ -200,6 +200,8 @@ Files: `docs/DEPLOY.md`.
 Change: Vercel project `vercel-mcp`, Neon database, env vars (`DATABASE_URL`, `ADMIN_PASSPHRASE`, `PUBLIC_BASE_URL`,
 `TOKEN_ENCRYPTION_KEY`), generating the encryption key, creating a team-scoped token with a 90-day expiry (exact clicks
 on the Account Tokens page), adding it on the setup page, adding the connector in claude.ai (preview mode first).
+(The 90-day expiry in this design line is superseded by the IN-04 ruling of 2026-10-27: expiry is the key owner's
+own choice, including none — see `docs/OWNER-INPUTS.md` and `docs/DEPLOY.md` §5 for the current wording.)
 Done when: a reviewer pretending to be Chris can follow it without a question.
 
 ## 5. Stop-and-ask points
