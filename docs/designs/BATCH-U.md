@@ -80,3 +80,5 @@ right operations.
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-27 — Universal write is the fleet-pattern escape valve (audit VMCP-013).** `vercel_api_write` as designed above (U1–U8) is the D9 escape valve: the surface through which operations with no hand-built tool — the register's worked example is a feature-flag write — remain reachable as the user, under the same guards. Build it to this design, not a narrower one. Two integrations with the 2026-10-27 rulings: U4 spend detection feeds the D-A delegation model (`docs/designs/BATCH-B.md` amendments) — a detected spend on an owner connection discloses and executes on the owner's word; it does not resurrect the retired mandatory grant — and U6 production detection feeds the D-B switch semantics for the production flag itself. U7 (hand-built tools win) is unchanged. **Acceptance addition:** an operation with no hand-built tool completes through `vercel_api_write` under the eight write-contract checks; an operation a hand-built tool covers still refuses and names the tool.

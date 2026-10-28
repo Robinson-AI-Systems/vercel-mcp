@@ -49,3 +49,5 @@ Done when: report committed; every failure fixed or listed as a known gap with i
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-27 — Undo needs no new capture machinery (audit VMCP-012).** Assumption X1 is verified at the audit baseline (216b83a9): every guarded write already stores its `inverse` in the change log through the write executor. X-1 therefore needs only the `vercel_undo_change` tool itself — no new capture work — and is the first build of this batch, ahead of the workflow compounds; each then joins the default front-door listing under the OP-1 budget (`docs/designs/BATCH-C.md`, D-C amendment). X-1's acceptance stands as written, with one addition: undoing a purchase executed under the D-A delegation model follows the same delegation policy and journals as its own change-log row — an undo never deletes or rewrites the original row.
