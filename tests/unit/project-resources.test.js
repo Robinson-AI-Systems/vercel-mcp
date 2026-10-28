@@ -167,4 +167,28 @@ describe('D-1q billed project resource configuration',()=>{
     expect(ok.fake.calls.every(x=>x.method==='GET')).toBe(true);
     ok.fake.verify();
   });
+  it('AUD-A2: a metered PATCH executes on the owner word when the account policy does not require a grant',async()=>{
+    const f=fixture();
+    // AUD-A1 policy accessors on the same fake db; the connection carries
+    // the server-minted owner classification (kind 'connector').
+    f.db.getPurchasePolicy=async()=>({budgetCents:null,grantRequired:false});
+    const updated={...project,resourceConfig:{...project.resourceConfig,
+      buildMachineType:'enhanced'}};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(project).resolves(project).resolves(project).resolves(updated);
+    f.fake.when('PATCH','/v9/projects/{idOrName}').resolves(updated);
+    const result=parse(await f.call({project:project.id,expectedName:project.name,
+      buildMachineType:'enhanced',confirm:true,requestKey:'ownerResourceFAKE1'},
+      {...conn,kind:'connector'}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(result.moneyLine).toContain('cost depends on usage');
+    expect(result.delegation).toMatchObject({basis:'owner_word',budgetCents:null,
+      quotedCents:null,overBudget:false});
+    expect(f.fake.calls.filter(x=>x.method==='PATCH')).toHaveLength(1);
+    const applied=f.audits.find(a=>a.dryRun===false);
+    expect(applied.delegation).toEqual({basis:'owner_word',budgetCents:null,
+      quotedCents:null,overBudget:false});
+    expect(applied.spendCents).toBeNull();
+    f.fake.verify();
+  });
 });

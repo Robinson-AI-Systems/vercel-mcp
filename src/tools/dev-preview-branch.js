@@ -1,5 +1,5 @@
 // V-2 branch previews: exact linked Git identity and a metered build fail-closed under IN-08.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {common,exact,owned,safeBranch,noPreview,SHA,DEPLOY,context,respond,
@@ -30,7 +30,7 @@ const branch=defineWrite({
   },
   async preview(_a,_ctx,b){
     return 'Deploy exact GitHub '+b.org+'/'+b.repo+'@'+b.sha+' ('+b.ref+
-      ') as recorded preview in '+b.project+'. Build usage is metered: a provider-enforceable lifetime cost ceiling and independent owner purchase grant are required.';
+      ') as recorded preview in '+b.project+'. Build usage is metered; execution follows the account purchase policy (owner word or owner grant).';
   },
   async production(){return {production:false,why:'Preview target only'};},
   async spend(){return {cents:null,recurring:true,
@@ -39,8 +39,12 @@ const branch=defineWrite({
   async apply(_a,ctx,b,key){
     const provider=await selectedWrite(ctx,b);
     await requirePreDispatch(async()=>{
-      if(ctx.purchaseApproval?.operation!=='vercel_dev_preview_branch'||
-         ctx.purchaseApproval.requestKey!==key)
+      // Purchase authority (AUD-A2): a consumed owner grant on the grant
+      // path, or the executor's owner-word delegation on an owner
+      // connection whose policy does not require a grant.
+      if(!purchaseDelegationFor(ctx,'vercel_dev_preview_branch',key)&&
+        (ctx.purchaseApproval?.operation!=='vercel_dev_preview_branch'||
+         ctx.purchaseApproval.requestKey!==key))
         throw new TypeError('No independently authenticated metered purchase grant');
       const row=await provider.read('projects_get',{path:{idOrName:b.project}});
       if(row.link?.org!==b.org||row.link?.repo!==b.repo||row.link?.type!=='github')

@@ -1,8 +1,9 @@
 // V-1: independently owned, durable, preview-only developer runs.
-// Synthetic seeding is intentionally metered and cannot execute without an
-// independently approved provider-enforceable per-operation lifetime ceiling.
+// Synthetic seeding is intentionally metered; execution follows the account
+// purchase policy (AUD-A2): owner word on owner connections, an independently
+// approved purchase grant on delegated/builder connections.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch,PreDispatchRefusal} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,PreDispatchRefusal,purchaseDelegationFor} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -137,8 +138,8 @@ const seed=defineWrite({
   async preview(_args,_ctx,b){
     return 'Create isolated synthetic '+b.scenario+' preview in '+b.name+
       ' (run '+b.runId+'), track exact project/deployment identities for cleanup. '+
-      b.note+'. Build usage has no proven enforceable per-operation lifetime ceiling; '+
-      'request and deployment remain disabled until independent owner price authority exists.';
+      b.note+'. Build usage is metered with no proven enforceable per-operation lifetime ceiling; '+
+      'execution follows the account purchase policy (owner word or owner grant).';
   },
   async production(){return {production:false,why:'Preview-only scratch project with no live target'};},
   async spend(){return {cents:null,recurring:true,
@@ -150,8 +151,12 @@ const seed=defineWrite({
       if(provider.account.team_id!==b.teamId||provider.account.scope==='project')
         throw new TypeError('Selected team no longer matches');
       await absentProject({request:(...x)=>provider.read(...x)},b.name);
-      if(ctx.purchaseApproval?.operation!=='vercel_dev_seed'||
-         ctx.purchaseApproval?.requestKey!==requestKey)
+      // Purchase authority (AUD-A2): a consumed owner grant on the grant
+      // path, or the executor's owner-word delegation on an owner
+      // connection whose policy does not require a grant.
+      if(!purchaseDelegationFor(ctx,'vercel_dev_seed',requestKey)&&
+        (ctx.purchaseApproval?.operation!=='vercel_dev_seed'||
+         ctx.purchaseApproval?.requestKey!==requestKey))
         throw new TypeError('Independent owner purchase grant missing');
     });
     const run=await ctx.db.createDevRun({id:b.runId,account:scope(ctx),
@@ -482,7 +487,7 @@ const cleanup=defineWrite({
 export const devRunTools={
   tools:[
     {name:'vercel_dev_seed',area:'developer',writes:true,guardedWrite:true,
-      profiles:['full'],description:'Plan and seed a recorded synthetic preview; metered builds need independent enforceable purchase authority.',
+      profiles:['full'],description:'Plan and seed a recorded synthetic preview; metered builds follow the account purchase policy.',
       inputSchema:seedSchema,writeContract:seed.writeContract,
       annotations:{readOnlyHint:false,destructiveHint:false}},
     {name:'vercel_dev_list_runs',area:'developer',writes:false,

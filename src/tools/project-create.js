@@ -1,5 +1,5 @@
 // D-1r: empty unlinked projects and guarded metered Git-linked imports; no secrets.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -45,7 +45,8 @@ function assertArgs(args){
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:entry=>db.recordChange(entry),
-    // All chargeable paths are independently owner-gated by defineWrite.
+    // All chargeable paths are gated by defineWrite's purchase policy
+    // branch (owner word or owner grant, per the account's policy).
     checkSpend:declaration=>declaration.cents===0?
       {allowed:true,code:'allowed',explanation:'Unlinked empty project: $0 estimated build usage'}:
       {allowed:false,code:'owner_required',explanation:'Owner purchase grant required'},
@@ -116,10 +117,15 @@ const create=defineWrite({
       }});
       verifyExactGitRepository(search,{repo:before.git.repo,
         provider:before.git.type,namespaceId:before.git.namespaceId});
-      // The core executor already atomically consumed a transaction-bound,
-      // independently approved grant before entering any paid apply().
-      if(ctx.purchaseApproval?.operation!=='vercel_project_create'||
-        ctx.purchaseApproval?.requestKey!==requestKey)
+      // Purchase authority (AUD-A2): the core executor already atomically
+      // consumed a transaction-bound, independently approved grant before
+      // entering any paid apply() on the grant path; on an owner connection
+      // whose policy does not require a grant it minted an owner-word
+      // delegation instead. One of the two must be present, bound to this
+      // operation and request key.
+      if(!purchaseDelegationFor(ctx,'vercel_project_create',requestKey)&&
+        (ctx.purchaseApproval?.operation!=='vercel_project_create'||
+        ctx.purchaseApproval?.requestKey!==requestKey))
         throw new TypeError('An independent owner purchase grant is required');
       });
     }
@@ -137,9 +143,11 @@ const create=defineWrite({
       }
       throw new TypeError('Project name was claimed after confirmation');
     });
-    // P1 race protection: recheck the exact owner purchase grant immediately
-    // AFTER the final potentially slow authenticated name GET and BEFORE POST.
-    if(before.git){
+    // P1 race protection: recheck the exact purchase authority immediately
+    // AFTER the final potentially slow authenticated name GET and BEFORE
+    // POST — the consumed owner grant on the grant path (AUD-A2: an
+    // owner-word delegation has nothing to consume and cannot change).
+    if(before.git&&!purchaseDelegationFor(ctx,'vercel_project_create',requestKey)){
       await requirePreDispatch(async()=>{
         const ticket=ctx.purchaseApproval;
         if(!ticket||ticket.operation!=='vercel_project_create'||
@@ -179,7 +187,7 @@ const out=result=>({isError:['refused_by_guard','outcome_unknown','spend_limit']
 export const projectCreateTools={
   tools:[{name:'vercel_project_create',writes:true,guardedWrite:true,
     profiles:['everyday','full'],area:'projects',
-    description:'Create a guarded empty project or full-profile production-confirmed Git-linked import with owner spending limits.',
+    description:'Create a guarded empty project or full-profile production-confirmed Git-linked import under the account purchase policy.',
     inputSchema:schema,annotations:{readOnlyHint:false,destructiveHint:false},
     writeContract:create.writeContract}],
   handlers:{

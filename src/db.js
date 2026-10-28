@@ -351,8 +351,12 @@ export function createDb(query) {
     },
 
 
-    // IN-08: AI calls can request a priced operation, but cannot approve it.
-    // Only the separately authenticated setup endpoint may invoke approval.
+    // IN-08 grant ledger, retained by AUD-A2 (design D-A) for delegated and
+    // builder connections and for owners who opted into
+    // purchase_grant_required: AI calls on those connections can request a
+    // priced operation, but cannot approve it — only the separately
+    // authenticated setup endpoint may invoke approval. Owner connections
+    // whose policy does not require a grant never create intents (AUD-A2).
     async requestPurchaseIntent({account,operation,requestKey,fingerprint,priceCents,pricingSource}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
         !/^vercel_[a-z0-9_]{3,100}$/.test(operation||'') ||
@@ -674,10 +678,30 @@ export function createDb(query) {
           throw new TypeError('Audit data contains a sensitive credential');
         }
       }
-      for (const field of [...fields, entry.summary, entry.moneyLine]) assertNoCredentials(field);
+      for (const field of [...fields, entry.summary, entry.moneyLine, entry.delegation]) assertNoCredentials(field);
+      // AUD-A2 (design D-A, OP-2): an owner-word purchase carries a delegation
+      // block { basis:'owner_word', budgetCents, quotedCents, overBudget }.
+      // It is persisted in this row's result JSONB under the field name
+      // `delegation` — the field the AUD-A2 acceptance tests and the S7 probe
+      // read back. Malformed blocks are refused, never silently dropped.
+      let delegation = null;
+      if (entry.delegation !== undefined && entry.delegation !== null) {
+        const d = entry.delegation;
+        if (!d || typeof d !== 'object' || Array.isArray(d) || d.basis !== 'owner_word' ||
+          !(d.budgetCents === null || (Number.isSafeInteger(d.budgetCents) && d.budgetCents >= 0)) ||
+          !(d.quotedCents === null || (Number.isSafeInteger(d.quotedCents) && d.quotedCents >= 0)) ||
+          typeof d.overBudget !== 'boolean') {
+          throw new TypeError('Invalid purchase delegation block');
+        }
+        delegation = { basis: 'owner_word', budgetCents: d.budgetCents,
+          quotedCents: d.quotedCents, overBudget: d.overBudget };
+      }
       const before = JSON.stringify({ snapshot: entry.before ?? null, targets: entry.targets ?? [] });
       const after = JSON.stringify(entry.after ?? null);
-      const result = JSON.stringify(entry.result ?? null);
+      const result = JSON.stringify(delegation ?
+        { ...(entry.result && typeof entry.result === 'object' && !Array.isArray(entry.result) ?
+            entry.result : {}), delegation } :
+        (entry.result ?? null));
       const inverse = JSON.stringify(entry.inverse ?? null);
       const summary = String(entry.summary) + (entry.moneyLine ? ' | ' + String(entry.moneyLine) : '');
       if (Buffer.byteLength(before + after + result + inverse + summary) > 8192) {

@@ -45,7 +45,7 @@ are `vercel_dev_<job>` (contract §10).
 | `PR` | Always production-affecting: needs a production connection and `confirm` |
 | `C` | Always needs `confirm` (owner actions, data leaving the team, irreversible-but-not-production steps) |
 | `D` | Destructive or irreversible: always `confirm`, read-back, change log; no inverse |
- | Spends or raises spend: currently requires `confirm`/owner transaction grants and uses a legacy account spend limit; this is a **known end-user delegation limitation**, not a product requirement. Future user-selected budgets and consent modes must replace developer-era mandatory defaults. |
+ | Spends or raises spend: on the account owner's own connection the owner's confirmed word executes under their standing purchase policy (an optional agent budget frames the disclosure; a per-purchase grant applies only if the owner opted into `purchase_grant_required`) — AUD-A2/D-A; delegated and builder connections still require `confirm` plus an owner transaction grant. |
 | `A` | Widens someone's access: always `confirm` |
 | `1x` | Creates a secret, shown **once** on the setup page's one-time-secret page, never in a result |
 | `G` | Guided: returns structured steps and checks the result by read-back; changes nothing itself |
@@ -113,9 +113,9 @@ Protected-resource listings now include both global and team-scoped rules; the e
 |---|---|---|---|---|---|---|
 | `vercel_project_list` | Projects in the team: name, framework, safe production hostname, last production deploy, paused or not (strict metadata projection #76) | — | B O Op | R | — | D-1 (built #47; pagination #74) |
 | `vercel_project_get` | One project: bounded safe framework/commands, root directory, Node version, Git repo and branch, production state, domains and crons (metadata hardening #76) | — | B O Op | R | y | D-1 (built #47; diagnostics #71) |
-| `vercel_project_create` | Create empty unlinked projects at $0, or Git-linked imports after exact Vercel integration lookup, owner positive spend limit and production confirmation | $ Cp P | B O | E F | — | D-1 (built #65; shared Git identity #75; execution-time spend/Git recheck #80) |
+| `vercel_project_create` | Create empty unlinked projects at $0, or Git-linked imports after exact Vercel integration lookup, purchase-policy authority (owner word or owner grant) and production confirmation | $ Cp P | B O | E F | — | D-1 (built #65; shared Git identity #75; execution-time spend/Git recheck #80) |
 | `vercel_project_update_settings` | Rename/framework plus grouped build/directory overrides (max 256 chars, null resets to defaults), guarded and independently verified; paid resources separate | Cp | B O | E | y | D-1 (partial #53; execution-time selected-config recheck #87) |
-| `vercel_project_set_build_resources` | Build machine, concurrency and function compute options (billable); guarded resourceConfig PATCH uses owner-stored account limit, fails at $0, production confirmation and independent read-back | $ Cp | O | F | y | D-1 (built #64; selected metered config collision check #88) |
+| `vercel_project_set_build_resources` | Build machine, concurrency and function compute options (billable); guarded resourceConfig PATCH under the account purchase policy (owner word or owner grant), production confirmation and independent read-back | $ Cp | O | F | y | D-1 (built #64; selected metered config collision check #88) |
 | `vercel_project_delete` | Strict empty-project-only deletion: require full profile, production confirmation, typed name, complete scoped inventory and reread before DELETE; nonempty impact shown dry-run only (#77), execution blocked | D PR | O | F | y | D-1 (partial #60; deployments #69; strict inventory #73) |
 | `vercel_project_pause` | Guarded pause of project production traffic; authenticated project state before and after, confirmation, production connection | PR | O Op | F | y | D-1 (built #58) |
 | `vercel_project_unpause` | Guarded production resumption; authenticated state, full-profile production confirmation, metered usage warning | PR | O Op | F | y | D-1 (built #58) |
@@ -148,9 +148,9 @@ D-2 ten-read registry/handler/test evidence is enforced by `scripts/check-d2-acc
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_deploy_create_from_git` | Guarded linked-GitHub project commit/ref and exact project/team/target proof; metered build dispatch remains blocked by IN-08 until owner-approved enforceable cost ceiling | $ Cp | B Op | F | y | D-3 (guarded Git create #192 candidate; external cost/fixture acceptance gated) |
-| `vercel_deploy_create_from_files` | Up to 2 MiB in ≤4 safe UTF-8 text files; SHA-1/byte-count checked before pinned binary POST /v2/files, durable per-file replay and reference-based POST /v13/deployments; metered build dispatch blocked under owner ceiling policy | $ Cp | B Op | F | y | D-3 (bounded files code #193 candidate; provider cost/fixture acceptance gated) |
-| `vercel_deploy_redeploy` | Guarded exact source redeploy retaining original preview/production target; metered builds blocked until separately approved provider-enforceable ceiling | $ P | B Op | F | y | D-3 (guarded code #191 candidate; provider use gated) |
+| `vercel_deploy_create_from_git` | Guarded linked-GitHub project commit/ref and exact project/team/target proof; metered build dispatch follows the account purchase policy (owner word or owner grant) | $ Cp | B Op | F | y | D-3 (guarded Git create #192 candidate; external cost/fixture acceptance gated) |
+| `vercel_deploy_create_from_files` | Up to 2 MiB in ≤4 safe UTF-8 text files; SHA-1/byte-count checked before pinned binary POST /v2/files, durable per-file replay and reference-based POST /v13/deployments; metered build dispatch follows the account purchase policy (owner word or owner grant) | $ Cp | B Op | F | y | D-3 (bounded files code #193 candidate; provider cost/fixture acceptance gated) |
+| `vercel_deploy_redeploy` | Guarded exact source redeploy retaining original preview/production target; metered builds follow the account purchase policy (owner word or owner grant) | $ P | B Op | F | y | D-3 (guarded code #191 candidate; provider use gated) |
 | `vercel_deploy_cancel` | Cancel only an independently project-verified, unfinished PREVIEW deployment; guarded confirmation, scope/state recheck, durable replay and independent CANCELED readback | Cp | B Op | E | y | D-3 (candidate #173) |
 | `vercel_deploy_delete` | Guarded irreversible cleanup of exact failed/canceled unaliased preview only; no production, READY or missing alias proof; fresh pre-delete check and independent 404 readback | D Cp | Op | F | y | D-3 (candidate #175, terminal preview only) |
 
@@ -223,10 +223,10 @@ everything it creates is recorded in a run and tagged where Vercel allows (`rtc_
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_dev_seed` | Guarded synthetic scratch project plus preview; metered build fails closed until provider-enforceable per-operation ceiling and independent owner grant | P $ | B | F | — | V-1 built #206 |
+| `vercel_dev_seed` | Guarded synthetic scratch project plus preview; metered build follows the account purchase policy (owner word or owner grant); builder identities spend $0 | P $ | B | F | — | V-1 built #206 |
 | `vercel_dev_list_runs` | Bound account-owned run records and exact resource lifecycle state; no cross-account visibility | — | B | R | — | V-1 candidate #206 |
 | `vercel_dev_cleanup` | Exact recorded preview deployment and provably empty scratch project cleanup; later resource families fail closed until native delete wiring | C | B | F | y | V-1 candidate #206 |
-| `vercel_dev_preview_branch` | Guarded exact GitHub commit preview, tracked per run; metered build fails closed without enforceable total cost ceiling and independent grant | P $ | B | F | y | V-2 candidate |
+| `vercel_dev_preview_branch` | Guarded exact GitHub commit preview, tracked per run; metered build follows the account purchase policy (owner word or owner grant); builder identities spend $0 | P $ | B | F | y | V-2 candidate |
 | `vercel_dev_wire_preview_env` | Bounded encrypted preview-only variables (optionally Git branch), one private/synthetic source each; exact IDs tracked and revocable | P | B | F | y | V-2 candidate |
 | `vercel_dev_alias_preview` | New run-namespaced .vercel.app alias to verified active READY preview only; refuses all reassignments and production traffic | P A | B | F | y | V-2 candidate |
 | `vercel_dev_create_bypass` | Project-wide protection bypass restricted to isolated run-owned scratch project; secret encrypted and revealed only via authenticated one-time owner page | C A 1x | B | F | y | V-2 candidate |
@@ -234,7 +234,7 @@ everything it creates is recorded in a run and tagged where Vercel allows (`rtc_
 | `vercel_dev_diagnose_build` | Classify ten approved first-error rules from bounded preview build events with safe cause/fix, never raw secrets | — | B | R | — | V-3 candidate |
 | `vercel_dev_fetch_preview` | Up to 10 exact owned preview paths, public-only DNS, no redirects, optional encrypted server-private bypass, 4 KB bounded snippets | — | B | R | — | V-3 candidate |
 | `vercel_dev_check_integration` | Metadata-only preview requirements; names, preview domains, framework/runtime, cron-not-applicable, protection and unverified integrations | — | B | R | y | V-3 candidate |
-| `vercel_dev_sandbox_create` | Record requested minutes atomically without a daily threshold (10-minute default; up to provider Pro 24-hour session duration); create run-owned ephemeral session, optional exact public Git SHA; currently uses separately authenticated metered consent until user-selected delegation mode is implemented | P $ | B | E | — | V-4 candidate #216 |
+| `vercel_dev_sandbox_create` | Record requested minutes atomically without a daily threshold (10-minute default; up to provider Pro 24-hour session duration); create run-owned ephemeral session, optional exact public Git SHA; metered cost follows the user-selected delegation policy (AUD-A2: the owner's word on owner connections; separately authenticated metered consent where a grant is required) | P $ | B | E | — | V-4 candidate #216 |
 | `vercel_dev_sandbox_run` | Dispatch one ≤45-second async command or inspect its exact ID for bounded redacted log preview, ten-minute private vercel_get_result handle, explicit completeness | P | B | E | — | V-4 candidate #216 |
 | `vercel_dev_sandbox_write_files` | Upload up to five safe relative files ≤4 KB each via bounded gzip tar; read-back SHA-256 proof, never echo file values | P | B | E | — | V-4 candidate #216 |
 | `vercel_dev_sandbox_read_file` | Bounded ≤4 KB safe relative file read from attested run-owned session, secrets redacted | — | B | R | — | V-4 candidate #216 |

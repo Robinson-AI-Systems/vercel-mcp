@@ -209,7 +209,7 @@ async function requirePass(req,db,res,route,registry){
     fail(res,'permission');return null;
   }
   const connection={account:record.account,profile:'read_only',mode:record.mode,
-    listing:record.listing,clientId:record.id};
+    listing:record.listing,clientId:record.id,kind:'pass'};
   Object.defineProperty(connection,'resultOwner',{value:'resown_'+
     createHash('sha256').update('rmcp-result-owner-v1:').update(m[1]).digest('hex')});
   // The bearer stays inside the door closure, never in handler context/output.

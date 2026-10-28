@@ -3,6 +3,44 @@ import { compact } from './util.js';
 export function refusal(reason, status = 'refused_by_guard') {
   return { status, confirmed: false, reason };
 }
+// AUD-A2 (design D-A, owner ruling OP-2): connection classification for the
+// purchase branch. Only a server-minted classification counts — the MCP auth
+// layer sets kind 'connector' from the oauth_tokens row it verified (the
+// account owner's own connector/OAuth connection); the RTC door sets kind
+// 'pass' for delegated passes. Anything else (builder/TEST fixtures, unknown
+// doors) is NOT an owner connection and keeps the grant path. Caller-supplied
+// tool arguments can never set this: the connection object is created by the
+// auth layer and frozen before dispatch. See docs/END-USER-AUTHORITY.md.
+export function isOwnerConnection(conn) {
+  return conn?.kind === 'connector';
+}
+// The budget-framed dollar line for an owner connection whose policy does
+// not require a per-purchase grant. The budget frames disclosure only: it
+// never refuses the owner. quotedCents is the provider-quoted price, or null
+// when the cost is unquantified (metered, or a $0-upfront recurring charge
+// whose later charges are not knowable).
+export function purchaseDisclosure({ description, cents, recurring, budgetCents, spentTodayCents }) {
+  const quotedCents = (cents === null || (recurring && cents === 0)) ? null : cents;
+  const price = quotedCents === null ?
+    'cost depends on usage; Vercel bills it monthly' :
+    '$' + (quotedCents / 100).toFixed(2) + ' USD' + (recurring ? ' per billing period' : '');
+  let line = description + ': ' + price + '.';
+  let overBudget = false;
+  if (budgetCents === null) {
+    line += ' No agent budget set.';
+  } else {
+    line += ' Your agent budget is $' + (budgetCents / 100).toFixed(2) +
+      ' (today so far: $' + (spentTodayCents / 100).toFixed(2) + ').';
+    if (quotedCents !== null) {
+      overBudget = quotedCents > budgetCents;
+      line += overBudget ?
+        ' This purchase is over your budget — proceeding on your instruction.' :
+        ' This purchase is within your budget.';
+    }
+  }
+  return { moneyLine: line,
+    delegation: { basis: 'owner_word', budgetCents, quotedCents, overBudget } };
+}
 export function safeShape(ctx, value) {
   if (typeof ctx.shape !== 'function') throw new Error('Output shaper is unavailable');
   // Even an identity shaper supplied by a caller cannot allow secrets into audit/replay.
@@ -77,16 +115,50 @@ export async function writePreflight(spec, args, ctx) {
         if(!check.allowed&&check.code!=='needs_confirmation')
           return {refused:refusal(check.explanation||'Spending was refused',check.code)};
       }else{
-        // No daily allowance and no AI-supplied confirm can buy anything.
-        // The central write executor requests and consumes a separate owner-
-        // authenticated, transaction-specific, immutable purchase grant.
-        purchase={cents:spend.recurring?null:spend.cents,recurring:spend.recurring,
-          description:spend.description.trim()};
-        moneyLine=spend.description.trim()+': '+
-          (spend.cents===null?'variable usage; a provider-enforceable total ceiling is required':
-            String.fromCharCode(36)+(spend.cents/100).toFixed(2)+' USD'+
-            (spend.recurring?' per billing period; provider-enforceable total ceiling required':''))+
-          '. Separately authenticated approval for this transaction is mandatory.';
+        // AUD-A2 policy branch (design D-A, OP-2): on the account owner's own
+        // connection, AUD-A1's standing policy decides. With
+        // grantRequired = false the owner's confirmed word executes: no
+        // purchase intent is demanded, the budget only frames the dollar
+        // line, and recurring/unquantified spend is disclosed honestly
+        // instead of refused. Every other connection — delegated/pass,
+        // builder/TEST, or any connection whose policy cannot be read —
+        // keeps the grant path below byte-for-byte: no daily allowance and
+        // no AI-supplied confirm can buy anything there; the central write
+        // executor requests and consumes a separate owner-authenticated,
+        // transaction-specific, immutable purchase grant.
+        let ownerPolicy=null;
+        if(isOwnerConnection(conn)&&typeof ctx.db?.getPurchasePolicy==='function'){
+          try{ownerPolicy=await ctx.db.getPurchasePolicy(conn.account);}catch{ownerPolicy=null;}
+          if(ownerPolicy!==null&&
+            (typeof ownerPolicy!=='object'||typeof ownerPolicy.grantRequired!=='boolean'||
+              !(ownerPolicy.budgetCents===null||
+                (Number.isSafeInteger(ownerPolicy.budgetCents)&&ownerPolicy.budgetCents>=0))))
+            return {refused:refusal('Purchase policy cannot be verified')};
+        }
+        if(ownerPolicy&&ownerPolicy.grantRequired===false){
+          let spentToday=null;
+          if(typeof ctx.db?.getTodaySpendCents==='function'){
+            try{spentToday=await ctx.db.getTodaySpendCents(conn.account);}catch{spentToday=null;}
+          }else if(Number.isSafeInteger(ctx.spentTodayCents)&&ctx.spentTodayCents>=0){
+            spentToday=ctx.spentTodayCents;
+          }
+          if(!Number.isSafeInteger(spentToday)||spentToday<0)
+            return {refused:refusal('Purchase policy cannot be verified')};
+          const framed=purchaseDisclosure({description:spend.description.trim(),
+            cents:spend.cents,recurring:spend.recurring,
+            budgetCents:ownerPolicy.budgetCents,spentTodayCents:spentToday});
+          purchase={cents:spend.recurring?null:spend.cents,recurring:spend.recurring,
+            description:spend.description.trim(),delegation:framed.delegation};
+          moneyLine=framed.moneyLine;
+        }else{
+          purchase={cents:spend.recurring?null:spend.cents,recurring:spend.recurring,
+            description:spend.description.trim()};
+          moneyLine=spend.description.trim()+': '+
+            (spend.cents===null?'variable usage; a provider-enforceable total ceiling is required':
+              String.fromCharCode(36)+(spend.cents/100).toFixed(2)+' USD'+
+              (spend.recurring?' per billing period; provider-enforceable total ceiling required':''))+
+            '. Separately authenticated approval for this transaction is mandatory.';
+        }
       }
     }catch{
       return {refused:refusal('Unable to verify pricing before the request')};

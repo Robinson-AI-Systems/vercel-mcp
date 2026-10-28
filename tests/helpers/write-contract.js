@@ -72,6 +72,20 @@ export function attachFakeOwnerPurchase(ctx,initiallyApproved=true) {
   };
   return state;
 }
+// AUD-A2 synthetic owner fixture: an owner connection (server-minted kind
+// 'connector', as MCP auth issues it) plus AUD-A1's policy accessors on the
+// db. No purchase-intent methods are attached unless the caller adds them —
+// the owner path with grantRequired:false must never need them. Synthetic
+// accounts only; never a real account or token.
+export function attachOwnerPurchasePolicy(ctx, { budgetCents = null, grantRequired = false, spentTodayCents = 0 } = {}) {
+  ctx.connection = { ...ctx.connection, kind: 'connector' };
+  ctx.db = {
+    ...(ctx.db ?? {}),
+    getPurchasePolicy: async () => ({ budgetCents, grantRequired }),
+    getTodaySpendCents: async () => spentTodayCents
+  };
+  return ctx.db;
+}
 export function runWriteContract(label, factory = sampleWrite) {
   describe('eight guarded write contract categories: ' + label, () => {
     it('1 dry run is preview-only and recorded', async () => {
