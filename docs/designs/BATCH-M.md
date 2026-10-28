@@ -38,7 +38,7 @@ without `outsideApp` and its preview always says "every file in the store is del
 **files** are handled by M6 (amended 2026-10-10; previously ROADMAP).
 
 **M6. Blob files (added 2026-10-10, prior-tools gap check).** Four tools (`vercel_blob_list`, `vercel_blob_head`,
-`vercel_blob_put`, `vercel_blob_delete`) reach only stores Chris connected on the setup page (IN-15). The store
+`vercel_blob_put`, `vercel_blob_delete`) reach only stores Chris connected on the setup page (IN-15, answered 2026-10-27: connection is an owner-controlled state, not a server rule — within a connected store, list/read are unrestricted and put/delete are ordinary guarded writes on the owner's instruction). The store
 credential is entered there (`pending_inputs`), encrypted like Vercel tokens, never shown or logged; a tool on an
 unconnected store answers with the setup steps. This is the one place the server talks to an API outside the REST
 reference: it goes through the official `@vercel/blob` package (exact version pinned) wrapped in
@@ -58,7 +58,7 @@ Tools: the 8 tools of "Drains and webhooks". Tests: private destinations refused
 only; plan-gated errors explained; `vercel_drain_update` pausing is `P`, resuming or widening needs `confirm`.
 ### M-3 — Integrations and storage (M, medium effort)
 Tools: the 8 tools of "Integrations and storage". Tests: remove preview lists resources and injected variables;
-connect with production target is production; store creation shows the plan price and counts toward the spend limit;
+connect with production target is production; store creation shows the plan price and discloses its cost (IN-08: any limit is the owner's own configured policy, never a server-imposed one);
 profile-owned store delete refused.
 ### M-4 — Blob files (M, medium effort)
 Tools: the 4 tools of "Blob files" (M6). Starts with M0 row M4. Tests: unconnected store answers with setup steps; no

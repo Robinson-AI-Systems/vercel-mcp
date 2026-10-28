@@ -134,10 +134,10 @@ changes or service self-destruction. Never ask the owner to supply an API price.
 | M-4 | Only securely connected store + explicit pathname/URL/action; metadata-only list/head, ≤4MB put, at most100 exact delete names; official pinned Blob adapter, not invented REST calls. | Unconnected store disabled with setup steps; prefix/wildcard deletion denied; overwrite explicit; file bytes/credentials never returned; no implicit project-store connection. |
 | O-1 | Exact team and safe profile/security diff → trusted current policy → access/production preview → patch requested fields only → readback. | Last/self access, SAML configured precondition, default protection and retention loss; missing before-state cannot loosen controls. |
 | O-2 | Team/member/access-group IDs plus exact role/permission → member/owner count and plan/seat price → before/after access and cost preview → invite/update/remove → status readback. | Last Owner/self removal denied; Enterprise-only distinct from permission denial; pending invite not active member; exact purchase approval per paid seat action. |
-| O-3 | Exact scope+expiry/name → owner-protected scoped token issuance/revocation and one-time display or encrypted direct enrollment. Metadata listing only. | No full-account default, no expiry beyond approved bounds, own server token deletion refused; no raw token in tool result/log. |
+| O-3 | Exact scope+expiry/name → owner-protected scoped token issuance/revocation and one-time display or encrypted direct enrollment. Metadata listing only. | No full-account default; expiry is whatever the key's owner chose at creation, including none (IN-04 ruled 2026-10-27 — no imposed bounds; notify ahead of expirations that exist), own server token deletion refused; no raw token in tool result/log. |
 | O-4 | Exact billing period/service/project filters → bounded FOCUS rows → integer cents and coverage per project/service, stored target comparison. | Missing/unknown currency or partial period not a fabricated total; read-only never buys credits or edits Spend Management. |
 | O-5 | Compose owner/team/domain/security/cost/resource reads and dated settings map; each row has observed/attention/unreadable with optional registered exact readback. | Account/team deletion steps-only, inaccessible sections survive, no healthy score from a denied check or fabricated dashboard walk. |
-| P-1 | Data-only known_apps profile with verified project/live-branch/domain/env/store ownership and rollback caution → existing app/production guards consume it. | Shared live integration or protected env stays guarded; draft cannot weaken controls; Appliance Desk real policy waits actual IN-11 decision. |
+| P-1 | Data-only known_apps profile with verified project/live-branch/domain/env/store ownership and rollback caution → existing app/production guards consume it. | Shared live integration or protected env stays guarded; draft cannot weaken controls; Appliance Desk real policy follows IN-11 (answered YES 2026-10-27: defer to the app's declared release workflow; see the recorded generalization in OWNER-INPUTS). |
 | P-2 | Profile/inline spec → exact read-only deployment/Git/domain/env-name/config/resource readiness; suggested fixes reference existing guarded tools. | Missing secret value cannot be inferred from name; no provider write in inspection; partial/inaccessible state not READY. |
 | P-3 | Structured new-project requirements/findings → idempotent resource/link/config plan and draft profile; return doc text, never edit another repo. | Creation is not allowed merely because setup is convenient; cost/production/secret gates remain; second run reconciles IDs. |
 | W-1 | Project/ref/query → independent health/release/find reads with exact deployment/source/alias state and coverage. | READY is not live, release timestamp not proof aliases moved; two pages and one denied component. |
@@ -171,3 +171,13 @@ rate choice, IN-11 app release ownership, IN-13 sandbox policy and IN-15 store
 selection remain concrete owner/resource gates if not subsequently answered.
 Implement their safe configuration paths without inventing their real values.
 IN-09 production activation and IN-12 Spend Management changes remain independent.
+
+**Update 2026-10-27:** IN-06, IN-11 and IN-15 are now ANSWERED, and IN-09 and
+IN-12 are RULED (see `docs/OWNER-INPUTS.md` and `docs/DECISIONS.md`). Do not
+re-request them either. What survives is only the concrete resource step each
+answer names: the owner creating the IN-06 scratch fixture, and the user
+connecting Blob stores (IN-15). IN-09: production stays on and the switch is
+the end user's, flippable by their agent with their approval — the passphrase
+activation shape is remediation, not a gate to re-ask about. IN-12: spend
+alerts live in Vercel's Spend Management; the server reads and reports them
+and never controls them.

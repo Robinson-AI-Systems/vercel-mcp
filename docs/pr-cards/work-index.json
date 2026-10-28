@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-21",
+  "updated": "2026-10-27",
   "order": [
     "A",
     "B",
@@ -1133,7 +1133,23 @@
       "readiness": "WRITE_CARD_AT_START",
       "ownerInputs": [
         "IN-15"
-      ]
+      ],
+      "revisit": {
+        "reason": "IN-15 was answered by the owner on 2026-10-27: no Blob stores connected is the default connection STATE, controlled by the user, not a server rule. The M-4 owner-input gate is cleared; the card is written when its dependencies land.",
+        "trigger": "owner-input-answered",
+        "ownerInputRefs": [
+          "IN-15"
+        ],
+        "resolution": "Owner answer recorded in docs/OWNER-INPUTS.md (IN-15) and docs/DECISIONS.md on 2026-10-27: within a connected store, list/read are unrestricted and upload/delete are ordinary guarded writes on the user instruction, journaled; Appliance Desk stores stay listable and are never cleaned up without the owner saying \"outside the app\" (that limit is the app-side contract, not MCP policy).",
+        "owner": "next Vercel MCP implementer (M-4)",
+        "checkpoint": "When the M-4 card is written at start (WRITE_CARD_AT_START) and again at its PR boundary.",
+        "nextAction": "Write the M-4 card from docs/designs/BATCH-M.md M6 with the IN-15 answer as the connection model; implement against connected stores only, with an unconnected store answering with setup steps.",
+        "evidenceNeeded": "M-4 implementation and tests: unconnected store answers with setup steps; no file contents or store credentials in any result; put/delete guards and production classification per M6; owner-connected test store acceptance recorded separately.",
+        "eligibilityCondition": "Eligible once M-3 lands; no further owner input needed.",
+        "dependencies": [
+          "M-3"
+        ]
+      }
     },
     {
       "id": "O-1",
@@ -1209,7 +1225,23 @@
       "readiness": "WRITE_CARD_AT_START",
       "ownerInputs": [
         "IN-04"
-      ]
+      ],
+      "revisit": {
+        "reason": "IN-04 was revisited and ruled by the owner on 2026-10-27: key expiry is a choice belonging to the key owner at creation (including never); the imposed 90-day term is retired as policy. The O-3 token tools must be built to the ruled shape.",
+        "trigger": "owner-input-answered",
+        "ownerInputRefs": [
+          "IN-04"
+        ],
+        "resolution": "Owner ruling recorded in docs/OWNER-INPUTS.md (IN-04) and docs/DECISIONS.md on 2026-10-27: the server respects the expiry the owner chose and its only duty is to notify ahead of an upcoming expiration (14 days before) for keys that have one.",
+        "owner": "next Vercel MCP implementer (O-3)",
+        "checkpoint": "When the O-3 card is written at start (WRITE_CARD_AT_START) and again at its PR boundary.",
+        "nextAction": "Write the O-3 card with token list/create/remove shaped by the ruling: the expiry the owner chose (or none) is what is stored and displayed, no default term is imposed at creation, and notify-ahead behavior is covered for expiring keys.",
+        "evidenceNeeded": "Token tool tests covering never-expiring and owner-dated keys, notify-ahead behavior, and no imposed expiry appearing in creation flows.",
+        "eligibilityCondition": "Eligible once O-1 lands; no further owner input needed.",
+        "dependencies": [
+          "O-1"
+        ]
+      }
     },
     {
       "id": "O-4",
@@ -1275,7 +1307,28 @@
       "readiness": "WRITE_CARD_AT_START",
       "ownerInputs": [
         "IN-11"
-      ]
+      ],
+      "revisit": {
+        "reason": "IN-11 was answered YES by the owner on 2026-10-27: the server defers to the release workflow Appliance Desk declares. The P-1 policy gate is cleared; the card is written when its dependencies land.",
+        "trigger": "owner-input-answered",
+        "ownerInputRefs": [
+          "IN-11"
+        ],
+        "resolution": "Owner answer recorded in docs/OWNER-INPUTS.md (IN-11) and docs/DECISIONS.md on 2026-10-27, including the generalization: deference attaches to any connected project that declares its own release workflow; projects without one get ordinary deploy capability.",
+        "owner": "next Vercel MCP implementer (P-1)",
+        "checkpoint": "When the P-1 card is written at start (WRITE_CARD_AT_START) and again at its PR boundary.",
+        "nextAction": "Seed the Appliance Desk profile with release_rule branch and production_branch live per docs/APP-NEEDS-APPLIANCE-DESK.md; verify promotion refusal without outsideApp and labelled emergency rollback.",
+        "evidenceNeeded": "Profile-guard tests proving promotion refusal without outsideApp, emergency rollback allowed and labelled with owner approval, and no deference applied to a project without a declared release workflow.",
+        "eligibilityCondition": "Eligible when P-1 dependencies land; no further owner input needed.",
+        "dependencies": [
+          "B-3",
+          "D-4",
+          "E-1",
+          "N-2",
+          "M-3",
+          "V-2"
+        ]
+      }
     },
     {
       "id": "P-2",
@@ -1514,13 +1567,18 @@
       ],
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [
-        "IN-10"
+        "IN-10",
+        "IN-09"
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
+        "ownerInputRefs": [
+          "IN-10",
+          "IN-09"
+        ],
         "owner": "next Vercel MCP implementer",
         "reason": "Read-only HTTPS RTC door, manifest and per-pass rate policy are implemented and source-tested; merged in PR #219. Full R-2 write-contract HTTPS access and original R-1 write-capable-pass prerequisite remain incomplete, plus independently authenticated client/provider acceptance.",
-        "nextAction": "Implement correctly delegated R-1 write-capable RTC pass grant with all scope/resource/spend/replay checks, then R-2 HTTP write-contract and original rate/window/source conformance; independently verify client/provider positive+denied operations and revocation.",
+        "nextAction": "Implement correctly delegated R-1 write-capable RTC pass grant with all scope/resource/spend/replay checks, then R-2 HTTP write-contract and original rate/window/source conformance; independently verify client/provider positive+denied operations and revocation. Production behavior follows the owner 2026-10-27 IN-09 ruling: production stays on and the enable/disable switch is owned by the end user, flippable by their agent with their approval; the passphrase enable ceremony is not the product gate.",
         "checkpoint": "At merged PR #219 and each subsequent original R-1/R-2 engineering session; no full completion before original criteria pass",
         "evidenceNeeded": "R-1 authorized pass issuance and write refusal/positive proofs; original R-2 HTTP write-contract tests, exact-head safety/CI/DB concurrency including cleanup, and separately recorded actual serving source and independent desktop/mobile/provider acceptance; Hub integration not required.",
         "eligibilityCondition": "Read-only door, owner per-pass limits, public OAuth and source test completion checked; full HTTP write delegation needs completed R-1 authorization boundary and service-owned verification, not distribution eligibility.",
@@ -1593,7 +1651,26 @@
       "readiness": "WRITE_CARD_AT_START",
       "ownerInputs": [
         "IN-06"
-      ]
+      ],
+      "revisit": {
+        "reason": "IN-06 was answered YES by the owner on 2026-10-27: the scratch project and project-scoped key are approved as a builder acceptance fixture (logistics, not product policy). The fixture itself has not been created yet, so the X-2 write run remains blocked on that owner step only.",
+        "trigger": "owner-input-answered",
+        "ownerInputRefs": [
+          "IN-06"
+        ],
+        "resolution": "Owner answer recorded in docs/OWNER-INPUTS.md (IN-06) and docs/DECISIONS.md on 2026-10-27. This entry is the recorded next-PR revisit the OWNER-INPUTS workflow requires; the blocked card is not abandoned.",
+        "owner": "owner (fixture creation); next authorized Vercel MCP acceptance implementer (X-2 run)",
+        "checkpoint": "At each session start until the fixture exists; confirm the setup-page state for the scratch project before scheduling the X-2 write run.",
+        "nextAction": "Once the owner has created the rtc-scratch project and pasted its project-scoped key on the setup page, run the X-2 real-world write suite against that scratch project only and record read/write/readback evidence.",
+        "evidenceNeeded": "Scratch project present in the owner team with a project-scoped key enrolled on the setup page; X-2 run report covering writes against that project only, with independent readback.",
+        "eligibilityCondition": "Eligible as soon as the owner-created fixture exists; read-only smoke runs remain eligible without it.",
+        "dependencies": [
+          "X-1",
+          "W-6",
+          "U-1",
+          "R-2"
+        ]
+      }
     },
     {
       "id": "CAP-1",

@@ -39,14 +39,14 @@ example when writing the JIT card. A dedicated hosted Vercel project, initialize
 | Stage | Batches | Why in this place | Owner gate |
 |---|---|---|---|
 | 1 Foundation | A | Nothing works without it | IN-02/IN-03/IN-04 before A-5 can be tried for real |
-| 2 Safety | B → C | Every later tool is built on the safety layer (production, spend, access, secrets, self-protection) and the context rules | IN-07 (protected list), IN-08 (spend limit default) |
-| 3 Everyday building and running | D → E → V | Projects, deployments and releases, then variables, then the developer tools that make building any project on Vercel fast (previews per branch, env wiring, diagnosis, sandboxes, cleanup) | IN-09 only to use production mode for real; IN-13 answered 2026-10-17 (no artificial Sandbox quota) |
+| 2 Safety | B → C | Every later tool is built on the safety layer (production, spend, access, secrets, self-protection) and the context rules | IN-07 (protected list), IN-08 (answered 2026-10-17: the $0 default binds builders only; end-user delegation is remediation) |
+| 3 Everyday building and running | D → E → V | Projects, deployments and releases, then variables, then the developer tools that make building any project on Vercel fast (previews per branch, env wiring, diagnosis, sandboxes, cleanup) | IN-09 ruled 2026-10-27 (production on; the switch is the user's); IN-13 answered 2026-10-17 (no artificial Sandbox quota) |
 | 4 The rest of the platform | N → F → M | Domains/DNS/registrar, security and traffic, monitoring and integrations | IN-08 for real purchases (never in tests) |
 | 5 Owner | O | Team, members, tokens, billing, admin overview and every dashboard setting | — |
-| 6 Projects | P → W | Optional project profiles and readiness for any app (Appliance Desk first), then the one-sentence jobs | IN-11 (Appliance Desk release rule) |
+| 6 Projects | P → W | Optional project profiles and readiness for any app (Appliance Desk first), then the one-sentence jobs | IN-11 (answered YES 2026-10-27: defer to the app's own release rule) |
 | 7 Everything else | U → R | Universal access and independently accessible RTC 1 tool API; Hub optional | IN-10 answered 2026-10-19 (120/min default; owner selected per pass) |
-| 8 Close-out | X | Undo, real-team smoke test and scratch run | IN-06 |
-| Production | GO-LIVE-CHECKLIST | Only after Chris enables production per team | IN-09 |
+| 8 Close-out | X | Undo, real-team smoke test and scratch run | IN-06 (answered YES 2026-10-27; fixture creation is the owner's step) |
+| Production | GO-LIVE-CHECKLIST | Production stays on per the owner's ruling; the per-team switch is the user's, flippable by their agent with their approval | IN-09 (ruled 2026-10-27) |
 
 ## Implementing agent — paste this
 

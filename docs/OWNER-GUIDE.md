@@ -9,7 +9,7 @@ Examples of intended owner operations by batch, **not** a certification that eve
 
 | Say something like… | What happens | Batch |
 |---|---|---|
-| "Who am I connected to in Vercel?" | Team, PREVIEW or PRODUCTION, your key's expiry, today's spend limit | A/B |
+| "Who am I connected to in Vercel?" | Team, PREVIEW or PRODUCTION, the expiry you chose for your key (if any — your choice, IN-04), today's spend limit | A/B |
 | "Make me a preview of the feature-x branch." | Deploys a preview (never the live site), gives you the link, cleans it up later | V |
 | "Why did that build fail?" | The first error in plain words, the likely cause and the exact fix | V/W |
 | "Set up preview settings for this feature." | Adds preview-only settings; secret values come from your setup page, never chat | V |
