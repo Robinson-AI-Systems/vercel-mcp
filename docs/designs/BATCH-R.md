@@ -99,3 +99,13 @@ Done when: the hub's conformance package passes in this repo's CI against a loca
 ## Amendments
 
 (Dated entries only.)
+
+**2026-10-26 — schema drift (design vs implemented code, unresolved).** This design's §2 specifies passes in
+`oauth_tokens` (`kind='pass'`, `allow_writes`, `spend_limit_cents`, `areas`, `project_ids`, `for_hub`,
+`rate_limit_per_minute`) and a separate `rate_limits` table. The implemented code instead stores issued passes in
+`rtc_passes` (`src/db.js:40,962`), with per-pass atomic rate limiting via window columns on that table
+(`src/db.js:96–107,968–969`), and `src/rtc/door.js:validPassRecord` requires `mode` preview/test and
+`profile === 'read_only'` — so a write-capable pass cannot exist in the current schema. `vercel_create_pass` issues
+owner-reviewed proposals only, not passes. Before R-1 write-capable passes resume, an amendment must decide whether
+the design is updated to the `rtc_passes` model or the code is migrated to the `oauth_tokens` model, and record the
+choice per the drift protocol. Do not build write passes on either model until that amendment exists.
