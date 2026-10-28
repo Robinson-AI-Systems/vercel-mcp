@@ -3,7 +3,8 @@ import { dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
 import { registry } from '../../src/tools/index.js';
 const rows = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
   production_enabled: false, token_last4: '1234', token_expires_at: null,
-  spend_limit_cents: 0, token_enc: 'DO_NOT_EXPOSE_CIPHERTEXT' }];
+  spend_limit_cents: 0, purchase_budget_cents: 2500, purchase_grant_required: true,
+  token_enc: 'DO_NOT_EXPOSE_CIPHERTEXT' }];
 const db = { listVercelAccounts: async () => rows, getTodaySpendCents: async () => 235,
   getVercelAccountSafe: async id => rows.find(row => row.id === id) || null };
 const conn = { account: 'team_FAKE', mode: 'preview', profile: 'read_only', listing: 'compact' };
@@ -14,6 +15,24 @@ describe('A-5 account read tools', () => {
     expect(JSON.parse(result.content[0].text).account.team).toBe('fixture');
     expect(JSON.parse(result.content[0].text).spentTodayCents).toBe(235);
     expect(result.content[0].text).not.toContain('DO_NOT_EXPOSE_CIPHERTEXT');
+  });
+  it('whoami reports the standing purchase policy beside the spend fields (AUD-A1)', async () => {
+    const parsed = JSON.parse((await call('vercel_whoami')).content[0].text);
+    expect(parsed.spendLimitCents).toBe(0);
+    expect(parsed.purchaseBudgetCents).toBe(2500);
+    expect(parsed.purchaseGrantRequired).toBe(true);
+  });
+  it('whoami reports a null budget and no grant opt-in when no policy is set (AUD-A1)', async () => {
+    const bare = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
+      production_enabled: false, token_last4: '1234', token_expires_at: null,
+      spend_limit_cents: 0 }];
+    const bareDb = { listVercelAccounts: async () => bare,
+      getTodaySpendCents: async () => 0,
+      getVercelAccountSafe: async id => bare.find(row => row.id === id) || null };
+    const result = await dispatchReadOnlyTool({ registry, name: 'vercel_whoami', connection: conn, db: bareDb });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.purchaseBudgetCents).toBeNull();
+    expect(parsed.purchaseGrantRequired).toBe(false);
   });
   it('TEST whoami never loads account records or provider resources',async()=>{
     const noAccounts={listVercelAccounts:async()=>{throw new Error('must not query');}};

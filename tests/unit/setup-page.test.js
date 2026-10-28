@@ -237,6 +237,57 @@ describe('A-5 owner-only setup security', () => {
     expect(fail.statusCode).toBe(400);
     expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
   });
+  it('sets the purchase policy only with owner session, CSRF, confirmation and fresh passphrase (AUD-A1)', async () => {
+    const h = harness();
+    const auth = await signIn(h), prod = {...env, VERCEL_ENV:'production'};
+    const page = await h.call('GET', null, auth.cookie);
+    expect(page.body).toContain('Purchase policy (owner only)');
+    expect(page.body).toContain('no agent budget set');
+    expect(page.body).toContain('per-purchase grant not required');
+    const body = {action:'set_purchase_policy',account:'team_FAKE',confirm:'yes',
+      csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE,budgetDollars:'25.00',grantRequired:'yes'};
+    const attempt = (payload, cookie = auth.cookie, extra={env:prod}) =>
+      h.call('POST',payload,cookie,extra);
+    expect((await attempt(body,null)).statusCode).toBe(403);
+    expect((await attempt({...body,csrf:'wrong'})).statusCode).toBe(403);
+    expect((await attempt({...body,account:'team_OTHER'})).statusCode).toBe(403);
+    expect((await attempt({...body,confirm:'no'})).statusCode).toBe(403);
+    // Preview deployments cannot change the policy.
+    expect((await h.call('POST',body,auth.cookie)).statusCode).toBe(403);
+    for (const invalid of ['-1','1.234','1e2','21474836.48','01','Infinity','NaN']) {
+      expect((await attempt({...body,budgetDollars:invalid})).statusCode).toBe(403);
+    }
+    expect((await attempt({...body,passphrase:'incorrect'})).statusCode).toBe(401);
+    expect(await h.db.getPurchasePolicy('team_FAKE')).toEqual({budgetCents:null,grantRequired:false});
+    expect(h.provider).not.toHaveBeenCalled();
+    const yes = await attempt(body);
+    expect(yes.statusCode).toBe(200);
+    expect(yes.body).toContain('agent budget $25.00');
+    expect(yes.body).toContain('per-purchase grant required');
+    expect(yes.body).toContain('No spending');
+    expect(await h.db.getPurchasePolicy('team_FAKE')).toEqual({budgetCents:2500,grantRequired:true});
+    const after = await h.call('GET', null, auth.cookie);
+    expect(after.body).toContain('agent budget $25.00');
+    expect(after.body).toContain('per-purchase grant required');
+    const cleared = await attempt({...body,budgetDollars:'',grantRequired:undefined});
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.body).toContain('no agent budget set');
+    expect(await h.db.getPurchasePolicy('team_FAKE')).toEqual({budgetCents:null,grantRequired:false});
+    expect(yes.body).not.toContain(env.ADMIN_PASSPHRASE);
+    expect(yes.body).not.toContain(env.TOKEN_ENCRYPTION_KEY);
+  });
+  it('does not report purchase-policy success when verification fails or exceptions occur (AUD-A1)', async () => {
+    const h = harness(), auth = await signIn(h), prod = {...env, VERCEL_ENV:'production'};
+    const body = {action:'set_purchase_policy',account:'team_FAKE',confirm:'yes',csrf:auth.csrf,
+      passphrase:env.ADMIN_PASSPHRASE,budgetDollars:'25.00',grantRequired:'yes'};
+    const no = await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setPurchasePolicy:async()=>false}});
+    expect(no.statusCode).toBe(409);
+    const fail = await h.call('POST',body,auth.cookie,{env:prod,
+      db:{...h.db,setPurchasePolicy:async()=>{throw Error('DO_NOT_ECHO_DB');}}});
+    expect(fail.statusCode).toBe(400);
+    expect(fail.body).not.toContain('DO_NOT_ECHO_DB');
+  });
   it('revokes exactly the selected connector after session, CSRF and fresh passphrase',async()=>{
     const h=harness(),revoke=vi.fn(async()=>true);
     h.db.revokeOwnerConnection=revoke;

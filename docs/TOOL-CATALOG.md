@@ -62,7 +62,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_whoami` | Preview/production: current scoped Vercel account, token metadata, spend and profile. New isolated RTC TEST passes: service identity ONLY, no account record/provider requests or Vercel resource access. | — | B O Op | R | — | A-5 built #15; B-8a #24; TEST identity #133 |
+| `vercel_whoami` | Preview/production: current scoped Vercel account, token metadata, spend, standing purchase policy (agent budget and grant opt-in) and profile. New isolated RTC TEST passes: service identity ONLY, no account record/provider requests or Vercel resource access. | — | B O Op | R | — | A-5 built #15; B-8a #24; TEST identity #133; purchase policy AUD-A1 |
 | `vercel_list_accounts` | Show only the current authenticated connection's account and safe settings; global account management remains on owner setup | — | O | R | — | A-5 built #15; B-8 account isolation #28 |
 | `vercel_set_default_account` | Propose changing the global default; exact target requires separate signed-in owner approval | P | O | F | — | B-8b built #38 |
 | `vercel_check_token` | Re-probe the stored token with bounded GETs; report selected team/project read access, not expiry or write permissions | — | O | R | — | B-8b read-only built #26 |
