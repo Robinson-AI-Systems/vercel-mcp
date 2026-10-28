@@ -2,7 +2,7 @@
 // Sources are SHA-1 uploaded in bounded raw binary operations; build spend is
 // unknown and centrally denied until per-transaction provider ceilings exist.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -93,7 +93,7 @@ const create=defineWrite({
     return 'Create a '+before.target+' deployment of '+before.name+
       ' with '+before.files.length+' SHA-1 verified text files ('+before.total+
       ' bytes, at most 2 MiB). Each file is uploaded before deploy. '+
-      'Build charges remain unbounded; an independently approved enforceable total cost ceiling is required.';
+      'Build charges are metered; execution follows the account purchase policy (owner word or owner grant).';
   },
   async production(_args,_ctx,before){
     return {production:before.target==='production',
@@ -120,13 +120,18 @@ const create=defineWrite({
       if(fresh.total!==before.total||
         JSON.stringify(fresh.items)!==JSON.stringify(before.files))
         throw new TypeError('File manifest changed since owner review');
-      if(ctx.purchaseApproval?.operation!=='vercel_deploy_create_from_files'||
-        ctx.purchaseApproval.requestKey!==requestKey)
-        throw new TypeError('Independent owner purchase approval missing');
-      const grant=await ctx.db.getPurchaseIntent({
-        account:ctx.connection.account,reference:ctx.purchaseApproval.reference});
-      if(grant?.status!=='consumed'||!grant.consumed_at)
-        throw new TypeError('Owner purchase approval not consumed');
+      // Purchase authority (AUD-A2): a consumed owner grant on the grant
+      // path, or the executor's owner-word delegation on an owner
+      // connection whose policy does not require a grant.
+      if(!purchaseDelegationFor(ctx,'vercel_deploy_create_from_files',requestKey)){
+        if(ctx.purchaseApproval?.operation!=='vercel_deploy_create_from_files'||
+          ctx.purchaseApproval.requestKey!==requestKey)
+          throw new TypeError('Independent owner purchase approval missing');
+        const grant=await ctx.db.getPurchaseIntent({
+          account:ctx.connection.account,reference:ctx.purchaseApproval.reference});
+        if(grant?.status!=='consumed'||!grant.consumed_at)
+          throw new TypeError('Owner purchase approval not consumed');
+      }
     });
     // Each upload uses a distinct durable replay claim. Failed or uncertain
     // uploads stop deployment creation; never retry POST blindly.
@@ -164,7 +169,7 @@ const create=defineWrite({
 export const deploymentFileCreateTools={
   tools:[{name:'vercel_deploy_create_from_files',writes:true,guardedWrite:true,
     profiles:['full'],area:'deployments',
-    description:'Deploy up to 2 MiB of SHA-1 uploaded safe text files; metered build execution requires separate enforceable owner cost approval.',
+    description:'Deploy up to 2 MiB of SHA-1 uploaded safe text files; metered build cost follows the account purchase policy.',
     inputSchema,writeContract:create.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{vercel_deploy_create_from_files:bindGuardedWrite(create,context,result=>({

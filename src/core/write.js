@@ -49,6 +49,18 @@ export function purchaseFingerprint(name,args,connection,spend) {
     description:spend.description
   })).digest('hex');
 }
+// AUD-A2: the delegation the executor itself minted for an owner-word
+// purchase (design D-A). Metered tools that re-check purchase authority
+// inside apply accept this in place of a consumed grant; it is bound to the
+// exact operation and request key, and it exists only when preflight
+// evaluated the account policy on an owner connection. A caller can never
+// inject it: execution contexts are built here, never from tool arguments.
+export function purchaseDelegationFor(ctx, operation, requestKey) {
+  const delegation = ctx?.purchaseDelegation;
+  return delegation && delegation.basis === 'owner_word' &&
+    delegation.operation === operation && delegation.requestKey === requestKey ?
+    delegation : null;
+}
 export function defineWrite(spec) {
   if (typeof spec?.name !== 'string' || !spec.name) throw new TypeError('Write name required');
   for (const key of ['before','preview','production','targets','apply','verify']) {
@@ -74,35 +86,54 @@ export function defineWrite(spec) {
     const { before, production, targets, summary, moneyLine, spendCents, mode, purchase, spendDeclaration } = checked;
     const requestKey = writeRequestKey(spec.name, args, ctx.connection,
       typeof ctx.now === 'function' ? ctx.now() : Date.now());
+    // AUD-A2: the delegation block preflight evaluated for an owner-word
+    // purchase (null on every other path). It is journaled on the change-log
+    // row and returned in the applied result under the same name.
+    const delegation = purchase?.delegation ?? null;
     const auditBase = {
       tool: spec.name, account: ctx.connection.account, mode: ctx.connection.mode,
       requestKey, production: production.production,
-      summary, targets: safeShape(ctx, targets), moneyLine, spendCents: spendCents??null
+      summary, targets: safeShape(ctx, targets), moneyLine, spendCents: spendCents??null,
+      ...(delegation ? { delegation } : {})
     };
     if (args.dryRun === true) {
       await ctx.audit({ ...auditBase, dryRun: true });
       return { status: 'preview', mode, dryRun: true, preview: summary,
         moneyLine, requestKey };
     }
-    // Requiring confirmation for every write is conservative; later cards
-    // may add stronger guards, never relax production or spend requirements.
+    // Requiring confirmation for every write is conservative. Stronger
+    // guards may be added, but production and spend strictness are the
+    // account owner's own policy choices, not a builder doctrine: the
+    // purchase branch below applies the owner's standing policy
+    // (docs/END-USER-AUTHORITY.md). The builder-activity constraint —
+    // implementation agents spend $0 and never approve grants — binds
+    // builders' own activity, never an end user's connection.
     if (args.confirm !== true) return {
       status: 'needs_confirmation', mode, confirmed: false,
       preview: summary, moneyLine, requestKey
     };
-    // Agents may only PROPOSE a purchase. The single-use purchase grant comes
-    // exclusively from separately authenticated owner setup (not MCP confirm).
+    // Purchase authority (AUD-A2, design D-A, OP-2). On the account owner's
+    // own connection with purchase_grant_required = false, preflight has
+    // already evaluated the standing policy: the owner's confirmed word is
+    // the authority, no purchase intent is created or consumed, and the
+    // delegation block is journaled. On delegated/builder connections — and
+    // for owners who opted into purchase_grant_required — an agent may only
+    // PROPOSE a purchase: the single-use purchase grant comes exclusively
+    // from separately authenticated owner setup (not MCP confirm).
     let charge=null;
-    if(purchase){
+    if(purchase&&!delegation){
       // A recurring fixed per-period fee can also exceed a one-time grant.
       // A numeric ceiling is meaningless unless the provider guarantees
       // lifetime charges cannot exceed it. Vercel build/compute usage
       // currently supplies no enforceable per-request maximum here.
       if(purchase.cents===null || purchase.recurring){
-        // The only authorized exception is a finite, isolated Sandbox session:
-        // owner must explicitly accept non-guaranteed variable usage AFTER
-        // reviewing the real scope in authenticated setup. No generic metered
-        // purchase inherits this permission, and this agent cannot approve it.
+        // On this grant path the only authorized exception is a finite,
+        // isolated Sandbox session: owner must explicitly accept
+        // non-guaranteed variable usage AFTER reviewing the real scope in
+        // authenticated setup. No generic metered purchase inherits this
+        // permission, and this agent cannot approve it. (Owner connections
+        // whose policy does not require a grant never reach this block:
+        // metered spend executes on their word with the usage disclosure.)
         if(!(spec.name==='vercel_dev_sandbox_create'&&spec.risk?.ownerApprovedMetered===true&&
           purchase.cents===null&&purchase.recurring===true))
           return refusal('Unbounded metered usage requires a provider-enforceable ceiling or a separately authenticated owner-approved supported policy');
@@ -169,10 +200,11 @@ export function defineWrite(spec) {
         // A fresh declaration is required immediately before dispatch,
         // including for originally $0 writes. If pricing, recurrence or the
         // provider quote description drifted, no provider mutation is safe.
-        // For chargeable writes this occurs BEFORE consuming the owner grant.
+        // For grant-path writes this occurs BEFORE consuming the owner grant;
+        // owner-word writes re-check the same way, consuming nothing.
         await requirePreDispatch(async()=>{
           // Cached preflight state cannot validate a provider-sourced quote.
-          // Re-read charged operations before consuming a one-use owner grant.
+          // Re-read charged operations before any grant is consumed.
           const freshBefore=spendDeclaration.cents===0&&!spendDeclaration.recurring?
             before:await spec.before(args,ctx);
           const fresh=await spec.spend(args,ctx,freshBefore);
@@ -190,6 +222,15 @@ export function defineWrite(spec) {
         if(consumed!==true) throw new PreDispatchRefusal('Owner purchase grant was unavailable');
         executionContext={...ctx,purchaseApproval:Object.freeze({
           reference:charge.reference,requestKey,operation:spec.name})};
+      }
+      if(delegation){
+        // Owner-word path: nothing is consumed. Apply-side authority checks
+        // receive the delegation the executor minted, bound to this exact
+        // operation and request key (purchaseDelegationFor).
+        executionContext={...ctx,purchaseDelegation:Object.freeze({
+          basis:'owner_word',operation:spec.name,requestKey,
+          budgetCents:delegation.budgetCents,quotedCents:delegation.quotedCents,
+          overBudget:delegation.overBudget})};
       }
       providerResult = await spec.apply(args, executionContext, before, requestKey);
     } catch (error) {
@@ -245,6 +286,7 @@ export function defineWrite(spec) {
         expiresAt: providerResult.expiresAt, preview: summary, requestKey,
         reviewAt: '/api/vercel/setup' } :
       { status: 'applied', mode, confirmed, preview: summary, moneyLine, requestKey,
+        ...(delegation?{delegation}:{}),
         ...(delivered||{}),...(publicReceipt?{receipt:publicReceipt}:{}) });
     const inverse = typeof spec.inverse === 'function'
       ? safeShape(ctx, await spec.inverse(args, before, providerResult, ctx)) : null;

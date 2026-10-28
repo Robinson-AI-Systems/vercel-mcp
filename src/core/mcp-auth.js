@@ -33,7 +33,12 @@ export async function requireMcpToken(req, res, db, env = process.env) {
     account: record.vercel_account,
     mode: record.mode,
     profile: record.profile,
-    listing: record.listing
+    listing: record.listing,
+    // Server-minted connection classification (AUD-A2): getAccessToken only
+    // returns oauth_tokens rows with kind 'connector' — the account owner's
+    // own connector/OAuth connection. The purchase policy branch keys off
+    // this; delegated RTC passes carry kind 'pass' instead.
+    kind: record.kind
   };
   Object.defineProperty(context,'resultOwner',{value:'resown_'+
     createHash('sha256').update('rmcp-result-owner-v1:').update(match[1]).digest('hex')});

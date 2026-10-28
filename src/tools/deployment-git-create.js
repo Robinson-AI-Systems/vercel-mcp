@@ -1,7 +1,7 @@
 // D-3: guarded Git-sourced deployment. Building is metered; IN-08's
 // provider-enforced per-operation total ceiling is unavailable, so the
 // shared spending gate must refuse confirmed execution before POST.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -80,8 +80,8 @@ const create=defineWrite({
   async preview(_args,_ctx,before){
     return 'Create '+before.target+' deployment of '+before.name+
       ' ('+before.id+') from exact linked GitHub commit '+before.sha+
-      ' at '+before.ref+'. This triggers metered build usage. Provider-enforceable '+
-      'total cost ceiling and separate independent owner transaction approval are required.';
+      ' at '+before.ref+'. This triggers metered build usage; '+
+      'execution follows the account purchase policy (owner word or owner grant).';
   },
   async production(_args,_ctx,before){
     return {production:before.target==='production',
@@ -104,14 +104,18 @@ const create=defineWrite({
       if(!same(sourceProject(before.id,row),before)||
         row.accountId!=null&&row.accountId!==before.teamId)
         throw new TypeError('Git-linked project identity changed');
-      // Not reachable while usage pricing lacks a provable total ceiling.
-      if(ctx.purchaseApproval?.operation!=='vercel_deploy_create_from_git'||
-        ctx.purchaseApproval.requestKey!==requestKey)
-        throw new TypeError('Independent purchase authorization missing');
-      const ticket=await ctx.db.getPurchaseIntent({
-        account:ctx.connection.account,reference:ctx.purchaseApproval.reference});
-      if(ticket?.status!=='consumed'||!ticket.consumed_at)
-        throw new TypeError('Owner purchase approval not consumed');
+      // Purchase authority (AUD-A2): a consumed owner grant on the grant
+      // path, or the executor's owner-word delegation on an owner
+      // connection whose policy does not require a grant.
+      if(!purchaseDelegationFor(ctx,'vercel_deploy_create_from_git',requestKey)){
+        if(ctx.purchaseApproval?.operation!=='vercel_deploy_create_from_git'||
+          ctx.purchaseApproval.requestKey!==requestKey)
+          throw new TypeError('Independent purchase authorization missing');
+        const ticket=await ctx.db.getPurchaseIntent({
+          account:ctx.connection.account,reference:ctx.purchaseApproval.reference});
+        if(ticket?.status!=='consumed'||!ticket.consumed_at)
+          throw new TypeError('Owner purchase approval not consumed');
+      }
     });
     return provider.write('deployments_create',{
       body:{name:before.name,project:before.name,
@@ -138,7 +142,7 @@ const create=defineWrite({
 export const deploymentGitCreateTools={
   tools:[{name:'vercel_deploy_create_from_git',writes:true,guardedWrite:true,
     profiles:['full'],area:'deployments',
-    description:'Create GitHub-linked deployment of an exact commit with verified project and guarded metered owner ceiling.',
+    description:'Create GitHub-linked deployment of an exact commit with verified project; metered cost follows the account purchase policy.',
     inputSchema,writeContract:create.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{vercel_deploy_create_from_git:bindGuardedWrite(create,context,result=>({

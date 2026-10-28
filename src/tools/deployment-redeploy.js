@@ -1,7 +1,7 @@
 // D-3: redeploy the exact existing source with its verified original target.
 // Creating a build incurs unbounded metered usage: the independent owner
 // ceiling gate refuses execution unless Vercel can enforce a total per-operation cap.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
 import {compact} from '../core/util.js';
 import {scopedDeployment} from './deployments.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -76,7 +76,7 @@ const redeploy=defineWrite({
   async preview(_args,_ctx,before){
     return 'Request a new '+before.target+' deployment from '+before.deployment+
       ' in '+before.project+'. Original target is preserved. This starts a billed build; '+
-      'no deployment is authorized without independent owner approval and a provider-enforceable total cost ceiling.';
+      'execution follows the account purchase policy (owner word or owner grant).';
   },
   async production(_args,_ctx,before){
     return {production:before.target==='production',
@@ -99,15 +99,19 @@ const redeploy=defineWrite({
       const original=await provider.read('deployments_get',
         {path:{idOrUrl:before.deployment}});
       prove(original,before);
-      // Defense in depth: even if a future priced-build mode is added,
-      // it MUST carry the transaction-specific consumed owner grant.
-      if(ctx.purchaseApproval?.operation!=='vercel_deploy_redeploy'||
-        ctx.purchaseApproval.requestKey!==requestKey)
-        throw new TypeError('Independent owner approval not present');
-      const grant=await ctx.db.getPurchaseIntent({
-        account:ctx.connection.account,reference:ctx.purchaseApproval.reference});
-      if(grant?.status!=='consumed'||!grant.consumed_at)
-        throw new TypeError('Owner purchase approval not consumed');
+      // Defense in depth (AUD-A2): a priced build must carry purchase
+      // authority — the transaction-specific consumed owner grant on the
+      // grant path, or the executor's owner-word delegation on an owner
+      // connection whose policy does not require a grant.
+      if(!purchaseDelegationFor(ctx,'vercel_deploy_redeploy',requestKey)){
+        if(ctx.purchaseApproval?.operation!=='vercel_deploy_redeploy'||
+          ctx.purchaseApproval.requestKey!==requestKey)
+          throw new TypeError('Independent owner approval not present');
+        const grant=await ctx.db.getPurchaseIntent({
+          account:ctx.connection.account,reference:ctx.purchaseApproval.reference});
+        if(grant?.status!=='consumed'||!grant.consumed_at)
+          throw new TypeError('Owner purchase approval not consumed');
+      }
     });
     return provider.write('deployments_create',{
       body:{name:before.name,project:before.name,
@@ -134,7 +138,7 @@ const redeploy=defineWrite({
 export const deploymentRedeployTools={
   tools:[{name:'vercel_deploy_redeploy',writes:true,guardedWrite:true,
     profiles:['full'],area:'deployments',
-    description:'Redeploy from an exact source preserving target; unbounded metered builds remain owner/ceiling blocked.',
+    description:'Redeploy from an exact source preserving target; metered builds follow the account purchase policy.',
     inputSchema,writeContract:redeploy.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{vercel_deploy_redeploy:bindGuardedWrite(redeploy,context,result=>({
