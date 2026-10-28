@@ -109,3 +109,16 @@ Done when: the hub's conformance package passes in this repo's CI against a loca
 owner-reviewed proposals only, not passes. Before R-1 write-capable passes resume, an amendment must decide whether
 the design is updated to the `rtc_passes` model or the code is migrated to the `oauth_tokens` model, and record the
 choice per the drift protocol. Do not build write passes on either model until that amendment exists.
+
+**2026-10-27 — schema drift resolved for the as-built pass system (audit S3 refresh, VMCP-014).** The
+implemented `rtc_passes` model is the truth for the pass system as built: issued passes live in `rtc_passes`
+with per-pass atomic rate limiting via that table's window columns, and the current door serves read-only
+passes (preview/test mode, `read_only` profile). §2's `oauth_tokens` pass columns (`allow_writes`,
+`spend_limit_cents`, `areas`, `project_ids`, `for_hub`, `rate_limit_per_minute`) and the separate
+`rate_limits` table are the pre-implementation design and are superseded as a description of the as-built
+system; they are retained above as history. The atomic shared rate-limit requirement itself (never an
+in-memory counter, per-pass 1–600 with the IN-10 default of 120) is unchanged and is met by the
+`rtc_passes` window columns. R-1 write-capable passes remain future work: they may not be built on either
+model until a fresh amendment adopts the `rtc_passes` model for writes — defining allow-writes, spend
+(under the OP-2 delegation shape, BATCH-B amendment D-A) and revocation semantics there — or records an
+explicit migration decision to the §2 model.

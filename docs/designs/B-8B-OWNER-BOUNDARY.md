@@ -86,3 +86,14 @@ true as a completion record. C-1/C-2 are merged, so the "before C can start" gat
 overtaken by events. The index was not changed to match this document (and vice versa) — an amendment must decide
 whether B-8 closes as proposals-only with the remaining apply paths tracked as new work, or stays IN_PROGRESS
 until they are implemented. Until then, do not cite either source as proof B-8 is closed.
+
+**2026-10-27 resolution — audit S3 refresh (VMCP-014):** the contradiction above is resolved.
+The work index stands: B-8 is MERGED for the source scope delivered in PRs #24–#40, including
+this boundary document. The "B-8 remains IN_PROGRESS" sentence in §5 above is superseded: the
+items §2 and §5 call future work (targeted revocation and spend-limit setting as applied MCP
+operations, full write-contract evidence for the MCP owner tools) are successor scope, not B-8
+completion criteria. They are tracked in the 2026-10-27 audit register
+(`docs/MCP-AUDIT-2026-10-27.md`, VMCP-007 and VMCP-004) and the BATCH-B amendments filed with it
+(D-A purchase delegation; owner-admin conversion note). The "before C can start" gate is
+overtaken by events: C-1/C-2 are merged. Do not cite §5's IN_PROGRESS wording as B-8's status;
+the work index is the status record.
