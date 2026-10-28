@@ -38,6 +38,14 @@ it('adds the attestation column additively; existing accounts default to not att
   await db.initSchema();
   expect(await db.getTokenNoExpiry('team_FAKE')).toBe(false);
   expect(await db.getTokenNoExpiry('team_OTHER')).toBe(false);
+  // initSchema backfills a non-secret token version for pre-AUD-E rows.
+  const versioned = await db.listVercelAccounts();
+  for (const row of versioned) {
+    expect(row.token_version).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  }
+  await db.initSchema();
+  const again = await db.listVercelAccounts();
+  expect(again.map(r => r.token_version)).toEqual(versioned.map(r => r.token_version));
   const rows = await db.listVercelAccounts();
   expect(rows.find(r => r.id === 'team_FAKE').token_no_expiry).toBe(false);
   expect(rows.find(r => r.id === 'team_FAKE').token_expires_at).toBeNull();
@@ -49,10 +57,16 @@ it('adds the attestation column additively; existing accounts default to not att
 });
 
 it('setTokenNoExpiry round-trips and journals every successful set and clear', async () => {
-  expect(await db.setTokenNoExpiry('team_FAKE', true)).toBe(true);
+  const version = (await db.listVercelAccounts()).find(r => r.id === 'team_FAKE').token_version;
+  // A stale version (a form opened before a rotation) is refused and
+  // journals nothing.
+  expect(await db.setTokenNoExpiry('team_FAKE', true,
+    '22222222-2222-4222-8222-222222222222')).toBe(false);
+  expect(await audits()).toHaveLength(0);
+  expect(await db.setTokenNoExpiry('team_FAKE', true, version)).toBe(true);
   expect(await db.getTokenNoExpiry('team_FAKE')).toBe(true);
   expect(await db.getTokenNoExpiry('team_OTHER')).toBe(false);
-  expect(await db.setTokenNoExpiry('team_FAKE', false)).toBe(true);
+  expect(await db.setTokenNoExpiry('team_FAKE', false, version)).toBe(true);
   expect(await db.getTokenNoExpiry('team_FAKE')).toBe(false);
   const logs = await audits();
   expect(logs).toHaveLength(2);
@@ -64,23 +78,33 @@ it('setTokenNoExpiry round-trips and journals every successful set and clear', a
 });
 
 it('enrolling or rotating a token clears a previous attestation', async () => {
-  expect(await db.setTokenNoExpiry('team_FAKE', true)).toBe(true);
+  const version = (await db.listVercelAccounts()).find(r => r.id === 'team_FAKE').token_version;
+  expect(await db.setTokenNoExpiry('team_FAKE', true, version)).toBe(true);
   await db.upsertVercelAccount({
     id: 'team_FAKE', teamId: 'team_FAKE', teamSlug: 'fixture', label: 'Fixture',
     scope: 'team', tokenEnc: 'ciphertext_FAKE_rotated', tokenLast4: '9999',
     expiresAt: null, probe: { checkedAt: '2026-10-28T00:00:00.000Z' }
   });
   expect(await db.getTokenNoExpiry('team_FAKE')).toBe(false);
+  // Rotation also mints a fresh version; the pre-rotation form is stale.
+  const rotated = (await db.listVercelAccounts()).find(r => r.id === 'team_FAKE').token_version;
+  expect(rotated).not.toBe(version);
+  expect(await db.setTokenNoExpiry('team_FAKE', true, version)).toBe(false);
+  expect(await db.getTokenNoExpiry('team_FAKE')).toBe(false);
 });
 
 it('rejects invalid attestations and missing accounts without journaling', async () => {
   const before = await audits();
+  const version = (await db.listVercelAccounts()).find(r => r.id === 'team_FAKE').token_version;
   for (const invalid of ['yes', 1, null, undefined]) {
-    await expect(db.setTokenNoExpiry('team_FAKE', invalid)).rejects.toThrow();
+    await expect(db.setTokenNoExpiry('team_FAKE', invalid, version)).rejects.toThrow();
   }
-  await expect(db.setTokenNoExpiry('bad name', true)).rejects.toThrow();
+  for (const badVersion of ['not-a-version', '', null, undefined, 42]) {
+    await expect(db.setTokenNoExpiry('team_FAKE', true, badVersion)).rejects.toThrow();
+  }
+  await expect(db.setTokenNoExpiry('bad name', true, version)).rejects.toThrow();
   await expect(db.getTokenNoExpiry('bad name')).rejects.toThrow();
-  expect(await db.setTokenNoExpiry('team_UNKNOWN', true)).toBe(false);
+  expect(await db.setTokenNoExpiry('team_UNKNOWN', true, version)).toBe(false);
   expect(await db.getTokenNoExpiry('team_UNKNOWN')).toBeNull();
   expect(await audits()).toHaveLength(before.length);
 });

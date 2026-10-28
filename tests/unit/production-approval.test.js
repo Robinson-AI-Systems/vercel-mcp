@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
 import { encryptSecret } from '../../src/core/secret-box.js';
 import { checkProductionWrite, requestProductionEnable, approveProductionEnable, disableProduction } from '../../src/tools/production-guard.js';
+import { productionTools } from '../../src/tools/production.js';
 import { handleSetup } from '../../src/vercel/setup.js';
 import { registry } from '../../src/tools/index.js';
 import { dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
@@ -9,11 +10,12 @@ import { dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
 const env = { VERCEL_ENV: 'production', TOKEN_ENCRYPTION_KEY: randomBytes(32).toString('hex'),
   ADMIN_PASSPHRASE: 'fixture-secret-owner-password' };
 const conn = { account: 'team_FAKE', profile: 'full', mode: 'preview', listing: 'compact' };
-function fixture() {
+function fixture(strictness = 'word') {
   const secrets = new Map(), audits = [], revoked = [];
   let enabled = false, badLogins = 0, seq = 0;
   const db = {
-    listVercelAccounts: async () => [{ id: 'team_FAKE', label: 'Fixture', production_enabled: enabled }],
+    listVercelAccounts: async () => [{ id: 'team_FAKE', label: 'Fixture', production_enabled: enabled,
+      production_enable_strictness: strictness }],
     async insertOneTimeSecret(row) { secrets.set(row.id, { ...row, vercel_account: row.account }); },
     async consumeOneTimeSecret({ id, account }) {
       const row = secrets.get(id);
@@ -35,15 +37,81 @@ function mockRes() {
     status(code){this.statusCode=code;return this;},send(x){this.body=x;return this;},
     json(x){this.body=JSON.stringify(x);return this;},end(){return this;} };
 }
-describe('B-2 two-step production permission', () => {
+describe('B-2 production permission (AUD-B: word default, passphrase strictness)', () => {
   it('blocks unsafe live changes and requires confirm in production mode', () => {
     expect(checkProductionWrite({ connection: conn, production: { production: true } }).status).toBe('refused_by_guard');
     expect(checkProductionWrite({ connection: { ...conn, mode: 'production' }, production: { production: true } }).status).toBe('needs_confirmation');
     expect(checkProductionWrite({ connection: { ...conn, mode: 'production' }, production: { production: true }, confirm: true }).mode).toBe('PRODUCTION');
     expect(checkProductionWrite({ connection: conn, production: null }).status).toBe('refused_by_guard');
   });
-  it('requests approval but cannot enable until the owner reenters password on setup', async () => {
+  it('AUD-B word strictness (default): confirm enables on the owner word, no passphrase consumed', async () => {
+    const f = fixture('word');
+    expect((await requestProductionEnable({ ...f.opts, confirm: false })).status).toBe('needs_confirmation');
+    const dry = await requestProductionEnable({ ...f.opts, dryRun: true });
+    expect(dry.status).toBe('preview');
+    expect(dry.strictness).toBe('word');
+    expect(f.isEnabled()).toBe(false);
+    const result = await requestProductionEnable(f.opts);
+    expect(result).toEqual({ status: 'enabled', account: 'team_FAKE',
+      productionEnabled: true, strictness: 'word' });
+    expect(f.isEnabled()).toBe(true);
+    // No receipt was issued or consumed: the secrets store stays empty.
+    expect(f.secrets.size).toBe(0);
+    expect(f.audits).toHaveLength(1);
+    expect(f.audits[0]).toMatchObject({ tool: 'vercel_enable_production',
+      production: true, dryRun: false });
+    expect(f.audits[0].summary).toContain('Owner word confirmed');
+    expect((await requestProductionEnable(f.opts)).status).toBe('already_enabled');
+  });
+  it('AUD-B: a missing strictness value reads as the word default', async () => {
     const f = fixture();
+    f.db.listVercelAccounts = async () => [{ id: 'team_FAKE', label: 'Fixture',
+      production_enabled: f.isEnabled() }];
+    const result = await requestProductionEnable(f.opts);
+    expect(result.status).toBe('enabled');
+    expect(result.strictness).toBe('word');
+  });
+  it('AUD-B: the A12 preview-deployment block and pass refusal fire in both strictness modes', async () => {
+    for (const strictness of ['word', 'passphrase']) {
+      const f = fixture(strictness);
+      expect((await requestProductionEnable({ ...f.opts,
+        env: { ...env, VERCEL_ENV: 'preview' } })).status).toBe('refused_by_guard');
+      expect((await requestProductionEnable({ ...f.opts,
+        connection: { ...conn, profile: 'read_only' } })).status).toBe('refused_by_guard');
+      expect(f.isEnabled()).toBe(false);
+      expect(f.secrets.size).toBe(0);
+    }
+  });
+  it('AUD-B: strictness cannot be set through the tool; the attempt is refused', async () => {
+    const f = fixture('word');
+    const refused = await productionTools.handlers.vercel_enable_production(
+      { confirm: true, strictness: 'passphrase' }, { connection: conn, db: f.db, env });
+    expect(refused.isError).toBe(true);
+    const payload = JSON.parse(refused.content[0].text);
+    expect(payload.status).toBe('refused_by_guard');
+    expect(payload.reason).toContain('setup page');
+    expect(f.isEnabled()).toBe(false);
+    const viaTool = await productionTools.handlers.vercel_enable_production(
+      { confirm: true }, { connection: conn, db: f.db, env });
+    expect(JSON.parse(viaTool.content[0].text).status).toBe('enabled');
+    expect(f.isEnabled()).toBe(true);
+  });
+  it('AUD-B: setup approve_production reports a word team as word-enabled, consuming no receipt', async () => {
+    const f = fixture('word');
+    const csrf = 'q'.repeat(43);
+    const cookie = 'rmcp_owner=' + encryptSecret(JSON.stringify({ csrf, exp: Date.now()+600000 }), 'setup:session', env);
+    const res = mockRes();
+    await handleSetup({ method: 'POST', headers: { cookie, 'x-real-ip': '127.0.0.1' },
+      body: { action: 'approve_production', csrf, id: 'no-receipt-needed',
+        account: 'team_FAKE', passphrase: env.ADMIN_PASSPHRASE } }, res, { db: f.db, env });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('word strictness');
+    expect(res.body).toContain('no setup receipt is needed');
+    expect(f.isEnabled()).toBe(false);
+    expect(f.secrets.size).toBe(0);
+  });
+  it('passphrase strictness: requests approval but cannot enable until the owner reenters password on setup', async () => {
+    const f = fixture('passphrase');
     expect((await requestProductionEnable({ ...f.opts, confirm: false })).status).toBe('needs_confirmation');
     expect((await requestProductionEnable({ ...f.opts, dryRun: true })).status).toBe('preview');
     const request = await requestProductionEnable(f.opts);
@@ -70,7 +138,7 @@ describe('B-2 two-step production permission', () => {
     expect((await approveProductionEnable({db:f.db,env,account:'team_FAKE',reference:request.reference})).status).toBe('refused_by_guard');
   });
   it('rejects preview deployments, expired and wrong-account references', async () => {
-    const f=fixture();
+    const f=fixture('passphrase');
     expect((await requestProductionEnable({ ...f.opts,env:{...env,VERCEL_ENV:'preview'} })).status).toBe('refused_by_guard');
     expect((await requestProductionEnable({ ...f.opts,connection:{...conn,profile:'read_only'} })).status).toBe('refused_by_guard');
     const ref=await requestProductionEnable(f.opts);
