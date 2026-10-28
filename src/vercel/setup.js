@@ -695,8 +695,19 @@ export async function handleSetup(req, res, {
     return html(res, 200, 'Vercel account setup',
       panel(updated, session.csrf, message, await connectionChoices(db, updated)));
 
-  } catch {
-    // Do not reflect provider exceptions or credentials.
+  } catch (err) {
+    // AUD-F (VMCP-022): a probe-originated failure names its leg — the leg
+    // identifier and the probe's own message, which never carry token
+    // material or a provider response body. Anything else keeps the
+    // unnamed catch-all and reflects nothing from the exception.
+    const legs = { input: 'input', identity: 'identity', teams: 'teams',
+      projects: 'projects', project_team_match: 'project-team match',
+      broad_visibility: 'broad-visibility', storage: 'storage' };
+    const leg = legs[err?.probeLeg];
+    if (leg) {
+      return html(res, 400, 'Setup failed', '<p>Setup failed at the ' + leg +
+        ' check: ' + escapeHtml(err.message) + '</p>');
+    }
     return html(res, 400, 'Setup failed', '<p>Could not complete the request. Check configuration and account access.</p>');
   }
 }
