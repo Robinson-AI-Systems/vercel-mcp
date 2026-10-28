@@ -10,6 +10,28 @@ export async function requirePreDispatch(check){
   catch { throw new PreDispatchRefusal('Execution-time authorization recheck refused'); }
 }
 
+// AUD-H (VMCP-023): an outcome_unknown that names nothing teaches the caller
+// nothing. When the thrown error carries a safe failure detail — a
+// pattern-validated code, the operation leg that failed, a coarse failure
+// class, an HTTP status — the executor surfaces exactly those fields and
+// nothing else: never a message, never a provider body.
+const FAILURE_CLASSES = new Set(['timeout', 'network', 'http_status', 'shape']);
+function failureDetail(error) {
+  if (!error || typeof error !== 'object') return null;
+  const detail = {};
+  if (typeof error.code === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,60}$/.test(error.code)) {
+    detail.code = error.code;
+  }
+  if (typeof error.leg === 'string' && /^[a-z][a-z0-9_]{0,60}$/.test(error.leg)) {
+    detail.leg = error.leg;
+  }
+  if (FAILURE_CLASSES.has(error.failureClass)) detail.failureClass = error.failureClass;
+  if (Number.isSafeInteger(error.status) && error.status >= 100 && error.status <= 599) {
+    detail.status = error.status;
+  }
+  return Object.keys(detail).length ? detail : null;
+}
+
 // Private provenance: forged tool metadata cannot authorize a guarded mutation.
 const contracts = new WeakMap();
 const handlers = new WeakMap();
@@ -245,7 +267,9 @@ export function defineWrite(spec) {
           return refusal('Execution-time authorization or resource checks refused the change');
         } catch { /* changed claim ownership: fail closed as unknown */ }
       }
+      const failure = failureDetail(error);
       return { status: 'outcome_unknown', mode, confirmed: null, requestKey,
+        ...(failure ? { failure } : {}),
         reason: 'Write result is unknown; run a read-back before retrying' };
     }
     let verification;

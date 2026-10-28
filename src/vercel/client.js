@@ -15,6 +15,10 @@ export const OPENAPI_SNAPSHOT = Object.freeze({
 });
 
 const TEN_MINUTES = 600000;
+// One transport bound for provider calls, reads and the raw file upload
+// alike (AUD-H / VMCP-023): the upload leg previously carried a bespoke
+// 3.5 s abort that a serverless function cannot reliably meet.
+const PROVIDER_TIMEOUT_MS = 25000;
 const RETRYABLE = new Set(['GET', 'HEAD', 'DELETE']);
 const READS = new Set(['GET', 'HEAD']);
 const FORBIDDEN_FLAGS = new Set(['dryRun', 'confirm', 'fields', 'detail', 'requestKey']);
@@ -127,7 +131,7 @@ export function makeVercelClient({
     if(options.streamLogs===true && (id!=='runtime_logs_get'||method!=='GET'))
       throw new TypeError('Streaming is only available for runtime log reads');
     // Short read-only status polling must not inherit a 25s network stall.
-    const timeoutMs = options.timeoutMs ?? 25000;
+    const timeoutMs = options.timeoutMs ?? PROVIDER_TIMEOUT_MS;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 25000 ||
         (method !== 'GET' && options.timeoutMs !== undefined))
       throw new TypeError('Invalid provider read timeout');
@@ -182,7 +186,9 @@ export function makeVercelClient({
         if (attempt === 0 && RETRYABLE.has(method) && cause?.name !== 'TimeoutError' &&
             cause?.name !== 'AbortError') continue;
         throw error('outcome_unknown', 'Vercel request outcome needs read-back verification',
-          { confirmed: null });
+          { confirmed: null, ...(isWrite ? { leg: id, failureClass:
+            (cause?.name === 'TimeoutError' || cause?.name === 'AbortError') ?
+              'timeout' : 'network' } : {}) });
       }
       if(response.ok && options.streamLogs===true){
         // An empty HTTP success is not a readable stream. It also cannot
@@ -215,16 +221,40 @@ export function makeVercelClient({
       }
       if (attempt === 0 && RETRYABLE.has(method) && response.status >= 500) continue;
       if (isWrite && response.status >= 500) {
-        throw error('outcome_unknown', 'Vercel write outcome needs read-back verification', { confirmed: null });
+        throw error('outcome_unknown', 'Vercel write outcome needs read-back verification',
+          { confirmed: null, leg: id, failureClass: 'http_status', status: response.status });
       }
-      throw responseError(response, envelope);
+      const failure = responseError(response, envelope);
+      if (isWrite) { failure.leg = id; failure.failureClass = 'http_status'; }
+      throw failure;
     }
-    if (!response?.ok) throw error('vercel_api_error', 'Vercel API request did not succeed');
+    if (!response?.ok) throw error('vercel_api_error', 'Vercel API request did not succeed',
+      isWrite ? { leg: id, failureClass: 'http_status' } : {});
     if (isWrite) {
       // Never persist raw provider output, and do not cache secrets in memory.
-      const safe = await options.shapeResult(envelope);
+      // A shape check that cannot recognize the provider's real response is
+      // a named failure (AUD-H / VMCP-023), never a silent unknown: the leg
+      // and a safe code travel with the error; no provider body ever does.
+      let safe;
+      try { safe = await options.shapeResult(envelope); }
+      catch (shapeError) {
+        if (shapeError && typeof shapeError === 'object') {
+          shapeError.code ??= 'response_shape_unverified';
+          shapeError.leg ??= id;
+          shapeError.failureClass ??= 'shape';
+        }
+        throw shapeError;
+      }
       if (safe === undefined) throw error('unsafe_write_result', 'Write result must be safely shaped');
-      const verified = safeReplayResult(safe);
+      let verified;
+      try { verified = safeReplayResult(safe); }
+      catch (safetyError) {
+        if (safetyError && typeof safetyError === 'object') {
+          safetyError.leg ??= id;
+          safetyError.failureClass ??= 'shape';
+        }
+        throw safetyError;
+      }
       await replayStore.complete({ key, claimId, result: verified });
       return verified;
     }
@@ -242,7 +272,7 @@ export function makeVercelClient({
       createHash('sha1').update(bytes).digest('hex')!==sha)
       throw new TypeError('Invalid SHA-1 or bounded file bytes');
     if(typeof logicalKey!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(logicalKey)||
-      tool!=='vercel_deploy_create_from_files'||
+      !['vercel_deploy_create_from_files','vercel_dev_seed'].includes(tool)||
       !['preview','production'].includes(mode)||
       !replayStore?.claim||!replayStore?.complete)
       throw error('write_guard_unavailable','Durable scoped upload replay is required');
@@ -259,15 +289,22 @@ export function makeVercelClient({
         method:'POST',headers:{authorization:'Bearer '+token,
           accept:'application/json','content-type':'application/octet-stream',
           'x-vercel-digest':sha,'content-length':String(bytes.length)},
-        body:bytes,signal:AbortSignal.timeout(3500),redirect:'error'
+        body:bytes,signal:AbortSignal.timeout(PROVIDER_TIMEOUT_MS),redirect:'error'
       });
-    } catch {
-      throw error('outcome_unknown','File upload result requires provider read-back',{confirmed:null});
+    } catch (cause) {
+      // The failure class is named (AUD-H / VMCP-023) — timeout vs network —
+      // but the cause itself is never serialized: it can carry request data.
+      throw error('outcome_unknown','File upload result requires provider read-back',
+        {confirmed:null,leg:'deployments_file_upload',failureClass:
+          (cause?.name==='TimeoutError'||cause?.name==='AbortError')?
+            'timeout':'network'});
     }
     // No upload response body, status text, request bytes or provider message
     // is ever serialized or persisted. A non-2xx may already have uploaded.
     if(response.status!==200&&response.status!==204)
-      throw error('outcome_unknown','File upload not independently confirmed',{confirmed:null});
+      throw error('outcome_unknown','File upload not independently confirmed',
+        {confirmed:null,leg:'deployments_file_upload',
+          failureClass:'http_status',status:response.status});
     const result={sha,size:bytes.length,uploaded:true};
     await replayStore.complete({key,claimId:claimed.claimId,result});
     return result;
