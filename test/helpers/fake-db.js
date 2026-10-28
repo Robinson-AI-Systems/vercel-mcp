@@ -20,13 +20,16 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         id: account.id, team_id: account.team_id, team_slug: account.team_slug,
         label: account.label, scope: account.scope, project_id: account.project_id,
         project_name: account.project_name, production_enabled: Boolean(account.production_enabled),
+        production_enable_strictness: account.production_enable_strictness === 'passphrase' ?
+          'passphrase' : 'word',
         is_default: Boolean(account.is_default),
         spend_limit_cents: account.spend_limit_cents ?? 0,
         purchase_budget_cents: account.purchase_budget_cents ?? null,
         purchase_grant_required: Boolean(account.purchase_grant_required),
         token_last4: account.token_last4 ?? null,
         token_expires_at: account.token_expires_at ?? null,
-        token_no_expiry: Boolean(account.token_no_expiry)
+        token_no_expiry: Boolean(account.token_no_expiry),
+        token_version: account.token_version ?? null
       }));
     },
 
@@ -36,12 +39,14 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
       return Boolean(account.token_no_expiry);
     },
 
-    async setTokenNoExpiry(id, attested) {
-      if (typeof attested !== 'boolean') {
+    async setTokenNoExpiry(id, attested, expectedVersion) {
+      if (typeof attested !== 'boolean' ||
+        typeof expectedVersion !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedVersion)) {
         throw new TypeError('Invalid account or no-expiry attestation');
       }
       const account = accountRows.get(id);
-      if (!account) return false;
+      if (!account || account.token_version !== expectedVersion) return false;
       account.token_no_expiry = attested;
       return true;
     },
@@ -51,6 +56,23 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
       if (!account) return null;
       return { budgetCents: account.purchase_budget_cents ?? null,
         grantRequired: Boolean(account.purchase_grant_required) };
+    },
+
+    async getProductionEnableStrictness(id) {
+      const account = accountRows.get(id);
+      if (!account) return null;
+      return account.production_enable_strictness === 'passphrase' ?
+        'passphrase' : 'word';
+    },
+
+    async setProductionEnableStrictness(id, strictness) {
+      if (!['word', 'passphrase'].includes(strictness)) {
+        throw new TypeError('Invalid account or production enable strictness');
+      }
+      const account = accountRows.get(id);
+      if (!account) return false;
+      account.production_enable_strictness = strictness;
+      return true;
     },
 
     async setPurchasePolicy(id, policy) {

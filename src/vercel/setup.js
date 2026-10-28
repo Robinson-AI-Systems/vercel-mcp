@@ -174,15 +174,24 @@ function panel(accounts, csrf, message = '', connections = []) {
     'If the enrolled key has no expiry — your choice when you created it — ' +
     'attest that below and the account will state “no expiry — owner’s ' +
     'choice”. An attestation belongs to the token enrolled now: enrolling ' +
-    'or rotating a token clears it. Saving changes only the server ' +
-    'database; preview deployments cannot change it.</p>' +
-    '<form method="post">' + csrfInput(csrf) +
-    '<input type="hidden" name="action" value="set_token_no_expiry">' +
-    '<label>Account<select name="account" required>' + options + '</select></label>' +
-    '<label><input type="checkbox" name="noExpiry" value="yes">The enrolled token for this account has no expiry (owner’s choice)</label>' +
-    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this attestation (leave the box above unchecked to clear an attestation)</label>' +
-    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
-    '<button type="submit">Save token expiry attestation</button></form></section>' +
+    'or rotating a token clears it, and each form below is bound to the ' +
+    'token it was shown for — a form left open across a rotation is ' +
+    'refused, never applied to the replacement token. Saving changes ' +
+    'only the server database; preview deployments cannot change it.</p>' +
+    (accounts.length ? accounts.map((a, i) =>
+      '<form method="post">' + csrfInput(csrf) +
+      '<input type="hidden" name="action" value="set_token_no_expiry">' +
+      '<input type="hidden" name="account" value="' + escapeHtml(a.id) + '">' +
+      '<input type="hidden" name="tokenVersion" value="' +
+        escapeHtml(a.token_version || '') + '">' +
+      '<p>' + escapeHtml(a.label) + ' — ' + escapeHtml(postures[i].label) + '</p>' +
+      '<label><input type="checkbox" name="noExpiry" value="yes"' +
+        (a.token_no_expiry ? ' checked' : '') +
+        '>The enrolled token for this account has no expiry (owner’s choice)</label>' +
+      '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this attestation (leave the box above unchecked to clear an attestation)</label>' +
+      '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+      '<button type="submit">Save token expiry attestation</button></form>').join('') :
+      '<p>No Vercel accounts connected yet.</p>') + '</section>' +
     '<section><h2>Review an agent pass request</h2>' +
     '<p>Review the exact read-only scope before issuing a pass. Agents cannot approve their own requests.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -261,9 +270,33 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label>Secret reference<input name="id" required></label>' +
     '<label>Account<select name="account"><option value="">Server / global</option>' + options + '</select></label>' +
     '<button type="submit">Reveal once</button></form></section>' +
-    '<section><h2>Approve production access (second step)</h2>' +
-    '<p>Production is disabled by default. First request it using vercel_enable_production, ' +
-    'then reenter the administrator passphrase here within 10 minutes. Preview deployments cannot enable it.</p>' +
+    '<section><h2>Production enable strictness (owner only)</h2>' +
+    '<p>Current teams: ' + (accounts.map(a =>
+      escapeHtml(a.label) + ' — production ' +
+      escapeHtml(a.production_enabled ? 'enabled' : 'disabled') +
+      '; enable strictness ' +
+      escapeHtml(a.production_enable_strictness === 'passphrase' ? 'passphrase' : 'word')).join('; ') || 'none') +
+    '. Word strictness (the default) means vercel_enable_production completes ' +
+    'on your confirmed word, with no setup step. Passphrase strictness is your ' +
+    'own stricter choice for a team: enabling then also needs the second step ' +
+    'below. This setting changes only on this page, never through a tool; ' +
+    'saving it changes only the server database and does not itself enable ' +
+    'production; preview deployments cannot change it.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="set_production_strictness">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Enable strictness<select name="strictness" required>' +
+    '<option value="word">Word — enable on my confirmed word</option>' +
+    '<option value="passphrase">Passphrase — also require my setup passphrase</option></select></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm this team strictness</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Update production enable strictness</button></form></section>' +
+    '<section><h2>Approve production access (second step, passphrase teams only)</h2>' +
+    '<p>Production is disabled by default. For a team set to word strictness, ' +
+    'vercel_enable_production with confirm enables it on your word and no setup ' +
+    'step is needed. For a team set to passphrase strictness, first request it ' +
+    'using vercel_enable_production, then reenter the administrator passphrase ' +
+    'here within 10 minutes. Preview deployments cannot enable it.</p>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="approve_production">' +
     '<label>Account<select name="account" required>' + options + '</select></label>' +
@@ -536,8 +569,10 @@ export async function handleSetup(req, res, {
       if (env.VERCEL_ENV !== 'production') {
         return html(res, 403, 'Unavailable', '<p>Token expiry attestation changes require the production server.</p>');
       }
-      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes') {
-        return html(res, 403, 'Permission denied', '<p>Select an account and confirm the attestation change.</p>');
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes' ||
+        typeof params.tokenVersion !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.tokenVersion)) {
+        return html(res, 403, 'Permission denied', '<p>Select an account, confirm the attestation change, and use the form as loaded for the current token.</p>');
       }
       const approval = await evaluateLogin({
         ip: clientIp(req), supplied: String(params.passphrase || ''),
@@ -552,8 +587,8 @@ export async function handleSetup(req, res, {
       }
       const attested = params.noExpiry === 'yes';
       if (typeof db.setTokenNoExpiry !== 'function' ||
-          !(await db.setTokenNoExpiry(params.account, attested))) {
-        return html(res, 409, 'Unavailable', '<p>Token expiry attestation change could not be verified.</p>');
+          !(await db.setTokenNoExpiry(params.account, attested, params.tokenVersion))) {
+        return html(res, 409, 'Unavailable', '<p>Token expiry attestation change could not be verified. If the token was rotated since this page loaded, reload and attest for the current token.</p>');
       }
       message = attested ?
         "No-expiry attestation saved: the enrolled token is stated as no expiry — owner's choice." :
@@ -725,6 +760,35 @@ export async function handleSetup(req, res, {
       // This is a read, not approval to widen scope or spend.
       await recheckTokenFn({ db, accountId: params.account, env });
       message = 'Stored token read access was rechecked. Write permissions and expiry remain unverified.';
+    } else if (params.action === 'set_production_strictness') {
+      // AUD-B: sibling action on the same authenticated owner seam as
+      // set_purchase_policy (session, CSRF, production-only, fresh
+      // passphrase). Strictness is settable only here, never via a tool.
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Production strictness changes require the production server.</p>');
+      }
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes' ||
+        !['word', 'passphrase'].includes(params.strictness)) {
+        return html(res, 403, 'Permission denied', '<p>Select an account, a strictness and confirm the change.</p>');
+      }
+      const approval = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (approval.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (approval.status !== 'ok') {
+        return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      }
+      if (typeof db.setProductionEnableStrictness !== 'function' ||
+          !(await db.setProductionEnableStrictness(params.account, params.strictness))) {
+        return html(res, 409, 'Unavailable', '<p>Production strictness change could not be verified.</p>');
+      }
+      message = 'Production enable strictness saved as ' + params.strictness +
+        ' for ' + params.account +
+        '. No production access was enabled by this change.';
     } else if (params.action === 'approve_production') {
       if (env.VERCEL_ENV !== 'production') {
         return html(res, 403, 'Unavailable', '<p>Production access cannot be enabled from preview.</p>');
@@ -742,6 +806,18 @@ export async function handleSetup(req, res, {
       }
       if (decision.status !== 'ok') {
         return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      }
+      // AUD-B: a word-strictness team needs no receipt — the tool call
+      // itself completes the enable on the owner's confirmed word. Report
+      // that here instead of consuming (or demanding) a passphrase receipt.
+      const target = accounts.find(a => a.id === params.account);
+      if (target?.production_enable_strictness !== 'passphrase') {
+        message = 'That team is set to word strictness, so production ' +
+          'enable completes on your confirmed word with ' +
+          'vercel_enable_production — no setup receipt is needed.';
+        const updated = await db.listVercelAccounts();
+        return html(res, 200, 'Vercel account setup',
+          panel(updated, session.csrf, message, await connectionChoices(db, updated)));
       }
       const approved = await approveProductionEnable({
         db, env, account: params.account, reference: params.id, now
