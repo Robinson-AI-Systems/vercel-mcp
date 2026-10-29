@@ -342,3 +342,48 @@ describe('AUD-M env inventory branch (VMCP-027)',()=>{
     f.fake.verify();
   });
 });
+
+describe('AUD-O canonical domain in the deletion proof (VMCP-027)',()=>{
+  const canonical={name:'empty-site.vercel.app',apexName:'vercel.app',
+    projectId:project.id,gitBranch:null,redirect:null,
+    customEnvironmentId:null,verified:true};
+  it('deletes a project carrying only its canonical domain',async()=>{
+    // Every real project carries <name>.vercel.app from creation:
+    // it is the project's identity, not an attached resource.
+    const f=fixture();
+    f.projectRule.resolves(project).resolves(project).rejects(404);
+    f.domainRule.resolves({domains:[canonical],pagination:{next:null,count:1}})
+      .resolves({domains:[canonical],pagination:{next:null,count:1}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}})
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.deleteRule.resolves(undefined,204);
+    const result=parse(await f.call());
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('still refuses when a custom domain is attached alongside the canonical one',async()=>{
+    const f=fixture();
+    f.projectRule.resolves(project);
+    f.domainRule.resolves({domains:[canonical,
+      {name:'demo.example',apexName:'example',projectId:project.id,
+       gitBranch:null,redirect:null,customEnvironmentId:null,verified:true}],
+      pagination:{next:null,count:2}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}});
+    const result=parse(await f.call());
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('still refuses for an owner-added vercel.app subdomain',async()=>{
+    const f=fixture();
+    f.projectRule.resolves(project);
+    f.domainRule.resolves({domains:[{...canonical,name:'other.vercel.app'}],
+      pagination:{next:null,count:1}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}});
+    const result=parse(await f.call());
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+});
