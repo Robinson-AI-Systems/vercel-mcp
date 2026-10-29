@@ -463,7 +463,41 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
         const ownFamily=h=>name!==false&&
           (h===name+'.vercel.app'||h===canonical||
            h.startsWith(name+'-')&&h.endsWith('.vercel.app'));
-        const offender=foreign.find(h=>!ownFamily(h));
+        let offender=foreign.find(h=>!ownFamily(h));
+        // AUD-T: a promoted deployment also carries the TEAM-SCOPED
+        // production host, `<name>-<team slug>.vercel.app` — and for
+        // a long name Vercel truncates the name portion so the whole
+        // label fits the 63-character DNS limit (the 75dd record:
+        // name 41 chars, slug 23, host prefix exactly 39). Neither
+        // AUD-P's prefix arm (the truncation breaks the full-name
+        // prefix) nor AUD-R's canonical row names it. The form is a
+        // deterministic function of (name, slug) — exactly one host
+        // per pair — and the deployment's identity is already proven
+        // above (id + project + run meta), so this arm bounds
+        // plausibility, it does not carry identity. The slug read
+        // happens only when an otherwise-unmatched vercel.app host
+        // remains, so no other path gains a call.
+        if(offender!==undefined&&name!==false&&
+           offender.endsWith('.vercel.app')){
+          let teamHost=null;
+          try{
+            const proj=await provider.read('projects_get',
+              {path:{idOrName:project}});
+            if(typeof proj?.accountId==='string'&&proj.accountId){
+              const teamRow=await provider.read('teams_get',
+                {path:{teamId:proj.accountId}});
+              const slug=typeof teamRow?.slug==='string'&&teamRow.slug?
+                teamRow.slug:null;
+              if(slug){
+                const budget=63-1-slug.length;
+                teamHost=name.slice(0,Math.min(name.length,budget))+
+                  '-'+slug+'.vercel.app';
+              }
+            }
+          }catch{ teamHost=null; }
+          if(teamHost)
+            offender=foreign.find(h=>!ownFamily(h)&&h!==teamHost);
+        }
         if(name===false||offender!==undefined)
           throw new PreDispatchRefusal(
             'Deployment alias outside the project family: '+

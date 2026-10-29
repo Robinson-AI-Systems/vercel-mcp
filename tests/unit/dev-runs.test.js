@@ -1049,4 +1049,98 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
       f.fake.verify();
     }
   });
+
+  it('discharges the 75dd shape: truncated team-scoped production host (AUD-T)',async()=>{
+    // The live record that convicted this arm (run
+    // run_20261029_75dd2a554591, refusal read back verbatim on the
+    // AUD-S build): the promoted deployment's alias list carries the
+    // team-scoped production host — the project name truncated so
+    // name + '-' + team slug fits the 63-character label. Modeled
+    // here with the test run's own name (39 chars) and a 24-char
+    // slug, cutting the name at 38 — the same '…static-si' shape.
+    const slug='chris-projects-fake0000x';
+    const teamHost=scratchName.slice(0,38)+'-'+slug+'.vercel.app';
+    const truncated=scratchName.slice(0,35)+'.vercel.app';
+    const f=fixture([
+      withStatus(object('intent','intent-project-'+scratchName,null,
+        {operation:'projects_create',name:scratchName}),'cleaned'),
+      withStatus(object('intent','intent-deployment-'+scratchName,project,
+        {operation:'deployments_create',name:scratchName,target:'preview'}),
+        'cleaned'),
+      object('deployment',deployment,project,{target:'preview'}),
+      object('project',project,project,{name:scratchName})
+    ]);
+    const ownUrl=scratchName+'-abc123-'+slug+'.vercel.app';
+    const promoted={id:deployment,projectId:project,target:'production',
+      url:'https://'+ownUrl,alias:[ownUrl,truncated,teamHost],
+      meta:{rtc_run:runId},readyState:'READY'};
+    f.fake.when('GET','/v13/deployments/{idOrUrl}')
+      .resolves(promoted).resolves(promoted).rejects(404);
+    f.fake.when('DELETE','/v13/deployments/{id}').resolves({},204);
+    const row={id:project,name:scratchName,accountId:team,link:null};
+    // Deployment-branch scratch proofs + AUD-T's project re-read
+    // (one per deployment inspection), the project inspect pair,
+    // then the post-delete 404.
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(row).resolves(row).resolves(row).resolves(row)
+      .resolves(row).resolves(row).rejects(404);
+    f.fake.when('GET','/v2/teams/{teamId}')
+      .resolves({id:team,slug});
+    f.fake.when('GET','/v9/projects/{idOrName}/domains')
+      .resolves({domains:[{name:truncated,
+        apexName:'vercel.app',projectId:project,gitBranch:null,
+        redirect:null,customEnvironmentId:null,verified:true}],
+        pagination:{next:null,count:1}});
+    f.fake.when('GET','/v10/projects/{idOrName}/env')
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null,count:0}});
+    f.fake.when('DELETE','/v9/projects/{idOrName}').resolves({},204);
+    const out=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'cleanupAudT00001'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(true);
+    const rows=f.rows.get(runId);
+    expect(rows.find(o=>o.object_type==='deployment').status).toBe('cleaned');
+    expect(rows.find(o=>o.object_type==='project').status).toBe('cleaned');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(2);
+    f.fake.verify();
+  });
+
+  it('still refuses team-scoped hosts that are not the deterministic form (AUD-T)',async()=>{
+    const slug='chris-projects-fake0000x';
+    const cases=[
+      // Another project's name under the same team slug.
+      'rtc-run-20261014-abcdef1234-other-app-'+slug+'.vercel.app',
+      // Our name's prefix, but cut at the wrong length — not the
+      // one host Vercel's construction can mint for this pair.
+      scratchName.slice(0,20)+'-'+slug+'.vercel.app',
+      // Our truncated name under a FOREIGN team's slug.
+      scratchName.slice(0,38)+'-someone-elses-team.vercel.app'
+    ];
+    for(const [i,host] of cases.entries()){
+      const f=fixture([object('deployment',deployment,project,{target:'preview'})]);
+      const ownUrl=scratchName+'-abc123-'+slug+'.vercel.app';
+      f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+        id:deployment,projectId:project,target:'production',
+        url:'https://'+ownUrl,alias:[ownUrl,host],
+        meta:{rtc_run:runId},readyState:'READY'});
+      const row={id:project,name:scratchName,accountId:team,link:null};
+      f.fake.when('GET','/v9/projects/{idOrName}')
+        .resolves(row).resolves(row);
+      f.fake.when('GET','/v2/teams/{teamId}')
+        .resolves({id:team,slug});
+      f.fake.when('GET','/v9/projects/{idOrName}/domains')
+        .resolves({domains:[],pagination:{next:null,count:0}});
+      const out=parse(await f.call('vercel_dev_cleanup',
+        {runId,outsideApp:true,confirm:true,
+         requestKey:'cleanupAudT0001'+(i+1)}));
+      expect(out.confirmed).toBe(false);
+      const row2=f.rows.get(runId)[0];
+      expect(row2.status).toBe('blocked');
+      expect(row2.last_error).toContain('outside the project family: '+host.slice(0,60));
+      expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+      f.fake.verify();
+    }
+  });
 });
