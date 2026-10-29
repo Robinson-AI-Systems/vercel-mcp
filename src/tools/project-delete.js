@@ -100,6 +100,19 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
   // that no retained or previously deployed build exists. Require a distinct
   // team-scoped deployment inventory before an irreversible deletion.
   const countDomains=countComplete(domains,'domains');
+  // The project's own canonical production domain — <name>.vercel.app
+  // with no branch, redirect or custom environment — is part of the
+  // project's identity and dies with it; it is not an attached
+  // resource. Every real project carries one from creation, so
+  // counting it made this proof unpassable against real projects
+  // (AUD-O / VMCP-027 — the fakes modeled an empty domains list, and
+  // no live project deletion had ever passed the proof). Any other
+  // entry — a custom domain, an owner-added subdomain, a branch or
+  // redirect domain — is attached content and still blocks.
+  const canonical=row.name+'.vercel.app';
+  const domainsAttached=domains.domains.filter(d=>!(d&&
+    d.name===canonical&&d.gitBranch==null&&d.redirect==null&&
+    d.customEnvironmentId==null)).length;
   const countEnvs=envInventoryCount(env);
   const deploymentPage=await client.request('deployments_list',{
     query:{projectId:row.id,limit:100}
@@ -110,11 +123,14 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
   const inventory={
     deployments:deploymentCount,
     git:row.link!=null?1:0,crons:cronCount,
-    domains:countDomains,envVariables:countEnvs
+    domains:countDomains,domainsAttached,envVariables:countEnvs
   };
   return {id:row.id,name:row.name,inventory,
+    hasDeployments:row.hasDeployments===true,
     empty:row.hasDeployments!==true&&
-      Object.values(inventory).every(n=>n===0)};
+      inventory.deployments===0&&inventory.git===0&&
+      inventory.crons===0&&inventory.domainsAttached===0&&
+      inventory.envVariables===0};
 }
 const deletion=defineWrite({
   name:'vercel_project_delete',
