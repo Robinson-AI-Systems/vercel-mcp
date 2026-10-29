@@ -155,6 +155,7 @@ export function createDb(query) {
       return run`SELECT id, team_id, team_slug, label, scope, project_id, project_name,
         production_enabled, production_enable_strictness, is_default, token_last4,
         token_expires_at, token_no_expiry, token_version, spend_limit_cents,
+        token_probe,
         purchase_budget_cents, purchase_grant_required FROM vercel_accounts ORDER BY is_default DESC, label ASC`;
     },
 

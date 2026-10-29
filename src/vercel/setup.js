@@ -7,6 +7,7 @@ import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 import { escapeHtml, paramsOf, only, send } from '../core/http.js';
 import { storeToken, recheckStoredToken } from './tokens.js';
 import { tokenExpiryPosture } from './token-expiry.js';
+import { boxReport } from './box.js';
 import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
@@ -110,9 +111,14 @@ function panel(accounts, csrf, message = '', connections = []) {
       'Vercel token for ' + x.a.label + ' expired; rotate it using this setup page.' :
       'Vercel token for ' + x.a.label + ' ' + x.p.label +
         '; verify renewal through owner setup.') + '</p>').join('');
-  const list = accounts.length ? banner + '<ul>' + accounts.map((a, i) => '<li>' +
-    escapeHtml(a.label) + ' — ' + escapeHtml(a.scope) + ' — ' +
-    escapeHtml(postures[i].label) + '</li>').join('') + '</ul>' :
+  const list = accounts.length ? banner + '<ul>' + accounts.map((a, i) => {
+    // AUD-I S3: the owner's ceilings list — declared box beside the
+    // probed ceiling for every configured account.
+    const box = boxReport(a);
+    return '<li>' + escapeHtml(a.label) + ' — ' + escapeHtml(a.scope) + ' — ' +
+    escapeHtml(postures[i].label) + ' — declared box: ' + escapeHtml(box.declaredBox) +
+    ' · ceiling: ' + escapeHtml(box.probedBox) + '</li>';
+  }).join('') + '</ul>' :
     '<p>No Vercel accounts connected yet.</p>';
   return (message ? '<p role="status">' + escapeHtml(message) + '</p>' : '') +
     '<p>Setup is limited to this account owner. Production changes are disabled by default.</p>' +

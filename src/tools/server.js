@@ -1,6 +1,7 @@
 // Account-information tools: strict read-only, never return credentials.
 import { recheckStoredToken } from '../vercel/tokens.js';
 import { tokenExpiryPosture } from '../vercel/token-expiry.js';
+import { boxReport, accountLayerText, flipReport } from '../vercel/box.js';
 import {prepareResult} from '../core/result-rules.js';
 const PROFILES = ['read_only', 'everyday', 'full'];
 const asText = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
@@ -14,7 +15,7 @@ function safe(row) {
 export const serverTools = {
   tools: [
     { name: 'vercel_whoami',
-      description: 'Show your Vercel team, account scope, connection profile and safe token metadata.',
+      description: 'Show your Vercel team, account scope, declared and probed reach, connection profile and safe token metadata.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true }, writes: false, profiles: PROFILES },
     { name: 'vercel_list_accounts',
@@ -82,6 +83,10 @@ export const serverTools = {
       // the unchanged warning. A null date with no attestation is 'unknown'
       // ("expiry not recorded for this token") — never owner's choice.
       const posture = tokenExpiryPosture(row);
+      // AUD-I S3: the declared box beside the probed one, the
+      // account-layer consequence (A-12) and the flip picture (A-10),
+      // all rendered from the stored enrollment record.
+      const box = boxReport(row);
       return asText({ account: safe(row), mode: connection.mode,
         profile: connection.profile, listing: connection.listing,
         spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent,
@@ -90,7 +95,9 @@ export const serverTools = {
         expiresAt: posture.expiresAt, expiresAtLocal: posture.expiresAtLocal,
         daysLeft: posture.daysLeft, expiryPosture: posture.posture,
         expiryPostureText: posture.label,
-        tokenWarning });
+        tokenWarning, box,
+        accountLayer: accountLayerText(box),
+        workingBoxChanges: flipReport(box) });
     },
     async vercel_list_accounts(args, { connection, db }) {
       // A connector is bound to one Vercel account. The owner setup page,
