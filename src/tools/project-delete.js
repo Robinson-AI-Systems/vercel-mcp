@@ -70,6 +70,30 @@ export function envInventoryCount(reply){
   throw new TypeError('Cannot prove complete envs inventory');
 }
 // No raw provider resource rows or secret values leave this function.
+
+// The project's own canonical domain: the UNIQUE vercel.app entry
+// carrying no branch, redirect or custom environment whose subdomain
+// is the project name — or a truncation of it. Vercel truncates long
+// project names when minting the domain (live evidence, AUD-R: the
+// 41-character rtc-run names minted 35-character subdomains), so an
+// exact-name comparison misses the real canonical on long names.
+// Ambiguity (two candidate entries) identifies nothing: the caller
+// then counts every entry as attached, which is the safe direction.
+export function canonicalDomainEntry(domains,projectName){
+  if(!Array.isArray(domains)||typeof projectName!=='string'||
+     !projectName)return null;
+  const matches=domains.filter(d=>{
+    if(!d||typeof d.name!=='string'||
+       !d.name.endsWith('.vercel.app'))return false;
+    if(d.gitBranch!=null||d.redirect!=null||
+       d.customEnvironmentId!=null)return false;
+    const sub=d.name.slice(0,-'.vercel.app'.length);
+    return sub===projectName||
+      (sub.length<projectName.length&&projectName.startsWith(sub));
+  });
+  return matches.length===1?matches[0]:null;
+}
+
 export async function inspectProjectForDeletion(ctx,selector,bound){
   const {client,account}=bound??await readProvider(ctx);
   if(!['team','full'].includes(account.scope))
@@ -109,10 +133,9 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
   // no live project deletion had ever passed the proof). Any other
   // entry — a custom domain, an owner-added subdomain, a branch or
   // redirect domain — is attached content and still blocks.
-  const canonical=row.name+'.vercel.app';
-  const domainsAttached=domains.domains.filter(d=>!(d&&
-    d.name===canonical&&d.gitBranch==null&&d.redirect==null&&
-    d.customEnvironmentId==null)).length;
+  const canonicalEntry=canonicalDomainEntry(domains.domains,row.name);
+  const domainsAttached=domains.domains.filter(
+    d=>d!==canonicalEntry).length;
   const countEnvs=envInventoryCount(env);
   const deploymentPage=await client.request('deployments_list',{
     query:{projectId:row.id,limit:100}
