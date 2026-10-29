@@ -124,8 +124,11 @@ const create=defineWrite({
           ref:before.ref,sha:before.sha},target:before.target}
     },{requestKey,tool:'vercel_deploy_create_from_git',shapeResult:row=>{
       const id=row?.id??row?.uid;
+      // The documented create response has an in-progress shape with
+      // no projectId (AUD-L): it must match when carried; the durable
+      // project proof is verify()'s read-back of the full object.
       if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
-        row.projectId!==before.id||
+        (row.projectId!==undefined&&row.projectId!==before.id)||
         !deploymentTargetMatches(row.target,before.target))
         throw new TypeError('Created Git deployment response identity or target unverified');
       return {id};

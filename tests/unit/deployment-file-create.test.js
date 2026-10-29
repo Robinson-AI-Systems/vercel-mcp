@@ -304,3 +304,29 @@ describe('AUD-H real provider shapes through the guarded tool (VMCP-023)',()=>{
     f.fake.verify();
   });
 });
+
+describe('AUD-L in-progress create shape (VMCP-023)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();
+    loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
+  it('applies a confirmed preview deployment answered in the in-progress shape',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    // Branch 0 of the documented create response: still building —
+    // id, target and readyState, and NO projectId. The full shape
+    // arrives on verify()'s read-back instead.
+    const deploymentId='dpl_FAKEDEPLOY01';
+    f.fake.when('POST','/v13/deployments').resolves({
+      id:deploymentId,target:null,readyState:'BUILDING',
+      aliasAssigned:false,duration:0});
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      id:deploymentId,projectId:project,target:null,readyState:'QUEUED',
+      url:'my-app-git-preview.vercel.app'});
+    const out=decode(await f.call({...args,confirm:true},
+      {...connection,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+});
