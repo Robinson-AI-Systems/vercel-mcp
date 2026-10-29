@@ -494,6 +494,40 @@ export function createDb(query) {
           AND (${includeRevoked} OR revoked_at IS NULL)
         ORDER BY created_at DESC, token_hash DESC LIMIT ${limit}`;
     },
+    /** AUD-I S4: a connection flips its OWN working mode inside its
+     * granted ceiling. Keyed by the public connection id (the same
+     * derivation listAccountConnections exposes), account-scoped,
+     * connector-kind only, live tokens only. Select-then-update with
+     * a confirming read-back, mirroring revokeOwnerConnection's
+     * discipline; only the bearer of the token can name its id, and
+     * the auth layer derives that id from the presented token. */
+    async setOwnConnectionMode({ account, connectionId, mode }) {
+      if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
+        typeof connectionId !== 'string' || !/^conn_[a-f0-9]{20}$/.test(connectionId) ||
+        !['preview', 'production'].includes(mode)) {
+        throw new TypeError('Invalid connection mode flip');
+      }
+      const run = getSql();
+      const before = await run`SELECT mode FROM oauth_tokens
+        WHERE vercel_account = ${account} AND kind = 'connector'
+          AND revoked_at IS NULL AND expires_at > now()
+          AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
+      if (before.length !== 1) return null;
+      const from = before[0].mode;
+      if (from !== mode) {
+        await run`UPDATE oauth_tokens SET mode = ${mode}
+          WHERE vercel_account = ${account} AND kind = 'connector'
+            AND revoked_at IS NULL AND expires_at > now()
+            AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
+      }
+      const readback = await run`SELECT mode FROM oauth_tokens
+        WHERE vercel_account = ${account} AND kind = 'connector'
+          AND revoked_at IS NULL AND expires_at > now()
+          AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
+      if (readback.length !== 1 || readback[0].mode !== mode) return null;
+      return { from, to: mode };
+    },
+
     /** Owner setup only; serialized, account-scoped, one-token revocation. */
     async revokeOwnerConnection({account, connectionId}) {
       if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
@@ -902,6 +936,7 @@ export function createDb(query) {
       if (typeof accessToken !== 'string' || !accessToken) return null;
       const run = getSql();
       const rows = await run`SELECT client_id, vercel_account, mode, profile, listing, kind,
+        'conn_' || LEFT(md5(token_hash), 20) AS connection_id,
         expires_at, revoked_at FROM oauth_tokens WHERE token_hash = ${hashToken(accessToken)}
         AND expires_at > now() AND revoked_at IS NULL AND kind = 'connector'`;
       return rows[0] || null;
