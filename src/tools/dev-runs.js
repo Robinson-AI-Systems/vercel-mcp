@@ -12,7 +12,7 @@ import {validateRequest} from '../vercel/openapi-validation.js';
 import {seedManifest,DEV_SCENARIOS} from '../dev/scenarios.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {inspectProjectForDeletion,countComplete} from './project-delete.js';
+import {inspectProjectForDeletion,countComplete,canonicalDomainEntry} from './project-delete.js';
 import {decryptSecret} from '../core/secret-box.js';
 
 const RUN=/^run_[0-9]{8}_[a-z0-9]{6,24}$/;
@@ -433,8 +433,22 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
         // host anywhere else refuses without further reads.
         const name=foreign.every(h=>typeof h==='string'&&
           h.endsWith('.vercel.app'))?await proveScratch():false;
+        // The project's ACTUAL canonical host, read from its own
+        // domains inventory: Vercel truncates long project names
+        // when minting it (AUD-R), so the constructed
+        // <name>.vercel.app misses it on long names — exactly what
+        // stranded the probe run's promoted deployment.
+        let canonical=null;
+        if(name!==false){
+          try{
+            const page=await provider.read('projects_domains_list',
+              {path:{idOrName:project},query:{limit:100}});
+            const entry=canonicalDomainEntry(page?.domains,name);
+            canonical=entry?entry.name:null;
+          }catch{ canonical=null; }
+        }
         const ownFamily=h=>name!==false&&
-          (h===name+'.vercel.app'||
+          (h===name+'.vercel.app'||h===canonical||
            h.startsWith(name+'-')&&h.endsWith('.vercel.app'));
         if(name===false||!foreign.every(ownFamily))
           throw new PreDispatchRefusal(

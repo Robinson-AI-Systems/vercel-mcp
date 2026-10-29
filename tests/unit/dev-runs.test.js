@@ -970,4 +970,51 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
     f.fake.verify();
   });
+
+  it('discharges the live shape: truncated canonical domain and alias (AUD-R)',async()=>{
+    // Live rows, 2026-10-28 (both rtc projects): a 39+ character
+    // project name minted a 35-character subdomain — the canonical
+    // domain, and with it the promoted deployment's production
+    // alias, is the TRUNCATED host, which neither AUD-O's exact-name
+    // exclusion nor AUD-P's constructed family recognized.
+    const truncated=scratchName.slice(0,35)+'.vercel.app';
+    const f=fixture([
+      withStatus(object('intent','intent-project-'+scratchName,null,
+        {operation:'projects_create',name:scratchName}),'cleaned'),
+      withStatus(object('intent','intent-deployment-'+scratchName,project,
+        {operation:'deployments_create',name:scratchName,target:'preview'}),
+        'cleaned'),
+      object('deployment',deployment,project,{target:'preview'}),
+      object('project',project,project,{name:scratchName})
+    ]);
+    const ownUrl=scratchName+'-abc123-team-fake.vercel.app';
+    const promoted={id:deployment,projectId:project,target:'production',
+      url:'https://'+ownUrl,alias:[ownUrl,truncated],
+      meta:{rtc_run:runId},readyState:'READY'};
+    f.fake.when('GET','/v13/deployments/{idOrUrl}')
+      .resolves(promoted).resolves(promoted).rejects(404);
+    f.fake.when('DELETE','/v13/deployments/{id}').resolves({},204);
+    const row={id:project,name:scratchName,accountId:team,link:null};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(row).resolves(row).resolves(row).resolves(row).rejects(404);
+    f.fake.when('GET','/v9/projects/{idOrName}/domains')
+      .resolves({domains:[{name:truncated,
+        apexName:'vercel.app',projectId:project,gitBranch:null,
+        redirect:null,customEnvironmentId:null,verified:true}],
+        pagination:{next:null,count:1}});
+    f.fake.when('GET','/v10/projects/{idOrName}/env')
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null,count:0}});
+    f.fake.when('DELETE','/v9/projects/{idOrName}').resolves({},204);
+    const out=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'cleanupAudR00001'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(true);
+    const rows=f.rows.get(runId);
+    expect(rows.find(o=>o.object_type==='deployment').status).toBe('cleaned');
+    expect(rows.find(o=>o.object_type==='project').status).toBe('cleaned');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(2);
+    f.fake.verify();
+  });
 });

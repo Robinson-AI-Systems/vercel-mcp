@@ -387,3 +387,38 @@ describe('AUD-O canonical domain in the deletion proof (VMCP-027)',()=>{
     f.fake.verify();
   });
 });
+
+describe('AUD-R truncated canonical domain (VMCP-027)',()=>{
+  // Live rows, 2026-10-28: long project names mint a TRUNCATED
+  // canonical subdomain (41-char names -> 35-char subdomains). The
+  // mechanism is modeled here with the fixture's short name: the
+  // minted subdomain is a strict prefix of the project name.
+  const truncated={name:'empty-si.vercel.app',apexName:'vercel.app',
+    projectId:project.id,gitBranch:null,redirect:null,
+    customEnvironmentId:null,verified:true};
+  it('deletes a project carrying only its truncated canonical domain',async()=>{
+    const f=fixture();
+    f.projectRule.resolves(project).resolves(project).rejects(404);
+    f.domainRule.resolves({domains:[truncated],pagination:{next:null,count:1}})
+      .resolves({domains:[truncated],pagination:{next:null,count:1}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}})
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.deleteRule.resolves(undefined,204);
+    const result=parse(await f.call());
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('refuses when two prefix candidates make the canonical ambiguous',async()=>{
+    const f=fixture();
+    f.projectRule.resolves(project);
+    f.domainRule.resolves({domains:[truncated,
+      {...truncated,name:'empty-s.vercel.app'}],
+      pagination:{next:null,count:2}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}});
+    const result=parse(await f.call());
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+});
