@@ -252,6 +252,25 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
   // Uncertain POST/DELETE outcomes are never automatically retried.
   if(!['active','blocked'].includes(o.status))
     return 'Only active or previously blocked objects can be inspected for cleanup';
+  // A project-creation intent is recorded before its project exists, so
+  // it carries no project_id: reconcile it ahead of the project-identity
+  // guard every other object must pass (AUD-K review fix).
+  if(o.object_type==='intent'&&o.detail?.operation==='projects_create'){
+    if(provider.account.team_id!==teamId)
+      return 'Selected team/project identity unavailable';
+    const name=o.detail?.name;
+    if(typeof name!=='string')
+      return 'Creation intent cannot be reconciled from its recorded detail';
+    const recorded=await ctx.db.listDevRunObjects(
+      {account:scope(ctx),id:runId});
+    let row=null;
+    try{row=await provider.read('projects_get',{path:{idOrName:name}});}
+    catch(e){if(e?.status!==404)throw e;}
+    if(!row)return null;
+    if(recorded.some(x=>x.object_type==='project'&&x.object_id===row.id))
+      return null;
+    return 'Creation intent target exists but was never recorded; manual reconciliation required';
+  }
   const project=o.project_id;
   if(!project||provider.account.team_id!==teamId)
     return 'Selected team/project identity unavailable';
@@ -418,18 +437,9 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     // manual reconciliation: cleanup never deletes or ignores an
     // unrecorded resource. An absence that cannot be proven throws and
     // lands in the caller's uncertain handling, like any other object.
-    const operation=o.detail?.operation,name=o.detail?.name;
+    const operation=o.detail?.operation;
     const recorded=await ctx.db.listDevRunObjects(
       {account:scope(ctx),id:runId});
-    if(operation==='projects_create'&&typeof name==='string'){
-      let row=null;
-      try{row=await provider.read('projects_get',{path:{idOrName:name}});}
-      catch(e){if(e?.status!==404)throw e;}
-      if(!row)return null;
-      if(recorded.some(x=>x.object_type==='project'&&x.object_id===row.id))
-        return null;
-      return 'Creation intent target exists but was never recorded; manual reconciliation required';
-    }
     if(operation==='deployments_create'&&typeof o.project_id==='string'){
       const page=await provider.read('deployments_list',
         {query:{projectId:o.project_id,limit:100}});

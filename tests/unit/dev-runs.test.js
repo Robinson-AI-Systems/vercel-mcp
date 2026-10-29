@@ -482,8 +482,10 @@ describe('AUD-K cleanup intent reconciliation (VMCP-027)',()=>{
     f.fake.verify();
   });
   it('reconciles a lone project-creation intent when the project is absent',async()=>{
+    // The seed records a project-creation intent with NO projectId
+    // (project_id: null): reconciliation must not demand one.
     const f=fixture([
-      object('intent','intent-project-'+scratchName,project,
+      object('intent','intent-project-'+scratchName,null,
         {operation:'projects_create',name:scratchName})
     ]);
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
