@@ -70,3 +70,27 @@ describe('B-4 plain-language Vercel provider errors',()=>{
    expect(s).not.toContain('vcp_SECRET');
  });
 });
+
+describe('VMCP-030: the tools own validation errors are legible',()=>{
+ it('surfaces a curated TypeError as invalid_request with its own message',()=>{
+   const obj=explainVercelError(new TypeError('Deployment outside requested project — deployment reads are keyed by the exact project ID (prj_…), not a project name'));
+   expect(obj.technical).toContain('invalid_request');
+   expect(obj.what).toContain('Deployment outside requested project');
+   expect(obj.what).toContain('exact project ID');
+   expect(obj.why).toContain('Vercel did not refuse it');
+   expect(JSON.stringify(obj)).not.toContain('did not return a recognized safe error code');
+ });
+ it('never surfaces a TypeError message carrying credential-shaped content',()=>{
+   const obj=explainVercelError(new TypeError('bad token vcp_FAKEFAKEFAKEFAKE12 in selection'));
+   expect(obj.technical).toContain('invalid_request');
+   expect(JSON.stringify(obj)).not.toContain('vcp_FAKE');
+   expect(obj.what).toBe('The request did not match what this tool requires.');
+ });
+ it('keeps generic errors and provider errors on their existing classes',()=>{
+   expect(explainVercelError(new Error('boom')).technical).toContain('unknown_error');
+   expect(explainVercelError({code:'not_found',status:404}).technical).toContain('not_found');
+   const rendered=JSON.stringify(vercelErrorResult(new TypeError('Invalid deployment identifier')));
+   expect(rendered).toContain('Invalid deployment identifier');
+   expect(rendered).not.toContain('unknown_error');
+ });
+});

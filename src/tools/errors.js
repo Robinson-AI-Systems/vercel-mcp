@@ -22,23 +22,49 @@ function denverTime(value) {
     hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
   }).format(new Date(actual));
 }
+// VMCP-030: the tools' own curated validation errors (TypeErrors
+// thrown by handlers and shapers — invalid identifiers, identity
+// mismatches, unusable pagination) carry no provider code, so they
+// used to collapse into unknown_error with the misleading claim
+// that the provider returned no recognized code — including cases
+// where the input, not the provider, was out of contract (the
+// dossier's deploy_list-by-name discrimination). They are their own
+// class now: the message is written in this repository and is safe
+// to surface once it passes the same screens labels get; anything
+// failing the screen falls back to a generic sentence.
+const CREDENTIAL_SHAPE = /(?:vcp_|vca_|vci_|vcr_|github_pat_|ghp_|sk_live_|sk_test_|whsec_)[a-zA-Z0-9_-]{12,}/;
+function ownMessage(raw) {
+  if (!(raw instanceof TypeError)) return null;
+  const message = raw.message;
+  if (typeof message !== 'string' || message.length < 1 || message.length > 160) return null;
+  if (/[\x00-\x1f\x7f]/.test(message) || SECRET_LABEL.test(message) || CREDENTIAL_SHAPE.test(message)) return null;
+  return message;
+}
 function normalized(raw) {
   const input = raw?.error && typeof raw.error === 'object' ? raw.error : raw;
   const candidate = input?.code;
   // Provider-supplied codes are not safe to echo unless recognized.
-  const code = typeof candidate === 'string' && CODE.test(candidate) &&
-    (KNOWN_CODES.has(candidate) || /^env_[a-z0-9_-]{1,36}$/.test(candidate)) ?
-    candidate : 'unknown_error';
+  const recognized = typeof candidate === 'string' && CODE.test(candidate) &&
+    (KNOWN_CODES.has(candidate) || /^env_[a-z0-9_-]{1,36}$/.test(candidate));
   const status = Number.isSafeInteger(raw?.status) && raw.status >= 100 && raw.status <= 599 ? raw.status :
     Number.isSafeInteger(input?.status) && input.status >= 100 && input.status <= 599 ? input.status : null;
-  return { code, status };
+  if (!recognized && status === null && raw instanceof TypeError) {
+    return { code: 'invalid_request', status, own: ownMessage(raw) };
+  }
+  return { code: recognized ? candidate : 'unknown_error', status };
 }
 /** For an error from the sanitized central client (no raw provider text). */
 export function explainVercelError(raw, context = {}) {
-  const {code,status} = normalized(raw);
+  const {code,status,own} = normalized(raw);
   let what='Vercel could not complete the request.';
   let why='The provider did not return a recognized safe error code.';
   let next='Verify your account selection and try a read-only status check before retrying.';
+  if (code==='invalid_request') {
+    // VMCP-030: our own validation refused — say which, plainly.
+    what=own || 'The request did not match what this tool requires.';
+    why='This failed on this server while checking the selection or shaping the record — Vercel did not refuse it.';
+    next='Verify the identifier against a fresh list result (deployment and project reads are keyed by the exact ID) and retry.';
+  } else
   if (['unauthorized','invalid_token','token_expired','expired_token'].includes(code) || status === 401) {
     what='The Vercel account token is no longer accepted.';
     why='The token may be expired, revoked or incorrectly scoped.';
