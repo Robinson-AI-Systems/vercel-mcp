@@ -102,7 +102,12 @@ describe('OAuth registration and authorization endpoints', () => {
     const previewPage = await call(handlers.authorize, request('GET', authorizeArgs(client)));
     expect(previewPage.statusCode).toBe(200);
     expect(previewPage.body).toContain('Fixture team');
-    expect(previewPage.body).not.toContain('value="production"');
+    // VMCP-025 (AUD-W): production no longer vanishes silently — it
+    // renders disabled with its reason. This fixture's switch is ON,
+    // so the reason is the deployment, not the account.
+    expect(previewPage.body).toContain('value="production" disabled');
+    expect(previewPage.body).toContain('production (not available)');
+    expect(previewPage.body).toContain('Production mode is offered by this server');
 
     const productionFixture = createFixture({
       accounts: [{
@@ -111,6 +116,18 @@ describe('OAuth registration and authorization endpoints', () => {
       }],
       env: { VERCEL_ENV: 'production' }
     });
+    const switchedOff = createFixture({
+      accounts: [{
+        id: 'team_fixture', label: 'Fixture team', scope: 'team',
+        production_enabled: false, team_id: 'team_fixture', team_slug: 'fixture'
+      }],
+      env: { VERCEL_ENV: 'production' }
+    });
+    const switchedOffClient = await register(switchedOff.handlers);
+    const switchedOffPage = await call(switchedOff.handlers.authorize, request('GET', authorizeArgs(switchedOffClient)));
+    expect(switchedOffPage.body).toContain('value="production" disabled');
+    expect(switchedOffPage.body).toContain('Production mode is switched off for this account');
+    expect(switchedOffPage.body).toContain('vercel_set_working_box');
     const productionClient = await register(productionFixture.handlers);
     const productionPage = await call(productionFixture.handlers.authorize, request('GET', authorizeArgs(productionClient)));
     expect(productionPage.body).toContain('value="production"');
