@@ -24,6 +24,18 @@ function probeFail(leg, message) {
 }
 function transportFail(leg, err) {
   if (err?.probeLeg) return err;
+  // AUD-I S5 (A-5): a dead integration credential names its cause
+  // class in plain words wherever a probe surfaces it. Vercel
+  // disables an installation's configuration when the person who
+  // installed it leaves the team (403, code
+  // integration_configuration_disabled — the client preserves the
+  // provider code, never the body). The credential is dead at
+  // Vercel; disconnecting here still completes on this server, and
+  // reconnecting means a current team member installs again.
+  if (err?.code === 'integration_configuration_disabled') {
+    return probeFail('integration_disabled',
+      'The Vercel integration behind this connection was disabled — this happens when the person who installed it leaves the team. The credential is dead at Vercel; disconnecting here still completes on this server, and reconnecting means a current team member installs again');
+  }
   const status = Number.isInteger(err?.status) ? ' (HTTP ' + err.status + ')' : '';
   return probeFail(leg, (PROBE_LEG_MESSAGES[leg] || 'Could not confirm the token with Vercel') + status);
 }
@@ -316,8 +328,11 @@ export async function loadToken({ db, accountId, env = process.env }) {
   if (!row || (row.token_expires_at && Date.parse(row.token_expires_at) <= Date.now())) {
     throw new Error('Vercel account is missing or the token is expired');
   }
+  const probe = row.token_probe && typeof row.token_probe === 'object' ? row.token_probe :
+    (typeof row.token_probe === 'string' ? (() => { try { return JSON.parse(row.token_probe); } catch { return null; } })() : null);
   return { token: decryptSecret(row.token_enc, 'token:' + row.id, env),
-    account: { id: row.id, team_id: row.team_id, scope: row.scope, project_id: row.project_id } };
+    account: { id: row.id, team_id: row.team_id, scope: row.scope, project_id: row.project_id,
+      probe } };
 }
 
 /**
@@ -334,13 +349,20 @@ export async function recheckStoredToken({ db, accountId, env = process.env, fet
   if (account.id !== accountId || !['team', 'project', 'full'].includes(account.scope)) {
     throw new Error('Stored connection scope must be reviewed in owner setup');
   }
-  const result = await probeToken({
-    token, teamId: account.team_id, projectId: account.project_id || null,
-    allowFull: account.scope === 'full', fetchImpl, baseUrl
-  });
+  // AUD-I S5: recheck routes by account kind — a personal seat is
+  // re-proven by the user-keyed probe, never the team probe.
+  const personal = account.probe?.accountKind === 'personal';
+  const result = personal ?
+    await probePersonalToken({ token, userId: account.id,
+      allowFull: account.scope === 'full', fetchImpl, baseUrl }) :
+    await probeToken({
+      token, teamId: account.team_id, projectId: account.project_id || null,
+      allowFull: account.scope === 'full', fetchImpl, baseUrl
+    });
   return {
     checkedAt: result.checkedAt, teamId: result.teamId, teamSlug: result.teamSlug,
     projectId: result.projectId, storedScope: account.scope,
+    ...(personal ? { accountKind: 'personal' } : {}),
     visibleTeamCount: result.visibleTeamCount, visibleProjectCount: result.visibleProjectCount,
     access: 'read_verified', scopeVerified: false, writePermissions: 'unknown',
     expiryVerified: false, persisted: false

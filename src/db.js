@@ -666,7 +666,8 @@ export function createDb(query) {
     async getAccountCredential(id) {
       if (typeof id !== 'string' || !id) return null;
       const run = getSql();
-      const rows = await run`SELECT id, team_id, scope, project_id, token_enc, token_expires_at
+      const rows = await run`SELECT id, team_id, scope, project_id, token_enc, token_expires_at,
+        token_probe
         FROM vercel_accounts WHERE id = ${id}`;
       return rows[0] || null;
     },
