@@ -400,24 +400,55 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
       if((row?.uid??row?.id)!==o.object_id||
          (owner!=null&&owner!==project)||
          (row.meta!=null&&row.meta.rtc_run!==runId)||
-         !Array.isArray(row.alias)||row.alias.length||
+         !Array.isArray(row.alias)||
          row.aliases!=null&&(!Array.isArray(row.aliases)||row.aliases.length))
         throw new PreDispatchRefusal(
           'Deployment is aliased or no longer identified');
-      // A target beyond preview is acceptable only inside the run's
-      // own seeded scratch project (whose first deployment the
-      // provider promotes): prove the project is that scratch
-      // project by its deterministic run-owned name. Runs also record
-      // deployments in existing user projects (dev previews), where
-      // the preview refusal stands (PR #255 review).
-      if(!deploymentTargetMatches(row.target,'preview')){
+      // The documented alias field lists the hostnames assigned to
+      // this deployment. Its own unique URL is its identity, not an
+      // attachment. Inside the run's own seeded scratch project —
+      // proven by its deterministic run-owned name, fetched at most
+      // once per inspection — the project's vercel.app family (the
+      // canonical domain a promoted first deployment necessarily
+      // serves, and its team-scoped form) is likewise the project's
+      // own identity (AUD-P; the AUD-O doctrine one branch over).
+      // A custom domain or any foreign hostname refuses everywhere,
+      // and in an existing user project the production domain
+      // refuses too (PR #255 review posture).
+      const ownHost=typeof row.url==='string'?
+        row.url.replace(/^https?:\/\//,'').split('/')[0]:null;
+      let scratchName;
+      const proveScratch=async()=>{
+        if(scratchName!==undefined)return scratchName;
         const proj=await provider.read('projects_get',
           {path:{idOrName:project}});
-        if(proj?.id!==project||typeof proj.name!=='string'||
-           !proj.name.startsWith('rtc-'+runId.replaceAll('_','-')+'-'))
+        scratchName=proj?.id===project&&typeof proj.name==='string'&&
+          proj.name.startsWith('rtc-'+runId.replaceAll('_','-')+'-')?
+          proj.name:false;
+        return scratchName;
+      };
+      const foreign=row.alias.filter(h=>h!==ownHost);
+      if(foreign.length){
+        // The scratch family lives only under vercel.app; a foreign
+        // host anywhere else refuses without further reads.
+        const name=foreign.every(h=>typeof h==='string'&&
+          h.endsWith('.vercel.app'))?await proveScratch():false;
+        const ownFamily=h=>name!==false&&
+          (h===name+'.vercel.app'||
+           h.startsWith(name+'-')&&h.endsWith('.vercel.app'));
+        if(name===false||!foreign.every(ownFamily))
           throw new PreDispatchRefusal(
-            'Deployment target is not a preview outside the run scratch project');
+            'Deployment is aliased or no longer identified');
       }
+      // A target beyond preview is acceptable only inside the run's
+      // own seeded scratch project (whose first deployment the
+      // provider promotes): the same proof as above. Runs also
+      // record deployments in existing user projects (dev previews),
+      // where the preview refusal stands (PR #255 review).
+      if(!deploymentTargetMatches(row.target,'preview')&&
+         !(await proveScratch()))
+        throw new PreDispatchRefusal(
+          'Deployment target is not a preview outside the run scratch project');
       return row;
     };
     try{await inspect();}catch(e){
