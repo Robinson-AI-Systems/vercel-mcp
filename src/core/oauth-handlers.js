@@ -109,6 +109,22 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     const modeList = modes.map((mode) =>
       '<option value="' + mode + '"' + (selectedMode === mode ? ' selected' : '') + '>' + mode + '</option>'
     ).join('');
+    // VMCP-025 (AUD-W): production used to vanish from this list
+    // silently when unavailable. It now renders as a disabled option
+    // with the reason beside the Mode field — the account owner's
+    // switch being off, or this server not running its production
+    // deployment. Submission validation is unchanged (modesFor is
+    // still the authority), so the disabled option can never be
+    // posted into an authorization.
+    const productionUnavailable = selectedAccount && !modes.includes('production');
+    const productionOption = productionUnavailable ?
+      '<option value="production" disabled>production (not available)</option>' : '';
+    const productionNote = !productionUnavailable ? '' :
+      (selectedAccount.production_enabled ?
+        '<p>Production mode is offered by this server\'s production deployment.</p>' :
+        '<p>Production mode is switched off for this account. The account owner can switch ' +
+        'it on in setup or with vercel_enable_production; a connection made in preview can ' +
+        'be flipped to production afterwards with vercel_set_working_box.</p>');
     const profileList = PROFILES.map((profile) =>
       '<option value="' + profile + '"' + (params.profile === profile ? ' selected' : '') + '>' + profile + '</option>'
     ).join('');
@@ -130,7 +146,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
         '<p>No Vercel teams are connected yet. An administrator must add an account through the secure setup page.</p>') +
       '<form method="post">' + hidden +
       '<label>' + escapeHtml(service.accountLabel) + '<select name="account" required>' + accountList + '</select></label>' +
-      '<label>Mode<select name="mode">' + modeList + '</select></label>' +
+      '<label>Mode<select name="mode">' + modeList + productionOption + '</select></label>' + productionNote +
       '<label>Profile<select name="profile">' + profileList + '</select></label>' +
       '<label>Tool listing<select name="listing">' + listingList + '</select></label>' +
       '<label>Administrator passphrase<input type="password" name="passphrase" required autocomplete="current-password"></label>' +
