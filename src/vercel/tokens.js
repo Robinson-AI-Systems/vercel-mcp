@@ -187,6 +187,98 @@ export async function probeToken({ token, teamId, projectId = null, allowFull = 
   }
 }
 
+// AUD-I S1b: the user-keyed probe for a PERSONAL-account installation
+// token (the Integrations exchange answered team_id: null). There is
+// no team for the team probe to see, so the proof rests on reads a
+// personal credential can actually perform, cross-checked against
+// the exchange's own claim: the token's identity read must name the
+// very user the exchange says installed it, and its unscoped project
+// visibility is the personal account's granted set. A personal
+// account id occupies the same account-id space as a team id in
+// Vercel's model, so the record keys on the user id; the store's
+// scope enum has no 'personal' value, so the row records scope
+// 'team' (its account-shaped box) AND accountKind: 'personal' on the
+// probe record — the honest label rides where whoami reads it, and
+// DECISIONS 2026-10-29 (S1b) records the pairing. Team visibility
+// beyond the personal account is broader than this box and refuses
+// without the explicit allowance, exactly as the team probe treats
+// broad visibility.
+export async function probePersonalToken({ token, userId, allowFull = false,
+  fetchImpl, baseUrl }) {
+  try {
+    assertToken(token);
+  } catch {
+    throw probeFail('input',
+      'A valid server-side token is required; check the token for stray whitespace or copying errors');
+  }
+  if (!safeId(userId)) {
+    throw probeFail('input', 'A valid installer identity is required');
+  }
+  // The client requires a team_id-shaped account; the user id fills
+  // it (same account-id space), and every operation this probe calls
+  // is declared unscoped, so the value never reaches a request.
+  const client = makeVercelClient({
+    token, account: { id: 'probe_only', team_id: userId },
+    ...(fetchImpl ? { fetchImpl } : {}),
+    ...(baseUrl ? { baseUrl } : {})
+  });
+  const identity = await client.request('user_get_unscoped')
+    .catch(err => { throw transportFail('identity', err); });
+  if (!identity?.user || identity.user.id !== userId) {
+    throw probeFail('identity',
+      'The installed credential does not act for the user who installed it');
+  }
+  const projects = await visibleRows(client, 'projects_list_unscoped', 'projects');
+  let visibleTeamCount = 0;
+  try {
+    const result = await client.request('teams_list_unscoped',
+      { query: { limit: 100 } }, { timeoutMs: 5000 });
+    if (Array.isArray(result?.teams)) visibleTeamCount = result.teams.length;
+  } catch { /* Broadness evidence only; never load-bearing. */ }
+  if (visibleTeamCount > 0 && !allowFull) {
+    throw probeFail('broad_visibility',
+      'Broader token visibility requires explicit owner allowance');
+  }
+  const username = typeof identity.user.username === 'string' && identity.user.username ?
+    identity.user.username : userId;
+  return {
+    teamId: userId, teamSlug: username,
+    teamName: typeof identity.user.name === 'string' && identity.user.name ?
+      identity.user.name : username,
+    scope: 'team', projectId: null, projectName: null,
+    checkedAt: new Date().toISOString(),
+    visibleTeamCount, visibleProjectCount: projects.length
+  };
+}
+
+export async function storePersonalToken({ db, token, userId,
+  allowFull = false, env = process.env, fetchImpl, baseUrl, probeExtra = {} }) {
+  if (!db?.upsertVercelAccount) throw new TypeError('Durable account storage is required');
+  const result = await probePersonalToken({ token, userId, allowFull, fetchImpl, baseUrl });
+  const id = result.teamId;
+  const tokenEnc = encryptSecret(token, 'token:' + id, env);
+  try {
+    await db.upsertVercelAccount({
+      id, teamId: result.teamId, teamSlug: result.teamSlug, label: result.teamName,
+      scope: result.scope, projectId: null, projectName: null,
+      tokenEnc, tokenLast4: token.slice(-4), expiresAt: null,
+      probe: {
+        checkedAt: result.checkedAt,
+        visibleTeamCount: result.visibleTeamCount,
+        visibleProjectCount: result.visibleProjectCount,
+        scopeVerified: false, // REST reads cannot prove token's complete privilege set.
+        accountKind: 'personal',
+        ...probeExtra
+      }
+    });
+  } catch {
+    throw probeFail('storage',
+      'The verified token could not be saved; check the server storage configuration');
+  }
+  return { id, team: result.teamSlug, scope: result.scope, project: null,
+    expiry: null, last4: token.slice(-4) };
+}
+
 export async function storeToken({ db, token, teamId, projectId = null,
   allowFull = false, env = process.env, fetchImpl, baseUrl, probeExtra = {} }) {
   if (!db?.upsertVercelAccount) throw new TypeError('Durable account storage is required');

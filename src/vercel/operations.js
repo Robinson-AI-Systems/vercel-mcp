@@ -2,6 +2,9 @@
 // the exact method and path in vendor/vercel-openapi/openapi-2026-10-11.json.
 export const OPS = Object.freeze({
   user_get: Object.freeze({ method: 'GET', path: '/v2/user' }),
+  // AUD-I S1b: the personal-install probe reads identity without a
+  // team scope — the installer's own account is the scope.
+  user_get_unscoped: Object.freeze({ method: 'GET', path: '/v2/user', teamScoped: false }),
   teams_list: Object.freeze({ method: 'GET', path: '/v2/teams' }),
   // Preserve existing token probes while the owner list uses no team query.
   teams_list_unscoped: Object.freeze({ method: 'GET', path: '/v2/teams', teamScoped: false }),
