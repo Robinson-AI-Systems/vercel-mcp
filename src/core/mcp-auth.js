@@ -42,5 +42,9 @@ export async function requireMcpToken(req, res, db, env = process.env) {
   };
   Object.defineProperty(context,'resultOwner',{value:'resown_'+
     createHash('sha256').update('rmcp-result-owner-v1:').update(match[1]).digest('hex')});
+  // AUD-I S4: the caller's own public connection id, non-enumerable
+  // like resultOwner — a self-service key for the working-box flip,
+  // never serialized into tool output.
+  Object.defineProperty(context,'connectionId',{value:record.connection_id});
   return Object.freeze(context);
 }

@@ -58,7 +58,7 @@ the setup page.
 `R` read_only · `E` everyday · `F` full (every read tool is in `R`). **App:** `y` = the project-profile guard (Batch P)
 checks this tool against resources a profiled app owns; `—` = not applicable.
 
-## Server about itself (`vercel_*`) — 19
+## Server about itself (`vercel_*`) — 20
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
@@ -66,6 +66,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_list_accounts` | Show only the current authenticated connection's account and safe settings; global account management remains on owner setup | — | O | R | — | A-5 built #15; B-8 account isolation #28 |
 | `vercel_set_default_account` | Propose changing the global default; exact target requires separate signed-in owner approval | P | O | F | — | B-8b built #38 |
 | `vercel_check_token` | Re-probe the stored token with bounded GETs; report selected team/project read access, not expiry or write permissions | — | O | R | — | B-8b read-only built #26 |
+| `vercel_set_working_box` | Flip this connection's own working mode (preview/production) inside its granted ceiling, effective the next call (A-10); a localAdmin self-write keyed by the caller's own connection id, credential untouched. Production asks refuse by naming the rung (owner production switch off → vercel_enable_production; preview deployment → production deployment) | P | O | F | — | AUD-I S4 |
 | `vercel_list_connections` | Claude connections and passes: account, mode, profile, listing, last used, expiry | — | O | R | — | B-8 |
 | `vercel_revoke_connection` | Propose revoking an exact current OAuth connector; independently authenticated owner must approve | C | O | F | — | B-8b built #40 |
 | `vercel_enable_production` | Enable team production access on the owner's confirmed word; teams whose owner chose passphrase strictness on setup keep the ten-minute passphrase reentry step instead | C | O | F | — | B-2; AUD-B |
@@ -508,7 +509,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 
 | Section | Tools | Batch |
 |---|---|---|
-| Server about itself | 19 | A, B, C, R, X, O |
+| Server about itself | 20 | A, B, C, R, X, O |
 | Projects, crons and Git | 15 | D |
 | Deployments: reads, logs and checks | 10 | D |
 | Deployments: changes | 5 | D |
@@ -534,9 +535,9 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Owner: administration | 5 | O |
 | Project profiles | 5 | P |
 | Workflows | 12 | W |
-| **Hand-built total** | **232** | |
+| **Hand-built total** | **233** | |
 | Universal tools | 4 | U |
-| **All tools** | **236** | |
+| **All tools** | **237** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
 O 29 · P 5 · W 12 · U 4 · R 1 · X 1 (= 236). By lowest profile: `read_only` 103, `everyday` 160 (103 + 57), `full` all 236

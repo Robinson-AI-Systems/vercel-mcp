@@ -26,6 +26,14 @@ export const serverTools = {
       description: 'Safely recheck stored Vercel token read access; does not prove write permissions.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true }, writes: false, profiles: PROFILES },
+    { name: 'vercel_set_working_box',
+      description: 'Flip this connection\'s working mode (preview or production) inside its granted ceiling; effective next call. Beyond-ceiling asks name their rung.',
+      inputSchema: { type: 'object', properties: {
+        mode: { type: 'string', enum: ['preview', 'production'] },
+        confirm: { type: 'boolean' }, dryRun: { type: 'boolean' }
+      }, required: ['mode'], additionalProperties: false },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      writeContract: { production: true, targets: true }, writes: true, localAdmin: true, profiles: ['full'] },
     { name:'vercel_get_result',writes:false,profiles:PROFILES,
       description:'Read a page of a stored large result; only the original authenticated bearer can access it.',
       inputSchema:{type:'object',properties:{
@@ -114,6 +122,64 @@ export const serverTools = {
       if (!account) return { isError: true, content: [{ type: 'text',
         text: 'No Vercel account is connected' }] };
       return asText({ accounts: [safe(account)], count: 1 });
+    },
+    async vercel_set_working_box(args, { connection, db, env = process.env }) {
+      // AUD-I S4: the working-box flip, under the product's write
+      // contract (plan with dryRun, apply with confirm — the
+      // production tools' shape). In-ceiling flips are instant and
+      // journaled by the write path; the credential is untouched.
+      // A-10 cold relay: the flip applies to the NEXT call — this
+      // call finishes under the mode it started with, because the
+      // connection's context is fixed at auth.
+      if (!args || typeof args !== 'object' || Array.isArray(args) ||
+          Object.keys(args).some(k => !['mode', 'confirm', 'dryRun'].includes(k)) ||
+          !['preview', 'production'].includes(args.mode) ||
+          (args.confirm !== undefined && typeof args.confirm !== 'boolean') ||
+          (args.dryRun !== undefined && typeof args.dryRun !== 'boolean')) {
+        return { isError: true, content: [{ type: 'text', text: 'Invalid working-box request' }] };
+      }
+      if (typeof connection?.account !== 'string' || typeof connection?.connectionId !== 'string' ||
+          typeof db?.setOwnConnectionMode !== 'function') {
+        throw new Error('Connection flip unavailable');
+      }
+      if (connection.mode === args.mode) {
+        return asText({ flipped: false, mode: connection.mode,
+          note: 'This connection already works in ' + args.mode + ' mode; nothing to flip.' });
+      }
+      if (args.mode === 'production') {
+        // The ceiling has two rungs above this flip; name the one
+        // that owns a refusal instead of a bare no (IN-18/A-12 form).
+        const accounts = await db.listVercelAccounts();
+        const row = accounts.find(account => account.id === connection.account);
+        if (!row) return { isError: true,
+          content: [{ type: 'text', text: 'No Vercel account is connected' }] };
+        if (!row.production_enabled) {
+          return asText({ flipped: false, refused: 'production_switch_off',
+            rung: 'The account\'s production switch is off. That switch belongs to the account owner (their own setting, never a ceremony): vercel_enable_production flips it with the owner\'s approval, and this flip then succeeds instantly.' });
+        }
+        if (env.VERCEL_ENV !== 'production') {
+          return asText({ flipped: false, refused: 'preview_deployment',
+            rung: 'This server is a preview deployment; production mode exists only on the production deployment of this service. Connect there to work in production mode.' });
+        }
+      }
+      if (args.dryRun === true) {
+        return asText({ status: 'planned', flipped: false, from: connection.mode, to: args.mode,
+          effective: 'next call',
+          note: 'On confirm, this connection flips to ' + args.mode + ' from your next call; this call finishes under ' + connection.mode + '.' });
+      }
+      if (args.confirm !== true) {
+        return { isError: true, content: [{ type: 'text', text: JSON.stringify({
+          status: 'refused_by_guard', confirmed: false,
+          reason: 'Preview this flip with dryRun: true, or apply it with confirm: true' }) }] };
+      }
+      const result = await db.setOwnConnectionMode({
+        account: connection.account, connectionId: connection.connectionId, mode: args.mode
+      });
+      if (!result) return { isError: true,
+        content: [{ type: 'text', text: 'Connection unavailable for a mode flip' }] };
+      return asText({ flipped: true, from: result.from, to: result.to,
+        effective: 'next call',
+        note: 'This call finishes under ' + result.from + '; your next call runs under ' + result.to + '.' });
     },
     async vercel_check_token(args, { connection, db, env, fetchImpl }) {
       // The MCP dispatcher does not currently enforce argument schemas itself.
