@@ -96,6 +96,28 @@ export async function safeShapeStored(ctx, value, label = 'vercel_write') {
     next: 'Call vercel_get_result with this handle and optional page/fields'
   };
 }
+// AUD-X (VMCP-011): the caller-facing sibling of safeShapeStored. A
+// write result that shapes safely but exceeds the 8 KB display bound
+// is returned screened at the storage cap instead of throwing after
+// the write has landed and verified — the MCP delivery layer
+// (AUD-D) then stores it and answers with the receipt plus handle.
+// Only a size failure takes this path: a shaper refusal for any
+// other reason (secrets, cycles, depth) still throws, exactly as
+// safeShape does. The audit and replay copies of the same result go
+// through safeShapeStored, so they become stored references.
+export function safeShapeForReturn(ctx, value) {
+  try { return safeShape(ctx, value); }
+  catch (error) {
+    const sizeOnly = error instanceof RangeError ||
+      (error instanceof Error && error.message === 'Output cannot be safely shaped within 8 KB');
+    if (!sizeOnly) throw error;
+    try { return compact(ctx.shape(value), 1048576); }
+    catch (shapeError) {
+      if (!(shapeError instanceof RangeError)) throw shapeError;
+      return compact(value, 1048576);
+    }
+  }
+}
 export async function writePreflight(spec, args, ctx) {
   const conn = ctx?.connection;
   if (!conn?.account || !['preview','production'].includes(conn.mode) ||

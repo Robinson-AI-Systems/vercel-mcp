@@ -1,7 +1,7 @@
 // Generic safe write executor. No Vercel-specific imports or provider I/O.
 // The caller must supply a durable replay store, audit writer and safe shaper.
 import { createHash } from 'node:crypto';
-import { refusal, safeShape, safeShapeStored, writePreflight } from './write-preflight.js';
+import { refusal, safeShapeForReturn, safeShapeStored, writePreflight } from './write-preflight.js';
 
 // A definite pre-dispatch safety refusal is never a provider-write failure.
 export class PreDispatchRefusal extends Error {}
@@ -306,9 +306,19 @@ export function defineWrite(spec) {
     // Optional Vercel-agnostic verified receipt. Default writes preserve the
     // original response, while multi-step workflows can expose exact owner-
     // scoped IDs and private result handles WITHOUT exposing provider bodies.
+    // AUD-X (VMCP-011): everything shaped AFTER the write has landed
+    // uses the stored treatment, never the throwing one — the 8 KB
+    // bound displays, it does not convert a landed, verified write
+    // into an error envelope. The receipt and the inverse become
+    // stored references when oversized; the audit's before/after/
+    // result copies do the same; the replay copy does the same and
+    // keeps the receipt scalars beside the reference so a replayed
+    // answer stays a truthful receipt; and the returned result is
+    // shaped for return (screened at the storage cap), leaving the
+    // display bound to the delivery layer's stored-result path.
     const publicReceipt=confirmed===true&&typeof spec.publicReceipt==='function'?
-      safeShape(ctx,await spec.publicReceipt(args,before,providerResult,verification)):null;
-    const result = safeShape(ctx, spec.approvalOnly ?
+      await safeShapeStored(ctx,await spec.publicReceipt(args,before,providerResult,verification),spec.name):null;
+    const result = safeShapeForReturn(ctx, spec.approvalOnly ?
       { status: 'awaiting_owner_approval', mode, confirmed: false,
         ownerApprovalRequired: true, reference: providerResult.reference,
         expiresAt: providerResult.expiresAt, preview: summary, requestKey,
@@ -317,12 +327,16 @@ export function defineWrite(spec) {
         ...(delegation?{delegation}:{}),
         ...(delivered||{}),...(publicReceipt?{receipt:publicReceipt}:{}) });
     const inverse = typeof spec.inverse === 'function'
-      ? safeShape(ctx, await spec.inverse(args, before, providerResult, ctx)) : null;
+      ? await safeShapeStored(ctx, await spec.inverse(args, before, providerResult, ctx), spec.name) : null;
     await ctx.audit({ ...auditBase, dryRun: false,
-      before: safeShape(ctx, before),
-      after: safeShape(ctx, verification), inverse, result });
+      before: await safeShapeStored(ctx, before, spec.name),
+      after: await safeShapeStored(ctx, verification, spec.name), inverse,
+      result: await safeShapeStored(ctx, result, spec.name) });
+    const replayResult = await safeShapeStored(ctx, result, spec.name);
     await ctx.replayStore.complete({ key: requestKey,
-      claimId: claim.claimId, result });
+      claimId: claim.claimId, result: replayResult?.status === 'stored' ?
+        { ...replayResult, writeStatus: result.status,
+          writeConfirmed: result.confirmed ?? null, requestKey } : replayResult });
     return result;
   }
   const identity = Object.freeze({ name: spec.name, run, writeContract });
