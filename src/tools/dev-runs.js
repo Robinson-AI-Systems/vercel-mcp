@@ -524,9 +524,18 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
       return 'Project resource inventory could not be proven complete';
     }
     if(initial.id!==project||initial.name!==name||!initial.empty)
-      return 'Project resource inventory is incomplete, live or no longer empty ('+
-        Object.entries(initial.inventory).map(([k,v])=>k+': '+v).join('; ')+
-        '; hasDeployments: '+initial.hasDeployments+')';
+      // The recorded outcome error is capped at 160 characters by
+      // the outcome store (db.setDevRunObjectOutcome): the AUD-O
+      // form of this message ran ~173 and its recording threw,
+      // killing the whole cleanup pass into a bare outcome_unknown
+      // that recorded nothing (AUD-Q). Keep this form compact; it
+      // still names every count so a block is its own discriminator.
+      return 'Project not empty (deployments: '+initial.inventory.deployments+
+        '; git: '+initial.inventory.git+'; crons: '+initial.inventory.crons+
+        '; domains: '+initial.inventory.domains+' total, '+
+        initial.inventory.domainsAttached+' attached; env: '+
+        initial.inventory.envVariables+'; hasDeployments: '+
+        initial.hasDeployments+')';
     await requirePreDispatch(async()=>{
       const fresh=await inspectProjectForDeletion(ctx,project,bound);
       if(fresh.id!==initial.id||fresh.name!==initial.name||!fresh.empty)
