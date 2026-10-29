@@ -128,7 +128,8 @@ const create=defineWrite({
       // no projectId (AUD-L): it must match when carried; the durable
       // project proof is verify()'s read-back of the full object.
       if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
-        (row.projectId!==undefined&&row.projectId!==before.id)||
+        ((row.projectId??row.project?.id)!=null&&
+         (row.projectId??row.project?.id)!==before.id)||
         !deploymentTargetMatches(row.target,before.target))
         throw new TypeError('Created Git deployment response identity or target unverified');
       return {id};
@@ -139,8 +140,12 @@ const create=defineWrite({
     const {client,account}=await readProvider(ctx);
     if(account.team_id!==before.teamId)return {confirmed:null};
     const row=await client.request('deployments_get',{path:{idOrUrl:created.id}});
+    // Project identity is required when the read-back carries it,
+    // top-level or as the reduced shape's nested project.id (AUD-M;
+    // PR #255 review).
     return {confirmed:(row?.uid??row?.id)===created.id&&
-      row.projectId===before.id&&
+      ((row.projectId??row.project?.id)==null||
+       (row.projectId??row.project?.id)===before.id)&&
       deploymentTargetMatches(row.target,before.target),
       deployment:created.id};
   }

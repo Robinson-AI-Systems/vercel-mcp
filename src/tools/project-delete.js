@@ -57,6 +57,18 @@ export function countComplete(reply,key){
   }
   return rows.length;
 }
+export function envInventoryCount(reply){
+  // The documented env-list response has a branch with no pagination
+  // object ({envs, hiddenProductionEnvCount}): it is a complete
+  // inventory exactly when nothing is hidden from this credential
+  // (AUD-M). A positive hidden count leaves the inventory unproven,
+  // like any other unrecognized shape.
+  if(reply?.pagination!==undefined)return countComplete(reply,'envs');
+  if(Array.isArray(reply?.envs)&&
+    Number.isSafeInteger(reply.hiddenProductionEnvCount)&&
+    reply.hiddenProductionEnvCount===0)return reply.envs.length;
+  throw new TypeError('Cannot prove complete envs inventory');
+}
 // No raw provider resource rows or secret values leave this function.
 export async function inspectProjectForDeletion(ctx,selector,bound){
   const {client,account}=bound??await readProvider(ctx);
@@ -88,7 +100,7 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
   // that no retained or previously deployed build exists. Require a distinct
   // team-scoped deployment inventory before an irreversible deletion.
   const countDomains=countComplete(domains,'domains');
-  const countEnvs=countComplete(env,'envs');
+  const countEnvs=envInventoryCount(env);
   const deploymentPage=await client.request('deployments_list',{
     query:{projectId:row.id,limit:100}
   });
