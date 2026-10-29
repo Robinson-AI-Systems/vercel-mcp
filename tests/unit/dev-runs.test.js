@@ -509,6 +509,26 @@ describe('AUD-J first-deployment projectSettings in seed (VMCP-023)',()=>{
     expect(out).toMatchObject({status:'applied',confirmed:false});
     f.fake.verify();
   });
+  it('confirms when the CREATE response itself carries the promoted target (AUD-N)',async()=>{
+    // The live closure probes' shape: the provider promotes the
+    // first deployment at creation, so the create response (branch 0:
+    // no projectId, no meta) already carries target 'production'.
+    // The response target enum is production/staging/null — 'preview'
+    // is never a response value. shapeResult is an identity check;
+    // verify() judges the target.
+    const seedRun='run_20261028_audn000001';
+    const name='rtc-'+seedRun.replaceAll('_','-')+'-static-site';
+    const f=seedFixture();
+    wireSeed(f,seedRun,name,
+      {id:deployment,target:'production',readyState:'BUILDING'},
+      {id:deployment,projectId:project,target:'production',
+        readyState:'READY',meta:{rtc_run:seedRun}});
+    const out=parse(await f.call('vercel_dev_seed',
+      {scenario:'static-site',runId:seedRun,outsideApp:true,confirm:true,
+        requestKey:'seedAudN00001'},{...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
 });
 
 describe('AUD-K cleanup intent reconciliation (VMCP-027)',()=>{

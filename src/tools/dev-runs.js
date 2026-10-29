@@ -216,14 +216,17 @@ const seed=defineWrite({
     },{requestKey,tool:'vercel_dev_seed',mutationId:'seed-preview',
       shapeResult:row=>{
         const id=row?.id??row?.uid;
-        // The documented create response has an in-progress shape with
-        // no projectId (AUD-L): it must match when carried; the durable
-        // project proof is verify()'s read-back of the full object.
+        // Identity only (AUD-L + AUD-N): the documented create
+        // response has an in-progress shape with no projectId — it
+        // must match when carried — and its target enum is
+        // production/staging/null ('preview' is never a response
+        // value; the provider promotes a first deployment, so the
+        // create response can carry 'production'). Target judgment
+        // belongs to verify()'s read-back, not to this check.
         if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
            ((row.projectId??row.project?.id)!=null&&
-            (row.projectId??row.project?.id)!==created.id)||
-           !deploymentTargetMatches(row.target,'preview'))
-          throw new TypeError('Provider did not prove seeded preview identity');
+            (row.projectId??row.project?.id)!==created.id))
+          throw new TypeError('Provider did not prove seeded deployment identity');
         return {id};
       }});
     await ctx.db.addDevRunObject({account:scope(ctx),id:b.runId,type:'deployment',

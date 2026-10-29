@@ -371,5 +371,24 @@ describe('AUD-M verify read-back shapes (VMCP-023)',()=>{
     expect(out).toMatchObject({status:'applied',confirmed:false});
     f.fake.verify();
   });
+  it('reports a provider-promoted create honestly instead of outcome_unknown (AUD-N)',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    const deploymentId='dpl_FAKEDEPLOY03';
+    f.fake.when('POST','/v13/deployments').resolves({
+      id:deploymentId,projectId:project,target:'production',
+      readyState:'QUEUED',url:'my-app-git-preview.vercel.app'});
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      id:deploymentId,projectId:project,target:'production',
+      readyState:'READY'});
+    const out=decode(await f.call({...args,confirm:true},
+      {...connection,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:false});
+    f.fake.verify();
+  });
 });
+
 

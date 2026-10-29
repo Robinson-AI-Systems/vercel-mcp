@@ -167,9 +167,12 @@ const create=defineWrite({
       // project proof is verify()'s read-back of the full object.
       if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
         ((row.projectId??row.project?.id)!=null&&
-         (row.projectId??row.project?.id)!==before.project)||
-        !deploymentTargetMatches(row.target,before.target))
-        throw new TypeError('Created deployment identity/target unverified');
+         (row.projectId??row.project?.id)!==before.project))
+        throw new TypeError('Created deployment identity unverified');
+      // No target arm (AUD-N): the documented response target enum
+      // is production/staging/null — a provider-promoted first
+      // deployment must surface as applied with verify() reporting
+      // the target honestly, never as outcome_unknown.
       return {id};
     }});
   },
