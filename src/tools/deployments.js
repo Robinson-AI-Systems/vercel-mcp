@@ -54,7 +54,7 @@ function deploymentProject(row){
 }
 function summary(row,project){
   if(!row||typeof row!=='object'||Array.isArray(row)||
-    deploymentProject(row)!==project)throw new TypeError('Deployment outside requested project');
+    deploymentProject(row)!==project)throw new TypeError('Deployment outside requested project — deployment reads are keyed by the exact project ID (prj_…), not a project name');
   const id=name(row.uid??row.id,128);
   if(!id)throw new TypeError('Provider deployment ID is unsafe');
   const git=row.meta&&typeof row.meta==='object'?row.meta:{};
