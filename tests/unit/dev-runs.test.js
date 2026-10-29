@@ -795,7 +795,43 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
     f.fake.verify();
   });
+  it('discharges the stranded shape when the project carries its canonical domain (AUD-O)',async()=>{
+    // The live stranded run's reality: the project holds only its
+    // auto-assigned <name>.vercel.app domain — the deletion proof
+    // must not count the project's own identity as content.
+    const f=fixture([
+      withStatus(object('intent','intent-project-'+scratchName,null,
+        {operation:'projects_create',name:scratchName}),'cleaned'),
+      withStatus(object('intent','intent-deployment-'+scratchName,project,
+        {operation:'deployments_create',name:scratchName,target:'preview'}),
+        'cleaned'),
+      withStatus(object('project',project,project,{name:scratchName}),
+        'blocked','Project resource inventory is incomplete, live or no longer empty')
+    ]);
+    const row={id:project,name:scratchName,accountId:team,link:null};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(row).resolves(row).rejects(404);
+    f.fake.when('GET','/v9/projects/{idOrName}/domains')
+      .resolves({domains:[{name:scratchName+'.vercel.app',
+        apexName:'vercel.app',projectId:project,gitBranch:null,
+        redirect:null,customEnvironmentId:null,verified:true}],
+        pagination:{next:null,count:1}});
+    f.fake.when('GET','/v10/projects/{idOrName}/env')
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null,count:0}});
+    f.fake.when('DELETE','/v9/projects/{idOrName}').resolves({},204);
+    const out=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'cleanupAudO00001'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(true);
+    const rows=f.rows.get(runId);
+    expect(rows.find(o=>o.object_type==='project').status).toBe('cleaned');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
 });
+
 
 
 
