@@ -9,8 +9,10 @@ const project='prj_FAKE_ONE',deployment='dpl_FAKE_TERMINAL';
 const token={token:'vcp_FAKE_delete',account:{
   id:'acct_FAKE',team_id:'team_FAKE',scope:'project',project_id:project}};
 const connection={account:'acct_FAKE',profile:'full',mode:'preview',listing:'catalog'};
+// Remodeled on the real read-back (VMCP-028): a preview deployment's
+// target reads back null — 'preview' is request-side only.
 const row={uid:deployment,projectId:project,readyState:'CANCELED',
-  target:'preview',alias:[]};
+  target:null,alias:[]};
 const args={deployment,project,expectedState:'CANCELED',outsideApp:true,
   confirm:true,requestKey:'deletePreviewFAKE01'};
 const result=x=>JSON.parse(x.content[0].text);
@@ -63,6 +65,15 @@ describe('D-3 terminal unaliased preview cleanup',()=>{
     expect(f.memo.size).toBe(2);expect(f.audits).toHaveLength(1);
     f.fake.verify();
   });
+  it('accepts the literal preview target where a shape carries it (VMCP-028 tolerant form)',async()=>{
+    const f=fixture();
+    const literal={...row,target:'preview'};
+    f.fake.when('GET','/v13/deployments/{idOrUrl}')
+      .resolves(literal).resolves(literal).resolves(literal).rejects(404);
+    f.fake.when('DELETE','/v13/deployments/{id}').resolves({},204);
+    expect(result(await f.call({...args,requestKey:'deleteLiteralFAKE03'})))
+      .toMatchObject({status:'applied',confirmed:true});
+  });
   it('supports already-failed, unaliased preview cleanup',async()=>{
     const f=fixture();
     const failed={...row,readyState:'ERROR'};
@@ -83,7 +94,7 @@ describe('D-3 terminal unaliased preview cleanup',()=>{
   });
   it('denies production, running, ready, and ambiguous targets or aliases',async()=>{
     const unsafe=[
-      {...row,target:'production'},{...row,target:null},{...row,target:undefined},
+      {...row,target:'production'},{...row,target:'staging'},{...row,target:undefined},
       {...row,readyState:'READY'},{...row,readyState:'BUILDING'},
       {...row,alias:undefined},{...row,alias:['live.example.test']},
       {...row,aliases:['primary.example.test']},
