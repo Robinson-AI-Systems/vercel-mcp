@@ -314,3 +314,31 @@ describe('D-1m destructive empty-project deletion',()=>{
       .find(x=>x.name==='vercel_project_delete')).toBeUndefined();
   });
 });
+
+describe('AUD-M env inventory branch (VMCP-027)',()=>{
+  it('deletes when the env list answers in the no-pagination branch with nothing hidden',async()=>{
+    // Documented branch: {envs, hiddenProductionEnvCount} and NO
+    // pagination object. Count 0 = the array is the whole inventory.
+    const f=fixture();
+    f.projectRule.resolves(project).resolves(project).rejects(404);
+    f.domainRule.resolves({domains:[],pagination:{next:null,count:0}})
+      .resolves({domains:[],pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],hiddenProductionEnvCount:0})
+      .resolves({envs:[],hiddenProductionEnvCount:0});
+    f.deleteRule.resolves(undefined,204);
+    const result=parse(await f.call());
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('refuses when the no-pagination branch reports hidden production envs',async()=>{
+    const f=fixture();
+    f.projectRule.resolves(project);
+    f.domainRule.resolves({domains:[],pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],hiddenProductionEnvCount:2});
+    const result=parse(await f.call());
+    expect(result.status).toBe('refused_by_guard');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+});
