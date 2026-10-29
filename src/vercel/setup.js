@@ -242,6 +242,18 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<section><h2>Revoke one OAuth connector (owner only)</h2>' +
     '<p>Current account-scoped references (may change on refresh). The last active connector ' +
     'and server credential cannot be revoked. A stale reference is refused.</p>' +
+    // AUD-I S5 (A-15): the disconnect story, complete on this page —
+    // revoking here ends the connection on this server; for a
+    // token-tier (account-wide) seat, deleting the token in Vercel
+    // ends its reach everywhere. The two together are the whole
+    // disconnect; nothing else lingers. A connection whose Vercel
+    // credential is already dead (revoked, expired, or an integration
+    // disabled when its installer left the team) still disconnects
+    // here — the server-side end never depends on Vercel answering.
+    '<p>Disconnecting is complete here: revoking ends the connection on this server, and for a ' +
+    'token-tier (account-wide) seat, deleting the token in Vercel ends its reach everywhere — ' +
+    'together that is the whole disconnect, nothing else lingers. A connection whose Vercel ' +
+    'credential is already dead still disconnects here.</p>' +
     (connections.length ? '<ul>' + connections.map(row =>
       '<li>' + escapeHtml(row.vercel_account) + ' — ' + escapeHtml(row.id) + '</li>').join('') +
       '</ul>' : '<p>No active connector references listed.</p>') +
