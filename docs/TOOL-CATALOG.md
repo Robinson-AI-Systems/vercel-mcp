@@ -569,6 +569,8 @@ tools up front and reaches the rest through `vercel_search_tools` / `vercel_call
 
 **AUD-R canonical-domain fix (2026-10-28, VMCP-027/023):** vercel_project_delete's proof and vercel_dev_cleanup identify a project's canonical *.vercel.app domain structurally (Vercel truncates long project names when minting it), and cleanup accepts the project's actual canonical host — read from its domains inventory — as deployment identity under the scratch proof.
 
+**AUD-S legibility (2026-10-28, VMCP-023):** vercel_dev_cleanup's deployment-step refusals now name the exact failing check (identity id/project, run provenance, alias-list form, plural aliases field, or the specific alias host outside the project's family) instead of one compound message.
+
 ## Authenticated write classification (security fix #56)
 
 Routine provider writes are admitted only if their frozen `writeContract` originates in the registered `defineWrite` spec and the handler was created by `bindGuardedWrite` for that same spec; the registry rejects spoofed metadata at startup. `vercel_call` inherits the identical guarded dispatcher. The MCP public catalog deliberately strips internal `writes`, `guardedWrite` and contracts, but derives `readOnlyHint: false` and `idempotentHint: false` from the original authenticated metadata before stripping them. It must not inject read-specific `fields`/`detail` into any write schema. Per-provider-mutation transport replay keys are distinct within one logical write (operation, canonical parameters and stable optional discriminator). This is a safety-catalog note, not a new tool or expanded permission.

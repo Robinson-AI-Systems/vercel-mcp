@@ -778,7 +778,7 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
     expect(out.confirmed).toBe(false);
     const row=f.rows.get(runId)[0];
     expect(row.status).toBe('blocked');
-    expect(row.last_error).toContain('aliased');
+    expect(row.last_error).toContain('outside the project family');
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
     f.fake.verify();
   });
@@ -797,7 +797,7 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
     expect(out.confirmed).toBe(false);
     const row=f.rows.get(runId)[0];
     expect(row.status).toBe('blocked');
-    expect(row.last_error).toContain('aliased');
+    expect(row.last_error).toContain('outside the project family');
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
     f.fake.verify();
   });
@@ -1016,5 +1016,37 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
     expect(rows.find(o=>o.object_type==='project').status).toBe('cleaned');
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(2);
     f.fake.verify();
+  });
+
+  it('names the failing deployment arm in its refusal (AUD-S)',async()=>{
+    const ownUrl=scratchName+'-abc123-team-fake.vercel.app';
+    const base={id:deployment,projectId:project,target:'preview',
+      url:'https://'+ownUrl,alias:[ownUrl],meta:{rtc_run:runId},
+      readyState:'READY'};
+    const cases=[
+      [{...base,id:'dpl_SOMEONE_ELSE'},
+       'identity does not match the recorded object (id)'],
+      [{...base,projectId:'prj_SOMEONE_ELSE'},
+       'identity does not match the recorded object (project)'],
+      [{...base,meta:{}},'provenance does not match the run (meta)'],
+      [{...base,alias:ownUrl},'alias list is missing or malformed'],
+      [{...base,aliases:[{alias:ownUrl}]},'populated aliases field'],
+      [{...base,alias:[ownUrl,'custom.example.com']},
+       'outside the project family: custom.example.com']
+    ];
+    for(const [i,[rowData,want]] of cases.entries()){
+      const f=fixture([object('deployment',deployment,project,
+        {target:'preview'})]);
+      f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(rowData);
+      const out=parse(await f.call('vercel_dev_cleanup',
+        {runId,outsideApp:true,confirm:true,
+         requestKey:'cleanupAudS0000'+(i+1)}));
+      expect(out.confirmed).toBe(false);
+      const row=f.rows.get(runId)[0];
+      expect(row.status).toBe('blocked');
+      expect(row.last_error).toContain(want);
+      expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+      f.fake.verify();
+    }
   });
 });
