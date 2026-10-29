@@ -396,14 +396,27 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     const inspect=async()=>{
       const row=await provider.read('deployments_get',
         {path:{idOrUrl:o.object_id}});
-      const owner=row?.projectId??row?.project?.id;
-      if((row?.uid??row?.id)!==o.object_id||
-         (owner!=null&&owner!==project)||
-         (row.meta!=null&&row.meta.rtc_run!==runId)||
-         !Array.isArray(row.alias)||
-         row.aliases!=null&&(!Array.isArray(row.aliases)||row.aliases.length))
+      // Each arm refuses under its own name (AUD-S): the compound
+      // form recorded one string for five different failures, and
+      // the one live record that trips it cannot be read from any
+      // seat — the recorded refusal has to be the diagnostic.
+      if((row?.uid??row?.id)!==o.object_id)
         throw new PreDispatchRefusal(
-          'Deployment is aliased or no longer identified');
+          'Deployment identity does not match the recorded object (id)');
+      const owner=row?.projectId??row?.project?.id;
+      if(owner!=null&&owner!==project)
+        throw new PreDispatchRefusal(
+          'Deployment identity does not match the recorded object (project)');
+      if(row.meta!=null&&row.meta.rtc_run!==runId)
+        throw new PreDispatchRefusal(
+          'Deployment provenance does not match the run (meta)');
+      if(!Array.isArray(row.alias))
+        throw new PreDispatchRefusal(
+          'Deployment alias list is missing or malformed');
+      if(row.aliases!=null&&
+         (!Array.isArray(row.aliases)||row.aliases.length))
+        throw new PreDispatchRefusal(
+          'Deployment carries a populated aliases field');
       // The documented alias field lists the hostnames assigned to
       // this deployment. Its own unique URL is its identity, not an
       // attachment. Inside the run's own seeded scratch project —
@@ -450,9 +463,11 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
         const ownFamily=h=>name!==false&&
           (h===name+'.vercel.app'||h===canonical||
            h.startsWith(name+'-')&&h.endsWith('.vercel.app'));
-        if(name===false||!foreign.every(ownFamily))
+        const offender=foreign.find(h=>!ownFamily(h));
+        if(name===false||offender!==undefined)
           throw new PreDispatchRefusal(
-            'Deployment is aliased or no longer identified');
+            'Deployment alias outside the project family: '+
+            String(offender??'').slice(0,100));
       }
       // A target beyond preview is acceptable only inside the run's
       // own seeded scratch project (whose first deployment the
