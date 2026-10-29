@@ -35,8 +35,16 @@ function prove(row,expected){
     row.projectId!==expected.project||
     row.project?.id!=null&&row.project.id!==expected.project)
     throw new TypeError('Provider deployment identity or project is unverified');
-  if(row.target!=='preview')
-    throw new TypeError('Only explicit preview deployments can be deleted');
+  // VMCP-028 (AUD-V): 'preview' is a request-side literal only — on
+  // every documented read-back shape a preview deployment's target
+  // is null (the response enum is production/staging/null, per the
+  // lifecycle contract dossier). Demanding the literal made this
+  // proof unsatisfiable against real records. Accept exactly the
+  // two preview forms (null read-back, or 'preview' where a shape
+  // carries it — the deployment-cancel proof's tolerant form);
+  // production, staging, and absent targets all refuse.
+  if(!(row.target===null||row.target==='preview'))
+    throw new TypeError('Only preview deployments can be deleted');
   // A preview can be assigned to an externally serving domain. Absent alias
   // metadata is unknown, not evidence that the deployment is unaliased.
   if(!Array.isArray(row.alias)||row.alias.length!==0||

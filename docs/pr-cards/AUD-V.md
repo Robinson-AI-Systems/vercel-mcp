@@ -1,0 +1,13 @@
+# AUD-V — VMCP-028: vercel_deploy_delete's proof demanded a target value real records never carry
+
+**Finding.** VMCP-028 (candidate, filed 2026-10-28): the standalone deployment-delete tool demands the impossible literal `'preview'`. The lifecycle contract dossier's verdict stands behind it: on every documented response shape a deployment's `target` is one of `production` / `staging` / **null** — `'preview'` is a request-side value only; a preview deployment reads back with target **null**.
+
+**Conviction (from source).** `prove()` in `src/tools/deployment-delete.js` required `row.target === 'preview'`, so no real preview deployment could ever satisfy the deletion proof — the tool was dead against real records while its tests stayed green, because the test fixture's canonical row carried the request-side fiction `target: 'preview'` and its deny-list asserted the real read-back shape (`target: null`) must be refused. Fixture blindness, fifth instance — and the sibling proof in `deployment-cancel.js` already had the correct tolerant form (`target === null || target === 'preview'`).
+
+**Fix.** `prove()` accepts exactly the two preview forms — null (the documented read-back) or `'preview'` (where a shape carries it) — and refuses everything else: `production`, `staging`, and an absent target all still refuse, as do the unchanged state/alias/identity proofs around it. The deny-list's safety intent is untouched; only the impossible demand is gone. The test fixture is remodeled on the real record (canonical row now `target: null`), the deny list swaps null for staging, and a positive case pins the literal form.
+
+**Filed observation (not fixed here).** The same literal appears in read-back checks across the dev-preview family (`dev-integration.js`, `dev-observe-common.js`, `dev-preview-alias.js`, `dev-preview-bypass.js`, `dev-preview-branch.js`). Those tools were not convicted by this finding — each reads records from different call sites (several from create responses, whose shapes may legitimately carry the literal) — so each gets its own shape evidence before any change, per the research-first rule. The cleanup engine's own checks (`dev-runs.js`) compare against the tool's internal journal records, which do carry `'preview'` by construction, and are not affected.
+
+**Acceptance.** Unit-proven in this packet (the happy path now runs on the real read-back shape; production/staging/absent still refuse with no DELETE issued). Live closure rides the bundle release: a terminal, unaliased preview deployment on a scratch project must delete through the tool with `confirmed: true`.
+
+**Status.** Built 2026-10-29 (this PR). Bundles with the AUD-I release train per the owner's batching rule.
