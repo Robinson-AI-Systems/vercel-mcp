@@ -188,7 +188,7 @@ export async function probeToken({ token, teamId, projectId = null, allowFull = 
 }
 
 export async function storeToken({ db, token, teamId, projectId = null,
-  allowFull = false, env = process.env, fetchImpl, baseUrl }) {
+  allowFull = false, env = process.env, fetchImpl, baseUrl, probeExtra = {} }) {
   if (!db?.upsertVercelAccount) throw new TypeError('Durable account storage is required');
   const result = await probeToken({ token, teamId, projectId, allowFull, fetchImpl, baseUrl });
   const id = result.projectId ? result.teamId + '/' + result.projectId : result.teamId;
@@ -202,7 +202,11 @@ export async function storeToken({ db, token, teamId, projectId = null,
         checkedAt: result.checkedAt,
         visibleTeamCount: result.visibleTeamCount,
         visibleProjectCount: result.visibleProjectCount,
-        scopeVerified: false // REST reads cannot prove token's complete privilege set.
+        scopeVerified: false, // REST reads cannot prove token's complete privilege set.
+        // Additive caller-supplied provenance (AUD-I: integration installs
+        // record their installation identity + declared box). Default {}
+        // keeps every existing enrollment's stored shape unchanged.
+        ...probeExtra
       }
     });
   } catch {
