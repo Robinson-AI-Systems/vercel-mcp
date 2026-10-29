@@ -385,7 +385,7 @@ describe('AUD-J first-deployment projectSettings in seed (VMCP-023)',()=>{
     };
     return f;
   }
-  function wireSeed(f,seedRun,name){
+  function wireSeed(f,seedRun,name,createRow){
     const projectRow={id:project,name,accountId:team};
     f.fake.when('GET','/v9/projects/{idOrName}')
       .rejects(404).rejects(404).rejects(404).resolves(projectRow);
@@ -393,7 +393,7 @@ describe('AUD-J first-deployment projectSettings in seed (VMCP-023)',()=>{
     f.fake.when('POST','/v2/files').resolves({urls:['example-upload.aws.com']},200);
     const deploymentRow={id:deployment,projectId:project,target:null,
       readyState:'QUEUED',meta:{rtc_run:seedRun}};
-    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('POST','/v13/deployments').resolves(createRow??deploymentRow);
     f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
   }
   it('sends null-framework projectSettings for a static-site seed',async()=>{
@@ -424,6 +424,21 @@ describe('AUD-J first-deployment projectSettings in seed (VMCP-023)',()=>{
     expect(create.body.projectSettings).toEqual({
       buildCommand:null,devCommand:null,framework:'nextjs',
       installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
+  it('seeds against the documented in-progress create shape (AUD-L)',async()=>{
+    const seedRun='run_20261028_audl000001';
+    const name='rtc-'+seedRun.replaceAll('_','-')+'-static-site';
+    const f=seedFixture();
+    // Branch 0 of the documented create response (vendored snapshot):
+    // still building — id, target and readyState, and NO projectId.
+    // The full shape arrives on verify()'s read-back instead.
+    wireSeed(f,seedRun,name,{id:deployment,target:null,
+      readyState:'BUILDING',aliasAssigned:false,duration:0});
+    const out=parse(await f.call('vercel_dev_seed',
+      {scenario:'static-site',runId:seedRun,outsideApp:true,confirm:true,
+        requestKey:'seedAudL00001'},{...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
     f.fake.verify();
   });
 });

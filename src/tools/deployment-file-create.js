@@ -162,8 +162,11 @@ const create=defineWrite({
         projectSettings:before.projectSettings}
     },{requestKey,tool:'vercel_deploy_create_from_files',shapeResult:row=>{
       const id=row?.id??row?.uid;
+      // The documented create response has an in-progress shape with
+      // no projectId (AUD-L): it must match when carried; the durable
+      // project proof is verify()'s read-back of the full object.
       if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
-        row.projectId!==before.project||
+        (row.projectId!==undefined&&row.projectId!==before.project)||
         !deploymentTargetMatches(row.target,before.target))
         throw new TypeError('Created deployment identity/target unverified');
       return {id};
