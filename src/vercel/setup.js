@@ -117,7 +117,17 @@ function panel(accounts, csrf, message = '', connections = []) {
   return (message ? '<p role="status">' + escapeHtml(message) + '</p>' : '') +
     '<p>Setup is limited to this account owner. Production changes are disabled by default.</p>' +
     '<section><h2>Connected teams</h2>' + list + '</section>' +
-    '<section><h2>Add or rotate a Vercel token</h2><form method="post">' + csrfInput(csrf) +
+    '<section><h2>Connect with a Vercel token (account-wide door)</h2>' +
+    // AUD-I S2: Door 2's guided walk-through — labels and steps only;
+    // the enrollment below is the existing one, unchanged. Setup at
+    // this door contains nothing else: no plans, no matrices.
+    '<ol>' +
+    '<li>On Vercel, open <a href="https://vercel.com/account/tokens">vercel.com/account/tokens</a> and create a token — name it anything.</li>' +
+    '<li>Set its scope to <strong>Full Account</strong> for account-wide control (or pick a narrower scope — the reach is read back and shown before the connection is used).</li>' +
+    '<li>Set its expiration to <strong>your choice — including never</strong>.</li>' +
+    '<li>Paste the token below with the team it should act on, tick the broader-visibility box for a Full Account token, and verify: the server checks what the token can actually reach and shows you the scope it read back.</li>' +
+    '</ol>' +
+    '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="add_token">' +
     '<label>Team ID<input name="teamId" required autocomplete="off"></label>' +
     '<label>Project ID (optional)<input name="projectId" autocomplete="off"></label>' +
@@ -474,7 +484,14 @@ export async function handleSetup(req, res, {
         db, token: params.token, teamId: params.teamId,
         projectId: params.projectId || null, allowFull: params.allowFull === 'yes', env
       });
-      message = 'Token verified and encrypted for ' + result.id;
+      // AUD-I S2: the probe read-back, in plain words — the owner sees
+      // the reach the server actually verified before this connection
+      // is used for anything.
+      message = 'Connected ' + result.team + ' — reach read back as ' +
+        (result.scope === 'full' ? 'Full Account (account-wide)' :
+          result.scope === 'project' ? 'one project (' + (result.project || 'unnamed') + ')' :
+          'one team') +
+        '; token ending ' + result.last4 + ', saved encrypted.';
     } else if (params.action === 'set_default_account') {
       // No MCP/profile argument can stand in for this owner session, CSRF,
       // explicit confirmation and independent passphrase reentry.
