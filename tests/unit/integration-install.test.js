@@ -106,16 +106,62 @@ describe('AUD-I S1: installation enrollment', () => {
     expect(JSON.stringify([...db.rows.values()])).not.toContain(INSTALL_TOKEN);
   });
 
-  it('reports a personal install honestly and stores nothing', async () => {
-    const api = fixture({ teamId: null }), db = fakeDb();
+  it('enrolls a personal install through the user-keyed probe (S1b)', async () => {
+    const api = personalFixture(), db = fakeDb();
     const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
     expect(exchange.teamId).toBe(null);
     const result = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch });
-    expect(result).toEqual({ enrolled: false, kind: 'personal',
-      installationId: 'icfg_FAKE', userId: 'user_FAKE' });
+    expect(result.enrolled).toBe(true);
+    expect(result.kind).toBe('personal');
+    expect(result.account.id).toBe('user_FAKE');
+    const row = db.rows.get('user_FAKE');
+    expect(row.probe.accountKind).toBe('personal');
+    expect(row.probe.source).toBe('integration');
+    expect(row.probe.installationId).toBe('icfg_FAKE');
+    expect(row.probe.declaredBox).toBe('personal');
+    expect(JSON.stringify([...db.rows.values()])).not.toContain(INSTALL_TOKEN);
+    // Every probe call is unscoped: no request carries a teamId.
+    for (const call of api.calls) expect(call.query.teamId).toBeUndefined();
+  });
+
+  it('refuses a personal install whose credential acts for a different user', async () => {
+    const api = personalFixture({ identityId: 'user_SOMEONE_ELSE' }), db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    await expect(enrollInstallation({ db, exchange, env, fetchImpl: api.fetch }))
+      .rejects.toThrow(/does not act for the user/);
+    expect(db.rows.size).toBe(0);
+  });
+
+  it('refuses a personal install with team visibility beyond its box', async () => {
+    const api = personalFixture({ teamsVisible: 1 }), db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    await expect(enrollInstallation({ db, exchange, env, fetchImpl: api.fetch }))
+      .rejects.toThrow(/Broader token visibility/);
     expect(db.rows.size).toBe(0);
   });
 });
+
+// S1b fixture: a personal install — the exchange answers team_id
+// null, the identity read names the installer, the unscoped project
+// list is the personal account's granted set, and (by default) the
+// token sees no teams.
+function personalFixture({ identityId = 'user_FAKE', teamsVisible = 0 } = {}) {
+  const api = makeFakeVercel();
+  api.when('POST', '/v2/oauth/access_token').resolves({
+    token_type: 'Bearer', access_token: INSTALL_TOKEN,
+    installation_id: 'icfg_FAKE', user_id: 'user_FAKE', team_id: null
+  });
+  api.when('GET', '/v2/user').resolves({
+    user: { id: identityId, username: 'installer-fake', name: 'Installer Fake' }
+  });
+  api.when('GET', '/v2/teams').resolves({
+    teams: teamsVisible ? [{ id: 'team_FAKE', slug: 'test-team' }] : []
+  });
+  api.when('GET', '/v10/projects').resolves({
+    projects: [{ id: 'prj_FAKE', name: 'fixture' }], pagination: { next: null }
+  });
+  return api;
+}
 
 describe('AUD-I S1: the callback page', () => {
   function fakeRes() {

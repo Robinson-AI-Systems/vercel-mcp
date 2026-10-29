@@ -24,7 +24,7 @@
 // environment values (VERCEL_INTEGRATION_CLIENT_ID /
 // VERCEL_INTEGRATION_CLIENT_SECRET / VERCEL_INTEGRATION_REDIRECT_URI).
 // They are never logged, never echoed, never returned.
-import { storeToken } from './tokens.js';
+import { storeToken, storePersonalToken } from './tokens.js';
 import { escapeHtml, send } from '../core/http.js';
 import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 
@@ -114,19 +114,30 @@ export async function exchangeInstallCode({ code, env = process.env,
 // standard probe/store path (the installation token sees exactly its
 // own team, so no broader-visibility allowance is requested) with the
 // installation identity recorded on the account's probe record.
-// Personal installs (team_id null) are reported honestly and NOT
-// enrolled by this slice: their account keys on the user, not a team,
-// and their probe path is a separate slice (AUD-I S1b) — never faked
-// through the team probe.
-export async function enrollInstallation({ db, exchange, declaredBox = 'team',
+// Personal installs (team_id null) enroll through the user-keyed
+// probe (AUD-I S1b, tokens.js): identity cross-checked against the
+// exchange's installer claim, account keyed on the user id — never
+// faked through the team probe.
+export async function enrollInstallation({ db, exchange, declaredBox,
   env = process.env, fetchImpl, baseUrl } = {}) {
   if (!exchange || typeof exchange.accessToken !== 'string') {
     throw new IntegrationError('exchange_malformed',
       'No exchanged installation to enroll');
   }
   if (exchange.teamId === null) {
-    return { enrolled: false, kind: 'personal',
-      installationId: exchange.installationId, userId: exchange.userId };
+    const receipt = await storePersonalToken({
+      db, token: exchange.accessToken, userId: exchange.userId, env,
+      ...(fetchImpl ? { fetchImpl } : {}),
+      ...(baseUrl ? { baseUrl } : {}),
+      probeExtra: {
+        source: 'integration',
+        installationId: exchange.installationId,
+        installerUserId: exchange.userId,
+        declaredBox: declaredBox ?? 'personal'
+      }
+    });
+    return { enrolled: true, kind: 'personal',
+      installationId: exchange.installationId, account: receipt };
   }
   const receipt = await storeToken({
     db, token: exchange.accessToken, teamId: exchange.teamId, env,
@@ -136,7 +147,7 @@ export async function enrollInstallation({ db, exchange, declaredBox = 'team',
       source: 'integration',
       installationId: exchange.installationId,
       installerUserId: exchange.userId,
-      declaredBox
+      declaredBox: declaredBox ?? 'team'
     }
   });
   return { enrolled: true, kind: 'team', installationId: exchange.installationId,
@@ -186,11 +197,10 @@ export async function handleIntegrationCallback(req, res, { db,
       '<p>' + escapeHtml(err?.message ||
         'The installed credential could not be verified or saved.') + '</p>');
   }
-  if (!result.enrolled) {
-    return html(res, 200, 'Personal install received',
-      '<p>Your Vercel integration installed on your <strong>personal account</strong>. ' +
-      'Personal installs are recorded here but are not enrolled as a connection yet — ' +
-      'install on a <strong>team</strong> to connect today. Nothing was stored.</p>');
+  if (result.kind === 'personal') {
+    return html(res, 200, 'Connected',
+      '<p>Your Vercel <strong>personal account</strong> is connected. ' +
+      'You can close this page and return to your assistant.</p>');
   }
   return html(res, 200, 'Connected',
     '<p>Your Vercel team is connected. You can close this page and return to your assistant.</p>');
