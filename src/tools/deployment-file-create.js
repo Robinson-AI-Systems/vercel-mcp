@@ -177,8 +177,10 @@ const create=defineWrite({
     const {client,account}=await readProvider(ctx);
     if(account.team_id!==before.teamId)return {confirmed:null};
     const row=await client.request('deployments_get',{path:{idOrUrl:created.id}});
+    // projectId is required when the read-back carries it; the
+    // documented in-progress and reduced shapes do not (AUD-M).
     return {confirmed:(row?.uid??row?.id)===created.id&&
-      row.projectId===before.project&&
+      (row.projectId==null||row.projectId===before.project)&&
       deploymentTargetMatches(row.target,before.target),
       deployment:created.id};
   }

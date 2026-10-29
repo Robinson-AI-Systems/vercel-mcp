@@ -330,3 +330,26 @@ describe('AUD-L in-progress create shape (VMCP-023)',()=>{
     f.fake.verify();
   });
 });
+
+describe('AUD-M verify read-back shapes (VMCP-023)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();
+    loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
+  it('confirms when the read-back arrives in the in-progress shape',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    const deploymentId='dpl_FAKEDEPLOY01';
+    f.fake.when('POST','/v13/deployments').resolves({
+      id:deploymentId,projectId:project,target:null,readyState:'QUEUED',
+      url:'my-app-git-preview.vercel.app'});
+    // The verify read-back is still building: no projectId carried.
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      id:deploymentId,target:null,readyState:'BUILDING'});
+    const out=decode(await f.call({...args,confirm:true},
+      {...connection,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+});

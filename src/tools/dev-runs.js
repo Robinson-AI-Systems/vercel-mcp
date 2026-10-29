@@ -240,20 +240,33 @@ const seed=defineWrite({
       client.request('projects_get',{path:{idOrName:r.projectId}}),
       client.request('deployments_get',{path:{idOrUrl:r.deploymentId}}),
       ctx.db.listDevRunObjects({account:scope(ctx),id:b.runId})]);
+    // The documented deployments_get response has three shapes; only
+    // the full one carries projectId and meta (AUD-M): both are
+    // required when carried. The provider promotes a project's first
+    // deployment to production, so the fixture confirms on the
+    // promoted target too — identity rides on the id, the run meta
+    // and the run's own recorded objects.
     return {confirmed:project?.id===r.projectId&&project.name===b.name&&
       (deployment?.uid??deployment?.id)===r.deploymentId&&
-      deployment.projectId===r.projectId&&
-      deploymentTargetMatches(deployment.target,'preview')&&
-      deployment.meta?.rtc_run===b.runId&&
+      (deployment.projectId==null||deployment.projectId===r.projectId)&&
+      (deploymentTargetMatches(deployment.target,'preview')||
+        deployment.target==='production')&&
+      (deployment.meta==null||deployment.meta.rtc_run===b.runId)&&
       objects.some(o=>o.object_id===r.projectId&&o.object_type==='project')&&
       objects.some(o=>o.object_id===r.deploymentId&&o.object_type==='deployment')};
   }
 });
 async function deleteExactObject(o,ctx,provider,runId,teamId){
-  if(o.status==='uncertain')return 'Prior provider outcome is uncertain; manual readback required';
+  // An uncertain PROJECT or INTENT object reconciles by inspection in
+  // this same flow (AUD-M): intents never dispatch, and a project
+  // delete is re-proven by read-back — absent means the feared delete
+  // landed (cleaned below, no new dispatch); present means inspected,
+  // then deleted exactly once in this pass. Other types keep the
+  // manual rule: uncertain POST/DELETE outcomes are never retried.
+  if(o.status==='uncertain'&&!['project','intent'].includes(o.object_type))
+    return 'Prior provider outcome is uncertain; manual readback required';
   // A newly confirmed cleanup call may re-prove a previously blocked object.
-  // Uncertain POST/DELETE outcomes are never automatically retried.
-  if(!['active','blocked'].includes(o.status))
+  if(!['active','blocked','uncertain'].includes(o.status))
     return 'Only active or previously blocked objects can be inspected for cleanup';
   // A project-creation intent is recorded before its project exists, so
   // it carries no project_id: reconcile it ahead of the project-identity
@@ -268,7 +281,8 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
       {account:scope(ctx),id:runId});
     let row=null;
     try{row=await provider.read('projects_get',{path:{idOrName:name}});}
-    catch(e){if(e?.status!==404)throw e;}
+    catch(e){if(e?.status!==404)
+      return 'Creation intent target could not be inspected';}
     if(!row)return null;
     if(recorded.some(x=>x.object_type==='project'&&x.object_id===row.id))
       return null;
@@ -286,11 +300,13 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
       const [alias,target]=await Promise.all([
         provider.read('release_alias_get',{path:{idOrAlias:o.object_id}}),
         provider.read('deployments_get',{path:{idOrUrl:deploy}})]);
+      const targetProject=target?.projectId??target?.project?.id;
       if((alias?.uid??alias?.id)!==o.object_id||alias.alias!==name||
          (alias.deploymentId??alias.deployment?.id)!==deploy||
          (target?.uid??target?.id)!==deploy||
-         target.projectId!==project||
-         !deploymentTargetMatches(target.target,'preview'))
+         (targetProject!=null&&targetProject!==project)||
+         !(deploymentTargetMatches(target.target,'preview')||
+           target.target==='production'))
         throw new PreDispatchRefusal('Alias no longer resolves exclusively to recorded preview');
     };
     try{await inspect();}catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
@@ -357,19 +373,33 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     return null;
   }
   if(o.object_type==='deployment'){
-    const row=await provider.read('deployments_get',{path:{idOrUrl:o.object_id}});
-    if((row?.uid??row?.id)!==o.object_id||row.projectId!==project||
-       !deploymentTargetMatches(row.target,'preview')||
-       !Array.isArray(row.alias)||row.alias.length||
-       row.aliases!=null&&(!Array.isArray(row.aliases)||row.aliases.length))
-      return 'Deployment is serving, production, aliased or no longer identified';
-    await requirePreDispatch(async()=>{
-      const fresh=await provider.read('deployments_get',{path:{idOrUrl:o.object_id}});
-      if((fresh?.uid??fresh?.id)!==o.object_id||fresh.projectId!==project||
-         !deploymentTargetMatches(fresh.target,'preview')||
-         !Array.isArray(fresh.alias)||fresh.alias.length)
-        throw new Error('Preview safety proof changed');
-    });
+    // Identity is the id plus the run's recorded provenance: the
+    // documented read-back shapes carry projectId only in the full
+    // shape (the reduced shape carries project.id instead) and meta
+    // in two of three, so both are required when carried (AUD-M).
+    // The provider promotes a run's first deployment to production,
+    // so the target is not an identity proof inside the run's own
+    // scratch project. The alias demand is carried by every
+    // documented shape and stays absolute.
+    const inspect=async()=>{
+      const row=await provider.read('deployments_get',
+        {path:{idOrUrl:o.object_id}});
+      const owner=row?.projectId??row?.project?.id;
+      if((row?.uid??row?.id)!==o.object_id||
+         (owner!=null&&owner!==project)||
+         (row.meta!=null&&row.meta.rtc_run!==runId)||
+         !Array.isArray(row.alias)||row.alias.length||
+         row.aliases!=null&&(!Array.isArray(row.aliases)||row.aliases.length))
+        throw new PreDispatchRefusal(
+          'Deployment is aliased or no longer identified');
+      return row;
+    };
+    try{await inspect();}catch(e){
+      if(e instanceof PreDispatchRefusal)return e.message;
+      if(e?.status===404)return null;
+      throw e;
+    }
+    await requirePreDispatch(inspect);
     await provider.write('deployments_delete',{path:{id:o.object_id}},
       {requestKey:ctx.cleanupKey,tool:'vercel_dev_cleanup',mutationId:'delete-deployment-'+o.object_id,
         shapeResult:()=>({deleted:true})});
@@ -416,7 +446,18 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     if(typeof name!=='string'||!name.startsWith('rtc-'+runId.replaceAll('_','-')+'-'))
       return 'Missing deterministic scratch project provenance';
     const bound={client:{request:(id,params)=>provider.read(id,params)},account:provider.account};
-    const initial=await inspectProjectForDeletion(ctx,project,bound);
+    // Absence is a complete proof for a recorded scratch project —
+    // including for an uncertain object, where it means the feared
+    // delete actually landed and nothing must be dispatched (AUD-M):
+    // every read inside the inspect 404s on a missing project. A
+    // failed inspection is a pre-dispatch proof failure: blocked,
+    // never uncertain — uncertainty is reserved for post-dispatch doubt.
+    let initial;
+    try{initial=await inspectProjectForDeletion(ctx,project,bound);}
+    catch(e){
+      if(e?.status===404)return null;
+      return 'Project resource inventory could not be proven complete';
+    }
     if(initial.id!==project||initial.name!==name||!initial.empty)
       return 'Project resource inventory is incomplete, live or no longer empty';
     await requirePreDispatch(async()=>{
@@ -438,15 +479,19 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     // target is absent, or present and recorded as its own object in
     // this run. An existing but unrecorded target stays blocked for
     // manual reconciliation: cleanup never deletes or ignores an
-    // unrecorded resource. An absence that cannot be proven throws and
-    // lands in the caller's uncertain handling, like any other object.
+    // unrecorded resource. An absence that cannot be proven returns
+    // blocked: nothing has dispatched, so there is no outcome to be
+    // uncertain about (AUD-M).
     const operation=o.detail?.operation;
     const recorded=await ctx.db.listDevRunObjects(
       {account:scope(ctx),id:runId});
     if(operation==='deployments_create'&&typeof o.project_id==='string'){
-      const page=await provider.read('deployments_list',
-        {query:{projectId:o.project_id,limit:100}});
-      countComplete(page,'deployments');
+      let page;
+      try{
+        page=await provider.read('deployments_list',
+          {query:{projectId:o.project_id,limit:100}});
+        countComplete(page,'deployments');
+      }catch{return 'Creation intent deployments could not be inspected';}
       const mine=page.deployments.filter(d=>d?.meta?.rtc_run===runId);
       if(!mine.length)return null;
       if(mine.every(d=>recorded.some(x=>x.object_type==='deployment'&&
@@ -534,7 +579,11 @@ const cleanup=defineWrite({
           obj.status='blocked';
           continue;
         }
-        if(obj.status==='uncertain'){
+        // Uncertain project and intent objects reconcile by inspection
+        // inside deleteExactObject (AUD-M); every other type keeps the
+        // manual-readback stop here.
+        if(obj.status==='uncertain'&&
+           !['project','intent'].includes(obj.object_type)){
           outcomes.push({runId:group.id,type:obj.object_type,
             id:obj.object_id,status:'uncertain'});
           continue;

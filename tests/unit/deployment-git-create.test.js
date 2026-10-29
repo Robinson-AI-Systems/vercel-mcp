@@ -148,3 +148,23 @@ describe('AUD-L in-progress create shape (VMCP-023)',()=>{
     f.fake.verify();
   });
 });
+
+describe('AUD-M verify read-back shapes (VMCP-023)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();
+    loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
+  it('confirms when the read-back arrives in the in-progress shape',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v13/deployments').resolves({
+      id:'dpl_FAKEGITDEP01',projectId:project,target:null,
+      readyState:'QUEUED'});
+    // The verify read-back is still building: no projectId carried.
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      id:'dpl_FAKEGITDEP01',target:null,readyState:'BUILDING'});
+    const out=decode(await f.call({...args,confirm:true},
+      {...connection,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+});
