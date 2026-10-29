@@ -7,7 +7,7 @@ vi.mock('../../src/vercel/tokens.js',async old=>({...await old(),loadToken:vi.fn
 const connection={account:'acct_FAKE',mode:'production',profile:'full',listing:'catalog'};
 const token={token:'vcp_FAKE_project',account:{id:'acct_FAKE',team_id:'team_FAKE',scope:'team'}};
 const project={id:'prj_FAKE_EMPTY',name:'empty-site',hasDeployments:false,
-  link:null,crons:{definitions:[]},storageConnections:[]};
+  link:null,crons:{definitions:[]}};
 const request={project:project.id,expectedName:project.name,outsideApp:true,
   confirm:true,requestKey:'FAKE_empty_delete_key'};
 const parse=r=>JSON.parse(r.content[0].text);
@@ -37,10 +37,27 @@ function fixture({deploymentResponse={deployments:[],pagination:{next:null,count
 }
 describe('D-1m destructive empty-project deletion',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
-  it('treats every populated storage alias as a blocker for irreversible deletion',async()=>{
+  it('deletes a documented-shape project that omits every optional field (AUD-K)',async()=>{
+    // The documented project schema does not require link, crons or
+    // hasDeployments and has no storage fields at all (VMCP-027): a
+    // minimal real record must pass the proof on its list inventories.
+    const minimal={id:project.id,name:project.name,accountId:'team_FAKE'};
+    const f=fixture();
+    f.projectRule.resolves(minimal).resolves(minimal).rejects(404);
+    f.domainRule.resolves({domains:[],pagination:{next:null,count:0}})
+      .resolves({domains:[],pagination:{next:null,count:0}});
+    f.envRule.resolves({envs:[],pagination:{next:null,count:0}})
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.deleteRule.resolves(undefined,204);
+    const result=parse(await f.call());
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('refuses a cron-carrying or git-linked record on the confirm path (AUD-K)',async()=>{
     for(const extra of [
-      {storageConnections:[],stores:[{id:'store_FAKE'}]},
-      {storageConnections:[{id:'store_FAKE'}],stores:[]}
+      {crons:{definitions:[{path:'/job',schedule:'0 0 * * *'}]}},
+      {link:{type:'github',repo:'owner/repo'}}
     ]){
       const f=fixture();
       f.projectRule.resolves({...project,...extra});
@@ -48,17 +65,9 @@ describe('D-1m destructive empty-project deletion',()=>{
       f.envRule.resolves({envs:[],pagination:{next:null,count:0}});
       const result=parse(await f.call());
       expect(result.status).toBe('refused_by_guard');
-      expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
       expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
       f.fake.verify();
     }
-  });
-  it('rejects malformed secondary storage inventory instead of trusting a clear alias',async()=>{
-    const f=fixture();
-    f.projectRule.resolves({...project,stores:{malformed:true}});
-    const result=parse(await f.call());
-    expect(result.status).toBe('refused_by_guard');
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
   });
   it('requires full impact inspection twice, one DELETE and independent 404 proof',async()=>{
     const f=fixture();
@@ -111,8 +120,7 @@ describe('D-1m destructive empty-project deletion',()=>{
   });
   it('shows nonempty impact only in dry-run, without enabling deletion',async()=>{
     const f=fixture();
-    f.projectRule.resolves({...project,crons:{definitions:[{path:'/job',schedule:'0 0 * * *'}]},
-      storageConnections:[{id:'store_FAKE',secret:'NEVER_OUTPUT'}]});
+    f.projectRule.resolves({...project,crons:{definitions:[{path:'/job',schedule:'0 0 * * *'}]}});
     f.domainRule.resolves({domains:[{name:'demo.example'}],pagination:{next:null,count:1}});
     f.envRule.resolves({envs:[{key:'API_KEY',value:'NEVER_OUTPUT'}],pagination:{next:null,count:1}});
     const preview=parse(await f.call({...request,dryRun:true,confirm:false}));
@@ -120,21 +128,16 @@ describe('D-1m destructive empty-project deletion',()=>{
     expect(preview.preview).toContain('NOT ELIGIBLE');
     expect(preview.preview).toContain('domains: 1');
     expect(preview.preview).toContain('envVariables: 1');
-    expect(preview.preview).toContain('storageConnections: 1');
     expect(preview.preview).toContain('crons: 1');
     expect(preview.preview).toContain('deployments: 0');
     expect(JSON.stringify(preview)).not.toContain('NEVER_OUTPUT');
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
-    const g=fixture();g.projectRule.resolves({...project,storageConnections:[{id:'store_FAKE'}]});
+    const g=fixture();g.projectRule.resolves({...project,
+      crons:{definitions:[{path:'/job',schedule:'0 0 * * *'}]}});
     g.domainRule.resolves({domains:[],pagination:{next:null,count:0}});
     g.envRule.resolves({envs:[],pagination:{next:null,count:0}});
     expect(parse(await g.call({...request,confirm:true})).status).toBe('refused_by_guard');
     expect(g.fake.calls.every(x=>x.method==='GET')).toBe(true);
-  });
-  it('does not equate missing Git linkage with proven unlinked state',async()=>{
-    const f=fixture();f.projectRule.resolves({...project,link:undefined});
-    expect(parse(await f.call()).status).toBe('refused_by_guard');
-    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
   });
   it('rejects missing, contradictory or oversized env/domain inventories',async()=>{
     for(const field of ['domains','envs']){

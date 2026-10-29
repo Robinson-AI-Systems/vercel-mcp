@@ -32,7 +32,7 @@ function context({db,connection,env,fetchImpl}){
     guardProtected:targets=>checkProtected(targets,{db,connection,env}),
     guardApp:targets=>checkApp(targets,{db,connection,env})};
 }
-function countComplete(reply,key){
+export function countComplete(reply,key){
   const rows=reply?.[key];
   // Missing pagination metadata is NOT proof that the provider returned its
   // entire resource collection. This gate protects irreversible deletion.
@@ -66,20 +66,21 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
   if(typeof row?.id!=='string'||!ID.test(row.id)||
     typeof row.name!=='string'||!NAME.test(row.name))
     throw new TypeError('Project identity not independently available');
-  // A generic project GET does not prove storage/cron absence. The explicit
-  // arrays are mandatory; missing, unknown or paginated resource data refuses.
-  // Vercel project responses can expose both legacy stores and newer
-  // storageConnections. Never let an empty preferred alias conceal a nonempty
-  // secondary inventory during irreversible deletion.
-  const storageKeys=['storageConnections','stores'].filter(key=>Object.hasOwn(row,key));
-  if(!storageKeys.length||storageKeys.some(key=>!Array.isArray(row[key])))
-    throw new TypeError('Cannot prove complete project storage inventory');
-  const storageCount=Math.max(...storageKeys.map(key=>row[key].length));
-  const cron=row.crons?.definitions;
-  if(!Array.isArray(cron)||
-    typeof row.hasDeployments!=='boolean'||
-    !Object.hasOwn(row,'link')||row.link===undefined)
-    throw new TypeError('Cannot establish complete project resource inventory');
+  // The record-based part of the proof reads only fields the documented
+  // project schema carries (AUD-K / VMCP-027): an earlier version demanded
+  // storageConnections/stores arrays the schema does not contain at all, so
+  // the proof could never pass against a real project. link and crons are
+  // documented but NOT required fields: absent or null counts as none,
+  // while a present crons object must still prove its definitions array.
+  // Storage has no documented record field and no list operation in this
+  // server's table, so it is outside this proof; store wiring surfaces as
+  // project environment variables, which the env inventory below covers.
+  let cronCount=0;
+  if(row.crons!=null){
+    if(!Array.isArray(row.crons.definitions))
+      throw new TypeError('Cannot establish complete project resource inventory');
+    cronCount=row.crons.definitions.length;
+  }
   const domains=await client.request('projects_domains_list',{
     path:{idOrName:row.id},query:{limit:100}});
   const env=await client.request('projects_env_list',{path:{idOrName:row.id}});
@@ -96,11 +97,12 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
     throw new TypeError('Cannot prove scoped project deployment inventory');
   const inventory={
     deployments:deploymentCount,
-    git:row.link!=null?1:0,crons:cron.length,storageConnections:storageCount,
+    git:row.link!=null?1:0,crons:cronCount,
     domains:countDomains,envVariables:countEnvs
   };
   return {id:row.id,name:row.name,inventory,
-    empty:!row.hasDeployments&&Object.values(inventory).every(n=>n===0)};
+    empty:row.hasDeployments!==true&&
+      Object.values(inventory).every(n=>n===0)};
 }
 const deletion=defineWrite({
   name:'vercel_project_delete',

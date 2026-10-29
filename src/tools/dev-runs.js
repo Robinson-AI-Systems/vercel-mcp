@@ -12,7 +12,7 @@ import {validateRequest} from '../vercel/openapi-validation.js';
 import {seedManifest,DEV_SCENARIOS} from '../dev/scenarios.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {inspectProjectForDeletion} from './project-delete.js';
+import {inspectProjectForDeletion,countComplete} from './project-delete.js';
 import {decryptSecret} from '../core/secret-box.js';
 
 const RUN=/^run_[0-9]{8}_[a-z0-9]{6,24}$/;
@@ -252,6 +252,25 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
   // Uncertain POST/DELETE outcomes are never automatically retried.
   if(!['active','blocked'].includes(o.status))
     return 'Only active or previously blocked objects can be inspected for cleanup';
+  // A project-creation intent is recorded before its project exists, so
+  // it carries no project_id: reconcile it ahead of the project-identity
+  // guard every other object must pass (AUD-K review fix).
+  if(o.object_type==='intent'&&o.detail?.operation==='projects_create'){
+    if(provider.account.team_id!==teamId)
+      return 'Selected team/project identity unavailable';
+    const name=o.detail?.name;
+    if(typeof name!=='string')
+      return 'Creation intent cannot be reconciled from its recorded detail';
+    const recorded=await ctx.db.listDevRunObjects(
+      {account:scope(ctx),id:runId});
+    let row=null;
+    try{row=await provider.read('projects_get',{path:{idOrName:name}});}
+    catch(e){if(e?.status!==404)throw e;}
+    if(!row)return null;
+    if(recorded.some(x=>x.object_type==='project'&&x.object_id===row.id))
+      return null;
+    return 'Creation intent target exists but was never recorded; manual reconciliation required';
+  }
   const project=o.project_id;
   if(!project||provider.account.team_id!==teamId)
     return 'Selected team/project identity unavailable';
@@ -409,6 +428,30 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     catch(e){if(e?.status===404)return null;throw e;}
     return 'Scratch project still exists after deletion';
   }
+  if(o.object_type==='intent'){
+    // A creation intent is a bookkeeping checkpoint, not a provider
+    // resource (AUD-K / VMCP-027): it reconciles only when the intended
+    // creation is proven to have produced nothing unrecorded — its
+    // target is absent, or present and recorded as its own object in
+    // this run. An existing but unrecorded target stays blocked for
+    // manual reconciliation: cleanup never deletes or ignores an
+    // unrecorded resource. An absence that cannot be proven throws and
+    // lands in the caller's uncertain handling, like any other object.
+    const operation=o.detail?.operation;
+    const recorded=await ctx.db.listDevRunObjects(
+      {account:scope(ctx),id:runId});
+    if(operation==='deployments_create'&&typeof o.project_id==='string'){
+      const page=await provider.read('deployments_list',
+        {query:{projectId:o.project_id,limit:100}});
+      countComplete(page,'deployments');
+      const mine=page.deployments.filter(d=>d?.meta?.rtc_run===runId);
+      if(!mine.length)return null;
+      if(mine.every(d=>recorded.some(x=>x.object_type==='deployment'&&
+        x.object_id===(d.uid??d.id))))return null;
+      return 'Creation intent target exists but was never recorded; manual reconciliation required';
+    }
+    return 'Creation intent cannot be reconciled from its recorded detail';
+  }
   return 'This resource type requires its own guarded lifecycle before cleanup';
 }
 const cleanup=defineWrite({
@@ -429,7 +472,17 @@ const cleanup=defineWrite({
       // bypass revocation evidence) directly from the owner-scoped database.
       groups.push({id:r.id,objects:objects.map(o=>({
         object_type:o.object_type,object_id:o.object_id,
-        project_id:o.project_id,status:o.status,created_at:o.created_at
+        project_id:o.project_id,status:o.status,created_at:o.created_at,
+        // An intent's write target is the project it concerned (AUD-K):
+        // derived here, while the private detail is in hand, so an
+        // intent-only run still identifies its targets to the guard.
+        ...(o.object_type==='intent'?{intent_target:
+          o.detail?.operation==='projects_create'&&
+            typeof o.detail?.name==='string'
+            ?{kind:'project',id:o.detail.name,name:o.detail.name}
+            :o.detail?.operation==='deployments_create'&&
+              typeof o.project_id==='string'
+            ?{kind:'project',id:o.project_id}:null}:{})
       }))});
     }
     if(!groups.length)throw new TypeError('No active owned development runs eligible for cleanup');
@@ -441,11 +494,17 @@ const cleanup=defineWrite({
       '. Untracked or production/serving resources are never touched; failures and ambiguous results remain recorded.';
   },
   async production(){return {production:false,why:'Recorded preview fixtures only, with live-state rechecks'};},
-  async targets(_a,b){return b.groups.flatMap(g=>g.objects
+  async targets(_a,b){const base=b.groups.flatMap(g=>g.objects
     .filter(o=>o.object_type!=='intent')
     .map(o=>o.object_type==='bypass'
       ?{kind:'project',id:o.project_id}
-      :{kind:o.object_type,id:o.object_id,projectId:o.project_id}));},
+      :{kind:o.object_type,id:o.object_id,projectId:o.project_id}));
+    for(const g of b.groups)for(const o of g.objects){
+      if(o.object_type==='intent'&&o.intent_target&&
+        !base.some(x=>x.kind===o.intent_target.kind&&
+          x.id===o.intent_target.id))base.push(o.intent_target);
+    }
+    return base;},
   async apply(_a,ctx,b,requestKey){
     const provider=await writeProvider(ctx);
     const outcomes=[];
@@ -457,7 +516,11 @@ const cleanup=defineWrite({
            o.object_type,o.object_id,o.project_id,o.status])))
         throw new PreDispatchRefusal('Run objects changed after confirmation');
       // Each record is handled separately; never infer a missing object from a tag.
-      for(const obj of objects){
+      // Intents reconcile first (AUD-K): the project guard below must see
+      // their reconciled state, not the state loaded at confirmation time.
+      const ordered=[...objects.filter(o=>o.object_type==='intent'),
+        ...objects.filter(o=>o.object_type!=='intent')];
+      for(const obj of ordered){
         if(obj.status==='cleaned')continue;
         if(obj.object_type==='project'&&objects.some(x=>
            x.object_type==='intent'&&x.status!=='cleaned')){
@@ -465,6 +528,7 @@ const cleanup=defineWrite({
           await ctx.db.setDevRunObjectOutcome({account:scope(ctx),id:group.id,
             type:obj.object_type,objectId:obj.object_id,status:'blocked',
             error:'Unresolved provider creation intent exists in this run'});
+          obj.status='blocked';
           continue;
         }
         if(obj.status==='uncertain'){
@@ -484,6 +548,7 @@ const cleanup=defineWrite({
         const status=reason?(uncertain?'uncertain':'blocked'):'cleaned';
         await ctx.db.setDevRunObjectOutcome({account:scope(ctx),id:group.id,
           type:obj.object_type,objectId:obj.object_id,status,error:reason});
+        obj.status=status;
         outcomes.push({runId:group.id,type:obj.object_type,id:obj.object_id,status});
       }
       await ctx.db.completeDevRunCleanup({account:scope(ctx),id:group.id});

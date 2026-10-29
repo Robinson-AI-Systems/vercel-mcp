@@ -160,7 +160,7 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     const f=fixture([object('project',project,project,{name})]);
     f.fake.when('GET','/v9/projects/{idOrName}').resolves({
       id:project,name,accountId:team,link:{type:'github',repo:'foreign/repo'},
-      hasDeployments:false,stores:[],crons:{definitions:[]}});
+      hasDeployments:false,crons:{definitions:[]}});
     // Full reusable project-deletion inspector requires complete independent
     // domain, environment and deployment pages even when Git linkage is known.
     f.fake.when('GET','/v9/projects/{idOrName}/domains')
@@ -181,7 +181,7 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
     const f=fixture([object('project',project,project,{name})]);
     const empty={id:project,name,accountId:team,link:null,
-      hasDeployments:false,storageConnections:[],crons:{definitions:[]}};
+      hasDeployments:false,crons:{definitions:[]}};
     f.fake.when('GET','/v9/projects/{idOrName}')
       .resolves(empty).resolves(empty).rejects(404);
     for(const [path,field] of [
@@ -424,6 +424,77 @@ describe('AUD-J first-deployment projectSettings in seed (VMCP-023)',()=>{
     expect(create.body.projectSettings).toEqual({
       buildCommand:null,devCommand:null,framework:'nextjs',
       installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
+});
+
+describe('AUD-K cleanup intent reconciliation (VMCP-027)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();loadToken.mockResolvedValue({
+    token:'vcp_FAKE_owner',account:{id:account,team_id:team,scope:'team'}});});
+  const scratchName='rtc-'+runId.replaceAll('_','-')+'-static-site';
+  function emptyLists(f){
+    f.fake.when('GET','/v9/projects/{idOrName}/domains')
+      .resolves({domains:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v10/projects/{idOrName}/env')
+      .resolves({envs:[],pagination:{next:null,count:0}});
+  }
+  it('cleans a failed seed run in one pass: intent reconciles on proven absence, then the project deletes',async()=>{
+    const f=fixture([
+      object('project',project,project,{name:scratchName}),
+      object('intent','intent-deployment-'+scratchName,project,
+        {operation:'deployments_create',name:scratchName,target:'preview'})
+    ]);
+    const row={id:project,name:scratchName,accountId:team,link:null};
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves(row).resolves(row).rejects(404);
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null,count:0}});
+    emptyLists(f);
+    f.fake.when('DELETE','/v9/projects/{idOrName}').resolves({},204);
+    const out=parse(await f.call('vercel_dev_cleanup',{
+      runId,outsideApp:true,confirm:true,requestKey:'cleanupAudK00001'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(true);
+    const rows=f.rows.get(runId);
+    expect(rows.find(o=>o.object_type==='intent').status).toBe('cleaned');
+    expect(rows.find(o=>o.object_type==='project').status).toBe('cleaned');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(1);
+    f.fake.verify();
+  });
+  it('blocks intent and project, deleting nothing, when the intent target exists unrecorded',async()=>{
+    const f=fixture([
+      object('project',project,project,{name:scratchName}),
+      object('intent','intent-deployment-'+scratchName,project,
+        {operation:'deployments_create',name:scratchName,target:'preview'})
+    ]);
+    f.fake.when('GET','/v7/deployments').resolves({
+      deployments:[{id:'dpl_UNRECORDED',projectId:project,target:null,
+        meta:{rtc_run:runId}}],
+      pagination:{next:null,count:1}});
+    const out=parse(await f.call('vercel_dev_cleanup',{
+      runId,outsideApp:true,confirm:true,requestKey:'cleanupAudK00002'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(false);
+    const rows=f.rows.get(runId);
+    expect(rows.find(o=>o.object_type==='intent').status).toBe('blocked');
+    expect(rows.find(o=>o.object_type==='project').status).toBe('blocked');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('reconciles a lone project-creation intent when the project is absent',async()=>{
+    // The seed records a project-creation intent with NO projectId
+    // (project_id: null): reconciliation must not demand one.
+    const f=fixture([
+      object('intent','intent-project-'+scratchName,null,
+        {operation:'projects_create',name:scratchName})
+    ]);
+    f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
+    const out=parse(await f.call('vercel_dev_cleanup',{
+      runId,outsideApp:true,confirm:true,requestKey:'cleanupAudK00003'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(true);
+    expect(f.rows.get(runId)[0].status).toBe('cleaned');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
     f.fake.verify();
   });
 });
