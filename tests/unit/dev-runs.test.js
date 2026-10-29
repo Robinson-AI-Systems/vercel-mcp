@@ -496,6 +496,19 @@ describe('AUD-J first-deployment projectSettings in seed (VMCP-023)',()=>{
     expect(out).toMatchObject({status:'applied',confirmed:false});
     f.fake.verify();
   });
+  it('still refuses a read-back naming another project via project.id (PR #255 review)',async()=>{
+    const seedRun='run_20261028_audm000005';
+    const name='rtc-'+seedRun.replaceAll('_','-')+'-static-site';
+    const f=seedFixture();
+    wireSeed(f,seedRun,name,undefined,{id:deployment,
+      project:{id:'prj_FAKEOTHER'},target:null,readyState:'READY',
+      meta:{rtc_run:seedRun}});
+    const out=parse(await f.call('vercel_dev_seed',
+      {scenario:'static-site',runId:seedRun,outsideApp:true,confirm:true,
+        requestKey:'seedAudM00005'},{...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:false});
+    f.fake.verify();
+  });
 });
 
 describe('AUD-K cleanup intent reconciliation (VMCP-027)',()=>{
@@ -665,8 +678,10 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
       .resolves(promoted).resolves(promoted).rejects(404);
     f.fake.when('DELETE','/v13/deployments/{id}').resolves({},204);
     const row={id:project,name:scratchName,accountId:team,link:null};
+    // Two deployment-branch scratch proofs (target production) plus
+    // the project inspect pair, then the post-delete 404.
     f.fake.when('GET','/v9/projects/{idOrName}')
-      .resolves(row).resolves(row).rejects(404);
+      .resolves(row).resolves(row).resolves(row).resolves(row).rejects(404);
     f.fake.when('GET','/v7/deployments')
       .resolves({deployments:[],pagination:{next:null,count:0}});
     emptyLists(f);
@@ -719,6 +734,48 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(1);
     f.fake.verify();
   });
+  it('refuses a production deployment in an existing user project (PR #255 review)',async()=>{
+    // Dev-preview runs record deployments in ordinary projects: a
+    // preview later promoted there keeps the production refusal.
+    const f=fixture([object('deployment',deployment,project,{target:'preview'})]);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      id:deployment,projectId:project,target:'production',alias:[],
+      readyState:'READY'});
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves({
+      id:project,name:'existing-app',accountId:team,link:null});
+    const out=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'cleanupAudM00007'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(false);
+    expect(f.rows.get(runId)[0].status).toBe('blocked');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('blocks, never cleans, a project whose inventory read 404s (PR #255 review)',async()=>{
+    // Only the project identity lookup can prove absence; an env
+    // inventory 404 says nothing about the project itself.
+    const f=fixture([
+      withStatus(object('intent','intent-project-'+scratchName,null,
+        {operation:'projects_create',name:scratchName}),'cleaned'),
+      object('project',project,project,{name:scratchName})
+    ]);
+    const row={id:project,name:scratchName,accountId:team,link:null};
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(row);
+    f.fake.when('GET','/v9/projects/{idOrName}/domains')
+      .resolves({domains:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v10/projects/{idOrName}/env').rejects(404);
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null,count:0}});
+    const out=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'cleanupAudM00008'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(false);
+    const rows=f.rows.get(runId);
+    expect(rows.find(o=>o.object_type==='project').status).toBe('blocked');
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
 });
+
 
 

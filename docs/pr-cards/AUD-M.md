@@ -41,3 +41,11 @@ Status: IMPLEMENTED 2026-10-28 (branch `ai/vivienne/aud-m-lifecycle-shapes`, bas
 - Builders spend $0; tests use fakes only; no real token is used and no live call is made by this card. The live acceptance is an owner-session step after release, on his word.
 - No secret, team/project/deployment ID or provider body appears in the change; repo-filed documents withhold real IDs per the secret-scan policy.
 - If live behavior contradicts this card, the dossier, or the filed findings, stop and file a dated amendment; do not improvise a new rule.
+
+## Review fixes (PR #255, 2026-10-28 — all three Codex findings accepted and fixed)
+
+1. **Production-target acceptance is scratch-gated.** The D-E doctrine over-generalized: cleanup runs also record deployments in *existing user projects* (dev previews), where a preview later promoted to production must keep the refusal. The deployment branch (and the alias branch's production arm) now accept a non-preview target only when the deployment's project is **proven** to be the run's own seeded scratch project — projects_get read-back, id match, deterministic `rtc-<run>-` name. Everywhere else the preview refusal stands.
+2. **Project absence is proven independently.** The project branch's inspect catch treated any 404 — including one from an inventory read inside the inspect — as project absence. Absence now requires an independent projects_get read-back 404; inventory failures land `blocked`.
+3. **Nested project identity is checked, not skipped.** The create verifies and shapeResults (AUD-L/AUD-M when-carried rules) now resolve carried identity as `projectId ?? project.id` — a reduced-shape read-back naming a *different* project via `project.id` can no longer confirm.
+
+Tests: wrong-nested-identity controls for all three create tools; production-in-user-project refusal; inventory-404 blocked-not-cleaned; the promoted-scratch test rewired for the two scratch proofs.

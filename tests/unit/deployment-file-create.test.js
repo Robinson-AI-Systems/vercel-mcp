@@ -352,4 +352,24 @@ describe('AUD-M verify read-back shapes (VMCP-023)',()=>{
     expect(out).toMatchObject({status:'applied',confirmed:true});
     f.fake.verify();
   });
+  it('does not confirm when the reduced read-back names another project',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    const deploymentId='dpl_FAKEDEPLOY02';
+    f.fake.when('POST','/v13/deployments').resolves({
+      id:deploymentId,projectId:project,target:null,readyState:'QUEUED',
+      url:'my-app-git-preview.vercel.app'});
+    // Reduced shape: identity rides on project.id — and it disagrees.
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      id:deploymentId,project:{id:'prj_FAKEOTHER'},target:null,
+      readyState:'READY'});
+    const out=decode(await f.call({...args,confirm:true},
+      {...connection,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:false});
+    f.fake.verify();
+  });
 });
+

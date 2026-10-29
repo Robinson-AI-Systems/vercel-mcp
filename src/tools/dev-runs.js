@@ -220,7 +220,8 @@ const seed=defineWrite({
         // no projectId (AUD-L): it must match when carried; the durable
         // project proof is verify()'s read-back of the full object.
         if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
-           (row.projectId!==undefined&&row.projectId!==created.id)||
+           ((row.projectId??row.project?.id)!=null&&
+            (row.projectId??row.project?.id)!==created.id)||
            !deploymentTargetMatches(row.target,'preview'))
           throw new TypeError('Provider did not prove seeded preview identity');
         return {id};
@@ -248,7 +249,8 @@ const seed=defineWrite({
     // and the run's own recorded objects.
     return {confirmed:project?.id===r.projectId&&project.name===b.name&&
       (deployment?.uid??deployment?.id)===r.deploymentId&&
-      (deployment.projectId==null||deployment.projectId===r.projectId)&&
+      ((deployment.projectId??deployment.project?.id)==null||
+       (deployment.projectId??deployment.project?.id)===r.projectId)&&
       (deploymentTargetMatches(deployment.target,'preview')||
         deployment.target==='production')&&
       (deployment.meta==null||deployment.meta.rtc_run===b.runId)&&
@@ -304,10 +306,19 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
       if((alias?.uid??alias?.id)!==o.object_id||alias.alias!==name||
          (alias.deploymentId??alias.deployment?.id)!==deploy||
          (target?.uid??target?.id)!==deploy||
-         (targetProject!=null&&targetProject!==project)||
-         !(deploymentTargetMatches(target.target,'preview')||
-           target.target==='production'))
+         (targetProject!=null&&targetProject!==project))
         throw new PreDispatchRefusal('Alias no longer resolves exclusively to recorded preview');
+      // The production arm holds only inside the run's own seeded
+      // scratch project, proven as in the deployment branch
+      // (PR #255 review).
+      if(!deploymentTargetMatches(target.target,'preview')){
+        const proj=await provider.read('projects_get',
+          {path:{idOrName:project}});
+        if(proj?.id!==project||typeof proj.name!=='string'||
+           !proj.name.startsWith('rtc-'+runId.replaceAll('_','-')+'-'))
+          throw new PreDispatchRefusal(
+            'Alias target is not a preview outside the run scratch project');
+      }
     };
     try{await inspect();}catch(e){if(e instanceof PreDispatchRefusal)return e.message;throw e;}
     await requirePreDispatch(inspect);
@@ -377,10 +388,8 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     // documented read-back shapes carry projectId only in the full
     // shape (the reduced shape carries project.id instead) and meta
     // in two of three, so both are required when carried (AUD-M).
-    // The provider promotes a run's first deployment to production,
-    // so the target is not an identity proof inside the run's own
-    // scratch project. The alias demand is carried by every
-    // documented shape and stays absolute.
+    // The alias demand is carried by every documented shape and
+    // stays absolute.
     const inspect=async()=>{
       const row=await provider.read('deployments_get',
         {path:{idOrUrl:o.object_id}});
@@ -392,6 +401,20 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
          row.aliases!=null&&(!Array.isArray(row.aliases)||row.aliases.length))
         throw new PreDispatchRefusal(
           'Deployment is aliased or no longer identified');
+      // A target beyond preview is acceptable only inside the run's
+      // own seeded scratch project (whose first deployment the
+      // provider promotes): prove the project is that scratch
+      // project by its deterministic run-owned name. Runs also record
+      // deployments in existing user projects (dev previews), where
+      // the preview refusal stands (PR #255 review).
+      if(!deploymentTargetMatches(row.target,'preview')){
+        const proj=await provider.read('projects_get',
+          {path:{idOrName:project}});
+        if(proj?.id!==project||typeof proj.name!=='string'||
+           !proj.name.startsWith('rtc-'+runId.replaceAll('_','-')+'-'))
+          throw new PreDispatchRefusal(
+            'Deployment target is not a preview outside the run scratch project');
+      }
       return row;
     };
     try{await inspect();}catch(e){
@@ -455,7 +478,15 @@ async function deleteExactObject(o,ctx,provider,runId,teamId){
     let initial;
     try{initial=await inspectProjectForDeletion(ctx,project,bound);}
     catch(e){
-      if(e?.status===404)return null;
+      if(e?.status===404){
+        // Only an independently proven absence marks the object
+        // cleaned: a 404 from an inventory read inside the inspect
+        // says nothing about the project itself (PR #255 review).
+        let absent=false;
+        try{await provider.read('projects_get',{path:{idOrName:project}});}
+        catch(e2){absent=e2?.status===404;}
+        if(absent)return null;
+      }
       return 'Project resource inventory could not be proven complete';
     }
     if(initial.id!==project||initial.name!==name||!initial.empty)
