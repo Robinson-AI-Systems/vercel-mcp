@@ -1,7 +1,47 @@
 // Generic safe write executor. No Vercel-specific imports or provider I/O.
 // The caller must supply a durable replay store, audit writer and safe shaper.
 import { createHash } from 'node:crypto';
-import { refusal, safeShapeForReturn, safeShapeStored, writePreflight } from './write-preflight.js';
+import { refusal, safeShapeForReturn, safeShapeStored, storedReference, writePreflight } from './write-preflight.js';
+
+// AUD-Y (VMCP-011, second layer): the audit writer caps the whole
+// record at 8 KB in aggregate — before + after + result + inverse +
+// summary, serialized as the writer will serialize them. Fields
+// that each fit the per-field bound can still sum past it (the live
+// shape: a batch whose before, targets, preview, and result are
+// each ~3 KB), and the writer's throw lands after the write has
+// succeeded. Fit the entry before auditing: measure exactly as the
+// writer measures, and replace the largest remaining field with
+// its stored reference until the entry fits. The summary — the
+// human headline — is never replaced, and the writer's cap itself
+// stays: an entry that still cannot fit keeps the writer's refusal.
+const AUDIT_MEASURED = ['before', 'after', 'result', 'inverse'];
+function auditEntrySize(entry) {
+  const before = JSON.stringify({ snapshot: entry.before ?? null, targets: entry.targets ?? [] });
+  const after = JSON.stringify(entry.after ?? null);
+  const result = JSON.stringify(entry.delegation ?
+    { ...(entry.result && typeof entry.result === 'object' && !Array.isArray(entry.result) ?
+        entry.result : {}), delegation: entry.delegation } :
+    (entry.result ?? null));
+  const inverse = JSON.stringify(entry.inverse ?? null);
+  const summary = String(entry.summary) + (entry.moneyLine ? ' | ' + String(entry.moneyLine) : '');
+  return Buffer.byteLength(before + after + result + inverse + summary);
+}
+async function fitAuditEntry(ctx, entry, label) {
+  const fitted = { ...entry };
+  while (auditEntrySize(fitted) > 8192) {
+    let largest = null, largestSize = -1;
+    for (const field of AUDIT_MEASURED) {
+      const value = fitted[field];
+      if (value === undefined || value === null) continue;
+      if (value?.status === 'stored' && typeof value?.handle === 'string') continue;
+      const size = Buffer.byteLength(JSON.stringify(value) ?? '');
+      if (size > largestSize) { largest = field; largestSize = size; }
+    }
+    if (largest === null) break;
+    fitted[largest] = await storedReference(ctx, fitted[largest], label);
+  }
+  return fitted;
+}
 
 // A definite pre-dispatch safety refusal is never a provider-write failure.
 export class PreDispatchRefusal extends Error {}
@@ -123,7 +163,7 @@ export function defineWrite(spec) {
       ...(delegation ? { delegation } : {})
     };
     if (args.dryRun === true) {
-      await ctx.audit({ ...auditBase, dryRun: true });
+      await ctx.audit(await fitAuditEntry(ctx, { ...auditBase, dryRun: true }, spec.name));
       return { status: 'preview', mode, dryRun: true, preview: summary,
         moneyLine, requestKey };
     }
@@ -328,10 +368,10 @@ export function defineWrite(spec) {
         ...(delivered||{}),...(publicReceipt?{receipt:publicReceipt}:{}) });
     const inverse = typeof spec.inverse === 'function'
       ? await safeShapeStored(ctx, await spec.inverse(args, before, providerResult, ctx), spec.name) : null;
-    await ctx.audit({ ...auditBase, dryRun: false,
+    await ctx.audit(await fitAuditEntry(ctx, { ...auditBase, dryRun: false,
       before: await safeShapeStored(ctx, before, spec.name),
       after: await safeShapeStored(ctx, verification, spec.name), inverse,
-      result: await safeShapeStored(ctx, result, spec.name) });
+      result: await safeShapeStored(ctx, result, spec.name) }, spec.name));
     const replayResult = await safeShapeStored(ctx, result, spec.name);
     await ctx.replayStore.complete({ key: requestKey,
       claimId: claim.claimId, result: replayResult?.status === 'stored' ?

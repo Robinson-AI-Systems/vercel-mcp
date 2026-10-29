@@ -96,6 +96,41 @@ export async function safeShapeStored(ctx, value, label = 'vercel_write') {
     next: 'Call vercel_get_result with this handle and optional page/fields'
   };
 }
+// AUD-Y (VMCP-011, second layer): store a value and return its
+// reference UNCONDITIONALLY (safeShapeStored stores only past the
+// inline bound). The write executor's audit fitting uses this when
+// an audit entry's fields each fit the bound but their sum exceeds
+// the audit writer's aggregate record cap. With no usable result
+// store it throws the same error safeShape throws — the refusal is
+// preserved, never a silent truncation.
+export async function storedReference(ctx, value, label = 'vercel_write') {
+  if (typeof ctx.shape !== 'function') throw new Error('Output shaper is unavailable');
+  const db = ctx.db, conn = ctx.connection;
+  if (typeof db?.putResult !== 'function' || !conn?.resultOwner || !conn?.account) {
+    throw new Error('Output cannot be safely shaped within 8 KB');
+  }
+  let output;
+  try { output = compact(ctx.shape(value), 1048576); }
+  catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    output = compact(value, 1048576);
+  }
+  const encoded = JSON.stringify(output);
+  if (output === undefined || !encoded) {
+    throw new Error('Output cannot be safely shaped within 8 KB');
+  }
+  const count = Array.isArray(output) ? output.length :
+    Array.isArray(output?.rows) ? output.rows.length : 1;
+  const summary = String(label).slice(0, 100) + ': ' + count + ' saved record(s)';
+  const issued = await db.putResult({
+    account: conn.account, owner: conn.resultOwner, summary, body: output
+  });
+  return {
+    status: 'stored', handle: issued.handle, expiresAt: issued.expiresAt,
+    count, summary, preview: encoded.slice(0, 500),
+    next: 'Call vercel_get_result with this handle and optional page/fields'
+  };
+}
 // AUD-X (VMCP-011): the caller-facing sibling of safeShapeStored. A
 // write result that shapes safely but exceeds the 8 KB display bound
 // is returned screened at the storage cap instead of throwing after
