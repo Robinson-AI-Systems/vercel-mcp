@@ -33,6 +33,12 @@ function fixture(items=[]){
     getDevRun:async({id,account:owner})=>owner===account?runs.get(id)??null:null,
     listDevRunObjects:async({id,account:owner})=>owner===account?structuredClone(rows.get(id)??[]):[],
     setDevRunObjectOutcome:async({id,type,objectId,status,error})=>{
+      // Mirror the real store's validation (src/db.js): an outcome
+      // error over 160 characters is rejected — the AUD-O enriched
+      // refusal exceeded it and killed live cleanup passes (AUD-Q).
+      if(error!==null&&error!==undefined&&
+         (typeof error!=='string'||error.length>160))
+        throw new TypeError('Invalid cleanup outcome');
       const item=rows.get(id)?.find(x=>x.object_id===objectId&&x.object_type===type);
       if(!item)return false;item.status=status;item.last_error=error;return true;
     },
@@ -926,8 +932,42 @@ describe('AUD-M cleanup uncertain-state reconciliation (VMCP-027)',()=>{
     expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(1);
     f.fake.verify();
   });
+
+  it('records a nonempty project refusal instead of dying on the outcome cap (AUD-Q)',async()=>{
+    // The AUD-O refusal form ran ~172 characters — over the outcome
+    // store's 160 cap — so recording it threw and the whole pass
+    // surfaced as a bare outcome_unknown with nothing recorded.
+    const f=fixture([
+      withStatus(object('intent','intent-project-'+scratchName,null,
+        {operation:'projects_create',name:scratchName}),'cleaned'),
+      withStatus(object('intent','intent-deployment-'+scratchName,project,
+        {operation:'deployments_create',name:scratchName,target:'preview'}),
+        'cleaned'),
+      withStatus(object('project',project,project,{name:scratchName}),
+        'blocked','Project resource inventory is incomplete, live or no longer empty')
+    ]);
+    const row={id:project,name:scratchName,accountId:team,link:null,
+      hasDeployments:true};
+    f.fake.when('GET','/v9/projects/{idOrName}').resolves(row);
+    f.fake.when('GET','/v9/projects/{idOrName}/domains')
+      .resolves({domains:[{name:scratchName+'.vercel.app',
+        apexName:'vercel.app',projectId:project,gitBranch:null,
+        redirect:null,customEnvironmentId:null,verified:true}],
+        pagination:{next:null,count:1}});
+    f.fake.when('GET','/v10/projects/{idOrName}/env')
+      .resolves({envs:[],pagination:{next:null,count:0}});
+    f.fake.when('GET','/v7/deployments')
+      .resolves({deployments:[],pagination:{next:null,count:0}});
+    const out=parse(await f.call('vercel_dev_cleanup',
+      {runId,outsideApp:true,confirm:true,requestKey:'cleanupAudQ00001'}));
+    expect(out.status).toBe('applied');
+    expect(out.confirmed).toBe(false);
+    const proj=f.rows.get(runId).find(o=>o.object_type==='project');
+    expect(proj.status).toBe('blocked');
+    expect(proj.last_error).toContain('Project not empty');
+    expect(proj.last_error).toContain('hasDeployments: true');
+    expect(proj.last_error.length).toBeLessThanOrEqual(160);
+    expect(f.fake.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
 });
-
-
-
-
