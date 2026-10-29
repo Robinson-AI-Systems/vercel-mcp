@@ -129,9 +129,10 @@ const create=defineWrite({
       // project proof is verify()'s read-back of the full object.
       if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
         ((row.projectId??row.project?.id)!=null&&
-         (row.projectId??row.project?.id)!==before.id)||
-        !deploymentTargetMatches(row.target,before.target))
-        throw new TypeError('Created Git deployment response identity or target unverified');
+         (row.projectId??row.project?.id)!==before.id))
+        throw new TypeError('Created Git deployment response identity unverified');
+      // No target arm (AUD-N): see deployment-file-create — the
+      // documented response target enum is production/staging/null.
       return {id};
     }});
   },
