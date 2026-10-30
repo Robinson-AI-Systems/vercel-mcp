@@ -5,8 +5,9 @@ import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {pendingInputs} from '../core/pending-inputs.js';
 import {credentialLike} from '../core/util.js';
-import {common,exact,owned,safeBranch,noPreview,context,respond,
+import {common,exact,owned,safeBranch,context,respond,
   startRun,preIntent,record,markIntent,selectedWrite} from './dev-preview-common.js';
+import {previewBranchRefusal} from './app-guard.js';
 const ENV=/^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const PENDING=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const envSource={type:'object',properties:{
@@ -20,8 +21,8 @@ const schema={type:'object',properties:props,required:['runId','project','vars']
   additionalProperties:false};
 function valid(a){
   exact(a,props,schema.required);
-  if(a.gitBranch!==undefined&&(!safeBranch(a.gitBranch)||
-     noPreview(a.gitBranch,a.outsideApp)))throw new RefusalError('No-preview branch refused');
+  if(a.gitBranch!==undefined&&!safeBranch(a.gitBranch))
+    throw new RefusalError('No-preview branch refused');
   if(!Array.isArray(a.vars)||a.vars.length<1||a.vars.length>5)
     throw new RefusalError('One to five environment variables required');
   const seen=new Set();
@@ -58,6 +59,12 @@ function matches(row,key,branch){
 }
 export async function planPreviewEnv(a,ctx){
     valid(a);
+    // P-1: the no-preview rule is profile data now (app-guard), with the
+    // built-in default standing when no profile data exists.
+    if(a.gitBranch!==undefined&&
+       await previewBranchRefusal({db:ctx.db,account:ctx.connection?.account,
+         branch:a.gitBranch,outsideApp:a.outsideApp}))
+      throw new RefusalError('No-preview branch refused');
     const b=await owned(a,ctx);
     const {client}=await readProvider(ctx);
     const current=rows(await client.request('project_env_list',
