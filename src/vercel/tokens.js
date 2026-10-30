@@ -22,6 +22,58 @@ const PROBE_LEG_MESSAGES = Object.freeze({
 function probeFail(leg, message) {
   return Object.assign(new Error(message), { probeLeg: leg });
 }
+
+// AUD-M2 (goal-workspace AUD-M): shape fingerprints. When a shape
+// gate refuses a provider body, the refusal records WHICH predicates
+// failed and the received object's field-name → JSON-type map —
+// type words only (string/number/boolean/array/object/null/absent),
+// never values; id-shaped fields appear only as predicate outcomes.
+// The install callback journals the summary line (fingerprintSummary)
+// into the change_log, where the operator reads it back through the
+// existing vercel_recent_changes tool; failed predicate names come
+// first so the read's 160-char summary bound can never truncate the
+// conviction away. One live attempt after this ships names the exact
+// field instead of repeating the AUD-K2 expedition.
+function jsonTypeOf(value) {
+  if (value === undefined) return 'absent';
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+function shapeFingerprint(gate, checks, integrationMatch, failedOverride = null) {
+  const failed = failedOverride ??
+    checks.filter(check => !check.ok).map(check => check.name);
+  // Summary layout under the journal read's 160-char bound: failed
+  // predicate names first (the conviction — truncation can never
+  // reach them), then the type map with the failed fields' types
+  // ahead of the rest, so even a many-failure refusal loses only
+  // trailing type words of fields that passed.
+  const ordered = [...checks.filter(check => failed.includes(check.name)),
+    ...checks.filter(check => !failed.includes(check.name))];
+  const types = ordered.map(check => check.name + ':' + check.type).join(' ');
+  return {
+    gate, failed,
+    types: Object.fromEntries(checks.map(check => [check.name, check.type])),
+    integrationMatch,
+    // The comparison outcome rides the fingerprint object; in the
+    // summary it is carried by the failed-predicate name itself
+    // ('integrationIdMatch'), keeping the line inside the bound.
+    summary: 'SHAPE-FP ' + gate + ' failed=[' + failed.join(',') + '] types: ' + types
+  };
+}
+function probeShapeFail(leg, message, fingerprint) {
+  return Object.assign(new Error(message),
+    { probeLeg: leg, fingerprint, fingerprintSummary: fingerprint.summary });
+}
+// The scopes entry's type word: a clean string array is 'array'; an
+// array carrying another element type names it ('array<number>') so
+// the fingerprint still convicts the element predicate.
+function scopesTypeOf(scopes) {
+  if (!Array.isArray(scopes)) return jsonTypeOf(scopes);
+  const elements = [...new Set(scopes.map(scope => jsonTypeOf(scope)))];
+  return elements.length === 0 || elements.every(type => type === 'string') ?
+    'array' : 'array<' + elements.join('+') + '>';
+}
 // AUD-I S5 (A-5): a dead integration credential names its cause
 // class in plain words wherever a probe surfaces it. Vercel
 // disables an installation's configuration when the person who
@@ -357,25 +409,52 @@ export async function probeInstallationToken({ token, teamId, installationId,
   const config = await client.request('integrations_configuration_get',
     { path: { id: installationId } }, { timeoutMs: 5000 })
     .catch(err => { throw installationReadFail(err); });
-  // Shape gate, mirroring the exchange validator's posture: the
-  // documented required set the proof depends on (the configuration's
-  // id and type, its integration, its nullable team, its owner, its
-  // installer, and the granted-scope array).
-  if (!config || typeof config !== 'object' ||
-    config.id !== installationId ||
-    config.type !== 'integration-configuration' ||
-    typeof config.integrationId !== 'string' || !config.integrationId ||
-    !(typeof config.teamId === 'string' || config.teamId === null) ||
-    typeof config.ownerId !== 'string' || !config.ownerId ||
-    typeof config.userId !== 'string' || !config.userId ||
-    !Array.isArray(config.scopes) ||
-    config.scopes.some(scope => typeof scope !== 'string')) {
-    throw probeFail('configuration',
-      'Vercel answered the installation check in an unexpected shape; try again — if it persists, it is a provider contract change, not a user error');
+  // Shape gate (AUD-M2 necessity audit — every hard predicate cites
+  // the proof step that consumes its field):
+  //   id            — the identity step: the record must be the very
+  //                   installation the exchange named (and the id
+  //                   stored for recheck's rebuild).
+  //   type          — the resource-kind discriminator: it vouches for
+  //                   the documented MEANING of every other field the
+  //                   proof consumes; a wrong or absent type leaves
+  //                   those fields' semantics unproven. Stays hard.
+  //   integrationId — consumed by the next check (this integration).
+  //   teamId        — consumed by the team check below; null is its
+  //                   documented personal shape, refused there as a
+  //                   team mismatch, not as a shape failure.
+  //   ownerId       — consumed by the team check (ownerId === team).
+  //   scopes        — consumed by scope derivation (grantedScopes).
+  // userId is NOT gated: its only consumer is the informational
+  // installerMatchesConfiguration evidence, which records null when
+  // either side is not a string (AUD-M2 — it was hard-required while
+  // feeding evidence only, the over-strictness the live A-1 re-run
+  // could not rule in or out because no fingerprint existed).
+  const configChecks = [
+    { name: 'id', type: jsonTypeOf(config?.id),
+      ok: config?.id === installationId },
+    { name: 'type', type: jsonTypeOf(config?.type),
+      ok: config?.type === 'integration-configuration' },
+    { name: 'integrationId', type: jsonTypeOf(config?.integrationId),
+      ok: typeof config?.integrationId === 'string' && !!config.integrationId },
+    { name: 'teamId', type: jsonTypeOf(config?.teamId),
+      ok: typeof config?.teamId === 'string' || config?.teamId === null },
+    { name: 'ownerId', type: jsonTypeOf(config?.ownerId),
+      ok: typeof config?.ownerId === 'string' && !!config.ownerId },
+    { name: 'userId', type: jsonTypeOf(config?.userId), ok: true },
+    { name: 'scopes', type: scopesTypeOf(config?.scopes),
+      ok: Array.isArray(config?.scopes) &&
+        config.scopes.every(scope => typeof scope === 'string') }
+  ];
+  if (configChecks.some(check => !check.ok)) {
+    throw probeShapeFail('configuration',
+      'Vercel answered the installation check in an unexpected shape; try again — if it persists, it is a provider contract change, not a user error',
+      shapeFingerprint('configuration', configChecks, 'not-reached'));
   }
   if (config.integrationId !== integrationId) {
-    throw probeFail('configuration_integration',
-      "The installation Vercel reported belongs to a different integration; install again from this product's connection page");
+    throw probeShapeFail('configuration_integration',
+      "The installation Vercel reported belongs to a different integration; install again from this product's connection page",
+      shapeFingerprint('configuration', configChecks, 'mismatch',
+        ['integrationIdMatch']));
   }
   if (config.teamId !== teamId || config.ownerId !== teamId) {
     throw probeFail('configuration_team',
@@ -454,8 +533,12 @@ export async function probeInstallationToken({ token, teamId, installationId,
     checkedAt: new Date().toISOString(),
     visibleTeamCount: 1, visibleProjectCount: projects.length,
     installation: { grantedScopes, projectSelection, configurationStatus,
-      installerMatchesConfiguration: typeof userId === 'string' ?
-        config.userId === userId : null }
+      // AUD-M2: evidence only — null unless BOTH sides are strings,
+      // so an absent or mistyped config.userId (no longer gated)
+      // records an honest unknown, never a false mismatch.
+      installerMatchesConfiguration:
+        typeof userId === 'string' && typeof config.userId === 'string' ?
+          config.userId === userId : null }
   };
 }
 
