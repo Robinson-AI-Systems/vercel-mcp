@@ -1,5 +1,5 @@
 // E-3: zero-usage store creation with selected-team, slug, and durable write gates.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -19,14 +19,14 @@ function valid(a){
     a.outsideApp!==true||a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean'||
     a.requestKey!==undefined&&!/^[A-Za-z0-9_-]{8,128}$/.test(a.requestKey))
-    throw new TypeError('New Global Config store needs exact safe slug and outside-app intent');
+    throw new RefusalError('New Global Config store needs exact safe slug and outside-app intent');
 }
 async function before(a,ctx){
   valid(a);
   const {client,account}=await selected(ctx,true);
   const all=listRows(await client.request('global_config_list'),account.team_id);
   if(!all.complete||all.rows.length>100||all.rows.some(x=>x.slug===a.slug))
-    throw new TypeError('Unable to prove unique selected-team Global Config slug');
+    throw new RefusalError('Unable to prove unique selected-team Global Config slug');
   return {slug:a.slug,teamId:account.team_id};
 }
 function context({db,connection,env,fetchImpl}){

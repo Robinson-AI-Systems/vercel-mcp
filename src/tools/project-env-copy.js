@@ -2,7 +2,7 @@
 // ordinary, exact preview-branch, or explicitly authorized same-team projects. No source value ever enters a result,
 // preview, audit or durable replay record.
 import {timingSafeEqual} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -53,7 +53,7 @@ function argsValid(a){
       (a.sourceGitBranch??null)===(a.destinationGitBranch??null))||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
-    throw new TypeError('Exact Config copy source and destination required');
+    throw new RefusalError('Exact Config copy source and destination required');
 }
 function source(row,project,args){
   const m=envMeta(row,project);
@@ -62,12 +62,12 @@ function source(row,project,args){
     !m.targets.includes(args.sourceTarget)||m.targets.includes('production')||
     (row.gitBranch??null)!==(args.sourceGitBranch??null)||
     (row.gitBranch!=null&&(m.targets.length!==1||m.targets[0]!=='preview')))
-    throw new TypeError('Source Config identity, revision or preview/dev target not proven');
+    throw new RefusalError('Source Config identity, revision or preview/dev target not proven');
   // Existing plain variables can contain secrets despite their kind. Never
   // promote credential-shaped material even when the caller requests Config.
   if(typeof row.value!=='string'||!row.value||row.value.length>65536||
     credentialLike(row.value))
-    throw new TypeError('Source value is unavailable or unsafe to copy');
+    throw new RefusalError('Source value is unavailable or unsafe to copy');
   return m;
 }
 function context({db,connection,env,fetchImpl}){
@@ -84,10 +84,10 @@ const copy=defineWrite({
     const destinationProject=args.destinationProject??args.project;
     if(destinationProject!==args.project){
       if(account.scope==='project'||args.outsideApp!==true)
-        throw new TypeError('Cross-project copy needs same-team authority and explicit outside-app intent');
+        throw new RefusalError('Cross-project copy needs same-team authority and explicit outside-app intent');
       const destination=await scoped(ctx,destinationProject);
       if(destination.account.team_id!==account.team_id)
-        throw new TypeError('Destination team differs from source');
+        throw new RefusalError('Destination team differs from source');
     }
     const raw=await client.request('project_env_get',{
       path:{idOrName:args.project,id:args.sourceId}});

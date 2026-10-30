@@ -1,6 +1,6 @@
 // O-1 standard preview authentication defaults; paid advanced modes and passwords refused.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -22,11 +22,11 @@ function validate(args){
     ['confirm','dryRun'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
     args.requestKey!==undefined&&(typeof args.requestKey!=='string'||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)))
-    throw new TypeError('Invalid team protection request');
+    throw new RefusalError('Invalid team protection request');
   const v=args.ssoProtection;
   if(v!==null&&(!v||typeof v!=='object'||Array.isArray(v)||
     Object.keys(v).length!==1||v.deploymentType!=='preview'))
-    throw new TypeError('Only standard preview Vercel Authentication or its removal is supported');
+    throw new RefusalError('Only standard preview Vercel Authentication or its removal is supported');
 }
 const equal=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
 const intended=args=>({ssoProtection:args.ssoProtection});
@@ -43,13 +43,13 @@ function ctxFor({db,connection,env,fetchImpl}){
     guardApp:targets=>checkApp(targets,{db,connection,env})};
 }
 async function team(ctx){
-  if(ctx.connection?.profile!=='full')throw new TypeError('Full owner profile required');
+  if(ctx.connection?.profile!=='full')throw new RefusalError('Full owner profile required');
   const {client,account}=await readProvider(ctx);
   if(!['team','full'].includes(account.scope)||!ID.test(account.team_id))
-    throw new TypeError('Team profile write requires a team-scoped account');
+    throw new RefusalError('Team profile write requires a team-scoped account');
   const row=await client.request('teams_get',{path:{teamId:account.team_id}});
   if(!row||row.id!==account.team_id||!ID.test(row.id))
-    throw new TypeError('Connected team identity could not be verified');
+    throw new RefusalError('Connected team identity could not be verified');
   return {row,account};
 }
 const update=defineWrite({
@@ -62,13 +62,13 @@ const update=defineWrite({
     const current=row.defaultDeploymentProtection;
     if(current!==undefined&&current!==null&&
       (typeof current!=='object'||Array.isArray(current)))
-      throw new TypeError('Unknown team protection state');
+      throw new RefusalError('Unknown team protection state');
     if(equal(current?.ssoProtection,args.ssoProtection))
-      throw new TypeError('No protection change requested');
+      throw new RefusalError('No protection change requested');
     // Never retain or send password material. Refuse combined password state
     // because PATCH merge semantics are not independently established.
     if(current?.passwordProtection!=null)
-      throw new TypeError('Existing password defaults require a secret-safe hand-built workflow');
+      throw new RefusalError('Existing password defaults require a secret-safe hand-built workflow');
     return {teamId:row.id,oldSlug:row.slug??null,changeKeys:FIELDS,
       widens:widening(args,row),etag:fingerprint(row,FIELDS)};
   },

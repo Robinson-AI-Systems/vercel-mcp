@@ -1,6 +1,6 @@
 // D-1g: guarded project identity/framework settings, excluding paid build resources.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -31,7 +31,7 @@ function validate(args){
     invalidProjectConfiguration(args,{nullable:true})||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
-    throw new TypeError('Invalid project settings request');
+    throw new RefusalError('Invalid project settings request');
 }
 // Store only an opaque fingerprint in audit/replay state; commands themselves
 // may contain private build details and must not appear in previews or logs.
@@ -59,11 +59,11 @@ const update=defineWrite({
     });
     const {client,account}=await readProvider(ctx);
     if(account.scope==='project'&&args.project!==account.project_id)
-      throw new TypeError('Connection cannot change another project');
+      throw new RefusalError('Connection cannot change another project');
     const row=await client.request('projects_get',{path:{idOrName:args.project}});
     if(typeof row?.id!=='string'||typeof row?.name!=='string'||
       (account.scope==='project'&&row.id!==account.project_id))
-      throw new TypeError('Project identity unavailable');
+      throw new RefusalError('Project identity unavailable');
     // Undefined production metadata is unknown, and is treated as live.
     const live=row.hasDeployments!==false;
     const configChanges=CONFIG_SETTINGS.filter(key=>
@@ -71,7 +71,7 @@ const update=defineWrite({
     if((args.name===undefined||args.name===row.name) &&
       (args.framework===undefined||args.framework===(row.framework??null)) &&
       configChanges.length===0)
-      throw new TypeError('No settings change requested');
+      throw new RefusalError('No settings change requested');
     return {id:row.id,name:row.name,framework:row.framework??null,live,
       newName:args.name??row.name,
       newFramework:args.framework!==undefined?args.framework:row.framework??null,

@@ -1,5 +1,5 @@
 // E-4: safe Global Config read-token inventory and guarded revocation.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {STORE,SLUG,safeLabel,exact,strictArgs,schema,output} from './globalconfig-common.js';
@@ -20,12 +20,12 @@ function metadata(raw){
   const rows=Array.isArray(raw)?raw:raw?.tokens??raw?.data;
   if(!Array.isArray(rows)||rows.length>100||
     raw?.pagination?.next!==undefined&&raw.pagination.next!==null)
-    throw new TypeError('Selected store token inventory unavailable');
+    throw new RefusalError('Selected store token inventory unavailable');
   const seen=new Set();
   return rows.map(x=>{
     if(!x||!TOKEN.test(x.id??'')||seen.has(x.id)||
       safeLabel(x.label,52)===null||credentialLike(x.label))
-      throw new TypeError('Duplicate, secret-shaped or unverified token identity');
+      throw new RefusalError('Duplicate, secret-shaped or unverified token identity');
     seen.add(x.id);
     // GET may contain actual bearer strings. Never retain, log or return them.
     return {id:x.id,label:x.label,
@@ -43,18 +43,18 @@ function valid(a){
     a.outsideApp!==true||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
-    throw new TypeError('Exact token identities, store revision and owner intent required');
+    throw new RefusalError('Exact token identities, store revision and owner intent required');
 }
 async function before(a,ctx){
   valid(a);
   if(ctx.connection?.profile!=='full')
-    throw new TypeError('Full owner profile required to revoke read tokens');
+    throw new RefusalError('Full owner profile required to revoke read tokens');
   const {client,account,row}=await store(ctx,a);
   const all=metadata(await client.request('global_config_tokens',
     {path:{edgeConfigId:row.id}}));
   const chosen=a.tokenIds.map(id=>all.find(x=>x.id===id));
   if(chosen.some(x=>!x))
-    throw new TypeError('Selected token no longer belongs to this store');
+    throw new RefusalError('Selected token no longer belongs to this store');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
     projects:linkSnapshot(row),

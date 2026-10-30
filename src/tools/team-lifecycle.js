@@ -6,7 +6,7 @@
 // owns is its own data integrity: a team with live enrollments seated on it
 // cannot be deleted until those enrollments are removed as their own named
 // act (AUD-AA), because the rows are derived credentials that would strand.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -38,10 +38,10 @@ const resultMapper=result=>({
   content:[{type:'text',text:JSON.stringify(result)}]
 });
 async function seat(ctx){
-  if(ctx.connection?.profile!=='full')throw new TypeError('Full owner profile required');
+  if(ctx.connection?.profile!=='full')throw new RefusalError('Full owner profile required');
   const {client,account}=await readProvider(ctx);
   if(!['team','full'].includes(account.scope)||!ID.test(account.team_id))
-    throw new TypeError('Team lifecycle is an account-layer action; this seat cannot reach it — connect a team or Full Account token');
+    throw new RefusalError('Team lifecycle is an account-layer action; this seat cannot reach it — connect a team or Full Account token');
   return {client,account};
 }
 function safeText(value,max){
@@ -51,7 +51,7 @@ function safeText(value,max){
 function keyCheck(args){
   if(args.requestKey!==undefined&&
     (typeof args.requestKey!=='string'||!REQUEST_KEY.test(args.requestKey)))
-    throw new TypeError('Invalid team lifecycle request key');
+    throw new RefusalError('Invalid team lifecycle request key');
 }
 function flagsCheck(args){
   return args.confirm!==undefined&&typeof args.confirm!=='boolean'||
@@ -68,12 +68,12 @@ const createProps={
 function validateCreate(args){
   if(!args||typeof args!=='object'||Array.isArray(args)||
     Object.keys(args).some(key=>!Object.hasOwn(createProps,key))||flagsCheck(args))
-    throw new TypeError('Invalid team create request');
+    throw new RefusalError('Invalid team create request');
   if(typeof args.slug!=='string'||args.slug.length>48||!SLUG.test(args.slug)||
     !safeText(args.slug,48))
-    throw new TypeError('Unsafe team slug');
+    throw new RefusalError('Unsafe team slug');
   if(args.name!==undefined&&!safeText(args.name,256))
-    throw new TypeError('Unsafe team name');
+    throw new RefusalError('Unsafe team name');
   keyCheck(args);
 }
 const create=defineWrite({
@@ -154,14 +154,14 @@ const deleteProps={
 function validateDelete(args){
   if(!args||typeof args!=='object'||Array.isArray(args)||
     Object.keys(args).some(key=>!Object.hasOwn(deleteProps,key))||flagsCheck(args))
-    throw new TypeError('Invalid team delete request');
+    throw new RefusalError('Invalid team delete request');
   if(typeof args.teamId!=='string'||!ID.test(args.teamId))
-    throw new TypeError('Invalid team identifier');
+    throw new RefusalError('Invalid team identifier');
   if(args.newDefaultTeamId!==undefined&&
     (typeof args.newDefaultTeamId!=='string'||!ID.test(args.newDefaultTeamId)))
-    throw new TypeError('Invalid replacement default team identifier');
+    throw new RefusalError('Invalid replacement default team identifier');
   if(args.newDefaultTeamId!==undefined&&args.newDefaultTeamId===args.teamId)
-    throw new TypeError('The replacement default team must differ from the team being deleted');
+    throw new RefusalError('The replacement default team must differ from the team being deleted');
   keyCheck(args);
 }
 async function enrolledOn(db,teamId){
@@ -192,13 +192,13 @@ const remove=defineWrite({
       row=await client.request('teams_get',{path:{teamId:args.teamId}});
     }catch(error){
       if(error?.status===404)
-        throw new TypeError('Target team was not found; it may already be deleted, or this credential cannot see it');
+        throw new RefusalError('Target team was not found; it may already be deleted, or this credential cannot see it');
       if(error?.status===403)
-        throw new TypeError('This credential cannot access the target team');
+        throw new RefusalError('This credential cannot access the target team');
       throw error;
     }
     if(!row||row.id!==args.teamId||!ID.test(row.id))
-      throw new TypeError('Target team identity could not be verified');
+      throw new RefusalError('Target team identity could not be verified');
     let isDefault=null;
     try{
       const user=await client.request('user_get_unscoped');

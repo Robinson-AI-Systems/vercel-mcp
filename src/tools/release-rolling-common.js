@@ -1,5 +1,6 @@
 // D-4: bounded, selected-project rolling-release state and drift proofs.
 import {projectContext,PROJECT,DEPLOY} from './release-common.js';
+import { RefusalError } from '../core/write.js';
 import {createHash} from 'node:crypto';
 
 const STATES=new Set(['ACTIVE','COMPLETED','ABORTED','PENDING','PAUSED']);
@@ -17,11 +18,11 @@ export function exact(a,properties,required=['project']){
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean'||
     a.requestKey!==undefined&&!/^[A-Za-z0-9_-]{8,128}$/.test(a.requestKey))
-    throw new TypeError('Exact rolling-release project and safe arguments required');
+    throw new RefusalError('Exact rolling-release project and safe arguments required');
 }
 export function stageArray(raw){
   if(!Array.isArray(raw)||raw.length<2||raw.length>10)
-    throw new TypeError('Rolling release needs two to ten stages');
+    throw new RefusalError('Rolling release needs two to ten stages');
   let prev=-1;
   return raw.map((row,i)=>{
     if(!row||typeof row!=='object'||Array.isArray(row)||
@@ -38,7 +39,7 @@ export function stageArray(raw){
       ...(row.requireApproval!==undefined?{requireApproval:row.requireApproval}:{})};
   }).map((row,i,all)=>{
     if(i===all.length-1&&row.targetPercentage!==100)
-      throw new TypeError('Final rolling-release stage must serve 100 percent');
+      throw new RefusalError('Final rolling-release stage must serve 100 percent');
     return row;
   });
 }
@@ -54,13 +55,13 @@ export function normalizeActive(reply){
   const row=reply?.rollingRelease;
   if(!row||typeof row!=='object'||Array.isArray(row)||
     typeof row.state!=='string'||!STATES.has(row.state))
-    throw new TypeError('Cannot prove rolling-release state');
+    throw new RefusalError('Cannot prove rolling-release state');
   const index=number(row.activeStage?.index);
   const canary=deployed(row.canaryDeployment);
   const current=deployed(row.currentDeployment);
   if((row.state==='ACTIVE'||row.state==='PAUSED')&&
     (!canary||!current||index===null||canary===current))
-    throw new TypeError('Active rolling release identity or stage is unknown');
+    throw new RefusalError('Active rolling release identity or stage is unknown');
   return {state:row.state,substate:typeof row.substate==='string'?
     row.substate:null,canary,current,stageIndex:index,
     nextStageIndex:number(row.nextStage?.index),
@@ -77,13 +78,13 @@ export function normalizeConfig(reply){
   if(row==null)return {enabled:false,stages:[],advancementType:null,target:'production'};
   if(typeof row!=='object'||Array.isArray(row)||row.target!=='production'||
     !Array.isArray(row.stages)||row.stages.length>10)
-    throw new TypeError('Cannot prove rolling-release configuration');
+    throw new RefusalError('Cannot prove rolling-release configuration');
   const stages=row.stages.map(x=>({
     targetPercentage:number(x?.targetPercentage),
     duration:number(x?.duration),requireApproval:x?.requireApproval===true
   }));
   if(stages.some(x=>x.targetPercentage===null))
-    throw new TypeError('Rolling-release stage data is unknown');
+    throw new RefusalError('Rolling-release stage data is unknown');
   return {enabled:row.enabled!==false,stages,
     advancementType:row.advancementType==='manual-approval'?
       'manual-approval':row.advancementType==='automatic'?'automatic':null,

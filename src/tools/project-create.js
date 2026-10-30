@@ -1,5 +1,5 @@
 // D-1r: empty unlinked projects and guarded metered Git-linked imports; no secrets.
-import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -40,7 +40,7 @@ function assertArgs(args){
        !NAMESPACE.test(args.gitRepository.namespaceId)))||
     (args.confirm!==undefined && typeof args.confirm!=='boolean') ||
     (args.dryRun!==undefined && typeof args.dryRun!=='boolean'))
-    throw new TypeError('Invalid project creation request');
+    throw new RefusalError('Invalid project creation request');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -60,12 +60,12 @@ const create=defineWrite({
     assertArgs(args);
     const git=args.gitRepository??null;
     if(git && (ctx.connection?.profile!=='full'||ctx.connection?.mode!=='production'))
-      throw new TypeError('Git imports require full production-mode connection');
+      throw new RefusalError('Git imports require full production-mode connection');
     validateRequest('projects_create',{query:{teamId:'team_FAKE_validation'},
       body:{name:args.name,...(args.framework?{framework:args.framework}:{}),
         ...providerConfigBody(args),...(git?{gitRepository:{type:git.type,repo:git.repo}}:{})}});
     const {client,account}=await readProvider(ctx);
-    if(account.scope==='project')throw new TypeError('Project-only keys cannot create team projects');
+    if(account.scope==='project')throw new RefusalError('Project-only keys cannot create team projects');
     if(git){
       const namespaces=await client.request('git_namespaces',{query:{provider:git.type}});
       verifyGitNamespace(namespaces,git.type,git.namespaceId);
@@ -80,7 +80,7 @@ const create=defineWrite({
       if(err?.status===404)return {name:args.name,framework:args.framework??null,git};
       throw err;
     }
-    throw new TypeError('Project name is already assigned');
+    throw new RefusalError('Project name is already assigned');
   },
   async preview(_args,_ctx,before){
     return (before.git?'Import a Git-linked project named ':'Create an empty unlinked project named ')+before.name+

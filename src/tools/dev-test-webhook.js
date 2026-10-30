@@ -2,7 +2,7 @@
 import {randomBytes,createHash,createHmac} from 'node:crypto';
 import {lookup} from 'node:dns/promises';
 import {request as httpsRequest} from 'node:https';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {encryptSecret,decryptSecret} from '../core/secret-box.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {ownerDeployment} from './dev-observe-common.js';
@@ -39,17 +39,17 @@ function validate(a){
     a.requestKey!==undefined&&!KEY.test(a.requestKey)||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean'||
     a.confirm!==undefined&&typeof a.confirm!=='boolean')
-    throw new TypeError('Exact active preview and supported synthetic test event required');
+    throw new RefusalError('Exact active preview and supported synthetic test event required');
 }
 export function checkedReceiver(raw,previewHostname){
   if(typeof raw!=='string'||raw.length>250||/[\r\n]/.test(raw))
-    throw new TypeError('Explicit public preview HTTPS URL required');
-  let url;try{url=new URL(raw);}catch{throw new TypeError('Invalid preview URL');}
+    throw new RefusalError('Explicit public preview HTTPS URL required');
+  let url;try{url=new URL(raw);}catch{throw new RefusalError('Invalid preview URL');}
   if(url.protocol!=='https:'||url.port||url.username||url.password||
     url.search||url.hash||!HOST.test(url.hostname)||url.hostname!==previewHostname||
     !PATH.test(url.pathname)||url.pathname.includes('..')||raw.includes('%')||
     raw!==url.toString())
-    throw new TypeError('Webhook endpoint must be the exact recorded Vercel preview host and safe path');
+    throw new RefusalError('Webhook endpoint must be the exact recorded Vercel preview host and safe path');
   return url;
 }
 export function syntheticEvent({runId,project,deployment,event,key,at}){
@@ -109,19 +109,19 @@ const send=defineWrite({
   async before(a,ctx){
     validate(a);
     if(ctx.connection?.mode!=='preview'||!['everyday','full'].includes(ctx.connection?.profile))
-      throw new TypeError('Developer webhook is preview-only and needs delegated builder write access');
+      throw new RefusalError('Developer webhook is preview-only and needs delegated builder write access');
     const d=await ownerDeployment(ctx,a);
     if(d.deployment?.readyState!=='READY'||typeof d.deployment.url!=='string')
-      throw new TypeError('An exact READY recorded preview is required');
+      throw new RefusalError('An exact READY recorded preview is required');
     const host=d.deployment.url.toLowerCase();
-    if(!HOST.test(host))throw new TypeError('Preview host identity was not attested');
+    if(!HOST.test(host))throw new RefusalError('Preview host identity was not attested');
     const url=checkedReceiver(a.url,host);
     const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:a.runId});
     if(!Array.isArray(objects)||objects.length>=100)
-      throw new TypeError('Run inventory not proven complete');
+      throw new RefusalError('Run inventory not proven complete');
     const row=activeSecret(objects);
     if(a.action==='prepare'&&row||a.action==='send'&&!row)
-      throw new TypeError(a.action==='prepare'?'Webhook signing key already prepared':'Prepare a private per-run signing key first');
+      throw new RefusalError(a.action==='prepare'?'Webhook signing key already prepared':'Prepare a private per-run signing key first');
     return {runId:a.runId,project:a.project,deployment:a.deployment,teamId:d.account.team_id,
       url:url.toString(),event:a.event,action:a.action,
       keyPrepared:Boolean(row),host};

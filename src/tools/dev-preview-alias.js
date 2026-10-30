@@ -1,5 +1,5 @@
 // V-2 preview aliases never steal an existing hostname or serve a live deployment.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {common,exact,owned,DEPLOY,context,respond,
@@ -12,24 +12,24 @@ const schema={type:'object',properties:props,
 async function absent(client,alias){
   try{await client.request('release_alias_get',{path:{idOrAlias:alias}});}
   catch(e){if(e?.status===404)return;throw e;}
-  throw new TypeError('Existing alias must never be reassigned by a preview workflow');
+  throw new RefusalError('Existing alias must never be reassigned by a preview workflow');
 }
 async function previewDeployment(client,id,project){
   const row=await client.request('deployments_get',{path:{idOrUrl:id}});
   if((row?.uid??row?.id)!==id||row.projectId!==project||row.target!=='preview'||
      row.readyState!=='READY')
-    throw new TypeError('Only a READY, owner-scoped preview deployment can be aliased');
+    throw new RefusalError('Only a READY, owner-scoped preview deployment can be aliased');
 }
 export async function planPreviewAlias(a,ctx){
     exact(a,props,schema.required);
     if(!DEPLOY.test(a.deployment??'')||!HOST.test(a.alias??'')||
        !a.alias.startsWith('rtc-'+a.runId.replaceAll('_','-')+'-'))
-      throw new TypeError('Alias must be run-namespaced and limited to Vercel preview space');
+      throw new RefusalError('Alias must be run-namespaced and limited to Vercel preview space');
     const b=await owned(a,ctx,{requireRun:true});
     const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
     if(!objects.some(o=>o.object_type==='deployment'&&o.object_id===a.deployment&&
          o.project_id===b.project&&o.status==='active'))
-      throw new TypeError('Deployment is not recorded and active in this run');
+      throw new RefusalError('Deployment is not recorded and active in this run');
     const {client}=await readProvider(ctx);
     await Promise.all([previewDeployment(client,a.deployment,b.project),absent(client,a.alias)]);
     validateRequest('release_alias_assign',{path:{id:a.deployment},

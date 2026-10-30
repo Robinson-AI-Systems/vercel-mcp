@@ -1,6 +1,6 @@
 // D-1m: irreversible deletion is restricted to independently inspected,
 // provably empty projects; other project deletion remains unimplemented.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -24,7 +24,7 @@ function assertArgs(args){
     args.outsideApp!==true ||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
-    throw new TypeError('Explicit project identity and outside-app intent required');
+    throw new RefusalError('Explicit project identity and outside-app intent required');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -67,7 +67,7 @@ export function envInventoryCount(reply){
   if(Array.isArray(reply?.envs)&&
     Number.isSafeInteger(reply.hiddenProductionEnvCount)&&
     reply.hiddenProductionEnvCount===0)return reply.envs.length;
-  throw new TypeError('Cannot prove complete envs inventory');
+  throw new RefusalError('Cannot prove complete envs inventory');
 }
 // No raw provider resource rows or secret values leave this function.
 
@@ -97,11 +97,11 @@ export function canonicalDomainEntry(domains,projectName){
 export async function inspectProjectForDeletion(ctx,selector,bound){
   const {client,account}=bound??await readProvider(ctx);
   if(!['team','full'].includes(account.scope))
-    throw new TypeError('Only authenticated team accounts may delete projects');
+    throw new RefusalError('Only authenticated team accounts may delete projects');
   const row=await client.request('projects_get',{path:{idOrName:selector}});
   if(typeof row?.id!=='string'||!ID.test(row.id)||
     typeof row.name!=='string'||!NAME.test(row.name))
-    throw new TypeError('Project identity not independently available');
+    throw new RefusalError('Project identity not independently available');
   // The record-based part of the proof reads only fields the documented
   // project schema carries (AUD-K / VMCP-027): an earlier version demanded
   // storageConnections/stores arrays the schema does not contain at all, so
@@ -114,7 +114,7 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
   let cronCount=0;
   if(row.crons!=null){
     if(!Array.isArray(row.crons.definitions))
-      throw new TypeError('Cannot establish complete project resource inventory');
+      throw new RefusalError('Cannot establish complete project resource inventory');
     cronCount=row.crons.definitions.length;
   }
   const domains=await client.request('projects_domains_list',{
@@ -142,7 +142,7 @@ export async function inspectProjectForDeletion(ctx,selector,bound){
   });
   const deploymentCount=countComplete(deploymentPage,'deployments');
   if(deploymentPage.deployments.some(item=>!item||item.projectId!==row.id))
-    throw new TypeError('Cannot prove scoped project deployment inventory');
+    throw new RefusalError('Cannot prove scoped project deployment inventory');
   const inventory={
     deployments:deploymentCount,
     git:row.link!=null?1:0,crons:cronCount,
@@ -161,10 +161,10 @@ const deletion=defineWrite({
     assertArgs(args);
     const state=await inspectProjectForDeletion(ctx,args.project);
     if(state.name!==args.expectedName)
-      throw new TypeError('Typed project name does not match provider identity');
+      throw new RefusalError('Typed project name does not match provider identity');
     // Only dry-runs may inspect nonempty impact. Confirmation is empty-only.
     if(!state.empty && args.dryRun!==true)
-      throw new TypeError('Nonempty deletion disabled; use dryRun for resource impact');
+      throw new RefusalError('Nonempty deletion disabled; use dryRun for resource impact');
     return state;
   },
   async preview(_args,_ctx,before){

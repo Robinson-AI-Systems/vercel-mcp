@@ -1,6 +1,6 @@
 // D-1k: explicit production-traffic changes. No deployment/resource edits.
 // Vercel's POST success body is empty; independent project state is required.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -19,7 +19,7 @@ function assertArgs(args){
     typeof args.project!=='string' || !ID.test(args.project) ||
     (args.dryRun!==undefined && typeof args.dryRun!=='boolean') ||
     (args.confirm!==undefined && typeof args.confirm!=='boolean'))
-    throw new TypeError('Invalid project traffic request');
+    throw new RefusalError('Invalid project traffic request');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -30,11 +30,11 @@ function context({db,connection,env,fetchImpl}){
 async function project(ctx,selector){
   const {client,account}=await readProvider(ctx);
   if(!['team','full'].includes(account.scope))
-    throw new TypeError('Team-capable account required for production traffic changes');
+    throw new RefusalError('Team-capable account required for production traffic changes');
   const row=await client.request('projects_get',{path:{idOrName:selector}});
   if(typeof row?.id!=='string' || !ID.test(row.id) ||
     typeof row?.name!=='string' || !row.name)
-    throw new TypeError('Project identity unavailable');
+    throw new RefusalError('Project identity unavailable');
   return {row,client};
 }
 function trafficWrite({name,id,desired}){
@@ -44,7 +44,7 @@ function trafficWrite({name,id,desired}){
       assertArgs(args);
       const {row}=await project(ctx,args.project);
       if(typeof row.paused!=='boolean')
-        throw new TypeError('Project pause state cannot be verified');
+        throw new RefusalError('Project pause state cannot be verified');
       return {id:row.id,name:row.name,paused:row.paused};
     },
     async preview(_args,_ctx,before){

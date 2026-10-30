@@ -2,7 +2,7 @@
 // Sources are SHA-1 uploaded in bounded raw binary operations; build spend is
 // unknown and centrally denied until per-transaction provider ceilings exist.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {deploymentTargetMatches} from '../vercel/deployment-target.js';
@@ -36,7 +36,7 @@ function manifest(args){
     args.dryRun!==undefined&&typeof args.dryRun!=='boolean'||
     args.confirm!==undefined&&typeof args.confirm!=='boolean'||
     !Array.isArray(args.files)||args.files.length<1||args.files.length>4)
-    throw new TypeError('Exact project and one to four bounded safe files required');
+    throw new RefusalError('Exact project and one to four bounded safe files required');
   let total=0;
   const seen=new Set();
   const items=args.files.map(file=>{
@@ -47,16 +47,16 @@ function manifest(args){
       /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(file.content)||
       credentialLike(file.content)||
       /((?:password|api[_-]?key|authorization|private[_-]?key)\s*[:=]\s*\S+)/i.test(file.content))
-      throw new TypeError('File content must be bounded nonsecret UTF-8 text');
+      throw new RefusalError('File content must be bounded nonsecret UTF-8 text');
     const parts=file.path.split('/');
     if(parts.some(part=>!SEG.test(part)||part==='.'||part==='..'||
       part.startsWith('.')||credentialLike(part))||seen.has(file.path))
-      throw new TypeError('Unsafe, hidden or duplicate deployment path');
+      throw new RefusalError('Unsafe, hidden or duplicate deployment path');
     seen.add(file.path);
     const bytes=Buffer.from(file.content,'utf8');
     total+=bytes.length;
     if(bytes.length===0||bytes.length>LIMIT||total>LIMIT)
-      throw new TypeError('Deployment files exceed 2 MiB total');
+      throw new RefusalError('Deployment files exceed 2 MiB total');
     return {file:file.path,sha:createHash('sha1').update(bytes).digest('hex'),
       size:bytes.length};
   });
@@ -132,18 +132,18 @@ function context({db,connection,env,fetchImpl}){
 async function checkProject(ctx,id,name){
   const {client,account}=await readProvider(ctx);
   if(account.scope==='project'&&account.project_id!==id)
-    throw new TypeError('Project outside selected connection scope');
+    throw new RefusalError('Project outside selected connection scope');
   const row=await client.request('projects_get',{path:{idOrName:id}});
   if(row?.id!==id||row.name!==name||
     row.accountId!=null&&row.accountId!==account.team_id)
-    throw new TypeError('Stored team/project identity mismatch');
+    throw new RefusalError('Stored team/project identity mismatch');
   return {client,account,row};
 }
 const create=defineWrite({
   name:'vercel_deploy_create_from_files',risk:{spend:true},
   async before(args,ctx){
     const files=manifest(args);
-    if(ctx.connection?.profile!=='full')throw new TypeError('Full profile required');
+    if(ctx.connection?.profile!=='full')throw new RefusalError('Full profile required');
     const {account,row}=await checkProject(ctx,args.project,args.expectedName);
     // projectSettings are required for a project's FIRST deployment and
     // saved by the provider for later ones (vendored OpenAPI description;

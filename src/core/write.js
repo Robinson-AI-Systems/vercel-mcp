@@ -2,6 +2,7 @@
 // The caller must supply a durable replay store, audit writer and safe shaper.
 import { createHash } from 'node:crypto';
 import { refusal, safeShapeForReturn, safeShapeStored, storedReference, writePreflight } from './write-preflight.js';
+export { RefusalError } from './write-preflight.js';
 
 // AUD-Y (VMCP-011, second layer): the audit writer caps the whole
 // record at 8 KB in aggregate — before + after + result + inverse +

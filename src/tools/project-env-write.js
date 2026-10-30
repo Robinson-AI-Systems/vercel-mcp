@@ -1,7 +1,7 @@
 // E-1: single-variable create/update/delete with explicit project, target and audit guards.
 // Never serialize values, digests or raw provider rows to the result or audit.
 import {randomBytes} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {pendingInputs} from '../core/pending-inputs.js';
@@ -53,7 +53,7 @@ function validateSet(a){
     (a.kind!==undefined&&!['Secret','Config'].includes(a.kind))||
     (a.confirm!==undefined&&typeof a.confirm!=='boolean')||
     (a.dryRun!==undefined&&typeof a.dryRun!=='boolean'))
-    throw new TypeError('Invalid exact environment value request');
+    throw new RefusalError('Invalid exact environment value request');
   const kind=a.kind??'Secret';
   const sources=['value','pendingInputId','generate'].filter(k=>a[k]!==undefined);
   if(sources.length!==1||
@@ -65,7 +65,7 @@ function validateSet(a){
     (sources[0]==='pendingInputId'&&!PENDING.test(a.pendingInputId))||
     (sources[0]==='generate'&&(!exact(a.generate,{bytes:1,encoding:1})||
       a.generate.bytes!==32||!['hex','base64url'].includes(a.generate.encoding))))
-    throw new TypeError('Choose one permitted private environment value source');
+    throw new RefusalError('Choose one permitted private environment value source');
 }
 function validateDelete(a){
   if(!exact(a,delProps)||!PROJECT.test(a.project??'')||!ID.test(a.id??'')||
@@ -73,7 +73,7 @@ function validateDelete(a){
     a.expectedUpdatedAt<1||a.outsideApp!==true||
     (a.confirm!==undefined&&typeof a.confirm!=='boolean')||
     (a.dryRun!==undefined&&typeof a.dryRun!=='boolean'))
-    throw new TypeError('Exact environment identity, revision and outside-app intent required');
+    throw new RefusalError('Exact environment identity, revision and outside-app intent required');
 }
 function envMeta(raw,project){
   if(!plain(raw)||!ID.test(raw.id??'')||!KEY.test(raw.key??'')||
@@ -84,16 +84,16 @@ function envMeta(raw,project){
     !['plain','sensitive','encrypted','secret','system'].includes(raw.type)||
     raw.customEnvironmentIds!=null&&(!Array.isArray(raw.customEnvironmentIds)||
       raw.customEnvironmentIds.length!==0))
-    throw new TypeError('Environment owner, targets, revision or custom links unverified');
+    throw new RefusalError('Environment owner, targets, revision or custom links unverified');
   return {id:raw.id,key:raw.key,targets:ordered(raw.target),updatedAt:raw.updatedAt,
     kind:raw.visibility==='secret'||raw.type!=='plain'?'Secret':'Config'};
 }
 async function scoped(ctx,project){
   const {client,account}=await readProvider(ctx);
   if(account.scope==='project'&&account.project_id!==project)
-    throw new TypeError('Wrong project for stored credential');
+    throw new RefusalError('Wrong project for stored credential');
   const row=await client.request('projects_get',{path:{idOrName:project}});
-  if(row?.id!==project)throw new TypeError('Project identity unverified');
+  if(row?.id!==project)throw new RefusalError('Project identity unverified');
   return {client,account};
 }
 async function fresh(ctx,before,id){
@@ -128,7 +128,7 @@ const set=defineWrite({
         path:{idOrName:a.project,id:a.id}}),a.project);
       if(row.id!==a.id||row.key!==a.key||row.updatedAt!==a.expectedUpdatedAt||
         row.kind!==before.kind)
-        throw new TypeError('Existing environment identity or kind differs');
+        throw new RefusalError('Existing environment identity or kind differs');
       Object.assign(before,{id:row.id,updatedAt:row.updatedAt,oldKind:row.kind,
         oldTargets:row.targets});
     }
@@ -200,7 +200,7 @@ const del=defineWrite({
       path:{idOrName:a.project,id:a.id}}),a.project);
     if(row.id!==a.id||row.key!==a.expectedKey||
       row.updatedAt!==a.expectedUpdatedAt)
-      throw new TypeError('Requested environment ID/key/revision mismatch');
+      throw new RefusalError('Requested environment ID/key/revision mismatch');
     return {project:a.project,teamId:account.team_id,id:row.id,key:row.key,
       oldTargets:row.targets,oldKind:row.kind,updatedAt:row.updatedAt};
   },

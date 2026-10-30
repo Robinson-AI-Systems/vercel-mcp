@@ -159,6 +159,12 @@ describe('E-3 guarded Global Config item patch and store removal',()=>{
         .toBe('refused_by_guard');
       expect(f.mutations()).toHaveLength(0);
     }
+    // AUD-AH: the classification refusal reaches the caller in its own
+    // words, not the preflight's generic sentence.
+    const stale=fixture({...row,updatedAt:101},[item('FLAG','disabled')]);
+    expect(parse(await stale.call('vercel_globalconfig_patch_items',args,prod)))
+      .toMatchObject({status:'refused_by_guard',
+        reason:'Global Config owner, connections or revision cannot be classified'});
     // A reported link to a project another team owns still refuses:
     // the per-project proof runs whenever links ARE reported.
     const wrongTeam=fixture({...row,connectedProjects:[project]});

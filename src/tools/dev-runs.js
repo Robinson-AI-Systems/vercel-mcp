@@ -3,7 +3,7 @@
 // purchase policy (AUD-A2): owner word on owner connections, an independently
 // approved purchase grant on delegated/builder connections.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch,PreDispatchRefusal,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,PreDispatchRefusal,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {deploymentTargetMatches} from '../vercel/deployment-target.js';
@@ -40,12 +40,12 @@ function objectArgs(args,keys,required){
      args.dryRun!==undefined&&typeof args.dryRun!=='boolean'||
      args.confirm!==undefined&&typeof args.confirm!=='boolean'||
      args.outsideApp!==undefined&&args.outsideApp!==true)
-    throw new TypeError('Invalid exact development run request');
+    throw new RefusalError('Invalid exact development run request');
 }
 function resolvedRun(args,account){
   if(args.runId)return args.runId;
   if(!KEY.test(args.requestKey??''))
-    throw new TypeError('A durable requestKey or explicit runId is required to seed');
+    throw new RefusalError('A durable requestKey or explicit runId is required to seed');
   const date=new Date().toISOString().slice(0,10).replaceAll('-','');
   const tail=createHash('sha256').update(account+'|'+args.requestKey).digest('hex').slice(0,12);
   return 'run_'+date+'_'+tail;
@@ -60,24 +60,24 @@ function context({db,connection,env,fetchImpl}){
 }
 function assertPreviewConnection(ctx){
   if(ctx.connection?.mode!=='preview'||ctx.connection?.profile!=='full')
-    throw new TypeError('Development runs require full-profile preview connection');
+    throw new RefusalError('Development runs require full-profile preview connection');
 }
 function scratchName(runId,scenario){
   const name='rtc-'+runId.replaceAll('_','-')+'-'+scenario;
   if(name.length>99||!/^[a-z0-9-]+$/.test(name))
-    throw new TypeError('Scratch project name is not safe');
+    throw new RefusalError('Scratch project name is not safe');
   return name;
 }
 async function selectedTeam(ctx){
   const {client,account}=await readProvider(ctx);
   if(!['team','full'].includes(account.scope)||account.team_id==null)
-    throw new TypeError('Scratch project requires stored team-level authority');
+    throw new RefusalError('Scratch project requires stored team-level authority');
   return {client,account};
 }
 async function absentProject(client,name){
   try{await client.request('projects_get',{path:{idOrName:name}});}
   catch(e){if(e?.status===404)return;throw e;}
-  throw new TypeError('The deterministic scratch project name is already in use');
+  throw new RefusalError('The deterministic scratch project name is already in use');
 }
 async function assertProject(provider,id,name,team){
   const row=await provider.read('projects_get',{path:{idOrName:id}});
@@ -101,12 +101,12 @@ function sortCleanup(objects){
 async function trackedRuns(db,account,runId,all=false){
   if(all){
     const runs=await db.listDevRuns({account,limit:50});
-    if(runs.length===50)throw new TypeError('All-runs cleanup requires a complete bounded run inventory');
+    if(runs.length===50)throw new RefusalError('All-runs cleanup requires a complete bounded run inventory');
     return runs.filter(r=>r.status==='active');
   }
   const run=await db.getDevRun({id:runId,account});
-  if(!run)throw new TypeError('Run is not owned by this account');
-  if(run.status!=='active')throw new TypeError('This run was already cleaned');
+  if(!run)throw new RefusalError('Run is not owned by this account');
+  if(run.status!=='active')throw new RefusalError('This run was already cleaned');
   return [run];
 }
 const seed=defineWrite({
@@ -114,15 +114,15 @@ const seed=defineWrite({
   async before(args,ctx){
     objectArgs(args,Object.keys(seedSchema.properties),seedSchema.required);
     assertPreviewConnection(ctx);
-    if(!Object.hasOwn(DEV_SCENARIOS,args.scenario))throw new TypeError('Unknown synthetic seed scenario');
+    if(!Object.hasOwn(DEV_SCENARIOS,args.scenario))throw new RefusalError('Unknown synthetic seed scenario');
     // A requestKey is a durable seed identity, even after the ten-minute
     // transport replay window and a change of calendar date.
     if(args.requestKey&&await ctx.db.getDevRunByRequestKey({
       account:scope(ctx),requestKey:args.requestKey}))
-      throw new TypeError('This seed request already has a durable run; reconcile it before retrying');
+      throw new RefusalError('This seed request already has a durable run; reconcile it before retrying');
     const runId=resolvedRun(args,scope(ctx));
     if(await ctx.db.getDevRun({id:runId,account:scope(ctx)}))
-      throw new TypeError('Existing development run must be reconciled, not recreated');
+      throw new RefusalError('Existing development run must be reconciled, not recreated');
     const name=scratchName(runId,args.scenario);
     const fixture=seedManifest(args.scenario);
     const {client,account}=await selectedTeam(ctx);
@@ -647,13 +647,13 @@ const cleanup=defineWrite({
     objectArgs(args,Object.keys(cleanupSchema.properties),cleanupSchema.required);
     assertPreviewConnection(ctx);
     if(args.runId!=='all-runs'&&!RUN.test(args.runId))
-      throw new TypeError('Exact owned runId or all-runs required');
+      throw new RefusalError('Exact owned runId or all-runs required');
     const {account}=await selectedTeam(ctx);
     const runs=await trackedRuns(ctx.db,scope(ctx),args.runId,args.runId==='all-runs');
     const groups=[];
     for(const r of runs){
       const objects=sortCleanup(await ctx.db.listDevRunObjects({account:scope(ctx),id:r.id}));
-      if(objects.length>=100)throw new TypeError('Object inventory must be complete');
+      if(objects.length>=100)throw new RefusalError('Object inventory must be complete');
       // Only safe, stable metadata enters the preflight/audit snapshot.
       // The execution phase loads private object detail (including encrypted
       // bypass revocation evidence) directly from the owner-scoped database.
@@ -672,7 +672,7 @@ const cleanup=defineWrite({
             ?{kind:'project',id:o.project_id}:null}:{})
       }))});
     }
-    if(!groups.length)throw new TypeError('No active owned development runs eligible for cleanup');
+    if(!groups.length)throw new RefusalError('No active owned development runs eligible for cleanup');
     return {groups,teamId:account.team_id};
   },
   async preview(_args,_ctx,b){

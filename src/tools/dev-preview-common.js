@@ -1,5 +1,6 @@
 // V-2: scoped run, project and run-object utilities.
 import {createHash} from 'node:crypto';
+import { RefusalError } from '../core/write.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {compact} from '../core/util.js';
 import {checkProtected} from './self-guard.js';
@@ -33,7 +34,7 @@ export function exact(args,props,required){
      args.confirm!==undefined&&typeof args.confirm!=='boolean'||
      args.dryRun!==undefined&&typeof args.dryRun!=='boolean'||
      args.outsideApp!==undefined&&args.outsideApp!==true)
-    throw new TypeError('Invalid exact preview workflow request');
+    throw new RefusalError('Invalid exact preview workflow request');
 }
 export function safeBranch(value){
   return BRANCH.test(value??'')&&!value.includes('..')&&
@@ -44,17 +45,17 @@ export function noPreview(branch,outsideApp){
 }
 export async function owned(args,ctx,{requireRun=false}={}){
   if(ctx.connection?.mode!=='preview'||ctx.connection?.profile!=='full')
-    throw new TypeError('Preview-only full owner connection required');
+    throw new RefusalError('Preview-only full owner connection required');
   const {client,account}=await readProvider(ctx);
   if(account.scope==='project'&&account.project_id!==args.project)
-    throw new TypeError('Project outside connection scope');
+    throw new RefusalError('Project outside connection scope');
   const row=await client.request('projects_get',{path:{idOrName:args.project}});
   if(row?.id!==args.project||!row?.name||!account.team_id||
      row.accountId!=null&&row.accountId!==account.team_id)
-    throw new TypeError('Selected account/project identity not proven');
+    throw new RefusalError('Selected account/project identity not proven');
   const current=await ctx.db.getDevRun({id:args.runId,account:ctx.connection.account});
-  if(current&&current.status!=='active')throw new TypeError('Run is terminal');
-  if(requireRun&&!current)throw new TypeError('Run is not registered');
+  if(current&&current.status!=='active')throw new RefusalError('Run is terminal');
+  if(requireRun&&!current)throw new RefusalError('Run is not registered');
   return {project:row.id,name:row.name,teamId:account.team_id,
     runId:args.runId,existing:current!==null};
 }

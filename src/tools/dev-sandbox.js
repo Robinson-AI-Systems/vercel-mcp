@@ -2,7 +2,7 @@
 // Metered creation uses the user's selected delegation/approval policy, not
 // a developer-imposed daily quota. This repository's builder cannot spend.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {safeSandboxPath,sandboxTar} from '../vercel/sandbox-binary.js';
 import {ownerRun,safeText} from './dev-observe-common.js';
@@ -42,7 +42,7 @@ function validate(a,schema){
     a.requestKey!==undefined&&!KEY.test(a.requestKey)||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
-    throw new TypeError('Exact preview Sandbox run and declared fields required');
+    throw new RefusalError('Exact preview Sandbox run and declared fields required');
 }
 function rowIdentity(row,session,project){
   // The pinned provider returns {session:{id,projectId,status,...},routes}.
@@ -52,12 +52,12 @@ function rowIdentity(row,session,project){
     actual.id!==session||
     actual.projectId!==project||
     typeof actual.status!=='string')
-    throw new TypeError('Vercel did not attest exact Sandbox session and project');
+    throw new RefusalError('Vercel did not attest exact Sandbox session and project');
   return actual.status.toLowerCase();
 }
 function previewBuilder(ctx){
   if(ctx.connection?.mode!=='preview'||!['everyday','full'].includes(ctx.connection?.profile))
-    throw new TypeError('Preview-only delegated builder access required');
+    throw new RefusalError('Preview-only delegated builder access required');
 }
 function dayDenver(now=Date.now()){
   return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Denver',
@@ -67,24 +67,24 @@ export {dayDenver};
 export function boundedSandboxMinutes(requested){
   const minutes=requested??10;
   if(!Number.isSafeInteger(minutes)||minutes<1||minutes>1440)
-    throw new TypeError('Sandbox session must be one to 1440 minutes (provider Pro maximum)');
+    throw new RefusalError('Sandbox session must be one to 1440 minutes (provider Pro maximum)');
   return minutes;
 }
 async function boundSession(a,ctx,{allowStopped=false}={}){
   // Caller has already validated its full action schema. Re-validating
   // against stopSchema here would reject legitimate command/files/read fields.
   if(!RUN.test(a.runId??'')||!PROJ.test(a.project??'')||!SBX.test(a.session??''))
-    throw new TypeError('Exact run-owned sandbox session required');
+    throw new RefusalError('Exact run-owned sandbox session required');
   const b=await ownerRun(ctx,a);
   const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:a.runId});
-  if(!Array.isArray(objects)||objects.length>=100)throw new TypeError('Incomplete run inventory');
+  if(!Array.isArray(objects)||objects.length>=100)throw new RefusalError('Incomplete run inventory');
   const tracked=objects.find(x=>x.object_type==='sandbox'&&x.object_id===a.session&&
     x.project_id===a.project&&x.status==='active');
-  if(!tracked)throw new TypeError('Selected Sandbox is not an active recorded run session');
+  if(!tracked)throw new RefusalError('Selected Sandbox is not an active recorded run session');
   const status=rowIdentity(await b.client.request('sandbox_session_get',{
     path:{sessionId:a.session}}),a.session,a.project);
   if(!allowStopped&&status!=='running')
-    throw new TypeError('Sandbox is not running or is already stopping');
+    throw new RefusalError('Sandbox is not running or is already stopping');
   // Do not carry raw project/provider client or other run-object details into
   // defineWrite's generic audit snapshot. Nearby objects can contain encrypted
   // bypass credentials or synthetic webhook ciphertext.
@@ -106,7 +106,7 @@ const creation=defineWrite({
     const minutes=boundedSandboxMinutes(a.minutes);
     if(Boolean(a.githubRepo)!==Boolean(a.gitSha)||
       a.githubRepo!==undefined&&(!REPO.test(a.githubRepo)||!SHA.test(a.gitSha)))
-      throw new TypeError('Bounded Sandbox timeout and exact optional public Git SHA required');
+      throw new RefusalError('Bounded Sandbox timeout and exact optional public Git SHA required');
     const b=await ownerRun(ctx,a);
     const name='rtc-'+a.runId.replaceAll('_','-')+'-'+
       createHash('sha256').update(a.requestKey).digest('hex').slice(0,10);
@@ -189,7 +189,7 @@ const command=defineWrite({
         a.command.startsWith('/')||
         a.args!==undefined&&(!Array.isArray(a.args)||a.args.length>20||
           a.args.some(x=>typeof x!=='string'||x.length>200||/[\x00-\x1f\x7f]/.test(x)))))
-      throw new TypeError('Start requires bounded executable/args; inspect requires exact command ID');
+      throw new RefusalError('Start requires bounded executable/args; inspect requires exact command ID');
     return {...await boundSession(a,ctx),action:inspect?'inspect':'start',
       commandId:inspect?a.commandId:null,command:a.command,
       argCount:(a.args??[]).length};

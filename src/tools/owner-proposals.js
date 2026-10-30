@@ -1,6 +1,6 @@
 // MCP owner writes only PROPOSE an encrypted approval. The separate owner
 // setup page authenticates Chris and performs any account mutation.
-import { defineWrite } from '../core/write.js';
+import { defineWrite, RefusalError } from '../core/write.js';
 import { compact } from '../core/util.js';
 import { checkProtected } from './self-guard.js';
 import { checkApp } from './app-guard.js';
@@ -13,7 +13,7 @@ function requireFields(args, allowed) {
     Object.keys(args).some(k => !allowed.includes(k)) ||
     (args.confirm !== undefined && typeof args.confirm !== 'boolean') ||
     (args.dryRun !== undefined && typeof args.dryRun !== 'boolean')) {
-    throw new TypeError('Invalid owner approval arguments');
+    throw new RefusalError('Invalid owner approval arguments');
   }
 }
 function centsText(cents) {
@@ -62,36 +62,36 @@ export function ownerProposal(name, action) {
           ['connectionId','confirm','dryRun'];
       requireFields(args, keys);
       if (env?.VERCEL_ENV !== 'production' || connection?.profile !== 'full' ||
-        !ACCOUNT.test(connection?.account || '')) throw new TypeError('Owner request unavailable');
+        !ACCOUNT.test(connection?.account || '')) throw new RefusalError('Owner request unavailable');
       const accounts = await db.listVercelAccounts();
-      if (!accounts.some(row => row.id === connection.account)) throw new TypeError('Unconfigured account');
+      if (!accounts.some(row => row.id === connection.account)) throw new RefusalError('Unconfigured account');
       if (action === 'default') {
         if (!ACCOUNT.test(args.account || '') ||
-          !accounts.some(row => row.id === args.account)) throw new TypeError('Unknown account');
+          !accounts.some(row => row.id === args.account)) throw new RefusalError('Unknown account');
         return {account: connection.account, target: args.account};
       }
       if (action === 'remove') {
-        if (!ACCOUNT.test(args.account || '')) throw new TypeError('Unknown account');
+        if (!ACCOUNT.test(args.account || '')) throw new RefusalError('Unknown account');
         const target = accounts.find(row => row.id === args.account);
-        if (!target) throw new TypeError('Unknown account');
+        if (!target) throw new RefusalError('Unknown account');
         // AUD-AA default guard: deleting the default row would
         // silently promote the next account in list order into the
         // new-connection default (owner-approvals mirrors this;
         // rmcp_owner_remove_account enforces it at approval time).
-        if (target.is_default && accounts.length > 1) throw new TypeError(REMOVE_DEFAULT_GUARD);
+        if (target.is_default && accounts.length > 1) throw new RefusalError(REMOVE_DEFAULT_GUARD);
         return {account: connection.account, target: args.account, accountCount: accounts.length};
       }
       if (action === 'spend') {
         if (!Number.isInteger(args.limitCents) || args.limitCents < 0 ||
-          args.limitCents > 2147483647) throw new TypeError('Invalid cents');
+          args.limitCents > 2147483647) throw new RefusalError('Invalid cents');
         return {account: connection.account, cents: args.limitCents};
       }
       if (typeof args.connectionId !== 'string' || !REF.test(args.connectionId))
-        throw new TypeError('Invalid connector');
+        throw new RefusalError('Invalid connector');
       const rows = await db.listAccountConnections({account:connection.account, limit:20});
       if (!rows.some(row => row.id === args.connectionId &&
         row.vercel_account === connection.account &&
-        row.kind === 'connector' && !row.revoked_at)) throw new TypeError('Stale connector');
+        row.kind === 'connector' && !row.revoked_at)) throw new RefusalError('Stale connector');
       return {account: connection.account, target: args.connectionId};
     },
     async preview(_args, ctx, before) {

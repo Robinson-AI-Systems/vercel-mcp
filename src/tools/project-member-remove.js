@@ -1,5 +1,5 @@
 // D-1i: guarded removal of viewer/developer project-only permission.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -20,7 +20,7 @@ function validate(args){
     typeof args.uid!=='string'||!ID.test(args.uid)||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean')||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean'))
-    throw new TypeError('Invalid member removal arguments');
+    throw new RefusalError('Invalid member removal arguments');
 }
 const listMembers=(client,id)=>completeMembers(client,'projects_members_list',{idOrName:id});
 const context=({db,connection,env,fetchImpl})=>({
@@ -34,27 +34,27 @@ const revoke=defineWrite({
   async before(args,ctx){
     validate(args);
     if(ctx.connection?.profile!=='full')
-      throw new TypeError('Full profile is required for project member removal');
+      throw new RefusalError('Full profile is required for project member removal');
     const {client,account}=await readProvider(ctx);
     if(account.scope!=='team'&&account.scope!=='full')
-      throw new TypeError('Team-level permission is required');
+      throw new RefusalError('Team-level permission is required');
     // Derive the acting principal from THIS bound credential, not from an
     // optional environment variable or a caller-supplied UID.
     const identity=await client.request('user_get');
     const selfUid=identity?.user?.id;
     if(typeof selfUid!=='string'||!ID.test(selfUid))
-      throw new TypeError('The current token owner cannot be verified');
+      throw new RefusalError('The current token owner cannot be verified');
     if(args.uid===selfUid)
-      throw new TypeError('Cannot revoke the credential owner or the server itself');
+      throw new RefusalError('Cannot revoke the credential owner or the server itself');
     const project=await client.request('projects_get',{path:{idOrName:args.project}});
     if(typeof project?.id!=='string'||typeof project?.name!=='string')
-      throw new TypeError('Project identity unavailable');
+      throw new RefusalError('Project identity unavailable');
     const rows=await listMembers(client,project.id);
     const user=rows.find(row=>verifiedUserUid(row)===args.uid);
     // A successful DELETE makes the target absent. Permit completed-key
     // replay to reach the atomic store; a new key is a verified no-op.
     if(user && (!['PROJECT_VIEWER','PROJECT_DEVELOPER'].includes(user.role)||rows.length<2))
-      throw new TypeError('Admin, owner and final-member changes require separate owner checks');
+      throw new RefusalError('Admin, owner and final-member changes require separate owner checks');
     // Project role alone is insufficient proof of the target's team authority.
     // Remove only an independently verified team contributor, never an owner,
     // member or an ambiguous identity even when a project page labels it viewer.

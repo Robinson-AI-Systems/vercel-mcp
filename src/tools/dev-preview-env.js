@@ -1,6 +1,6 @@
 // V-2: preview-only environment values, private inputs and per-object recovery.
 import {randomBytes} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {pendingInputs} from '../core/pending-inputs.js';
@@ -21,16 +21,16 @@ const schema={type:'object',properties:props,required:['runId','project','vars']
 function valid(a){
   exact(a,props,schema.required);
   if(a.gitBranch!==undefined&&(!safeBranch(a.gitBranch)||
-     noPreview(a.gitBranch,a.outsideApp)))throw new TypeError('No-preview branch refused');
+     noPreview(a.gitBranch,a.outsideApp)))throw new RefusalError('No-preview branch refused');
   if(!Array.isArray(a.vars)||a.vars.length<1||a.vars.length>5)
-    throw new TypeError('One to five environment variables required');
+    throw new RefusalError('One to five environment variables required');
   const seen=new Set();
   for(const item of a.vars){
     if(!item||typeof item!=='object'||Array.isArray(item)||
        Object.keys(item).some(k=>!Object.hasOwn(envSource.properties,k))||
        !ENV.test(item.key??'')||seen.has(item.key)||
        ['VERCEL_ENV','VERCEL_URL','VERCEL_REGION'].includes(item.key))
-      throw new TypeError('Unsafe, duplicate or reserved environment key');
+      throw new RefusalError('Unsafe, duplicate or reserved environment key');
     seen.add(item.key);
     const sources=['value','pendingInputId','generate'].filter(k=>item[k]!==undefined);
     if(sources.length!==1||
@@ -39,7 +39,7 @@ function valid(a){
           credentialLike(item.value))||
        item.pendingInputId!==undefined&&!PENDING.test(item.pendingInputId)||
        item.generate!==undefined&&item.generate!==true)
-      throw new TypeError('Exactly one approved value source required per key');
+      throw new RefusalError('Exactly one approved value source required per key');
   }
 }
 function rows(result){
@@ -48,7 +48,7 @@ function rows(result){
      !result?.pagination||result.pagination.next!==null||
      result.pagination.count!==items.length||
      result.pagination.hasNext===true||result.pagination.hasMore===true)
-    throw new TypeError('Complete bounded preview environment inventory required');
+    throw new RefusalError('Complete bounded preview environment inventory required');
   return items;
 }
 function matches(row,key,branch){
@@ -63,7 +63,7 @@ export async function planPreviewEnv(a,ctx){
     const current=rows(await client.request('project_env_list',
       {path:{idOrName:b.project},query:{decrypt:'false'}}));
     if(a.vars.some(v=>current.some(r=>matches(r,v.key,a.gitBranch))))
-      throw new TypeError('Existing preview variable cannot be overwritten by a development run');
+      throw new RefusalError('Existing preview variable cannot be overwritten by a development run');
     const planned=a.vars.map(v=>({key:v.key,type:'encrypted',
       target:['preview'],...(a.gitBranch?{gitBranch:a.gitBranch}:{})}));
     for(const v of planned)

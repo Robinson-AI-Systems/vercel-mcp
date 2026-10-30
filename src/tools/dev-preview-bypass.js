@@ -1,7 +1,7 @@
 // V-2: owner-only one-time automation bypass for isolated run-owned scratch projects.
 // Vercel's bypass is project-wide, so never enable it for a live/mixed-use project.
 import {randomBytes,createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {encryptSecret} from '../core/secret-box.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {readProvider} from '../vercel/provider.js';
@@ -15,7 +15,7 @@ function complete(result,key){
   const entries=result?.[key];
   if(!Array.isArray(entries)||entries.length>100||
      result.pagination?.next!==null||result.pagination?.count!==entries.length)
-    throw new TypeError('Production/alias inventory cannot be verified completely');
+    throw new RefusalError('Production/alias inventory cannot be verified completely');
   return entries;
 }
 async function isolated(client,b){
@@ -29,18 +29,18 @@ async function isolated(client,b){
      complete(deps,'deployments').some(d=>
        d.projectId!==b.project||d.target!=='preview')||
      complete(domains,'domains').length)
-    throw new TypeError('Protection bypass is unsafe on a project with any live or unknown traffic');
+    throw new RefusalError('Protection bypass is unsafe on a project with any live or unknown traffic');
 }
 const bypass=defineWrite({
   name:'vercel_dev_create_bypass',risk:{access:true},secretOut:true,oneTimeDelivery:true,
   async before(a,ctx){
     exact(a,props,schema.required);
-    if(!boundedLabel(a.note))throw new TypeError('Unsafe bypass note');
+    if(!boundedLabel(a.note))throw new RefusalError('Unsafe bypass note');
     const b=await owned(a,ctx,{requireRun:true});
     const objects=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
     if(!objects.some(o=>o.object_type==='project'&&o.object_id===b.project&&
         o.status==='active'))
-      throw new TypeError('Only an owned run scratch project can receive a bypass');
+      throw new RefusalError('Only an owned run scratch project can receive a bypass');
     const {client}=await readProvider(ctx);
     await isolated(client,b);
     const probe={generate:{secret:'a'.repeat(32),note:a.note}};

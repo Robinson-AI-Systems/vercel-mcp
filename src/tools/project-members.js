@@ -1,5 +1,5 @@
 // D-1h: add an existing team member by stable user ID. No email invites or seats.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -25,16 +25,16 @@ function validate(args){
     !ROLES.includes(args.role)||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
-    throw new TypeError('Invalid project member request');
+    throw new RefusalError('Invalid project member request');
 }
 const scope=async(ctx,project)=>{
-  if(ctx.connection?.profile!=='full')throw new TypeError('Full-profile connection required for access changes');
+  if(ctx.connection?.profile!=='full')throw new RefusalError('Full-profile connection required for access changes');
   const bound=await readProvider(ctx);
   if(bound.account.scope!=='team'&&bound.account.scope!=='full')
-    throw new TypeError('Team-level permission required to change project membership');
+    throw new RefusalError('Team-level permission required to change project membership');
   const row=await bound.client.request('projects_get',{path:{idOrName:project}});
   if(typeof row?.id!=='string'||typeof row?.name!=='string')
-    throw new TypeError('Project ownership cannot be verified');
+    throw new RefusalError('Project ownership cannot be verified');
   return {client:bound.client,id:row.id,name:row.name,teamId:bound.account.team_id};
 };
 const members=(client,project)=>completeMembers(client,'projects_members_list',{idOrName:project});
@@ -53,7 +53,7 @@ const grant=defineWrite({
     const rows=await members(project.client,project.id);
     const current=rows.find(row=>verifiedUserUid(row)===args.uid);
     if(current && current.role!==args.role)
-      throw new TypeError('Member already has another project role; role changes need separate review');
+      throw new RefusalError('Member already has another project role; role changes need separate review');
     if(!current)await verifyEligibleTeamMember(project.client,project.teamId,args.uid);
     // A completed replay must be reachable even after the first grant succeeded.
     // A new key with the same role becomes a verified idempotent no-op.

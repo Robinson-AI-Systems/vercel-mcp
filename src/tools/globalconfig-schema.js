@@ -2,7 +2,7 @@
 // One coherent lifecycle: provider-owned store scope, item-aware preview,
 // exact revision recheck, linked-app production classification and readback.
 import Ajv from 'ajv';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {STORE,SLUG,KEY,exact,strictArgs,schema,output,RESULT_STORE_CAP} from './globalconfig-common.js';
@@ -22,40 +22,40 @@ const props={
 function strictSchema(value){
   if(value===null)return null;
   if(!value||typeof value!=='object'||Array.isArray(value))
-    throw new TypeError('Global Config schema is not a JSON Schema object');
+    throw new RefusalError('Global Config schema is not a JSON Schema object');
   const serialized=JSON.stringify(value);
   if(!serialized||Buffer.byteLength(serialized,'utf8')>3072)
-    throw new TypeError('Schema must be bounded and serializable');
+    throw new RefusalError('Schema must be bounded and serializable');
   const seen=new WeakSet();
   function check(v,depth){
-    if(depth>12)throw new TypeError('Schema nesting too deep');
+    if(depth>12)throw new RefusalError('Schema nesting too deep');
     if(typeof v==='string'){
       if(credentialLike(v)||/[\x00-\x08\x0b-\x1f\x7f]/.test(v))
-        throw new TypeError('Credential-shaped or control data forbidden in schema');
+        throw new RefusalError('Credential-shaped or control data forbidden in schema');
       return;
     }
     if(v===null||typeof v==='boolean'||typeof v==='number'){
       if(typeof v==='number'&&!Number.isFinite(v))
-        throw new TypeError('Schema contains a non-finite number');
+        throw new RefusalError('Schema contains a non-finite number');
       return;
     }
     if(!v||typeof v!=='object'||seen.has(v))
-      throw new TypeError('Invalid or cyclic JSON Schema data');
+      throw new RefusalError('Invalid or cyclic JSON Schema data');
     seen.add(v);
     try{
       if(Array.isArray(v)){
-        if(v.length>100)throw new TypeError('Schema array too large');
+        if(v.length>100)throw new RefusalError('Schema array too large');
         v.forEach(child=>check(child,depth+1));return;
       }
       if(Object.getPrototypeOf(v)!==Object.prototype||Object.keys(v).length>100)
-        throw new TypeError('Only plain JSON Schema objects are permitted');
+        throw new RefusalError('Only plain JSON Schema objects are permitted');
       for(const [key,child] of Object.entries(v)){
         if(key==='__proto__'||key==='constructor'||key==='prototype'||
           credentialLike(key)||/[\x00-\x1f\x7f]/.test(key))
-          throw new TypeError('Unsafe JSON Schema field');
+          throw new RefusalError('Unsafe JSON Schema field');
         if(['$ref','$dynamicRef','$recursiveRef'].includes(key)&&
           (typeof child!=='string'||!child.startsWith('#/')))
-          throw new TypeError('External schema resolution is disabled');
+          throw new RefusalError('External schema resolution is disabled');
         check(child,depth+1);
       }
     }finally{seen.delete(v);}
@@ -93,7 +93,7 @@ function validity(definition,items){
     validate=new Ajv({allErrors:true,strict:false,validateFormats:false,
       code:{source:false},allowUnionTypes:true}).compile(definition);
   }catch{
-    throw new TypeError('Schema cannot be safely compiled offline');
+    throw new RefusalError('Schema cannot be safely compiled offline');
   }
   if(validate(items))return {valid:true,invalidKeys:[],errors:0};
   const failures=validate.errors??[];
@@ -120,13 +120,13 @@ function argsValid(a){
     a.requestKey!==undefined&&!REQUEST.test(a.requestKey)||
     (a.mode==='set'&&!Object.hasOwn(a,'definition'))||
     (a.mode==='remove'&&Object.hasOwn(a,'definition')))
-    throw new TypeError('Exact schema action, store revision and outside-app intent required');
+    throw new RefusalError('Exact schema action, store revision and outside-app intent required');
   if(a.mode==='set')strictSchema(a.definition);
 }
 async function before(a,ctx){
   argsValid(a);
   if(a.mode==='remove'&&ctx.connection?.profile!=='full')
-    throw new TypeError('Full profile required for schema removal');
+    throw new RefusalError('Full profile required for schema removal');
   const {client,account,row}=await store(ctx,a);
   const [prior,raw]=await Promise.all([
     getSchema(client,row.id),
@@ -134,15 +134,15 @@ async function before(a,ctx){
   ]);
   const items=allItems(raw);
   if(Object.keys(items).length!==row.itemCount)
-    throw new TypeError('Full current store item inventory not available');
+    throw new RefusalError('Full current store item inventory not available');
   const definition=a.mode==='set'?a.definition:null;
   if(eq(prior,definition))
-    throw new TypeError('Store already has the requested schema');
+    throw new RefusalError('Store already has the requested schema');
   const result=validity(definition,items);
   // A dry-run can explain the whole incompatibility. Confirming an incompatible
   // schema is not a safe provider mutation even if its backend might accept it.
   if(!result.valid&&a.dryRun!==true)
-    throw new TypeError('New schema cannot validate current store items');
+    throw new RefusalError('New schema cannot validate current store items');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
     projects:linkSnapshot(row),mode:a.mode,

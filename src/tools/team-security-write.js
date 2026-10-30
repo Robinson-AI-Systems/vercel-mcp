@@ -1,6 +1,6 @@
 // O-1 guarded security settings; SAML and auto-join excluded until lockout-safe evidence exists.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -27,7 +27,7 @@ function validate(args){
     ['confirm','dryRun'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
     args.requestKey!==undefined&&(typeof args.requestKey!=='string'||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)))
-    throw new TypeError('Invalid team security request');
+    throw new RefusalError('Invalid team security request');
   for(const key of FIELDS){
     const value=args[key];
     if(value===undefined)continue;
@@ -35,7 +35,7 @@ function validate(args){
       FIELDS.slice(3,5).includes(key)?!['on','off'].includes(value):
       !value||typeof value!=='object'||Array.isArray(value)||
         Object.keys(value).length!==1||typeof value.enabled!=='boolean')
-      throw new TypeError('Invalid team security value');
+      throw new RefusalError('Invalid team security value');
   }
 }
 const equal=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
@@ -51,13 +51,13 @@ function ctxFor({db,connection,env,fetchImpl}){
     guardApp:targets=>checkApp(targets,{db,connection,env})};
 }
 async function team(ctx){
-  if(ctx.connection?.profile!=='full')throw new TypeError('Full owner profile required');
+  if(ctx.connection?.profile!=='full')throw new RefusalError('Full owner profile required');
   const {client,account}=await readProvider(ctx);
   if(!['team','full'].includes(account.scope)||!ID.test(account.team_id))
-    throw new TypeError('Team profile write requires a team-scoped account');
+    throw new RefusalError('Team profile write requires a team-scoped account');
   const row=await client.request('teams_get',{path:{teamId:account.team_id}});
   if(!row||row.id!==account.team_id||!ID.test(row.id))
-    throw new TypeError('Connected team identity could not be verified');
+    throw new RefusalError('Connected team identity could not be verified');
   return {row,account};
 }
 const update=defineWrite({
@@ -68,7 +68,7 @@ const update=defineWrite({
     validateRequest('teams_patch',{path:{teamId:'team_FAKE_validation'},body});
     const {row}=await team(ctx);
     const changeKeys=FIELDS.filter(key=>args[key]!==undefined&&!equal(args[key],row[key]));
-    if(!changeKeys.length)throw new TypeError('No team profile changes requested');
+    if(!changeKeys.length)throw new RefusalError('No team profile changes requested');
     return {teamId:row.id,oldSlug:row.slug??null,oldName:row.name??null,
       changeKeys,etag:fingerprint(row,changeKeys)};
   },
