@@ -1,6 +1,21 @@
 // D-1a: small, explicitly selected project metadata only; no provider writes.
 import {readProvider} from '../vercel/provider.js';
 import {credentialLike} from '../core/util.js';
+import {loadProfiles} from './app-guard.js';
+// P-1 (design P3): read results mark profile-owned projects with the
+// owning app's id. Best-effort by construction — loadProfiles returns
+// [] on any failure, and reads are never blocked by a profile.
+async function appMarks(ctx){
+  const marks=new Map();
+  for(const p of await loadProfiles(ctx.db,ctx.connection?.account)){
+    for(const name of p.projects??[]) marks.set(String(name).toLowerCase(),p.id);
+  }
+  return marks;
+}
+const marked=(summary,marks)=>{
+  const app=marks.get(String(summary?.name??'').toLowerCase());
+  return app?{...summary,app}:summary;
+};
 const PROFILES=['read_only','everyday','full'];
 const schema=properties=>({type:'object',properties,additionalProperties:false});
 const asText=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
@@ -121,15 +136,16 @@ export const projectsTools={
       if(args.limit!==undefined && (!Number.isInteger(args.limit)||args.limit<1||args.limit>100))
         throw new TypeError('Invalid project limit');
       const {client,account}=await readProvider(ctx);
+      const marks=await appMarks(ctx);
       if(account.scope==='project'){
         if(args.until!==undefined)throw new TypeError('A project-scoped connection has no team cursor');
         const project=await client.request('projects_get',{path:{idOrName:account.project_id}});
         if(project.id!==account.project_id)throw new TypeError('Scoped project did not match');
-        return asText({projects:[projectSummary(project)],count:1,next:null});
+        return asText({projects:[marked(projectSummary(project),marks)],count:1,next:null});
       }
       const reply=await client.request('projects_list',{query:{limit:args.limit??20,...(args.until?{until:args.until}:{})}});
       const next=pageCursor(reply,reply?.projects,args.limit??20);
-      return asText({projects:reply.projects.map(projectSummary),count:reply.projects.length,
+      return asText({projects:reply.projects.map(row=>marked(projectSummary(row),marks)),count:reply.projects.length,
         next,complete:next===null,
         nextStep:next!==null?'Call vercel_project_list with until='+next+' to continue':null});
     },
@@ -176,7 +192,7 @@ export const projectsTools={
       if(!row || typeof row.id!=='string' ||
         (account.scope==='project' && row.id!==account.project_id))
         throw new TypeError('Requested project not available in this connection');
-      return asText({...projectSummary(row),
+      return asText({...marked(projectSummary(row),await appMarks(ctx)),
         buildCommand:textField(row.buildCommand),installCommand:textField(row.installCommand),
         devCommand:textField(row.devCommand),outputDirectory:textField(row.outputDirectory),
         rootDirectory:textField(row.rootDirectory),

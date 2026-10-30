@@ -3,7 +3,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '..
 import {compact} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
-import {checkApp} from './app-guard.js';
+import {checkApp,loadProfiles,profileOwningDomain} from './app-guard.js';
 import {projectContext,ownedAliases,currentDeployment,targetDeployment,
   sameRoute,PROJECT,DEPLOY,schema,exactArgs} from './release-common.js';
 
@@ -52,7 +52,8 @@ async function candidate(a,ctx,mode){
   }else if(target.servedAt!==null){
     throw new RefusalError('Previously promoted deployments must use rollback, not promote');
   }
-  return {project:scoped.project,teamId:scoped.account.team_id,
+  return {project:scoped.project,projectName:scoped.projectName??null,
+    teamId:scoped.account.team_id,
     mode,current,target:a.deployment,aliases,commit:target.commit,
     reason:a.reason??null,fromCreated:old.createdAt,toCreated:target.createdAt};
 }
@@ -67,7 +68,27 @@ function specFor(mode){
   return defineWrite({
     name,
     before:(a,ctx)=>candidate(a,ctx,mode),
-    async preview(_a,_ctx,b){
+    async preview(_a,ctx,b){
+      // P-1 (design P2): a profiled project's preview names the app; a
+      // rollback carries the profile's caution and the emergency label.
+      let label='';
+      try{
+        const profiles=await loadProfiles(ctx.db,ctx.connection?.account);
+        const shaped=profiles.map(profile=>({profile}));
+        const owner=b.aliases.map(x=>profileOwningDomain(shaped,x.domain))
+          .find(Boolean);
+        if(owner){
+          label=' '+owner.name+' manages this project (project profile): ';
+          if(mode==='rollback'){
+            label+='emergency rollback; the app\u2019s release workflow will move forward again on its next release.'+
+              (owner.rollback_caution?' Caution: '+owner.rollback_caution:'');
+          }else{
+            label+='it releases by moving its '+
+              (owner.production_branch??'production')+
+              ' branch, and this promote is an outside-the-app action.';
+          }
+        }
+      }catch{ label=''; }
       return (mode==='promote'?'PROMOTE':'ROLL BACK')+
         ' production '+b.project+' from '+b.current+' to '+b.target+
         ' ('+(b.commit??'unverified commit')+'). Move '+b.aliases.length+
@@ -75,12 +96,18 @@ function specFor(mode){
         ']. '+(mode==='rollback'?'This returns to a previously serving build. ':
           'Only staged READY production deployments are eligible. ')+
         (b.reason?'Reason: '+b.reason+'. ':'')+
-        ' Changes traffic without a rebuild. May use older environment variables and cron settings.';
+        ' Changes traffic without a rebuild. May use older environment variables and cron settings.'+
+        label;
     },
     async production(){return {production:true,
       why:'Explicit live production domain routing change'};},
-    async targets(_a,b){
-      return [{kind:'account',id:b.teamId},{kind:'project',id:b.project},
+    async targets(a,b){
+      // P-1: the profile guard reads the release action and the caller's
+      // outsideApp declaration from the project target (additive fields).
+      const outside=a.outsideApp===true;
+      return [{kind:'account',id:b.teamId},
+        {kind:'project',id:b.project,release:b.mode,outsideApp:outside,
+          ...(b.projectName?{projectName:b.projectName}:{})},
         {kind:'deployment',id:b.current,projectId:b.project},
         {kind:'deployment',id:b.target,projectId:b.project},
         ...b.aliases.map(x=>({kind:'domain',id:x.domain,

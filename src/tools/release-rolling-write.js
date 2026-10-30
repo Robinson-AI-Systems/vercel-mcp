@@ -189,7 +189,13 @@ function factory(kind){
     },
     async production(){return {production:true,
       why:'Rolling releases alter production traffic or paid release configuration'};},
-    async targets(_a,b){return b.targets;},
+    async targets(a,b){
+      // P-1: a rolling-release START on a branch-rule profile is a
+      // release action; mark the project target for the profile guard.
+      if(b.kind!=='start')return b.targets;
+      return b.targets.map(t=>t.kind==='project'
+        ?{...t,release:'rolling_start',outsideApp:a.outsideApp===true}:t);
+    },
     ...(kind==='config'||kind==='start'?{async spend(_a,_ctx,b){
       if(kind==='config'&&b.desired.enabled===false)
         return {cents:0,recurring:false,

@@ -35,6 +35,7 @@ const deleteItem={type:'object',properties:{
 },required:['id','expectedKey','expectedUpdatedAt'],additionalProperties:false};
 const schemas={
  create:{type:'object',properties:{...common,
+   outsideApp:{type:'boolean'},
    items:{type:'array',minItems:2,maxItems:10,items:createItem}},
    required:['project','items'],additionalProperties:false},
  delete:{type:'object',properties:{...common,
@@ -54,7 +55,9 @@ function base(a,allowed){
    throw new RefusalError('Invalid bounded project environment batch');
 }
 function checkCreate(a){
- base(a,['project','items','confirm','dryRun','requestKey']);
+ base(a,['project','items','confirm','dryRun','requestKey','outsideApp']);
+ if(a.outsideApp!==undefined&&typeof a.outsideApp!=='boolean')
+   throw new RefusalError('Invalid bounded project environment batch');
  const keys=new Set(),inputs=new Set();let bytes=0;
  for(const item of a.items){
    if(!only(item,['key','targets','kind','value','pendingInputId','generate'])||
@@ -126,8 +129,8 @@ const create=defineWrite({
  name:'vercel_env_set_many',secretIn:true,
  async before(a,ctx){
    checkCreate(a);
-   const {account}=await scoped(ctx,a.project);
-   return {project:a.project,teamId:account.team_id,items:a.items.map(i=>({
+   const {account,projectName}=await scoped(ctx,a.project);
+   return {project:a.project,projectName,teamId:account.team_id,items:a.items.map(i=>({
      key:i.key,kind:i.kind??'Secret',targets:sorted(i.targets)}))};
  },
  async preview(_a,_ctx,b){
@@ -139,9 +142,12 @@ const create=defineWrite({
    const production=b.items.some(i=>i.targets.includes('production'));
    return {production,why:production?'Production variable in batch':'Nonproduction only'};
  },
- async targets(_a,b){
-   return [{kind:'project',id:b.project},
-     ...b.items.map(i=>({kind:'env',id:i.key,projectId:b.project}))];
+ async targets(a,b){
+   const outside=a.outsideApp===true;
+   const named=b.projectName?{projectName:b.projectName}:{};
+   return [{kind:'project',id:b.project,outsideApp:outside,...named},
+     ...b.items.map(i=>({kind:'env',id:i.key,projectId:b.project,key:i.key,
+       outsideApp:outside,...named}))];
  },
  async apply(a,ctx,b,requestKey){
    const provider=await writeProvider(ctx);
@@ -211,14 +217,14 @@ const remove=defineWrite({
  name:'vercel_env_delete_many',
  async before(a,ctx){
    checkDelete(a);
-   const {client,account}=await scoped(ctx,a.project),items=[];
+   const {client,account,projectName}=await scoped(ctx,a.project),items=[];
    for(const input of a.items){
      const row=exactRow(await client.request('project_env_get',{
        path:{idOrName:a.project,id:input.id}}),a.project,input);
      items.push({id:row.id,key:row.key,updatedAt:row.updatedAt,
        kind:row.kind,targets:row.targets});
    }
-   return {project:a.project,teamId:account.team_id,items};
+   return {project:a.project,projectName,teamId:account.team_id,items};
  },
  async preview(_a,_ctx,b){
    return 'Permanently delete '+b.items.length+' exact keys ('+
@@ -229,9 +235,11 @@ const remove=defineWrite({
    const production=b.items.some(i=>i.targets.includes('production'));
    return {production,why:production?'Production variable included':'Nonproduction only'};
  },
- async targets(_a,b){
-   return [{kind:'project',id:b.project},
-     ...b.items.map(i=>({kind:'env',id:i.id,projectId:b.project}))];
+ async targets(a,b){
+   const named=b.projectName?{projectName:b.projectName}:{};
+   return [{kind:'project',id:b.project,outsideApp:a.outsideApp===true,...named},
+     ...b.items.map(i=>({kind:'env',id:i.id,projectId:b.project,key:i.key,
+       outsideApp:a.outsideApp===true,...named}))];
  },
  async apply(a,ctx,b,requestKey){
    const provider=await writeProvider(ctx);
