@@ -58,7 +58,7 @@ the setup page.
 `R` read_only · `E` everyday · `F` full (every read tool is in `R`). **App:** `y` = the project-profile guard (Batch P)
 checks this tool against resources a profiled app owns; `—` = not applicable.
 
-## Server about itself (`vercel_*`) — 20
+## Server about itself (`vercel_*`) — 21
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
@@ -69,6 +69,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_set_working_box` | Flip this connection's own working mode (preview/production) inside its granted ceiling, effective the next call (A-10); a localAdmin self-write keyed by the caller's own connection id, credential untouched. Production asks refuse by naming the rung (owner production switch off → vercel_enable_production; preview deployment → production deployment) | P | O | F | — | AUD-I S4 |
 | `vercel_list_connections` | Claude connections and passes: account, mode, profile, listing, last used, expiry | — | O | R | — | B-8 |
 | `vercel_revoke_connection` | Propose revoking an exact current OAuth connector; independently authenticated owner must approve | C | O | F | — | B-8b built #40 |
+| `vercel_remove_account` | Propose removing an exact enrolled account row — its stored credential, connections, passes and account-scoped settings are removed with it; the default account refuses while other accounts remain; independently authenticated owner must approve | C | O | F | — | AUD-AA |
 | `vercel_enable_production` | Enable team production access on the owner's confirmed word; teams whose owner chose passphrase strictness on setup keep the ten-minute passphrase reentry step instead | C | O | F | — | B-2; AUD-B |
 | `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | C | O | F | — | B-2 |
 | `vercel_set_spend_limit` | Propose a tenant-scoped exact-cent daily limit for separate owner approval; no spending or default change | C | O | F | — | B-8b built #39 |
@@ -509,7 +510,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 
 | Section | Tools | Batch |
 |---|---|---|
-| Server about itself | 20 | A, B, C, R, X, O |
+| Server about itself | 21 | A, B, C, R, X, O |
 | Projects, crons and Git | 15 | D |
 | Deployments: reads, logs and checks | 10 | D |
 | Deployments: changes | 5 | D |
@@ -535,9 +536,9 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Owner: administration | 5 | O |
 | Project profiles | 5 | P |
 | Workflows | 12 | W |
-| **Hand-built total** | **233** | |
+| **Hand-built total** | **234** | |
 | Universal tools | 4 | U |
-| **All tools** | **237** | |
+| **All tools** | **238** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
 O 29 · P 5 · W 12 · U 4 · R 1 · X 1 (= 236). By lowest profile: `read_only` 103, `everyday` 160 (103 + 57), `full` all 236
@@ -628,3 +629,5 @@ IN-08 (#110): central guarded-write executor routes charges through separately o
 **AUD-Y audit-entry fitting (2026-10-29, VMCP-011 second layer):** the write executor now fits each audit entry to the audit writer's aggregate 8 KB record cap before writing it — measuring exactly as the writer measures (before-wrap, delegation merge, summary) and replacing the largest fields with stored references until the entry fits. A landed, verified write can no longer be turned into an error envelope by the sum of its own audit paperwork; replaced fields read back through vercel_get_result. The writer's cap stays, the summary headline is never replaced, and storeless contexts keep the original refusal.
 
 **AUD-Z working-box reachability (2026-10-30, VMCP-026 A-8 facet 2):** `vercel_set_working_box` is reachable by the owner connection again. The tool shipped in AUD-I S4 declared localAdmin but was never named in the MCP boundary's owner-tools list, so the profile gate refused it for every profile; it is now on that list, with its designed owner-only posture unchanged (full profile only, invisible to everyday and read_only). A boundary test now drives the production registry through the real listing and dispatch gates, so any future localAdmin tool missing from the list fails CI instead of shipping unreachable. The tool's catalog entry above is unchanged.
+
+**AUD-AA account-row removal (2026-10-30, owner step 4 tooling gap):** `vercel_remove_account` joins the owner family above. It proposes removing one exact enrolled account row — beside `vercel_revoke_connection`, never conflated with it: revocation kills one connector's standing and keeps the enrollment; removal deletes the enrollment itself (the stored credential, its connections and passes revoked, its pending inputs/secrets/codes and account-scoped protections deleted; audit history and purchase records kept) through the owner's separate approval on setup, or the setup page's own removal form — both execute the same atomic db operation. The default account refuses while other accounts remain (choose a new default first), because the new-connection default is the account list's order and deleting the row would silently promote the next one. Self-removal and last-account removal are disclosed in the plan, not gated: the approving authority (the setup session) is independent of the connection being removed.

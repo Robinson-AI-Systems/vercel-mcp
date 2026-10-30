@@ -461,6 +461,65 @@ describe('A-5 owner-only setup security', () => {
     expect(errored.statusCode).toBe(400);
     expect(errored.body).not.toContain('NEVER_ECHO');
   });
+  it('renders the account-removal section in the owner panel (AUD-AA)',async()=>{
+    const h=harness(),auth=await signIn(h);
+    const page=await h.call('GET',null,auth.cookie);
+    expect(page.body).toContain('Remove an enrolled account (owner only)');
+    expect(page.body).toContain('value="remove_account"');
+    expect(page.body).toContain('The default account cannot be removed');
+  });
+  it('removes exactly the selected account after session, CSRF and fresh passphrase (AUD-AA)',async()=>{
+    const h=harness(),remove=vi.fn(async()=>'removed');
+    h.db.removeOwnerAccount=remove;
+    const auth=await signIn(h),prod={...env,VERCEL_ENV:'production'};
+    const payload={action:'remove_account',account:'team_FAKE',confirm:'yes',
+      csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE};
+    expect((await h.call('POST',payload,null,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,csrf:'wrong'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',payload,auth.cookie)).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,account:'team_OTHER'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,confirm:'no'},auth.cookie,{env:prod})).statusCode).toBe(403);
+    expect((await h.call('POST',{...payload,passphrase:'wrong'},auth.cookie,{env:prod})).statusCode).toBe(401);
+    expect(remove).not.toHaveBeenCalled();
+    const yes=await h.call('POST',payload,auth.cookie,{env:prod});
+    expect(yes.statusCode).toBe(200);
+    expect(remove).toHaveBeenCalledWith('team_FAKE');
+    expect(yes.body).toContain('removed and independently verified');
+    expect(yes.body).not.toContain(env.ADMIN_PASSPHRASE);
+    expect(h.provider).not.toHaveBeenCalled();
+  });
+  it('classifies removal refusals and never reports an unverified removal as success (AUD-AA)',async()=>{
+    const h=harness(),auth=await signIn(h),prod={...env,VERCEL_ENV:'production'};
+    const data={action:'remove_account',account:'team_FAKE',confirm:'yes',
+      csrf:auth.csrf,passphrase:env.ADMIN_PASSPHRASE};
+    const guarded=await h.call('POST',data,auth.cookie,{env:prod,
+      db:{...h.db,removeOwnerAccount:async()=>'is_default'}});
+    expect(guarded.statusCode).toBe(409);
+    expect(guarded.body).toContain('default for new connections');
+    const missing=await h.call('POST',data,auth.cookie,{env:prod,
+      db:{...h.db,removeOwnerAccount:async()=>'missing'}});
+    expect(missing.statusCode).toBe(409);
+    expect(missing.body).toContain('already removed');
+    const unverified=await h.call('POST',data,auth.cookie,{env:prod,
+      db:{...h.db,removeOwnerAccount:async()=>'unverified'}});
+    expect(unverified.statusCode).toBe(409);
+    expect(unverified.body).toContain('not verified');
+    const errored=await h.call('POST',data,auth.cookie,{env:prod,
+      db:{...h.db,removeOwnerAccount:async()=>{throw Error('NEVER_ECHO');}}});
+    expect(errored.statusCode).toBe(400);
+    expect(errored.body).not.toContain('NEVER_ECHO');
+  });
+  it('renders a remove owner request in review with its full consequence (AUD-AA)',async()=>{
+    const h=harness(), auth=await signIn(h), prod={...env,VERCEL_ENV:'production'};
+    const reference='01234567-89ab-4cde-8012-3456789abcde';
+    const reader=vi.fn(async()=>({version:1,issuerAccount:'team_FAKE',action:'remove',
+      targetAccount:'team_FAKE',connectionRef:null,limitCents:null}));
+    const ok=await h.call('POST',{action:'review_owner_request',account:'team_FAKE',
+      reference,csrf:auth.csrf},auth.cookie,{env:prod,inspectOwnerChangeFn:reader});
+    expect(ok.statusCode).toBe(200);
+    expect(ok.body).toContain('Remove the enrolled account team_FAKE');
+    expect(ok.body).toContain('no account change has been approved or applied');
+  });
   it('reviews exact pending request only after session and CSRF in production',async()=>{
     const h=harness(), auth=await signIn(h), prod={...env,VERCEL_ENV:'production'};
     const reference='01234567-89ab-4cde-8012-3456789abcde';

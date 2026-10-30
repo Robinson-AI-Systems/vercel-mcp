@@ -94,6 +94,8 @@ async function connectionChoices(db, accounts) {
 function ownerRequestSummary(req) {
   if (req.action==='default') return 'Select '+req.targetAccount+' as the new default Vercel account';
   if (req.action==='spend') return 'Set '+req.issuerAccount+' daily spend limit to '+dollars(req.limitCents);
+  if (req.action==='remove') return 'Remove the enrolled account '+req.targetAccount+
+    ' — its stored credential, connections, passes and account-scoped settings are removed with it';
   return 'Revoke connector '+req.connectionRef+' from '+req.issuerAccount+
     ' (subject to last-active protection)';
 }
@@ -264,6 +266,23 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label><input type="checkbox" name="confirm" value="yes" required>Confirm targeted revocation</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
     '<button type="submit">Revoke selected connector</button></form></section>' +
+    '<section><h2>Remove an enrolled account (owner only)</h2>' +
+    // AUD-AA: the by-hand twin of vercel_remove_account — the same
+    // atomic db operation the approval envelope applies. Removal
+    // deletes the stored credential on this server and everything
+    // scoped to the enrollment; the Vercel team itself is untouched.
+    '<p>Removing an account deletes its stored credential on this server and everything scoped ' +
+    'to the enrollment: its connections and passes are revoked, and its pending secret inputs, ' +
+    'pending one-time secrets, unconsumed sign-in codes and account-scoped protection rules are ' +
+    'deleted. Audit history and purchase records are kept. The default account cannot be removed ' +
+    'while other accounts remain — choose a new default first. This changes the server database, ' +
+    'not any real Vercel resource. Disabled on preview deployments.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="remove_account">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Confirm removing this enrolled account</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required autocomplete="current-password"></label>' +
+    '<button type="submit">Remove selected account</button></form></section>' +
     '<section><h2>Approve one exact purchase (owner only)</h2>' +
     '<p>AI agents cannot approve charges. Enter the purchase reference first to inspect the operation, quoted price or usage class. Approval requires your current passphrase and a separately chosen maximum; no provider charge is made during approval.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -651,6 +670,40 @@ export async function handleSetup(req, res, {
         return html(res, 409, 'Unavailable', '<p>Connector missing, stale or the last active one.</p>');
       }
       message = 'The selected connector was revoked and independently verified.';
+    } else if (params.action === 'remove_account') {
+      // AUD-AA: direct owner form, sibling of revoke_connection —
+      // session, CSRF, explicit confirmation and fresh passphrase
+      // reentry, then the same atomic operation the approval
+      // envelope applies. No MCP/profile argument can stand in.
+      if (env.VERCEL_ENV !== 'production') {
+        return html(res, 403, 'Unavailable', '<p>Account removal requires the production server.</p>');
+      }
+      if (!accounts.some(a => a.id === params.account) || params.confirm !== 'yes') {
+        return html(res, 403, 'Permission denied', '<p>Select a connected account and confirm the removal.</p>');
+      }
+      const approval = await evaluateLogin({
+        ip: clientIp(req), supplied: String(params.passphrase || ''),
+        expected: env.ADMIN_PASSPHRASE, store: db
+      });
+      if (approval.status === 'locked') {
+        res.setHeader('Retry-After', '900');
+        return html(res, 429, 'Permission denied', '<p>Too many passphrase attempts.</p>');
+      }
+      if (approval.status !== 'ok') return html(res, 401, 'Permission denied', '<p>Incorrect passphrase.</p>');
+      if (typeof db.removeOwnerAccount !== 'function') {
+        return html(res, 409, 'Unavailable', '<p>Account removal is unavailable on this server.</p>');
+      }
+      const outcome = await db.removeOwnerAccount(params.account);
+      if (outcome === 'is_default') {
+        return html(res, 409, 'Unavailable', '<p>That account is the default for new connections while other accounts remain. Choose a new default first, then remove it.</p>');
+      }
+      if (outcome === 'missing') {
+        return html(res, 409, 'Unavailable', '<p>Account missing or already removed.</p>');
+      }
+      if (outcome !== 'removed') {
+        return html(res, 409, 'Not verified', '<p>The removal was not verified. Inspect current account state before trying again.</p>');
+      }
+      message = 'The enrolled account was removed and independently verified: its stored credential and account-scoped state are gone. Audit history and purchase records remain.';
     } else if (params.action === 'review_purchase') {
       if(env.VERCEL_ENV!=='production')
         return html(res,403,'Unavailable','<p>Purchase approval requires the production server.</p>');

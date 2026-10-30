@@ -480,6 +480,37 @@ export function createDb(query) {
         FROM vercel_accounts WHERE id = ${id} LIMIT 1`;
       return rows[0] ?? null;
     },
+    /**
+     * AUD-AA: the removal plan's facts for one enrolled account — the
+     * safe row fields plus the exact cascade counts, in one read. The
+     * counts describe what removeOwnerAccount will revoke or delete;
+     * audit history and purchase records are retained and never
+     * counted here. Returns null when the account does not exist.
+     */
+    async getAccountRemovalFacts(id) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id)) {
+        throw new TypeError('Invalid Vercel account');
+      }
+      const run = getSql();
+      const rows = await run`SELECT a.id, a.label, a.scope, a.team_slug,
+          a.project_id, a.token_last4, a.is_default, a.production_enabled,
+          (SELECT COUNT(*) FROM vercel_accounts)::int AS account_count,
+          (SELECT COUNT(*) FROM oauth_tokens
+            WHERE vercel_account = a.id AND revoked_at IS NULL)::int AS live_tokens,
+          (SELECT COUNT(*) FROM rtc_passes
+            WHERE vercel_account = a.id AND revoked_at IS NULL)::int AS live_passes,
+          (SELECT COUNT(*) FROM oauth_codes
+            WHERE vercel_account = a.id)::int AS pending_codes,
+          (SELECT COUNT(*) FROM pending_inputs
+            WHERE vercel_account = a.id)::int AS pending_inputs,
+          (SELECT COUNT(*) FROM one_time_secrets
+            WHERE vercel_account = a.id)::int AS pending_secrets,
+          (SELECT COUNT(*) FROM protected_resources
+            WHERE vercel_account = a.id)::int AS protections
+        FROM vercel_accounts a WHERE a.id = ${id}`;
+      return rows[0] ?? null;
+    },
+
     /** Tenant-scoped connection listing: never SELECT token_hash or refresh_hash. */
     async listAccountConnections({ account, includeRevoked = false, limit = 20 }) {
       if (typeof account !== 'string' || !account || typeof includeRevoked !== 'boolean' ||
@@ -541,6 +572,30 @@ export function createDb(query) {
         WHERE vercel_account = ${account} AND kind = 'connector'
           AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
       return readback.length === 1 && readback[0].revoked === true;
+    },
+
+    /**
+     * AUD-AA: owner setup only; atomic removal of one enrolled account
+     * row with its cascade (see rmcp_owner_remove_account). Credentials
+     * never outlive the enrollment: live connection tokens and RTC
+     * passes are revoked, unconsumed codes, pending secret inputs,
+     * pending one-time secrets and account-scoped protections are
+     * deleted; change_log history and purchase intents are retained.
+     * Returns 'removed' | 'missing' | 'is_default' | 'unverified' —
+     * 'removed' only after an independent read-back finds the row
+     * gone; never claim success on an ambiguous result.
+     */
+    async removeOwnerAccount(id) {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(id)) {
+        throw new TypeError('Invalid Vercel account');
+      }
+      const run = getSql();
+      const rows = await run`SELECT rmcp_owner_remove_account(${id}) AS status`;
+      const status = rows[0]?.status;
+      if (status === 'is_default' || status === 'missing') return status;
+      if (status !== 'removed') return 'unverified';
+      const readback = await run`SELECT id FROM vercel_accounts WHERE id = ${id}`;
+      return readback.length === 0 ? 'removed' : 'unverified';
     },
 
     /** Scoped and non-consuming encrypted owner approval inspection. */
@@ -1317,6 +1372,63 @@ export function createDb(query) {
           VALUES (p_account, 'production', 'vercel_revoke_connection',
             'Owner revoked one connector for this account', FALSE, TRUE);
           RETURN TRUE;
+        END;
+        $rmcp$`;
+      // AUD-AA: enrolled-account removal. The target row is the
+      // serialization lock (the revoke function's precedent); the
+      // default guard is re-derived under it because approval-time
+      // state, not proposal-time state, is the truth. The two
+      // refusals stay distinguishable ('missing' vs 'is_default')
+      // so callers can classify them; any later failure raises and
+      // rolls the whole removal back — a half-removed account is
+      // never committed. Audit history (change_log) and the
+      // purchase ledger are deliberately retained.
+      await run`CREATE OR REPLACE FUNCTION rmcp_owner_remove_account(
+          p_target TEXT) RETURNS TEXT LANGUAGE plpgsql
+        AS $rmcp$
+        DECLARE
+          v_default BOOLEAN;
+          v_total INTEGER;
+          v_deleted INTEGER;
+          v_tokens INTEGER; v_passes INTEGER; v_codes INTEGER;
+          v_inputs INTEGER; v_secrets INTEGER; v_protections INTEGER;
+        BEGIN
+          SELECT is_default INTO v_default FROM vercel_accounts
+            WHERE id = p_target FOR UPDATE;
+          IF NOT FOUND THEN RETURN 'missing'; END IF;
+          SELECT COUNT(*) INTO v_total FROM vercel_accounts;
+          IF v_default AND v_total > 1 THEN RETURN 'is_default'; END IF;
+          DELETE FROM vercel_accounts WHERE id = p_target;
+          GET DIAGNOSTICS v_deleted = ROW_COUNT;
+          IF v_deleted <> 1 THEN
+            RAISE EXCEPTION 'account removal deleted % rows', v_deleted;
+          END IF;
+          UPDATE oauth_tokens SET revoked_at = now()
+            WHERE vercel_account = p_target AND revoked_at IS NULL;
+          GET DIAGNOSTICS v_tokens = ROW_COUNT;
+          UPDATE rtc_passes SET revoked_at = now()
+            WHERE vercel_account = p_target AND revoked_at IS NULL;
+          GET DIAGNOSTICS v_passes = ROW_COUNT;
+          DELETE FROM oauth_codes WHERE vercel_account = p_target;
+          GET DIAGNOSTICS v_codes = ROW_COUNT;
+          DELETE FROM pending_inputs WHERE vercel_account = p_target;
+          GET DIAGNOSTICS v_inputs = ROW_COUNT;
+          DELETE FROM one_time_secrets WHERE vercel_account = p_target;
+          GET DIAGNOSTICS v_secrets = ROW_COUNT;
+          DELETE FROM protected_resources WHERE vercel_account = p_target;
+          GET DIAGNOSTICS v_protections = ROW_COUNT;
+          INSERT INTO change_log
+            (vercel_account, mode, tool, summary, dry_run, production, after)
+          VALUES (p_target, 'production', 'vercel_remove_account',
+            'Owner removed an enrolled Vercel account and its account-scoped state',
+            FALSE, TRUE,
+            jsonb_build_object('tokensRevoked', v_tokens,
+              'passesRevoked', v_passes, 'codesDeleted', v_codes,
+              'pendingInputsDeleted', v_inputs,
+              'pendingSecretsDeleted', v_secrets,
+              'protectionsDeleted', v_protections,
+              'wasDefault', v_default));
+          RETURN 'removed';
         END;
         $rmcp$`;
 
