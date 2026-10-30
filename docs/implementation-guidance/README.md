@@ -10,6 +10,11 @@ E-1…E-4, V-1…V-5 are merged; the registry has 123 tools (not 8); N-1 is impl
 `marley/audit-vercel-mcp-20261025`. The "Existing code map" below is the 2026-10-11 snapshot — verify current modules
 and signatures before following its examples; `src/tools/index.js` now lists many more than four modules.
 
+**Re-based 2026-10-30 at HEAD `8978607b`:** the registry has 128 tools; N-1 is merged (all 11 `vercel_domain_*`
+tools registered), and the AUD account layer is built (AUD-AA `vercel_remove_account`; AUD-AB
+`vercel_account_teams`, `vercel_team_create`, `vercel_team_delete`). The code map below remains the 2026-10-11
+snapshot — verify current modules and signatures before following its examples.
+
 **Current security update (#56):** §7 of [RECIPES](RECIPES.md#7-grouped-operations-and-security-first-throughput-d-1-onward) governs cohesive multi-operation PRs; the runtime authenticates the `defineWrite` origin and guarded handler, partitions transport replay per mutation and preserves write classification in MCP metadata. The older baseline map below is historical; verify current modules and signatures before following its examples.
 
 ## Choose the smallest reading route

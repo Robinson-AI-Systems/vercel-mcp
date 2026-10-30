@@ -9,7 +9,14 @@ empty-ish repository, so several rows below still say **proposed** for modules t
 reads only), R-1/R-2 (read-only passes/doors only). N-1 (domains) is implemented on branch
 `marley/audit-vercel-mcp-20261025` (source only; live acceptance pending). Genuinely still **proposed** (no implementation): N-2, N-3, F-1…F-3, M-1…M-4,
 O-2…O-5, P-1…P-3, W-1…W-6, the write side of U-1 (`vercel_api_write`), R-1 write-capable passes, R-3, X-1, X-2 and
-CAP-1…CAP-5. Where a row below contradicts this paragraph, this paragraph and `work-index.json` win. Tests/operations
+CAP-1…CAP-5. Where a row below contradicts this paragraph, this paragraph and `work-index.json` win.
+
+**Re-based 2026-10-30 at HEAD `8978607b` (registry: 128 tools; catalog: 241, of which 113 unimplemented).** Since
+the 2026-10-26 re-base: N-1 is merged (all 11 `vercel_domain_*` tools registered); the AUD account layer is built
+(AUD-AA `vercel_remove_account`; AUD-AB `vercel_account_teams`, `vercel_team_create`, `vercel_team_delete`); the
+2026-10-30 audit fixes AUD-AE…AUD-AI are merged. O-3 note: `vercel_token_create` / `vercel_token_delete` remain
+**proposed** — only `vercel_check_token` exists. Where a row below contradicts this paragraph, this paragraph and
+`work-index.json` win. Tests/operations
 are selected JIT from the actual predecessor, catalog and snapshot; this map does not pin unverified future API versions
 or add scope. All paths marked **proposed** below were absent at the inspected baseline (2026-10-11); check the current
 tree before treating any of them as still absent.

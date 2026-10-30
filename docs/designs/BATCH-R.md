@@ -43,6 +43,12 @@ allowed 1–600, IN-10), chosen when the pass is created and read from the pass 
 429 with `Retry-After` and code `rate_limited`. Never an in-memory counter. `GET /api/openapi.json` (generated, ≤30
 operations: meta tools, whoami, workflows) for HTTP-only agents.
 
+**Amendment 2026-10-30 (docs-accuracy; the code is the standard):** as built, RTC passes are stored in a dedicated
+`rtc_passes` table (`src/db.js`), not as `oauth_tokens.kind = 'pass'` rows, and the per-pass limit is the
+`rate_limit_per_minute` column on that same table. No `rate_limits` table exists in the schema. R1 and R2 above
+describe the original design on these two storage points and are superseded there; pass behavior (issuance, areas,
+revocation, limits) is as built in `src/rtc/` and `src/db.js`.
+
 **R3. Conformance in CI, never a blocker.** When the hub's `packages/conformance` exists it runs against a locally
 started server (fake Vercel) in this repo's CI, including the two-instance rate-limit check; a failure fails `ci`. Until
 then this server's own write-contract tests over MCP, `vercel_call` and HTTPS cover the same behavior.
