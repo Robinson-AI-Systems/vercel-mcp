@@ -27,6 +27,7 @@ const props={
     encoding:{type:'string',enum:['hex','base64url']}
   },required:['bytes','encoding'],additionalProperties:false},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
+  outsideApp:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[A-Za-z0-9_-]{8,128}$'}
 };
 const setSchema={type:'object',properties:props,required:['project','key','mode','targets'],
@@ -52,6 +53,7 @@ function validateSet(a){
       !Number.isSafeInteger(a.expectedUpdatedAt)||a.expectedUpdatedAt<1))||
     (a.kind!==undefined&&!['Secret','Config'].includes(a.kind))||
     (a.confirm!==undefined&&typeof a.confirm!=='boolean')||
+    (a.outsideApp!==undefined&&typeof a.outsideApp!=='boolean')||
     (a.dryRun!==undefined&&typeof a.dryRun!=='boolean'))
     throw new RefusalError('Invalid exact environment value request');
   const kind=a.kind??'Secret';
@@ -94,7 +96,10 @@ async function scoped(ctx,project){
     throw new RefusalError('Wrong project for stored credential');
   const row=await client.request('projects_get',{path:{idOrName:project}});
   if(row?.id!==project)throw new RefusalError('Project identity unverified');
-  return {client,account};
+  // P-1: the project name rides along so write targets can name the
+  // project for the profile guard (profiles key on names).
+  return {client,account,
+    projectName:typeof row.name==='string'?row.name:null};
 }
 async function fresh(ctx,before,id){
   const {client,account}=await scoped(ctx,before.project);
@@ -120,8 +125,8 @@ const set=defineWrite({
   name:'vercel_env_set',secretIn:true,
   async before(a,ctx){
     validateSet(a);
-    const {account,client}=await scoped(ctx,a.project);
-    const before={project:a.project,key:a.key,teamId:account.team_id,
+    const {account,client,projectName}=await scoped(ctx,a.project);
+    const before={project:a.project,projectName,key:a.key,teamId:account.team_id,
       targets:ordered(a.targets),kind:a.kind??'Secret',mode:a.mode};
     if(a.mode==='update'){
       const row=envMeta(await client.request('project_env_get',{
@@ -143,8 +148,14 @@ const set=defineWrite({
     const live=b.targets.includes('production')||(b.oldTargets??[]).includes('production');
     return {production:live,why:live?'Production target is involved':'Only nonproduction targets'};
   },
-  async targets(_a,b){
-    return [{kind:'project',id:b.project},{kind:'env',id:b.id??b.key,projectId:b.project}];
+  async targets(a,b){
+    // P-1: the profile guard judges env writes by key and by the caller's
+    // outsideApp declaration; both ride on the target (additive fields).
+    const outside=a.outsideApp===true;
+    return [{kind:'project',id:b.project,outsideApp:outside,
+        ...(b.projectName?{projectName:b.projectName}:{})},
+      {kind:'env',id:b.id??b.key,projectId:b.project,key:b.key,outsideApp:outside,
+        ...(b.projectName?{projectName:b.projectName}:{})}];
   },
   async apply(a,ctx,b,requestKey){
     const provider=await writeProvider(ctx);
@@ -195,13 +206,13 @@ const del=defineWrite({
   name:'vercel_env_delete',
   async before(a,ctx){
     validateDelete(a);
-    const {client,account}=await scoped(ctx,a.project);
+    const {client,account,projectName}=await scoped(ctx,a.project);
     const row=envMeta(await client.request('project_env_get',{
       path:{idOrName:a.project,id:a.id}}),a.project);
     if(row.id!==a.id||row.key!==a.expectedKey||
       row.updatedAt!==a.expectedUpdatedAt)
       throw new RefusalError('Requested environment ID/key/revision mismatch');
-    return {project:a.project,teamId:account.team_id,id:row.id,key:row.key,
+    return {project:a.project,projectName,teamId:account.team_id,id:row.id,key:row.key,
       oldTargets:row.targets,oldKind:row.kind,updatedAt:row.updatedAt};
   },
   async preview(_a,_ctx,b){
@@ -213,8 +224,11 @@ const del=defineWrite({
     return {production:b.oldTargets.includes('production'),
       why:b.oldTargets.includes('production')?'Variable includes production':'Preview/development only'};
   },
-  async targets(_a,b){
-    return [{kind:'project',id:b.project},{kind:'env',id:b.id,projectId:b.project}];
+  async targets(a,b){
+    return [{kind:'project',id:b.project,outsideApp:a.outsideApp===true,
+        ...(b.projectName?{projectName:b.projectName}:{})},
+      {kind:'env',id:b.id,projectId:b.project,key:b.key,outsideApp:a.outsideApp===true,
+        ...(b.projectName?{projectName:b.projectName}:{})}];
   },
   async apply(_a,ctx,b,requestKey){
     const provider=await writeProvider(ctx);

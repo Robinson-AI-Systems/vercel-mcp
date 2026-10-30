@@ -36,7 +36,11 @@ export async function projectContext(args,ctx){
   if(raw?.id!==project||raw?.accountId!==account.team_id||
     account.scope==='project'&&account.project_id!==project)
     throw new RefusalError('Cannot prove selected project and team ownership');
-  return {client,account,project};
+  // P-1: the project name rides along so write targets can name the
+  // project for the profile guard (profiles key on names; IDs are
+  // setup-page data).
+  return {client,account,project,
+    projectName:typeof raw.name==='string'?raw.name:null};
 }
 export function releaseAliases(reply,project){
   const rows=reply?.aliases??reply?.data??(Array.isArray(reply)?reply:null);

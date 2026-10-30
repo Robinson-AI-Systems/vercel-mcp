@@ -181,8 +181,9 @@ const create=defineWrite({
     return {production:before.target==='production',
       why:'Explicit requested file deployment target'};
   },
-  async targets(_args,before){
-    return [{kind:'project',id:before.project,name:before.name}];
+  async targets(args,before){
+    return [{kind:'project',id:before.project,name:before.name,
+      deployTarget:before.target,outsideApp:args.outsideApp===true}];
   },
   async spend(){
     return {cents:null,recurring:true,

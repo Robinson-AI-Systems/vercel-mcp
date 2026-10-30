@@ -80,19 +80,21 @@ const copy=defineWrite({
   name:'vercel_env_copy',secretIn:true,
   async before(args,ctx){
     argsValid(args);
-    const {client,account}=await scoped(ctx,args.project);
+    const {client,account,projectName}=await scoped(ctx,args.project);
     const destinationProject=args.destinationProject??args.project;
+    let destinationName=projectName;
     if(destinationProject!==args.project){
       if(account.scope==='project'||args.outsideApp!==true)
         throw new RefusalError('Cross-project copy needs same-team authority and explicit outside-app intent');
       const destination=await scoped(ctx,destinationProject);
       if(destination.account.team_id!==account.team_id)
         throw new RefusalError('Destination team differs from source');
+      destinationName=destination.projectName;
     }
     const raw=await client.request('project_env_get',{
       path:{idOrName:args.project,id:args.sourceId}});
     source(raw,args.project,args);
-    return {project:args.project,destinationProject,teamId:account.team_id,
+    return {project:args.project,destinationProject,destinationName,teamId:account.team_id,
       sourceId:args.sourceId,sourceKey:args.sourceKey,
       sourceUpdatedAt:args.sourceUpdatedAt,sourceTarget:args.sourceTarget,
       sourceGitBranch:args.sourceGitBranch??null,
@@ -111,10 +113,13 @@ const copy=defineWrite({
     return {production:b.destinationTarget==='production',
       why:b.destinationTarget==='production'?'Production destination target':'Preview/development only'};
   },
-  async targets(_a,b){
-    return [{kind:'project',id:b.project},
-      ...(b.destinationProject===b.project?[]:[{kind:'project',id:b.destinationProject}]),
-      {kind:'env',id:b.destinationKey,projectId:b.destinationProject}];
+  async targets(a,b){
+    const outside=a.outsideApp===true;
+    return [{kind:'project',id:b.project,outsideApp:outside},
+      ...(b.destinationProject===b.project?[]:[{kind:'project',id:b.destinationProject,outsideApp:outside}]),
+      {kind:'env',id:b.destinationKey,projectId:b.destinationProject,
+        key:b.destinationKey,outsideApp:outside,
+        ...(b.destinationName?{projectName:b.destinationName}:{})}];
   },
   async apply(a,ctx,b,requestKey){
     const provider=await writeProvider(ctx);

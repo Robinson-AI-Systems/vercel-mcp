@@ -620,9 +620,10 @@ const blobStoreDelete=defineWrite({
     return {production:false,
       why:'The store-level guard is the outsideApp naming; BATCH-B classes store deletion as destructive (D), not production-class'};
   },
-  async targets(_args,before){
+  async targets(args,before){
     return [{kind:'store',id:before.storeId,accountId:before.teamId,
-      name:before.storeId}];
+      name:before.storeId,storeAction:'delete',
+      outsideApp:args.outsideApp===true}];
   },
   async apply(_args,ctx,before,requestKey){
     const provider=await writeProvider(ctx);
