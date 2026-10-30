@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; F-1 added 2026-10-30): 136 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 105 are planned scope for approved batches N-2/N-3, F-2/F-3, M, O-2–O-5, P, W, X and the write side of U-1, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1 and F-1 added 2026-10-30): 141 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 100 are planned scope for approved batches N-2/N-3, F-2/F-3, M-2–M-4, O-2–O-5, P, W, X and the write side of U-1, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
 
 **Naming.** Every tool name starts with `vercel_` (DECISIONS 2026-10-10 "Every tool name starts with `vercel_`"):
 Vercel, Neon and GitHub share nouns such as *project* and *branch*, and two connectors attached to one Claude chat must

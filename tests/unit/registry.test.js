@@ -13,6 +13,8 @@ describe('tool registry', () => {
       'vercel_domain_update','vercel_domain_remove_from_team','vercel_domain_list_project_domains',
       'vercel_domain_attach_to_project','vercel_domain_update_project_domain',
       'vercel_domain_detach_from_project','vercel_domain_verify_project_domain',
+      'vercel_logs_query','vercel_logs_errors_summary','vercel_analytics_pageviews',
+      'vercel_analytics_set_web_analytics','vercel_analytics_set_speed_insights',
       'vercel_protection_get','vercel_protection_list_bypass','vercel_protection_set_vercel_auth',
       'vercel_protection_set_password','vercel_protection_set_trusted_ips',
       'vercel_protection_create_bypass','vercel_protection_revoke_bypass',
@@ -24,7 +26,8 @@ describe('tool registry', () => {
       'vercel_dev_sandbox_stop','vercel_domain_add_to_team','vercel_domain_update',
       'vercel_domain_remove_from_team','vercel_domain_attach_to_project',
       'vercel_domain_update_project_domain','vercel_domain_detach_from_project',
-      'vercel_domain_verify_project_domain','vercel_protection_set_vercel_auth',
+      'vercel_domain_verify_project_domain','vercel_analytics_set_web_analytics',
+      'vercel_analytics_set_speed_insights','vercel_protection_set_vercel_auth',
       'vercel_protection_set_password','vercel_protection_set_trusted_ips',
       'vercel_protection_create_bypass','vercel_protection_revoke_bypass',
       'vercel_alias_set_shareable_link']);
