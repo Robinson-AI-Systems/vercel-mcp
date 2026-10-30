@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { encryptSecret, decryptSecret } from './secret-box.js';
 
-export const PENDING_KINDS = Object.freeze(['env_value', 'deploy_password', 'transfer_auth_code']);
+export const PENDING_KINDS = Object.freeze(['env_value', 'deploy_password', 'transfer_auth_code', 'registrar_contact']);
 
 export function pendingInputs({ db, env = process.env, now = () => Date.now() }) {
   if (!db?.insertPendingInput || !db?.consumePendingInput) throw new TypeError('A durable database is required');
