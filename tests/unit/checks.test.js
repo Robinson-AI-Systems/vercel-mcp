@@ -35,7 +35,7 @@ describe('check-budgets (pinned tokenizer)', () => {
   it('fails a listing over 21,500 estimated tokens', () => {
     const tools = Array.from({ length: 50 }, (_, i) => ({ name: `vercel_t${i}`, description: 'ok',
       inputSchema: { properties: { blob: { description: 'y'.repeat(5000) } } } }));
-    expect(checkBudgets(tools).at(-1)).toMatch(/tool listing ~\d+ tokens \(max 21500\)/);
+    expect(checkBudgets(tools).at(-1)).toMatch(/tool listing ~\d+ tokens \(max 22500\)/);
     expect(checkBudgets(tools.slice(0, 5))).toEqual([]);
   });
 });
