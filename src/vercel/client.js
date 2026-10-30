@@ -4,7 +4,7 @@ import { operation } from './operations.js';
 import { readBoundedJson } from './bounded-json.js';
 import {sandboxBinaryPost as nativeSandboxFile,sandboxCommandLogs as nativeSandboxLogs} from './sandbox-binary.js';
 import {readBoundedRuntimeLogs} from './runtime-log-stream.js';
-import { validateRequest,documentedRead } from './openapi-validation.js';
+import { validateRequest,documentedRead,documentedOperation } from './openapi-validation.js';
 import { createDb } from '../db.js';
 
 export const VERCEL_API_BASE = 'https://api.vercel.com';
@@ -124,7 +124,12 @@ export function makeVercelClient({
 
   async function request(id, params = {}, options = {}) {
     const indexed=typeof id==='string'&&id.startsWith('api:');
-    const spec = indexed?documentedRead(id.slice(4)):operation(id);
+    // Indexed ids resolve documented reads by default; only the guarded
+    // write path (writeProvider.writeApi, which gates on documentedWrite
+    // first) may opt into resolving a documented write. Every other
+    // caller keeps the transport's read-only refusal.
+    const spec = indexed?(options.documentedWrite===true?
+      documentedOperation(id.slice(4)):documentedRead(id.slice(4))):operation(id);
     const method = spec.method;
     if(options.fileContent===true && (id!=='deployments_file_get'||method!=='GET'))
       throw new TypeError('Bounded file reads apply only to the pinned deployment file endpoint');
