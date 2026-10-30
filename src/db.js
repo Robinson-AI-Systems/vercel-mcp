@@ -7,8 +7,95 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections', 'known_apps'
 ]);
+
+// P-1 (BATCH-P): the seeded project profile. A profile is data, not code:
+// one row in known_apps per app, generated from docs/APP-NEEDS-APPLIANCE-DESK.md
+// as re-verified against the app repo on 2026-10-30 (docs/pr-cards/P-1.md §4
+// traces every item to the app file it came from). Seeded from initSchema()
+// with an upsert that refreshes the row only while its source stays
+// 'default', so the APP-NEEDS rule "this file and the seed change in the
+// same PR" actually deploys, and owner edits are never overwritten. No
+// Vercel IDs are recorded here; IDs are setup-page data.
+export const APPLIANCE_DESK_PROFILE = Object.freeze({
+  id: 'appliance-desk',
+  name: 'Appliance Desk',
+  vercel_account: null,
+  projects: ['appliance-desk'],
+  production_branch: 'live',
+  release_rule: 'branch',
+  rollback_caution: 'Rolling back to a deployment built before a migration runs old code against the new database schema; check docs/runbooks/RESTORE.md first.',
+  no_preview_branches: ['ai/**', 'transfer/**', 'recovery/**'],
+  managed_env: ['BLOB_READ_WRITE_TOKEN', 'PRIVATE_PHOTO_BLOB_READ_WRITE_TOKEN',
+    'PREVIEW_PRIVATE_BLOB_READ_WRITE_TOKEN', 'PRIVATE_PHOTO_BLOB_STORE_ID',
+    'PREVIEW_PRIVATE_BLOB_STORE_ID'],
+  expected_env: {
+    production: ['DATABASE_URL', 'DIRECT_URL', 'BETTER_AUTH_SECRET',
+      'BETTER_AUTH_URL', 'NEXT_PUBLIC_APP_URL', 'STRIPE_SECRET_KEY',
+      'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET',
+      'BLOB_READ_WRITE_TOKEN', 'PRIVATE_PHOTO_BLOB_READ_WRITE_TOKEN',
+      'PRIVATE_PHOTO_BLOB_STORE_ID', 'CRON_SECRET', 'RESEND_API_KEY',
+      'RESEND_FROM_EMAIL', 'LEAD_NOTIFICATION_EMAIL',
+      'MAINTENANCE_NOTIFICATION_EMAIL', 'BILLING_NOTIFICATION_EMAIL',
+      'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'SENTRY_DSN',
+      'NEXT_PUBLIC_SENTRY_DSN', 'SENTRY_ORG', 'SENTRY_PROJECT',
+      'SENTRY_AUTH_TOKEN'],
+    preview: ['PREVIEW_PRIVATE_BLOB_READ_WRITE_TOKEN',
+      'PREVIEW_PRIVATE_BLOB_STORE_ID'],
+    development: []
+  },
+  owned_domains: ['robinsonappliancerentals.com'],
+  owned_dns_records: [
+    { type: 'MX', name: '@', note: 'Google Workspace mail' },
+    { type: 'TXT', name: '@', value_prefix: 'v=spf1', note: 'SPF' },
+    { type: 'TXT', name: '*._domainkey', note: 'DKIM' },
+    { type: 'TXT', name: 'resend._domainkey', note: 'Resend DKIM' },
+    { type: 'TXT', name: '_dmarc', value_prefix: 'v=DMARC1', note: 'DMARC' },
+    { name: 'send', note: 'Resend sending subdomain' }
+  ],
+  owned_stores: ['appliance-desk-photos'],
+  owned_store_ids: [],
+  expected_crons: [
+    { path: '/api/cron/launch-emails', schedule: '0 16 * * *' },
+    { path: '/api/cron/billing-reminders', schedule: '0 14 * * *' },
+    { path: '/api/cron/job-reminders', schedule: '0 13 * * *' },
+    { path: '/api/cron/start-renewals', schedule: '10 7 * * *' },
+    { path: '/api/cron/late-fees', schedule: '0 15 * * *' },
+    { path: '/api/cron/collections', schedule: '20 15 * * *' },
+    { path: '/api/cron/billing-reconcile', schedule: '30 15 * * *' },
+    { path: '/api/cron/backup', schedule: '0 9 * * *' },
+    { path: '/api/cron/telecom-sync', schedule: '20 9 * * *' },
+    { path: '/api/cron/books-nightly', schedule: '40 9 * * *' },
+    { path: '/api/cron/estimate-follow-ups', schedule: '0 16 * * *' },
+    { path: '/api/cron/tax-address-recheck', schedule: '20 13 * * *' },
+    { path: '/api/cron/tax-rate-changes', schedule: '5 18 * * *' },
+    { path: '/api/cron/tenant-retention', schedule: '30 10 * * *' },
+    { path: '/api/cron/expense-drafts', schedule: '50 9 * * *' },
+    { path: '/api/cron/scheduled-prices', schedule: '10 10 * * *' },
+    { path: '/api/cron/recall-watch', schedule: '30 11 * * *' },
+    { path: '/api/cron/emergency-access', schedule: '15 13 * * *' },
+    { path: '/api/cron/access-expiry', schedule: '35 8 * * *' }
+  ],
+  node_version: '24',
+  framework: 'nextjs',
+  protected_sandboxes: [],
+  cost_target_cents: 2000,
+  dashboard_settings: [
+    { setting: 'Production branch tracking', recommended: 'live',
+      note: 'Guided (the app\u2019s IN-68): Vercel \u2192 project appliance-desk \u2192 Settings \u2192 Environments \u2192 Production \u2192 Branch Tracking; read back through the project\u2019s link.productionBranch.' },
+    { setting: 'Spend Management', recommended: 'Budget alerts on; pause production off',
+      note: 'Guided (IN-12): alerts live only in Vercel; this server reads and reports them, never controls them.' }
+  ],
+  record_links: [],
+  notes: [
+    'TWILIO_PHONE_NUMBER is deliberately unset today (APP-NEEDS), so it is not an expected_env entry.',
+    'COLORADO_GIS_API_KEY is planned, not expected yet.',
+    'The private photo Blob store and the preview-only private Blob store join owned_stores when the owner names them on the setup page; only appliance-desk-photos is named in the app docs.',
+    'vercel.json git.deploymentEnabled now default-denies the app\u2019s own git deployments except live and testing; no_preview_branches above is the explicit never-preview list this server\u2019s preview tools enforce.'
+  ]
+});
+export const KNOWN_APP_SEED = Object.freeze([APPLIANCE_DESK_PROFILE]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
 // TEST probes this service only, never Vercel provider/account resources.
@@ -732,6 +819,59 @@ export function createDb(query) {
         WHERE vercel_account = ${account} AND store_id = ${storeId}
         RETURNING store_id`;
       return rows.length === 1;
+    },
+    // P-1 (BATCH-P): project profiles are data. A row is scoped to one
+    // internal account (vercel_account) or to every account (NULL), the
+    // protected_resources semantics. The profile JSON itself follows
+    // docs/designs/BATCH-P.md P2; structural validation lives in
+    // src/tools/app-guard.js (validateProfile) and is enforced by the
+    // tool/setup callers, so stored rows are returned as recorded.
+    async listKnownApps(account) {
+      if (typeof account !== 'string' || !account) throw new TypeError('Account required');
+      const run = getSql();
+      const rows = await run`SELECT id, name, status, vercel_account, source,
+          profile, updated_at FROM known_apps
+        WHERE vercel_account IS NULL OR vercel_account = ${account}
+        ORDER BY id`;
+      return rows.map(r => ({ id: r.id, name: r.name, status: r.status,
+        account: r.vercel_account, source: r.source, profile: r.profile,
+        updatedAt: r.updated_at }));
+    },
+    async getKnownApp(account, id) {
+      if (typeof account !== 'string' || !account ||
+        typeof id !== 'string' || !id) throw new TypeError('Account and profile id required');
+      const run = getSql();
+      const rows = await run`SELECT id, name, status, vercel_account, source,
+          profile, updated_at FROM known_apps
+        WHERE id = ${id} AND (vercel_account IS NULL OR vercel_account = ${account})
+        LIMIT 1`;
+      return rows.length ? { id: rows[0].id, name: rows[0].name,
+        status: rows[0].status, account: rows[0].vercel_account,
+        source: rows[0].source, profile: rows[0].profile,
+        updatedAt: rows[0].updated_at } : null;
+    },
+    async upsertKnownApp({ account = null, id, name, status = 'active',
+      source = 'setup_page', profile }) {
+      if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9-]{1,60}$/.test(id) ||
+        typeof name !== 'string' || !name || name.length > 120 ||
+        !['active', 'draft'].includes(status) ||
+        !['default', 'setup_page', 'draft'].includes(source) ||
+        (account !== null && (typeof account !== 'string' || !account)) ||
+        !profile || typeof profile !== 'object' || Array.isArray(profile) ||
+        profile.id !== id) {
+        throw new TypeError('Invalid known app profile');
+      }
+      const run = getSql();
+      const body = JSON.stringify(profile);
+      await run`INSERT INTO known_apps
+          (id, name, status, vercel_account, source, profile)
+        VALUES (${id}, ${name}, ${status}, ${account}, ${source}, ${body}::jsonb)
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name, status = EXCLUDED.status,
+          vercel_account = EXCLUDED.vercel_account,
+          source = EXCLUDED.source, profile = EXCLUDED.profile,
+          updated_at = now()`;
+      return { id, name, status, account, source, profile };
     },
     // Only owner setup routes may call these credential methods. Tool handlers
     // must never select token_enc or return decrypted credentials.
@@ -1562,6 +1702,22 @@ export function createDb(query) {
       await run`CREATE INDEX IF NOT EXISTS change_log_account_at ON change_log (vercel_account, at DESC)`;
       await run`CREATE INDEX IF NOT EXISTS one_time_secrets_expires_at ON one_time_secrets (expires_at)`;
       await run`CREATE INDEX IF NOT EXISTS pending_inputs_expires_at ON pending_inputs (expires_at)`;
+      // P-1 (BATCH-P): project profiles. Design §2 plus the repo's account
+      // scope column (NULL = every account) and a source column; the seed
+      // upsert refreshes a row only while it is still the shipped default.
+      await run`CREATE TABLE IF NOT EXISTS known_apps (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+        vercel_account TEXT, source TEXT NOT NULL DEFAULT 'setup_page',
+        profile JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+      for (const seed of KNOWN_APP_SEED) {
+        const body = JSON.stringify(seed);
+        await run`INSERT INTO known_apps
+            (id, name, status, vercel_account, source, profile)
+          VALUES (${seed.id}, ${seed.name}, 'active', NULL, 'default', ${body}::jsonb)
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name, profile = EXCLUDED.profile, updated_at = now()
+          WHERE known_apps.source = 'default'`;
+      }
     }
   };
 }
