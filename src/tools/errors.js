@@ -40,7 +40,38 @@ function ownMessage(raw) {
   if (/[\x00-\x1f\x7f]/.test(message) || SECRET_LABEL.test(message) || CREDENTIAL_SHAPE.test(message)) return null;
   return message;
 }
+// AUD-AI: a token-probe refusal carries the leg it failed on — an
+// in-repo fact from the code path (AUD-F), never provider data —
+// and, since AUD-AI, the provider status when there was one. Probe
+// errors are curated and value-free by construction, so the leg is
+// safe to name at the tool surface; before this branch every probe
+// refusal (identity 401s, shape refusals, broader-visibility)
+// collapsed into unknown_error with no status.
+const PROBE_LEG = /^[a-z][a-z_]{0,29}$/;
+const RECHECK_LEG_LABELS = Object.freeze({
+  identity: 'identity',
+  teams: 'team visibility',
+  projects: 'project visibility',
+  project_team_match: 'project-team match',
+  broad_visibility: 'broader visibility',
+  integration_disabled: 'disabled installation',
+  configuration: 'installation configuration',
+  configuration_integration: 'installation configuration',
+  configuration_team: 'installation configuration team',
+  configuration_removed: 'installation configuration',
+  configuration_suspended: 'installation configuration',
+  configuration_grant: 'installation configuration grant',
+  storage: 'stored credential',
+  load: 'stored credential',
+  scope: 'stored credential scope',
+  input: 'recheck input'
+});
 function normalized(raw) {
+  if (raw && typeof raw.probeLeg === 'string' && PROBE_LEG.test(raw.probeLeg)) {
+    const status = Number.isSafeInteger(raw.status) && raw.status >= 100 &&
+      raw.status <= 599 ? raw.status : null;
+    return { code: 'recheck_failed', status, leg: raw.probeLeg };
+  }
   const input = raw?.error && typeof raw.error === 'object' ? raw.error : raw;
   const candidate = input?.code;
   // Provider-supplied codes are not safe to echo unless recognized.
@@ -55,7 +86,7 @@ function normalized(raw) {
 }
 /** For an error from the sanitized central client (no raw provider text). */
 export function explainVercelError(raw, context = {}) {
-  const {code,status,own} = normalized(raw);
+  const {code,status,own,leg} = normalized(raw);
   let what='Vercel could not complete the request.';
   let why='The provider did not return a recognized safe error code.';
   let next='Verify your account selection and try a read-only status check before retrying.';
@@ -64,6 +95,19 @@ export function explainVercelError(raw, context = {}) {
     what=own || 'The request did not match what this tool requires.';
     why='This failed on this server while checking the selection or shaping the record — Vercel did not refuse it.';
     next='Verify the identifier against a fresh list result (deployment and project reads are keyed by the exact ID) and retry.';
+  } else if (code==='recheck_failed') {
+    // AUD-AI: the recheck names the leg it stopped at; the cause
+    // refines by provider status class when the provider answered,
+    // and provider text is never surfaced, as everywhere here.
+    what='The stored token recheck stopped at the ' +
+      (RECHECK_LEG_LABELS[leg] || 'one of its verification') + ' check.';
+    if (status === 401) why='Vercel does not accept the stored token for that check (HTTP 401); it may be expired or revoked.';
+    else if (status === 403) why='Vercel refused that check for the stored token (HTTP 403); the token may lack the permission that check needs.';
+    else if (status === 404) why='What that check looks for was not found (HTTP 404).';
+    else if (status === 429) why='Vercel rate-limited that check (HTTP 429).';
+    else if (status !== null && status >= 500) why='Vercel itself failed that check (HTTP ' + status + ').';
+    else why='The check itself refused: the token reach or the answer shape did not match what the recheck can verify.';
+    next='A redacted fingerprint of the refusal was journaled — read it with vercel_recent_changes, or review the connection in owner setup.';
   } else
   if (['unauthorized','invalid_token','token_expired','expired_token'].includes(code) || status === 401) {
     what='The Vercel account token is no longer accepted.';

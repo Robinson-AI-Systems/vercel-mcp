@@ -19,8 +19,19 @@ const PROBE_LEG_MESSAGES = Object.freeze({
   teams: 'Could not confirm the token team visibility with Vercel',
   projects: 'Could not confirm the token project visibility with Vercel'
 });
-function probeFail(leg, message) {
-  return Object.assign(new Error(message), { probeLeg: leg });
+function probeFail(leg, message, extras = {}) {
+  return Object.assign(new Error(message), { probeLeg: leg }, extras);
+}
+
+// AUD-AI: the client's integer status survives the probe re-wrap as a
+// property (the message already names it in text). The tool surface
+// classifies a probe refusal from its leg + this status; before
+// AUD-AI the re-wrap dropped the status and the code, so every
+// recheck refusal collapsed into unknown_error at the MCP surface.
+function probeStatusExtras(err) {
+  const status = Number(err?.status);
+  return Number.isInteger(status) && status >= 100 && status <= 599 ?
+    { status } : {};
 }
 
 // AUD-M2 (goal-workspace AUD-M): shape fingerprints. When a shape
@@ -87,10 +98,12 @@ const INTEGRATION_DISABLED_MESSAGE =
 function transportFail(leg, err) {
   if (err?.probeLeg) return err;
   if (err?.code === 'integration_configuration_disabled') {
-    return probeFail('integration_disabled', INTEGRATION_DISABLED_MESSAGE);
+    return probeFail('integration_disabled', INTEGRATION_DISABLED_MESSAGE,
+      probeStatusExtras(err));
   }
   const status = Number.isInteger(err?.status) ? ' (HTTP ' + err.status + ')' : '';
-  return probeFail(leg, (PROBE_LEG_MESSAGES[leg] || 'Could not confirm the token with Vercel') + status);
+  return probeFail(leg, (PROBE_LEG_MESSAGES[leg] || 'Could not confirm the token with Vercel') + status,
+    probeStatusExtras(err));
 }
 
 // AUD-K: the installation probe's configuration read classifies its
@@ -108,17 +121,21 @@ function installationReadFail(err) {
   const shown = Number.isInteger(status) ? ' (HTTP ' + status + ')' : '';
   if (status === 401) {
     return probeFail('configuration',
-      'Vercel does not accept the installed credential; install again from the connection page' + shown);
+      'Vercel does not accept the installed credential; install again from the connection page' + shown,
+      probeStatusExtras(err));
   }
   if (status === 403) {
     return probeFail('configuration',
-      "Vercel refused to let this connection read its own installation — the integration is missing the permission to read its installations (integration-configuration); in Vercel's Integration Console, grant the integration-configuration scope, confirm the scope change, then install again" + shown);
+      "Vercel refused to let this connection read its own installation — the integration is missing the permission to read its installations (integration-configuration); in Vercel's Integration Console, grant the integration-configuration scope, confirm the scope change, then install again" + shown,
+      probeStatusExtras(err));
   }
   if (status === 404 || status === 410) {
     return probeFail('configuration',
-      'The installation no longer exists at Vercel (it may have been removed before setup finished); install again from the connection page' + shown);
+      'The installation no longer exists at Vercel (it may have been removed before setup finished); install again from the connection page' + shown,
+      probeStatusExtras(err));
   }
-  return probeFail('configuration', 'Could not confirm the installation with Vercel' + shown);
+  return probeFail('configuration', 'Could not confirm the installation with Vercel' + shown,
+    probeStatusExtras(err));
 }
 
 // Vercel may return a continuation even for a short final page. Follow it
@@ -666,44 +683,96 @@ export async function loadToken({ db, accountId, env = process.env }) {
  * evidence of the complete privilege footprint or token expiry.
  * Only the authenticated connection's stored account ID is accepted by callers.
  */
+// AUD-AI (recheck conviction): when a recheck refuses, one
+// best-effort change_log row journals a redacted fingerprint — the
+// AUD-M2 grammar applied to the recheck. Verdict fields first (leg,
+// provider status, provider code class) so the recent-changes
+// read's 160-char bound can never truncate the conviction away;
+// route and stored scope are in-repo enums. Never values: no token
+// material, no team/project IDs, no provider message. The journal
+// is best-effort by construction — a failing journal write never
+// changes the recheck's outcome; the original error propagates.
+const RECHECK_LEG_SHAPE = /^[a-z][a-z_]{0,29}$/;
+const RECHECK_CODE_SHAPE = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
+export function recheckRefusalSummary({ err, phase = 'probe', route = 'user',
+  storedScope = null } = {}) {
+  const leg = typeof err?.probeLeg === 'string' && RECHECK_LEG_SHAPE.test(err.probeLeg) ?
+    err.probeLeg : phase;
+  const status = Number.isInteger(err?.status) && err.status >= 100 && err.status <= 599 ?
+    String(err.status) : 'absent';
+  const code = typeof err?.code === 'string' && RECHECK_CODE_SHAPE.test(err.code) ?
+    err.code : 'absent';
+  const stored = ['team', 'project', 'full'].includes(storedScope) ? storedScope : 'absent';
+  return 'SHAPE-FP recheck failed=[' + leg + ':' + status + ':' + code +
+    '] route:' + route + ' stored:' + stored;
+}
+async function journalRecheckRefusal({ db, accountId, err, phase, route, storedScope }) {
+  if (typeof db?.recordChange !== 'function') return;
+  try {
+    await db.recordChange({
+      account: accountId, mode: 'preview', tool: 'vercel_check_token',
+      summary: recheckRefusalSummary({ err, phase, route, storedScope }),
+      dryRun: false, production: false
+    });
+  } catch { /* Journaling never changes the recheck's outcome. */ }
+}
+
 export async function recheckStoredToken({ db, accountId, env = process.env, fetchImpl, baseUrl }) {
   if (typeof accountId !== 'string' || !accountId || accountId.length > 256) {
     throw new TypeError('A selected account is required');
   }
-  const { token, account } = await loadToken({ db, accountId, env });
-  if (account.id !== accountId || !['team', 'project', 'full'].includes(account.scope)) {
-    throw new Error('Stored connection scope must be reviewed in owner setup');
+  let phase = 'load', route = 'user', storedScope = null;
+  try {
+    const { token, account } = await loadToken({ db, accountId, env });
+    storedScope = ['team', 'project', 'full'].includes(account?.scope) ?
+      account.scope : null;
+    if (account.id !== accountId || !storedScope) {
+      throw new Error('Stored connection scope must be reviewed in owner setup');
+    }
+    phase = 'probe';
+    // AUD-I S5: recheck routes by account kind — a personal seat is
+    // re-proven by the user-keyed probe, never the team probe.
+    const personal = account.probe?.accountKind === 'personal';
+    // AUD-K: a Door-1 TEAM seat (an integration-sourced row with no
+    // personal kind) is re-proven by the installation-aware probe —
+    // the standard probe's teams-list leg is a call this credential
+    // class cannot make, so routing it there would fail every recheck
+    // with the A-1 error. The probe's identity inputs are rebuilt from
+    // the stored installation id and the server's configured
+    // integration client id (the operator env contract).
+    const integrationTeam = !personal && account.probe?.source === 'integration';
+    route = personal ? 'personal' : integrationTeam ? 'installation' : 'user';
+    // AUD-AI: the recheck derives WITHOUT the enrollment consent
+    // gate (allowFull: true). The credential was already
+    // owner-approved for this row and the recheck persists nothing;
+    // gating the derivation on the stored scope made any row whose
+    // reach had grown since enrollment refuse with broad_visibility
+    // instead of reporting the drift. The derived scope is returned
+    // beside the stored one; enrollment paths keep their gate.
+    const result = personal ?
+      await probePersonalToken({ token, userId: account.id,
+        allowFull: true, fetchImpl, baseUrl }) :
+      integrationTeam ?
+        await probeInstallationToken({ token, teamId: account.team_id,
+          installationId: account.probe?.installationId,
+          integrationId: typeof env?.VERCEL_INTEGRATION_CLIENT_ID === 'string' ?
+            env.VERCEL_INTEGRATION_CLIENT_ID : null,
+          userId: account.probe?.installerUserId ?? null, fetchImpl, baseUrl }) :
+        await probeToken({
+          token, teamId: account.team_id, projectId: account.project_id || null,
+          allowFull: true, fetchImpl, baseUrl
+        });
+    return {
+      checkedAt: result.checkedAt, teamId: result.teamId, teamSlug: result.teamSlug,
+      projectId: result.projectId, storedScope: account.scope,
+      ...(typeof result.scope === 'string' ? { derivedScope: result.scope } : {}),
+      ...(personal ? { accountKind: 'personal' } : {}),
+      visibleTeamCount: result.visibleTeamCount, visibleProjectCount: result.visibleProjectCount,
+      access: 'read_verified', scopeVerified: false, writePermissions: 'unknown',
+      expiryVerified: false, persisted: false
+    };
+  } catch (err) {
+    await journalRecheckRefusal({ db, accountId, err, phase, route, storedScope });
+    throw err;
   }
-  // AUD-I S5: recheck routes by account kind — a personal seat is
-  // re-proven by the user-keyed probe, never the team probe.
-  const personal = account.probe?.accountKind === 'personal';
-  // AUD-K: a Door-1 TEAM seat (an integration-sourced row with no
-  // personal kind) is re-proven by the installation-aware probe —
-  // the standard probe's teams-list leg is a call this credential
-  // class cannot make, so routing it there would fail every recheck
-  // with the A-1 error. The probe's identity inputs are rebuilt from
-  // the stored installation id and the server's configured
-  // integration client id (the operator env contract).
-  const integrationTeam = !personal && account.probe?.source === 'integration';
-  const result = personal ?
-    await probePersonalToken({ token, userId: account.id,
-      allowFull: account.scope === 'full', fetchImpl, baseUrl }) :
-    integrationTeam ?
-      await probeInstallationToken({ token, teamId: account.team_id,
-        installationId: account.probe?.installationId,
-        integrationId: typeof env?.VERCEL_INTEGRATION_CLIENT_ID === 'string' ?
-          env.VERCEL_INTEGRATION_CLIENT_ID : null,
-        userId: account.probe?.installerUserId ?? null, fetchImpl, baseUrl }) :
-      await probeToken({
-        token, teamId: account.team_id, projectId: account.project_id || null,
-        allowFull: account.scope === 'full', fetchImpl, baseUrl
-      });
-  return {
-    checkedAt: result.checkedAt, teamId: result.teamId, teamSlug: result.teamSlug,
-    projectId: result.projectId, storedScope: account.scope,
-    ...(personal ? { accountKind: 'personal' } : {}),
-    visibleTeamCount: result.visibleTeamCount, visibleProjectCount: result.visibleProjectCount,
-    access: 'read_verified', scopeVerified: false, writePermissions: 'unknown',
-    expiryVerified: false, persisted: false
-  };
 }

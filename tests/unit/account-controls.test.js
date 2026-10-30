@@ -61,8 +61,8 @@ describe('B-8b read-only stored-token recheck',()=>{
     expect(db.getAccountCredential).not.toHaveBeenCalled();
     expect(api.calls).toHaveLength(0);
   });
-  it('refuses broadened visibility, incomplete pages and missing or expired stored credentials',async()=>{
-    for(const flags of [{broad:true},{incomplete:true},{missing:true},{expired:true}]) {
+  it('refuses incomplete pages and missing or expired stored credentials',async()=>{
+    for(const flags of [{incomplete:true},{missing:true},{expired:true}]) {
       const {db,api,call}=fixture(flags);
       const result=await call();
       expect(result.isError).toBe(true);
@@ -71,6 +71,24 @@ describe('B-8b read-only stored-token recheck',()=>{
       expect(api.calls.every(x=>x.method==='GET')).toBe(true);
       if(flags.missing || flags.expired) expect(api.calls).toHaveLength(0);
     }
+  });
+  it('AUD-AI: reports broadened visibility as derived-scope drift instead of refusing the recheck',async()=>{
+    // Before AUD-AI the recheck gated its derivation on the stored
+    // scope (allowFull: scope === 'full'), so a row whose credential
+    // reach had grown since enrollment — a second team created —
+    // refused with broad_visibility and the drift was unprovable.
+    // The recheck persists nothing, so it now derives ungated and
+    // reports the derived scope beside the stored one.
+    const {db,api,call}=fixture({broad:true});
+    const result=await call();
+    expect(result.isError).not.toBe(true);
+    const body=JSON.parse(result.content[0].text);
+    expect(body).toMatchObject({storedScope:'project',derivedScope:'full',
+      visibleTeamCount:2,visibleProjectCount:1,access:'read_verified',
+      persisted:false});
+    expect(result.content[0].text).not.toContain(token);
+    expect(db.upsertVercelAccount).not.toHaveBeenCalled();
+    expect(api.calls.every(x=>x.method==='GET')).toBe(true);
   });
   it('never allows caller selection of another account, even when another credential exists',async()=>{
     const {db,api,call}=fixture();
