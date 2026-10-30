@@ -2,7 +2,10 @@
 export const handBuiltReads=Object.freeze({
   getProject:'vercel_project_get',getDeployment:'vercel_deploy_get',getDeployments:'vercel_deploy_list',
   getDeploymentEvents:'vercel_deploy_get_build_logs',listDeploymentFiles:'vercel_deploy_list_files',
-  getDeploymentFileContents:'vercel_deploy_get_file',getTeam:'vercel_team_get',getTeams:'vercel_team_list'
+  getDeploymentFileContents:'vercel_deploy_get_file',getTeam:'vercel_team_get',getTeams:'vercel_team_list',
+  // N-3: the transfer auth code is a secretOut read owned by the
+  // curated tool; the universal read door must not surface it raw.
+  getDomainAuthCode:'vercel_registrar_get_auth_code'
 });
 // Batch U (U7): hand-built tools win for writes too. Every entry was
 // derived mechanically (2026-10-30): each OPS-table write operation
@@ -65,6 +68,13 @@ export const handBuiltWrites=Object.freeze({
   replaceDomainsByDomainRecords:'vercel_dns_replace_zone',
   issueCert:'vercel_cert_issue',
   removeCert:'vercel_cert_remove',
+  // N-3: the registrar writes are spend/secret-shaped; the universal
+  // write door must refuse them by name (dossier §5).
+  buySingleDomain:'vercel_registrar_buy',
+  renewDomain:'vercel_registrar_renew',
+  transferInDomain:'vercel_registrar_transfer_in',
+  updateDomainAutoRenew:'vercel_registrar_set_auto_renew',
+  updateDomainNameservers:'vercel_registrar_update_nameservers',
   createProjectTransferRequest:'vercel_project_transfer',
   createSandboxesV4:'vercel_dev_sandbox_create',
   runSessionCommand:'vercel_dev_sandbox_run',

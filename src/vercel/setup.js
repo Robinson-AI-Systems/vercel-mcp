@@ -336,7 +336,8 @@ function panel(accounts, csrf, message = '', connections = [], blobStores = []) 
     '<label>Account<select name="account">' + options + '</select></label>' +
     '<label>Type<select name="kind"><option value="env_value">Environment value</option>' +
     '<option value="deploy_password">Deployment password</option>' +
-    '<option value="transfer_auth_code">Domain transfer code</option></select></label>' +
+    '<option value="transfer_auth_code">Domain transfer code</option>' +
+    '<option value="registrar_contact">Domain registrant contact (JSON)</option></select></label>' +
     '<label>Label<input name="label" required></label>' +
     '<label>Secret value<input name="value" type="password" required autocomplete="off"></label>' +
     '<button type="submit">Save one-use input</button></form></section>' +

@@ -194,6 +194,23 @@ export const OPS = Object.freeze({
   cert_get: Object.freeze({ method: 'GET', path: '/v8/certs/{id}' }),
   cert_issue: Object.freeze({ method: 'POST', path: '/v8/certs' }),
   cert_remove: Object.freeze({ method: 'DELETE', path: '/v8/certs/{id}' }),
+  // N-3: domain registrar (docs/designs/BATCH-N.md §2). The two POST
+  // reads are read-shaped (availability/price data, no state change)
+  // and marked readOnly on the observability_query precedent.
+  registrar_search: Object.freeze({ method: 'POST', path: '/v1/registrar/domains/search', readOnly: true }),
+  registrar_domain_price: Object.freeze({ method: 'GET', path: '/v1/registrar/domains/{domain}/price' }),
+  registrar_tld_price: Object.freeze({ method: 'GET', path: '/v1/registrar/tlds/{tld}/price' }),
+  registrar_bulk_price: Object.freeze({ method: 'POST', path: '/v1/registrar/domains/price', readOnly: true }),
+  registrar_contact_schema: Object.freeze({ method: 'GET', path: '/v1/registrar/domains/{domain}/contact-info/schema' }),
+  registrar_buy: Object.freeze({ method: 'POST', path: '/v1/registrar/domains/{domain}/buy' }),
+  registrar_renew: Object.freeze({ method: 'POST', path: '/v1/registrar/domains/{domain}/renew' }),
+  registrar_transfer_in: Object.freeze({ method: 'POST', path: '/v1/registrar/domains/{domain}/transfer' }),
+  registrar_transfer_status: Object.freeze({ method: 'GET', path: '/v1/registrar/domains/{domain}/transfer' }),
+  registrar_auto_renew: Object.freeze({ method: 'PATCH', path: '/v1/registrar/domains/{domain}/auto-renew' }),
+  registrar_nameservers: Object.freeze({ method: 'PATCH', path: '/v1/registrar/domains/{domain}/nameservers' }),
+  registrar_auth_code: Object.freeze({ method: 'GET', path: '/v1/registrar/domains/{domain}/auth-code' }),
+  registrar_order: Object.freeze({ method: 'GET', path: '/v1/registrar/orders/{orderId}' }),
+  registrar_contact_verification: Object.freeze({ method: 'GET', path: '/v1/registrar/domains/{domain}/contact-verification' }),
   projects_env_list: Object.freeze({ method: 'GET', path: '/v10/projects/{idOrName}/env' }),
   projects_transfer_request: Object.freeze({ method: 'POST', path: '/projects/{idOrName}/transfer-request' }),
   // V-4 exact paths from the 2026-10-11 sandbox REST surface; the binary

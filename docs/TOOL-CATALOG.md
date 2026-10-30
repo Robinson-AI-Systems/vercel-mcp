@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2 and P-1 added 2026-10-30): 204 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 37 are planned scope for approved batches N-3, O-3–O-5, P-2/P-3, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2, N-3 and P-1 added 2026-10-30): 213 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 28 are planned scope for approved batches O-3–O-5, P-2/P-3, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 are `vercel_dev_<job>` (contract §10).
 
 **Safety** (combine as listed; the guards are defined in `docs/designs/BATCH-B.md`):
@@ -278,7 +278,7 @@ Build notes (N-2, dossier-first): `vercel_dns_replace_zone` replaces the set in 
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_registrar_search` | Is a name available, and its price; suggestions across TLDs | — | O | R | — | N-3 |
+| `vercel_registrar_search` | Is a name available, and its price (checks the exact names given; the contract generates no suggestions — dossier §4.3) | — | O | R | — | N-3 |
 | `vercel_registrar_get_price` | Purchase, renewal and transfer price for a domain or TLD, for N years | — | O | R | — | N-3 |
 | `vercel_registrar_buy` | Buy a domain: preview shows the exact price, years, auto-renew and contact details; confirm; counts toward the spend limit | $ | O | F | — | N-3 |
 | `vercel_registrar_renew` | Renew a domain for N years at the stated price | $ | O | F | — | N-3 |
@@ -287,6 +287,8 @@ Build notes (N-2, dossier-first): `vercel_dns_replace_zone` replaces the set in 
 | `vercel_registrar_get_status` | An order's, a transfer's or contact verification's status | — | O | R | — | N-3 |
 | `vercel_registrar_get_auth_code` | The code to transfer a domain away, shown once on the setup page | C PR 1x | O | F | y | N-3 |
 | `vercel_registrar_update_nameservers` | Point a Vercel-registered domain at other nameservers (moves DNS and email away from Vercel) | D PR | O | F | y | N-3 |
+
+Build notes (N-3, dossier-first): every purchase is quote → confirm — the preview prices from a fresh quote, apply re-quotes inside its pre-dispatch check and refuses drift before dispatch, and the buy/renew/transfer call sends `expectedPrice` in dollars so the provider independently refuses a changed price (`expected_price_mismatch`; a provider-side rejection surfaces its code in the result's failure detail — dossier §4.1 as corrected at build). Registrant contact is never a tool argument: it is pasted once on the setup page as a `registrar_contact` pending input and consumed inside apply (dossier §4.2 — a persistent registrant setting is a flagged follow-up). The transfer-in auth code likewise arrives only as a `transfer_auth_code` pending input; the transfer-out code is delivered only through the one-time page. Auto-renew's single tool declares its spend per invocation: ON is a recurring future charge, OFF is a $0 confirm-only change whose preview warns of the expiry date (dossier §4.4).
 
 ## Deployment protection (`vercel_protection_*`) — 8
 
