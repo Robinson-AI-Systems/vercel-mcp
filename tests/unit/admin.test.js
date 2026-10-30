@@ -1,4 +1,4 @@
-// O-5: admin overview / security review / cost review / guided settings.
+// O-5: admin security review / cost review / guided settings.
 // Composition honesty is the point: a section that cannot be read reports
 // not_readable, a real problem reports needs_attention with its reason,
 // and member two-step status is not_readable because the member contract
@@ -74,19 +74,6 @@ const call = (name, args) => adminTools.handlers[name](args, makeCtx());
 const byItem = (arr, name) => arr.find(x => x.item === name);
 
 describe('O-5 admin composition', () => {
-  it('overview marks real problems needs_attention and never fakes a section', async () => {
-    const out = parse(await call('vercel_admin_overview', {}));
-    expect(byItem(out.sections, 'team_profile')).toMatchObject({state: 'ok'});
-    expect(byItem(out.sections, 'tokens').state).toBe('needs_attention');
-    expect(byItem(out.sections, 'tokens').why).toMatch(/leaked/);
-    expect(byItem(out.sections, 'domains').state).toBe('needs_attention');
-    expect(byItem(out.sections, 'certificates').state).toBe('ok');
-    expect(byItem(out.sections, 'members').detail).toMatchObject({count: 2, owners: 1});
-    expect(byItem(out.sections, 'protected_resources').detail).toMatchObject({count: 2});
-    const guidedDelete = out.guidedSettings.find(g => g.item === 'guided:team-delete');
-    expect(guidedDelete.state).toBe('not_readable');
-  });
-
   it('security review: single owner flagged; two-step honestly not_readable', async () => {
     const out = parse(await call('vercel_admin_review_security', {}));
     expect(byItem(out.items, 'owners').state).toBe('needs_attention');

@@ -1,12 +1,12 @@
-// O-5: administration reads. The overview, security review and cost review
-// compose EXISTING provider reads only — nothing here writes. Every section
+// O-5: administration reads. The security review and cost review compose
+// EXISTING provider reads only — nothing here writes. Every section
 // reports honestly: ok, needs_attention (with the reason), or not_readable
 // (the read failed or no API exists; a guided-setting link is given). A
 // failed section read is never dressed up as ok.
 import {readProvider} from '../vercel/provider.js';
 import {credentialLike} from '../core/util.js';
 import {findSettingGuide, listSettingGuides} from '../data/dashboard-map.js';
-import {chargeRecords, moneyOf, displayOf, MONTHLY_TARGET_CENTS} from './billing.js';
+import {chargeRecords, moneyOf, displayOf} from './billing.js';
 import {seatPrice} from './members.js';
 
 const PROFILES = ['read_only', 'everyday', 'full'];
@@ -65,83 +65,6 @@ function tokenFacts(rows, now) {
   const noExpiry = rows.filter(t => !Number.isSafeInteger(t?.expiresAt));
   return {total: rows.length, expiringWithin14Days: expiring.length,
     leaked: leaked.length, noExpiryReported: noExpiry.length};
-}
-
-async function overview(args, ctx) {
-  const {client, account, team} = await teamRow(ctx);
-  const now = Date.now();
-  const sections = [];
-  sections.push(await item('team_profile', async () => ok({
-    name: safe(team?.name), slug: safe(team?.slug),
-    plan: safe(team?.billing?.plan ?? team?.plan)})));
-  sections.push(await item('members', async () => {
-    const r = await roster(client, account);
-    const owners = r.members.filter(m => m.role === 'OWNER').length;
-    return ok({count: r.members.length, owners, pendingInvites: r.invites.length,
-      rosterComplete: r.complete});
-  }));
-  sections.push(await item('tokens', async () => {
-    const page = await client.request('tokens_list', {});
-    const facts = tokenFacts(Array.isArray(page?.tokens) ? page.tokens : [], now);
-    if (facts.leaked > 0) return attention(`${facts.leaked} token(s) are flagged leaked by Vercel`, facts);
-    if (facts.expiringWithin14Days > 0) {
-      return attention(`${facts.expiringWithin14Days} token(s) expire within 14 days`, facts);
-    }
-    return ok(facts);
-  }));
-  sections.push(await item('security', async () => ok({
-    samlConfigured: Boolean(team?.saml?.connection),
-    samlEnforced: team?.saml?.enforced === true,
-    defaultSsoProtection: safe(team?.ssoProtection?.deploymentType)})));
-  sections.push(await item('domains', async () => {
-    const page = await client.request('domains_list', {});
-    const rows = Array.isArray(page?.domains) ? page.domains : [];
-    const expiring = rows.filter(d => Number.isSafeInteger(d?.expiresAt) &&
-      d.expiresAt - now <= 30 * DAY);
-    const detail = {count: rows.length, expiringWithin30Days: expiring.length};
-    return expiring.length ? attention(`${expiring.length} domain(s) expire within 30 days`, detail) : ok(detail);
-  }));
-  sections.push(await item('certificates', async () => {
-    const page = await client.request('certs_list', {});
-    const rows = Array.isArray(page?.certs) ? page.certs : (Array.isArray(page) ? page : []);
-    const expiring = rows.filter(c => Number.isSafeInteger(c?.expiresAt) &&
-      c.expiresAt - now <= 30 * DAY);
-    const detail = {count: rows.length, expiringWithin30Days: expiring.length,
-      autoRenewOff: rows.filter(c => c?.autoRenew === false).length};
-    return expiring.length ? attention(`${expiring.length} certificate(s) expire within 30 days`, detail) : ok(detail);
-  }));
-  sections.push(await item('spend_this_period', async () => {
-    const {records, from, to} = await chargeRecords(ctx, {});
-    let total = 0;
-    for (const row of records) total += moneyOf(row?.EffectiveCost).cents ?? 0;
-    const detail = {from, to, effectiveTotalCents: total,
-      effectiveTotalDisplay: displayOf(total), monthlyTargetCents: MONTHLY_TARGET_CENTS};
-    return total > MONTHLY_TARGET_CENTS ?
-      attention(`effective spend ${displayOf(total)} is over the ${displayOf(MONTHLY_TARGET_CENTS)} monthly target`, detail) :
-      ok(detail);
-  }));
-  for (const [name, op] of [['integrations', 'integrations_configurations_list'],
-      ['webhooks', 'webhooks_list'], ['drains', 'drains_list']]) {
-    sections.push(await item(name, async () => {
-      const page = await client.request(op, {query: {teamId: account.team_id}});
-      const rows = Array.isArray(page?.configurations) ? page.configurations :
-        Array.isArray(page?.webhooks) ? page.webhooks :
-        Array.isArray(page?.drains) ? page.drains : (Array.isArray(page) ? page : []);
-      return ok({count: rows.length});
-    }));
-  }
-  sections.push(await item('protected_resources', async () => {
-    const rows = typeof ctx.db?.listProtectedResources === 'function' ?
-      await ctx.db.listProtectedResources() : [];
-    return ok({count: Array.isArray(rows) ? rows.length : 0});
-  }));
-  const guided = listSettingGuides().map(guide => guide.hasVerify ?
-    {item: `guided:${guide.id}`, state: 'ok',
-     detail: {setting: guide.setting, readBackVia: 'verifyWith — use vercel_admin_check_setting'}} :
-    {item: `guided:${guide.id}`, state: 'not_readable',
-     why: 'no API read-back; dashboard steps in the guide', detail: {setting: guide.setting}});
-  return result({team: safe(team?.slug), sections, guidedSettings: guided,
-    note: 'States are computed from live reads at call time. not_readable means the read failed or no API exists — never a silent pass.'});
 }
 
 async function reviewSecurity(args, ctx) {
@@ -286,8 +209,6 @@ async function checkSetting(args, ctx) {
 
 export const adminTools = {
   tools: [
-    readEntry({name: 'vercel_admin_overview', writes: false, area: 'admin', profiles: PROFILES,
-      description: 'The whole team in one view: profile, plan, members, tokens, security, domains, certificates, spend, integrations and guided settings.'}),
     readEntry({name: 'vercel_admin_review_security', writes: false, area: 'admin', profiles: PROFILES,
       description: 'Security review: owners, SAML, token hygiene and default protection, each marked ok, needs attention or not readable.'}),
     readEntry({name: 'vercel_admin_cost_review', writes: false, area: 'admin', profiles: PROFILES,
@@ -301,7 +222,6 @@ export const adminTools = {
         projectId: {type: 'string', minLength: 1, maxLength: 200}}})
   ],
   handlers: {
-    vercel_admin_overview: (args, ctx) => overview(args ?? {}, ctx),
     vercel_admin_review_security: (args, ctx) => reviewSecurity(args ?? {}, ctx),
     vercel_admin_cost_review: (args, ctx) => costReview(args ?? {}, ctx),
     vercel_admin_list_guided_settings: async () => result({settings: listSettingGuides(),
