@@ -74,6 +74,16 @@ export const OPS = Object.freeze({
   // F-1: shareable links and per-URL bypass live on the alias surface
   // (pinned snapshot: PATCH /aliases/{id}/protection-bypass).
   aliases_protection_bypass_update: Object.freeze({ method: 'PATCH', path: '/aliases/{id}/protection-bypass' }),
+  // F-2: firewall configuration, attack mode and events (pinned snapshot:
+  // /v1/security/*). The config DELETE operation is deliberately NOT
+  // registered — the catalog has no delete-version tool (dossier §2.4).
+  firewall_config_get: Object.freeze({ method: 'GET', path: '/v1/security/firewall/config' }),
+  firewall_config_get_version: Object.freeze({ method: 'GET', path: '/v1/security/firewall/config/{configVersion}' }),
+  firewall_config_patch: Object.freeze({ method: 'PATCH', path: '/v1/security/firewall/config' }),
+  firewall_config_activate: Object.freeze({ method: 'POST', path: '/v1/security/firewall/config/{configVersion}/activate' }),
+  firewall_attack_status: Object.freeze({ method: 'GET', path: '/v1/security/firewall/attack-status' }),
+  attack_mode_update: Object.freeze({ method: 'POST', path: '/v1/security/attack-mode' }),
+  firewall_events_list: Object.freeze({ method: 'GET', path: '/v1/security/firewall/events' }),
   global_config_list: Object.freeze({ method: 'GET', path: '/v1/global-config' }),
   global_config_get: Object.freeze({ method: 'GET', path: '/v1/global-config/{edgeConfigId}' }),
   global_config_items: Object.freeze({ method: 'GET', path: '/v1/global-config/{edgeConfigId}/items' }),

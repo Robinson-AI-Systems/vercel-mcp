@@ -33,17 +33,18 @@ export function readOpenApi() {
   return spec;
 }
 
-export function documentedRead(op){
+function findDocumented(op){
   if(typeof op!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(op))
-    throw new TypeError('Invalid documented read operation');
+    throw new TypeError('Invalid documented operation');
   const matches=[];
   for(const [path,pathItem] of Object.entries(readOpenApi().paths))
     for(const method of HTTP_METHODS){
       const specOperation=pathItem[method];
       if(specOperation?.operationId===op)matches.push({path,method:method.toUpperCase(),pathItem,specOperation});
     }
-  if(matches.length!==1||!['GET','HEAD'].includes(matches[0].method))
-    throw new TypeError('Only an unambiguous documented GET or HEAD is allowed');
+  return matches;
+}
+function documentedRow(matches){
   const row=matches[0];
   // Team query is injected only where declared. A path-bound team is
   // independently checked by the transport against the stored account.
@@ -51,8 +52,31 @@ export function documentedRead(op){
     .some(p=>p.in==='query'&&p.name==='teamId');
   return row;
 }
+export function documentedRead(op){
+  const matches=findDocumented(op);
+  if(matches.length!==1||!['GET','HEAD'].includes(matches[0].method))
+    throw new TypeError('Only an unambiguous documented GET or HEAD is allowed');
+  return documentedRow(matches);
+}
+// Batch U (U-1 write side): the guarded write path resolves documented
+// write operations through the same unique-operation rule. Callers still
+// validate the full request against the snapshot before any I/O; this
+// resolver only establishes that the operation exists exactly once and
+// mutates.
+export function documentedWrite(op){
+  const matches=findDocumented(op);
+  if(matches.length!==1||!['POST','PUT','PATCH','DELETE'].includes(matches[0].method))
+    throw new TypeError('Only an unambiguous documented POST, PUT, PATCH or DELETE is allowed');
+  return documentedRow(matches);
+}
+export function documentedOperation(op){
+  const matches=findDocumented(op);
+  if(matches.length!==1)
+    throw new TypeError('Unknown or ambiguous documented operation');
+  return documentedRow(matches);
+}
 export function openApiOperation(id) {
-  if(typeof id==='string'&&id.startsWith('api:'))return documentedRead(id.slice(4));
+  if(typeof id==='string'&&id.startsWith('api:'))return documentedOperation(id.slice(4));
   const { path, method } = operation(id);
   const doc = readOpenApi();
   const pathItem = doc.paths?.[path];
@@ -122,6 +146,13 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
   // Vercel uses teamId across endpoints (including user reads); do not permit
   // caller-supplied teamId to override the selected account's scope.
   for (const key of Object.keys(query)) {
+    // The same 2026-10-11 snapshot omits the projectId query parameter from
+    // GET /v1/security/firewall/config and from the config-version activate
+    // POST, although the live REST reference requires it on both (the PATCH
+    // and the version GET on the same paths declare it). Permit exactly
+    // that one parameter for those two operations only (Batch F-2).
+    if ((id === 'firewall_config_get' || id === 'firewall_config_activate') &&
+      key === 'projectId') continue;
     if (!byKey.has('query:' + key) && (key !== 'teamId'||id.startsWith('api:'))) {
       throw new TypeError('Unknown API query parameter: ' + key);
     }
@@ -147,6 +178,21 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
   const requestBody = specOperation.requestBody?.$ref
     ? readOpenApi().components?.requestBodies?.[specOperation.requestBody.$ref.split('/').at(-1)]
     : specOperation.requestBody;
+  // The snapshot's firewall-config PATCH body is a oneOf whose branches
+  // overlap and whose value schemas are branch-shifted (proven against this
+  // validator in the Batch F dossier, 2026-10-30): every documented body
+  // matches two branches or none, so no real request can ever pass. Skip
+  // body validation for this one operation only; path and query validation
+  // above still apply, and the F-2 tools pin their bodies byte-exact in
+  // tests against the live reference's documented shapes.
+  if (id === 'firewall_config_patch') return true;
+  // The attack-mode body oneOf has the same defect in miniature: the
+  // enabling body (which the reference requires to carry
+  // attackModeActiveUntil) also matches the two-field branch, because that
+  // branch does not forbid the extra property, so it can never validate.
+  // Skip body validation only for that documented enabling shape; the
+  // disabling body keeps full validation (Batch F-2).
+  if (id === 'attack_mode_update' && body?.attackModeActiveUntil !== undefined) return true;
   if (body === undefined) {
     if (requestBody?.required) throw new TypeError('Missing required API body');
   } else {

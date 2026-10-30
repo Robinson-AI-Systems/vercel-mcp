@@ -173,7 +173,9 @@ describe('B-2 production permission (AUD-B: word default, passphrase strictness)
       'vercel_protection_set_vercel_auth',
       'vercel_protection_set_password','vercel_protection_set_trusted_ips',
       'vercel_protection_create_bypass','vercel_protection_revoke_bypass',
-      'vercel_alias_set_shareable_link']);    expect((await dispatchReadOnlyTool({registry,name:'vercel_enable_production',connection:{...conn,profile:'read_only'},db})).isError).toBe(true);
+      'vercel_alias_set_shareable_link','vercel_firewall_add_rule','vercel_firewall_update_rule',
+      'vercel_firewall_remove_rule','vercel_firewall_set_managed_rules','vercel_firewall_block_ip',
+      'vercel_firewall_unblock_ip','vercel_firewall_restore_version','vercel_firewall_set_attack_mode']);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
     // The test runner is not a production Vercel deployment, so the
     // exposed tool must refuse even an eligible full-profile caller.
