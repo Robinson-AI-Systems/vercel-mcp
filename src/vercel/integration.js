@@ -3,8 +3,13 @@
 // The user installs this server's integration on their own Vercel team
 // from Vercel's own pages; Vercel redirects back here with a one-time
 // `code`; this module exchanges it for the long-lived installation
-// token and enrolls that token through the same probe/store path as a
-// pasted token (src/vercel/tokens.js). The user never handles a token.
+// token and enrolls it (src/vercel/tokens.js). The user never handles
+// a token. AUD-K: team installs enroll through the installation-aware
+// probe — an installation token is granted the configuration read,
+// the single-team read and the team-scoped projects list, NOT the
+// teams list or a load-bearing user read the standard pasted-token
+// probe leans on (VMCP-026 / A-1: that probe 403'd every Door-1 team
+// install at enrollment).
 //
 // Platform contract (Vercel docs, read 2026-10-28 —
 // /docs/integrations/create-integration/vercel-api-integrations,
@@ -24,7 +29,7 @@
 // environment values (VERCEL_INTEGRATION_CLIENT_ID /
 // VERCEL_INTEGRATION_CLIENT_SECRET / VERCEL_INTEGRATION_REDIRECT_URI).
 // They are never logged, never echoed, never returned.
-import { storeToken, storePersonalToken } from './tokens.js';
+import { storePersonalToken, storeInstallationToken } from './tokens.js';
 import { escapeHtml, send } from '../core/http.js';
 import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 
@@ -111,13 +116,14 @@ export async function exchangeInstallCode({ code, env = process.env,
 }
 
 // Enroll an exchanged installation. Team installs go through the
-// standard probe/store path (the installation token sees exactly its
-// own team, so no broader-visibility allowance is requested) with the
-// installation identity recorded on the account's probe record.
-// Personal installs (team_id null) enroll through the user-keyed
-// probe (AUD-I S1b, tokens.js): identity cross-checked against the
-// exchange's installer claim, account keyed on the user id — never
-// faked through the team probe.
+// installation-aware probe (AUD-K, tokens.js): the installation's
+// own configuration record — read with the installation token —
+// proves the install, its team and its granted scopes, so no
+// broader-visibility allowance is ever in play. Personal installs
+// (team_id null) enroll through the user-keyed probe (AUD-I S1b,
+// tokens.js): identity cross-checked against the exchange's
+// installer claim, account keyed on the user id — never faked
+// through the team probe.
 export async function enrollInstallation({ db, exchange, declaredBox,
   env = process.env, fetchImpl, baseUrl } = {}) {
   if (!exchange || typeof exchange.accessToken !== 'string') {
@@ -139,8 +145,15 @@ export async function enrollInstallation({ db, exchange, declaredBox,
     return { enrolled: true, kind: 'personal',
       installationId: exchange.installationId, account: receipt };
   }
-  const receipt = await storeToken({
-    db, token: exchange.accessToken, teamId: exchange.teamId, env,
+  const config = integrationConfig(env);
+  if (!config) {
+    throw new IntegrationError('integration_not_configured',
+      'The Vercel integration is not configured on this server');
+  }
+  const receipt = await storeInstallationToken({
+    db, token: exchange.accessToken, teamId: exchange.teamId,
+    installationId: exchange.installationId, integrationId: config.clientId,
+    userId: exchange.userId, env,
     ...(fetchImpl ? { fetchImpl } : {}),
     ...(baseUrl ? { baseUrl } : {}),
     probeExtra: {
@@ -188,6 +201,20 @@ export async function handleIntegrationCallback(req, res, { db,
     const status = err?.code === 'integration_not_configured' ? 503 : 502;
     return html(res, status, 'Install could not be completed',
       '<p>' + escapeHtml(err?.message || 'The install exchange failed.') + '</p>');
+  }
+  // AUD-K hardening: the redirect also names the installation and
+  // the team (configurationId / teamId). The exchange's validated
+  // values are the probe's inputs; a redirect that disagrees with
+  // them is refused before any probe call is made.
+  const redirectConfigurationId = url.searchParams.get('configurationId');
+  const redirectTeamId = url.searchParams.get('teamId');
+  if ((redirectConfigurationId !== null &&
+      redirectConfigurationId !== exchange.installationId) ||
+    (redirectTeamId !== null && exchange.teamId !== null &&
+      redirectTeamId !== exchange.teamId)) {
+    return html(res, 502, 'Install could not be completed',
+      '<p>The install Vercel reported does not match the install that was started. ' +
+      'Start the install again from the connection page.</p>');
   }
   let result;
   try {

@@ -22,22 +22,51 @@ const PROBE_LEG_MESSAGES = Object.freeze({
 function probeFail(leg, message) {
   return Object.assign(new Error(message), { probeLeg: leg });
 }
+// AUD-I S5 (A-5): a dead integration credential names its cause
+// class in plain words wherever a probe surfaces it. Vercel
+// disables an installation's configuration when the person who
+// installed it leaves the team (403, code
+// integration_configuration_disabled — the client preserves the
+// provider code, never the body). The credential is dead at
+// Vercel; disconnecting here still completes on this server, and
+// reconnecting means a current team member installs again.
+const INTEGRATION_DISABLED_MESSAGE =
+  'The Vercel integration behind this connection was disabled — this happens when the person who installed it leaves the team. The credential is dead at Vercel; disconnecting here still completes on this server, and reconnecting means a current team member installs again';
 function transportFail(leg, err) {
   if (err?.probeLeg) return err;
-  // AUD-I S5 (A-5): a dead integration credential names its cause
-  // class in plain words wherever a probe surfaces it. Vercel
-  // disables an installation's configuration when the person who
-  // installed it leaves the team (403, code
-  // integration_configuration_disabled — the client preserves the
-  // provider code, never the body). The credential is dead at
-  // Vercel; disconnecting here still completes on this server, and
-  // reconnecting means a current team member installs again.
   if (err?.code === 'integration_configuration_disabled') {
-    return probeFail('integration_disabled',
-      'The Vercel integration behind this connection was disabled — this happens when the person who installed it leaves the team. The credential is dead at Vercel; disconnecting here still completes on this server, and reconnecting means a current team member installs again');
+    return probeFail('integration_disabled', INTEGRATION_DISABLED_MESSAGE);
   }
   const status = Number.isInteger(err?.status) ? ' (HTTP ' + err.status + ')' : '';
   return probeFail(leg, (PROBE_LEG_MESSAGES[leg] || 'Could not confirm the token with Vercel') + status);
+}
+
+// AUD-K: the installation probe's configuration read classifies its
+// refusals per IN-18 — plain-words cause plus the remedy — keyed on
+// the HTTP status and the one documented provider code
+// (integration_configuration_disabled, handled by transportFail).
+// No other provider code is published for this endpoint, so no finer
+// branch is keyed on one.
+function installationReadFail(err) {
+  if (err?.probeLeg) return err;
+  if (err?.code === 'integration_configuration_disabled') {
+    return transportFail('configuration', err);
+  }
+  const status = err?.status;
+  const shown = Number.isInteger(status) ? ' (HTTP ' + status + ')' : '';
+  if (status === 401) {
+    return probeFail('configuration',
+      'Vercel does not accept the installed credential; install again from the connection page' + shown);
+  }
+  if (status === 403) {
+    return probeFail('configuration',
+      "Vercel refused to let this connection read its own installation — the integration is missing the permission to read its installations (integration-configuration); in Vercel's Integration Console, grant the integration-configuration scope, confirm the scope change, then install again" + shown);
+  }
+  if (status === 404 || status === 410) {
+    return probeFail('configuration',
+      'The installation no longer exists at Vercel (it may have been removed before setup finished); install again from the connection page' + shown);
+  }
+  return probeFail('configuration', 'Could not confirm the installation with Vercel' + shown);
 }
 
 // Vercel may return a continuation even for a short final page. Follow it
@@ -291,6 +320,199 @@ export async function storePersonalToken({ db, token, userId,
     expiry: null, last4: token.slice(-4) };
 }
 
+// AUD-K (VMCP-026 / A-1): the credential-class-aware probe for a
+// Door-1 TEAM installation token. The standard probe's load-bearing
+// legs are calls this credential class cannot make: the documented
+// per-scope endpoint map grants an installation token the
+// configuration read (integration-configuration scope), the
+// single-team read (team scope) and the team-scoped projects list
+// (project scope) — the teams LIST appears under no scope, and the
+// user read identifies the installing user, not the installation
+// (contract dossier 2026-10-30, shape map rows 1–6). So the proof
+// rests on the installation's own configuration record: it exists,
+// it belongs to this integration, it sits on the exchanged team, it
+// is alive, and it states what it was granted; the projects list
+// then proves the credential functionally reads what the record
+// grants. A configuration-bounded token can never see a second team
+// and is never account-wide, so there is no broad-visibility gate
+// and the recorded scope is 'team' or 'project', never 'full'.
+export async function probeInstallationToken({ token, teamId, installationId,
+  integrationId, userId = null, fetchImpl, baseUrl }) {
+  try {
+    assertToken(token);
+  } catch {
+    throw probeFail('input',
+      'A valid server-side token is required; check the token for stray whitespace or copying errors');
+  }
+  if (!safeId(teamId) || !safeId(installationId) ||
+    typeof integrationId !== 'string' || !integrationId) {
+    throw probeFail('input',
+      'A valid installation identity is required; review the connection in owner setup');
+  }
+  const client = makeVercelClient({
+    token, account: { id: 'probe_only', team_id: teamId },
+    ...(fetchImpl ? { fetchImpl } : {}),
+    ...(baseUrl ? { baseUrl } : {})
+  });
+  const config = await client.request('integrations_configuration_get',
+    { path: { id: installationId } }, { timeoutMs: 5000 })
+    .catch(err => { throw installationReadFail(err); });
+  // Shape gate, mirroring the exchange validator's posture: the
+  // documented required set the proof depends on (the configuration's
+  // id and type, its integration, its nullable team, its owner, its
+  // installer, and the granted-scope array).
+  if (!config || typeof config !== 'object' ||
+    config.id !== installationId ||
+    config.type !== 'integration-configuration' ||
+    typeof config.integrationId !== 'string' || !config.integrationId ||
+    !(typeof config.teamId === 'string' || config.teamId === null) ||
+    typeof config.ownerId !== 'string' || !config.ownerId ||
+    typeof config.userId !== 'string' || !config.userId ||
+    !Array.isArray(config.scopes) ||
+    config.scopes.some(scope => typeof scope !== 'string')) {
+    throw probeFail('configuration',
+      'Vercel answered the installation check in an unexpected shape; try again — if it persists, it is a provider contract change, not a user error');
+  }
+  if (config.integrationId !== integrationId) {
+    throw probeFail('configuration_integration',
+      "The installation Vercel reported belongs to a different integration; install again from this product's connection page");
+  }
+  if (config.teamId !== teamId || config.ownerId !== teamId) {
+    throw probeFail('configuration_team',
+      'The installation Vercel reported belongs to a different team than the install named; install again and choose the intended team');
+  }
+  if (config.deletedAt != null) {
+    throw probeFail('configuration_removed',
+      'This installation was removed at Vercel; install again from the connection page');
+  }
+  if (config.disabledAt != null) {
+    throw probeFail('integration_disabled', INTEGRATION_DISABLED_MESSAGE);
+  }
+  const configurationStatus = typeof config.status === 'string' ? config.status : 'ready';
+  if (configurationStatus === 'uninstalled') {
+    throw probeFail('configuration_removed',
+      'This installation was removed at Vercel; install again from the connection page');
+  }
+  if (configurationStatus === 'suspended') {
+    throw probeFail('configuration_suspended',
+      'This installation is suspended at Vercel; resolve the suspension in Vercel, then install again from the connection page');
+  }
+  // Scope derivation from the configuration alone. An absent projects
+  // array under an all-projects selection is the documented
+  // full-project-access form; a present non-empty array limits the
+  // grant whether or not the selection says so.
+  const grantedScopes = [...config.scopes];
+  const projectSelection = config.projectSelection === 'selected' ? 'selected' : 'all';
+  const grantedProjects = Array.isArray(config.projects) ?
+    config.projects.filter(item => typeof item === 'string' && item) : null;
+  const projectLimited = projectSelection === 'selected' ||
+    (grantedProjects !== null && grantedProjects.length > 0);
+  let scope = 'team', projectId = null;
+  if (projectLimited) {
+    const granted = grantedProjects ?? [];
+    if (!granted.length) {
+      throw probeFail('configuration_grant',
+        'This install was not granted access to any project; install again and grant at least one project');
+    }
+    if (granted.length > 1) {
+      throw probeFail('configuration_grant',
+        'This install was limited to more than one project; a connection here covers one team or one project. Install again with All Projects, or limit it to the single project to connect');
+    }
+    scope = 'project';
+    projectId = granted[0];
+  }
+  // Functional proof: the credential reads the team's projects under
+  // its project scope. A 403 here (past the disabled class, which
+  // transportFail classifies first) names the missing project read.
+  let projects;
+  try {
+    projects = await visibleRows(client, 'projects_list', 'projects');
+  } catch (err) {
+    if (err?.probeLeg === 'projects' && /\(HTTP 403\)/.test(err.message || '')) {
+      throw probeFail('projects',
+        "The installed credential cannot read the team's projects — the integration is missing project read permission; in Vercel's Integration Console, grant the project scope (read), confirm the scope change, then install again (HTTP 403)");
+    }
+    throw err;
+  }
+  // The configuration record and the credential's reach must agree:
+  // nothing visible outside the granted set, and a single granted
+  // project actually visible.
+  let projectName = null;
+  if (projectLimited) {
+    const granted = new Set(grantedProjects ?? []);
+    const projectRow = projects.find(item => item?.id === projectId);
+    if (projects.some(item => !granted.has(item?.id)) || !projectRow) {
+      throw probeFail('configuration_grant',
+        "Vercel's installation record and the credential's reach disagree; install again — if the disagreement persists, it is a provider issue");
+    }
+    projectName = typeof projectRow.name === 'string' ? projectRow.name : null;
+  }
+  const label = await installationLabel(client, teamId);
+  return {
+    teamId, teamSlug: label.slug, teamName: label.name,
+    scope, projectId, projectName,
+    checkedAt: new Date().toISOString(),
+    visibleTeamCount: 1, visibleProjectCount: projects.length,
+    installation: { grantedScopes, projectSelection, configurationStatus,
+      installerMatchesConfiguration: typeof userId === 'string' ?
+        config.userId === userId : null }
+  };
+}
+
+// The single-team read supplies the account label only (team scope,
+// Read). It is never load-bearing: any failure falls back to the
+// team ID as its own label — the probeProjectScoped precedent. The
+// configuration's own slug is the INTEGRATION's slug, never the
+// team's, and is not consulted here.
+async function installationLabel(client, teamId) {
+  try {
+    const team = await client.request('teams_get',
+      { path: { teamId } }, { timeoutMs: 5000 });
+    if (typeof team?.slug === 'string' && team.slug) {
+      return { slug: team.slug,
+        name: typeof team.name === 'string' && team.name ? team.name : team.slug };
+    }
+  } catch { /* Label evidence only; never load-bearing. */ }
+  return { slug: teamId, name: teamId };
+}
+
+// Sibling of storePersonalToken (the S1b precedent): run the
+// installation-aware probe and upsert through the same row shape as
+// storeToken, with the configuration-derived evidence recorded on
+// the probe record beside the caller's provenance.
+export async function storeInstallationToken({ db, token, teamId, installationId,
+  integrationId, userId = null, env = process.env, fetchImpl, baseUrl, probeExtra = {} }) {
+  if (!db?.upsertVercelAccount) throw new TypeError('Durable account storage is required');
+  const result = await probeInstallationToken({ token, teamId, installationId,
+    integrationId, userId, fetchImpl, baseUrl });
+  const id = result.projectId ? result.teamId + '/' + result.projectId : result.teamId;
+  const tokenEnc = encryptSecret(token, 'token:' + id, env);
+  try {
+    await db.upsertVercelAccount({
+      id, teamId: result.teamId, teamSlug: result.teamSlug, label: result.teamName,
+      scope: result.scope, projectId: result.projectId, projectName: result.projectName,
+      tokenEnc, tokenLast4: token.slice(-4), expiresAt: null,
+      probe: {
+        checkedAt: result.checkedAt,
+        visibleTeamCount: result.visibleTeamCount,
+        visibleProjectCount: result.visibleProjectCount,
+        scopeVerified: false, // REST reads cannot prove token's complete privilege set.
+        grantedScopes: result.installation.grantedScopes,
+        projectSelection: result.installation.projectSelection,
+        configurationStatus: result.installation.configurationStatus,
+        installerMatchesConfiguration: result.installation.installerMatchesConfiguration,
+        ...probeExtra
+      }
+    });
+  } catch {
+    // The database error itself is never surfaced: it may carry server detail.
+    throw probeFail('storage',
+      'The verified token could not be saved; check the server storage configuration');
+  }
+  return { id, team: result.teamSlug, scope: result.scope, project: result.projectName,
+    expiry: null, last4: token.slice(-4) };
+}
+
 export async function storeToken({ db, token, teamId, projectId = null,
   allowFull = false, env = process.env, fetchImpl, baseUrl, probeExtra = {} }) {
   if (!db?.upsertVercelAccount) throw new TypeError('Durable account storage is required');
@@ -352,13 +574,27 @@ export async function recheckStoredToken({ db, accountId, env = process.env, fet
   // AUD-I S5: recheck routes by account kind — a personal seat is
   // re-proven by the user-keyed probe, never the team probe.
   const personal = account.probe?.accountKind === 'personal';
+  // AUD-K: a Door-1 TEAM seat (an integration-sourced row with no
+  // personal kind) is re-proven by the installation-aware probe —
+  // the standard probe's teams-list leg is a call this credential
+  // class cannot make, so routing it there would fail every recheck
+  // with the A-1 error. The probe's identity inputs are rebuilt from
+  // the stored installation id and the server's configured
+  // integration client id (the operator env contract).
+  const integrationTeam = !personal && account.probe?.source === 'integration';
   const result = personal ?
     await probePersonalToken({ token, userId: account.id,
       allowFull: account.scope === 'full', fetchImpl, baseUrl }) :
-    await probeToken({
-      token, teamId: account.team_id, projectId: account.project_id || null,
-      allowFull: account.scope === 'full', fetchImpl, baseUrl
-    });
+    integrationTeam ?
+      await probeInstallationToken({ token, teamId: account.team_id,
+        installationId: account.probe?.installationId,
+        integrationId: typeof env?.VERCEL_INTEGRATION_CLIENT_ID === 'string' ?
+          env.VERCEL_INTEGRATION_CLIENT_ID : null,
+        userId: account.probe?.installerUserId ?? null, fetchImpl, baseUrl }) :
+      await probeToken({
+        token, teamId: account.team_id, projectId: account.project_id || null,
+        allowFull: account.scope === 'full', fetchImpl, baseUrl
+      });
   return {
     checkedAt: result.checkedAt, teamId: result.teamId, teamSlug: result.teamSlug,
     projectId: result.projectId, storedScope: account.scope,
