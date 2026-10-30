@@ -40,9 +40,10 @@ export function safeBranch(value){
   return BRANCH.test(value??'')&&!value.includes('..')&&
     !value.split('/').some(x=>x===''||x==='.');
 }
-export function noPreview(branch,outsideApp){
-  return outsideApp!==true&&/^(ai|transfer|recovery)(\/|$)/i.test(branch);
-}
+// P-1: the no-preview branch rule moved to src/tools/app-guard.js
+// (previewBranchRefusal), where it is sourced from project profiles;
+// the built-in default below it preserves this function's old behavior
+// for profile-less installs.
 export async function owned(args,ctx,{requireRun=false}={}){
   if(ctx.connection?.mode!=='preview'||ctx.connection?.profile!=='full')
     throw new RefusalError('Preview-only full owner connection required');
