@@ -7,23 +7,30 @@ import {validateRequest} from '../../src/vercel/openapi-validation.js';
 vi.mock('../../src/vercel/tokens.js',async orig=>({...await orig(),loadToken:vi.fn()}));
 
 const id='ecfg_FAKE_SCHEMA',team='team_FAKE',project='prj_FAKE_APP';
-const row={id,slug:'fake-schema',teamId:team,connectedProjects:[],
-  itemCount:2,updatedAt:100};
+// AUD-AF: remodelled from the pinned contract — ownerId, documented
+// fields only, no project-link field (the linked variant below adds
+// connectedProjects back to pin the reported-links path).
+const row={id,slug:'fake-schema',ownerId:team,createdAt:90,
+  createdBy:'user_FAKE',digest:'digest_FAKE',itemCount:2,
+  sizeInBytes:44,updatedAt:100};
+// The documented items GET: a bare array of GlobalConfigItem.
+const itemRows=[{key:'FLAG',value:'hello',edgeConfigId:id,createdAt:90,updatedAt:95},
+  {key:'COUNT',value:2,edgeConfigId:id,createdAt:90,updatedAt:95}];
 const prior={type:'object',properties:{FLAG:{type:'string'},COUNT:{type:'integer'}},
   required:['FLAG','COUNT'],additionalProperties:false};
 const desired={type:'object',properties:{FLAG:{type:'string',minLength:3},
   COUNT:{type:'integer',minimum:0}},
   required:['FLAG','COUNT'],additionalProperties:false};
-const values={FLAG:'hello',COUNT:2};
 const token={token:'vcp_FAKE_schema',account:{id:'acct_FAKE',
   team_id:team,scope:'team'}};
 const conn={account:'acct_FAKE',profile:'full',mode:'preview',listing:'catalog'};
+const prod={...conn,mode:'production'};
 const basic={id,expectedSlug:row.slug,expectedUpdatedAt:100,
   outsideApp:true,confirm:true,requestKey:'schemaWriteFake01'};
 const update={...basic,mode:'set',definition:desired};
 const remove={...basic,mode:'remove'};
 const parse=r=>JSON.parse(r.content[0].text);
-function fixture({linked=false,current=prior,items=values}={}){
+function fixture({linked=false,current=prior,items=itemRows}={}){
   const fake=makeFakeVercel(),memo=new Map(),claims=new Set(),audit=[];
   const db={getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
     recordChange:async x=>audit.push(x),requestReplayStore:()=>({
@@ -37,11 +44,11 @@ function fixture({linked=false,current=prior,items=values}={}){
     })};
   loadToken.mockResolvedValue(token);
   fake.when('GET','/v1/global-config/{edgeConfigId}')
-    .resolves({...row,connectedProjects:linked?[project]:[]});
+    .resolves(linked?{...row,connectedProjects:[project]}:row);
   fake.when('GET','/v1/global-config/{edgeConfigId}/schema')
     .resolves({definition:current});
   fake.when('GET','/v1/global-config/{edgeConfigId}/items')
-    .resolves({items});
+    .resolves(items);
   fake.when('GET','/v9/projects/{idOrName}')
     .resolves({id:project,accountId:team});
   const call=(name,args,c=conn)=>dispatchReadOnlyTool({
@@ -88,7 +95,7 @@ describe('E-4 Global Config JSON Schema lifecycle',()=>{
       .resolves({definition:prior})
       .resolves({definition:prior})
       .resolves({definition:desired});
-    const result=parse(await f.call('vercel_globalconfig_set_schema',update));
+    const result=parse(await f.call('vercel_globalconfig_set_schema',update,prod));
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(f.writes()).toHaveLength(1);
     expect(f.writes()[0]).toMatchObject({method:'POST',path:
@@ -105,7 +112,7 @@ describe('E-4 Global Config JSON Schema lifecycle',()=>{
       .resolves({definition:prior})
       .resolves({definition:prior})
       .rejects(404);
-    const result=parse(await f.call('vercel_globalconfig_set_schema',remove));
+    const result=parse(await f.call('vercel_globalconfig_set_schema',remove,prod));
     expect(result).toMatchObject({status:'applied',confirmed:true});
     expect(f.writes()).toHaveLength(1);
     expect(f.writes()[0].method).toBe('DELETE');
@@ -117,12 +124,12 @@ describe('E-4 Global Config JSON Schema lifecycle',()=>{
     const incompatible={...desired,properties:{...desired.properties,
       FLAG:{type:'number'}}};
     const out=parse(await f.call('vercel_globalconfig_set_schema',{
-      ...update,dryRun:true,confirm:false,definition:incompatible}));
+      ...update,dryRun:true,confirm:false,definition:incompatible},prod));
     expect(out).toMatchObject({status:'preview'});
     expect(JSON.stringify(out)).toContain('FLAG');
     expect(f.writes()).toHaveLength(0);
     expect(parse(await f.call('vercel_globalconfig_set_schema',{
-      ...update,definition:incompatible})).status).toBe('refused_by_guard');
+      ...update,definition:incompatible},prod)).status).toBe('refused_by_guard');
     expect(f.writes()).toHaveLength(0);
   });
   it('fails closed on production links, stale revision, protected store and unsafe references',async()=>{
@@ -138,7 +145,7 @@ describe('E-4 Global Config JSON Schema lifecycle',()=>{
     }
     const f=fixture();
     f.db.listProtectedResources=async()=>[{match:id,note:'protected'}];
-    expect(parse(await f.call('vercel_globalconfig_set_schema',update))
+    expect(parse(await f.call('vercel_globalconfig_set_schema',update,prod))
       .status).toBe('refused_by_guard');
     const everyday=fixture();
     expect(parse(await everyday.call('vercel_globalconfig_set_schema',remove,
@@ -149,7 +156,7 @@ describe('E-4 Global Config JSON Schema lifecycle',()=>{
     const different={...prior,required:['COUNT']};
     f.fake.when('GET','/v1/global-config/{edgeConfigId}/schema')
       .resolves({definition:prior}).resolves({definition:different});
-    const out=parse(await f.call('vercel_globalconfig_set_schema',update));
+    const out=parse(await f.call('vercel_globalconfig_set_schema',update,prod));
     expect(out.status).toBe('refused_by_guard');
     expect(f.writes()).toHaveLength(0);
   });

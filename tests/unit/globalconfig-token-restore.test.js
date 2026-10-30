@@ -8,12 +8,20 @@ vi.mock('../../src/vercel/tokens.js',async orig=>({...await orig(),loadToken:vi.
 
 const id='ecfg_FAKE_TOKENS',team='team_FAKE',project='prj_FAKE_LINK';
 const versionId='backup_FAKE_ONE';
-const row={id,slug:'config-store',teamId:team,connectedProjects:[],
-  itemCount:1,updatedAt:100};
+// AUD-AF: remodelled from the pinned contract — ownerId, documented
+// fields only, no project-link field (the linked variant adds
+// connectedProjects back to pin the reported-links path).
+const row={id,slug:'config-store',ownerId:team,createdAt:90,
+  createdBy:'user_FAKE',digest:'digest_FAKE',itemCount:1,
+  sizeInBytes:12,updatedAt:100};
+// The documented items GET: a bare array of GlobalConfigItem.
+const currentItems=[{key:'FLAG',value:'current',edgeConfigId:id,
+  createdAt:90,updatedAt:95}];
 const tokenRow={id:'ectok_FAKE_TOKEN',label:'CI read access',
   createdAt:100,value:'vcp_FAKE_LIST_RESPONSE_SECRET'};
 const bearer='vcp_FAKE_CREATED_TOKEN_ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const connection={account:'acct_FAKE',profile:'full',mode:'preview',listing:'catalog'};
+const prod={...connection,mode:'production'};
 const identity={token:'vcp_FAKE_provider',account:{
   id:'acct_FAKE',team_id:team,scope:'team'}};
 const args={id,expectedSlug:'config-store',expectedUpdatedAt:100,
@@ -25,7 +33,7 @@ const revokeArgs={id,expectedSlug:'config-store',expectedUpdatedAt:100,
   tokenIds:[tokenRow.id],outsideApp:true,confirm:true,requestKey:'revokeTokenFake01'};
 const env={TOKEN_ENCRYPTION_KEY:'0123456789abcdef'.repeat(4)};
 const parse=r=>JSON.parse(r.content[0].text);
-function fixture({linked=false,tokenRows=[],items={FLAG:'current'}}={}){
+function fixture({linked=false,tokenRows=[],items=currentItems}={}){
   const fake=makeFakeVercel(),audits=[],secretRows=[],memo=new Map(),claims=new Set();
   const db={getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
     recordChange:async row=>audits.push(row),
@@ -41,12 +49,14 @@ function fixture({linked=false,tokenRows=[],items={FLAG:'current'}}={}){
       release:async({key})=>{claims.delete(key);return true;}
     })};
   loadToken.mockResolvedValue(identity);
-  const selected={...row,connectedProjects:linked?[project]:[]};
+  const selected=linked?{...row,connectedProjects:[project]}:row;
   fake.when('GET','/v1/global-config/{edgeConfigId}').resolves(selected);
   fake.when('GET','/v1/global-config/{edgeConfigId}/tokens').resolves(tokenRows);
   fake.when('GET','/v9/projects/{idOrName}')
     .resolves({id:project,accountId:team});
-  fake.when('GET','/v1/global-config/{edgeConfigId}/items').resolves({items});
+  fake.when('GET','/v1/global-config/{edgeConfigId}/items').resolves(items);
+  // The documented BACKUP payload keeps its key-map items shape —
+  // allItems must keep accepting it (AUD-AF normalizer).
   fake.when('GET','/v1/global-config/{edgeConfigId}/backups/{edgeConfigBackupVersionId}')
     .resolves({id:versionId,edgeConfigId:id,items:{FLAG:'backup'}});
   const call=(name,a={},c=connection)=>dispatchReadOnlyTool({
@@ -88,7 +98,7 @@ describe('E-3/E-4 complete Global Config token and restore workflow',()=>{
       .resolves({id:tokenRow.id,label:tokenRow.label,token:bearer});
     f.fake.when('GET','/v1/global-config/{edgeConfigId}/tokens')
       .resolves([]).resolves([]).resolves([tokenRow]);
-    const out=parse(await f.call('vercel_globalconfig_create_token',args));
+    const out=parse(await f.call('vercel_globalconfig_create_token',args,prod));
     expect(out).toMatchObject({status:'applied',confirmed:true,
       revealAt:'/api/vercel/setup'});
     expect(out.ownerRevealRef).toMatch(/^[0-9a-f-]{36}$/);
@@ -109,7 +119,7 @@ describe('E-3/E-4 complete Global Config token and restore workflow',()=>{
       .resolves(undefined,204);
     f.fake.when('GET','/v1/global-config/{edgeConfigId}/tokens')
       .resolves([tokenRow]).resolves([tokenRow]).resolves([]);
-    const out=parse(await f.call('vercel_globalconfig_revoke_tokens',revokeArgs));
+    const out=parse(await f.call('vercel_globalconfig_revoke_tokens',revokeArgs,prod));
     expect(out).toMatchObject({status:'applied',confirmed:true});
     expect(f.mutations()).toHaveLength(1);
     expect(f.mutations()[0].body).toEqual({ids:[tokenRow.id]});
@@ -125,7 +135,7 @@ describe('E-3/E-4 complete Global Config token and restore workflow',()=>{
       .resolves({items:{FLAG:'current'}})
       .resolves({items:{FLAG:'current'}})
       .resolves({items:{FLAG:'backup'}});
-    const out=parse(await f.call('vercel_globalconfig_restore_backup',restoreArgs));
+    const out=parse(await f.call('vercel_globalconfig_restore_backup',restoreArgs,prod));
     expect(out).toMatchObject({status:'applied',confirmed:true});
     expect(f.mutations()).toHaveLength(1);
     expect(f.mutations()[0]).toMatchObject({method:'POST',
@@ -165,7 +175,7 @@ describe('E-3/E-4 complete Global Config token and restore workflow',()=>{
     for(const flags of [{dryRun:true,confirm:false},{confirm:false}]){
       const f=fixture();
       const out=parse(await f.call('vercel_globalconfig_create_token',
-        {...args,...flags}));
+        {...args,...flags},prod));
       expect(out.status).toBe(flags.dryRun?'preview':'needs_confirmation');
       expect(f.mutations()).toHaveLength(0);
       expect(f.secretRows).toHaveLength(0);
@@ -190,7 +200,7 @@ describe('E-3/E-4 complete Global Config token and restore workflow',()=>{
     const {versionId:unused,...withoutVersion}=restoreArgs;
     expect(unused).toBe(versionId);
     const out=parse(await f.call('vercel_globalconfig_restore_backup',{
-      ...withoutVersion,beforeTime:'2026-01-15T00:00:00.000Z'}));
+      ...withoutVersion,beforeTime:'2026-01-15T00:00:00.000Z'},prod));
     expect(out).toMatchObject({status:'applied',confirmed:true});
     expect(JSON.stringify(out)).toContain(versionId);
     expect(f.mutations()).toHaveLength(1);
