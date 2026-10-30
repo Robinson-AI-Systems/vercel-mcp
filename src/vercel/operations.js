@@ -71,6 +71,9 @@ export const OPS = Object.freeze({
   project_env_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/env/{id}' }),
   project_env_create: Object.freeze({ method: 'POST', path: '/v10/projects/{idOrName}/env' }),
   project_protection_bypass_update: Object.freeze({ method: 'PATCH', path: '/v1/projects/{idOrName}/protection-bypass' }),
+  // F-1: shareable links and per-URL bypass live on the alias surface
+  // (pinned snapshot: PATCH /aliases/{id}/protection-bypass).
+  aliases_protection_bypass_update: Object.freeze({ method: 'PATCH', path: '/aliases/{id}/protection-bypass' }),
   global_config_list: Object.freeze({ method: 'GET', path: '/v1/global-config' }),
   global_config_get: Object.freeze({ method: 'GET', path: '/v1/global-config/{edgeConfigId}' }),
   global_config_items: Object.freeze({ method: 'GET', path: '/v1/global-config/{edgeConfigId}/items' }),
