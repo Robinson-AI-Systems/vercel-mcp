@@ -166,7 +166,8 @@ describe('B-2 production permission (AUD-B: word default, passphrase strictness)
       'vercel_dev_sandbox_stop','vercel_domain_add_to_team','vercel_domain_update',
       'vercel_domain_remove_from_team','vercel_domain_attach_to_project',
       'vercel_domain_update_project_domain','vercel_domain_detach_from_project',
-      'vercel_domain_verify_project_domain']);
+      'vercel_domain_verify_project_domain','vercel_analytics_set_web_analytics',
+      'vercel_analytics_set_speed_insights']);
     expect((await dispatchReadOnlyTool({registry,name:'vercel_enable_production',connection:{...conn,profile:'read_only'},db})).isError).toBe(true);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
     // The test runner is not a production Vercel deployment, so the
