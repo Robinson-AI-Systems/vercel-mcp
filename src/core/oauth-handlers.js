@@ -90,6 +90,31 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     });
   }
 
+  // One account's mode view: the modes modesFor allows, whether
+  // production renders as the AUD-W disabled option, and the reason
+  // note for that case. The initial render and the embedded
+  // per-account map both come from here, so the page's script can
+  // never drift from the server's own rendering; modesFor stays the
+  // sole authority in both layers.
+  function modeView(account) {
+    const modes = account ? service.modesFor(account, env) : ['preview'];
+    const productionUnavailable = Boolean(account) && !modes.includes('production');
+    // VMCP-025 (AUD-W): production used to vanish from this list
+    // silently when unavailable. It renders as a disabled option
+    // with the reason beside the Mode field — the account owner's
+    // switch being off, or this server not running its production
+    // deployment. Submission validation is unchanged (modesFor is
+    // still the authority), so the disabled option can never be
+    // posted into an authorization.
+    const note = !productionUnavailable ? '' :
+      (account.production_enabled ?
+        '<p>Production mode is offered by this server\'s production deployment.</p>' :
+        '<p>Production mode is switched off for this account. The account owner can switch ' +
+        'it on in setup or with vercel_enable_production; a connection made in preview can ' +
+        'be flipped to production afterwards with vercel_set_working_box.</p>');
+    return { modes, productionUnavailable, note };
+  }
+
   function authorizePage(params, accounts, error = '') {
     const hiddenFields = [
       'client_id', 'redirect_uri', 'response_type', 'code_challenge',
@@ -98,33 +123,74 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     const hidden = hiddenFields.map((name) =>
       '<input type="hidden" name="' + name + '" value="' + escapeHtml(params[name]) + '">'
     ).join('');
-    const selectedAccount = accounts.find((account) => params.account === account.id) || accounts[0];
+    // Preselection (AUD-AE): an explicit account choice (a resumed
+    // flow or an error re-render) wins; otherwise the account the
+    // owner flagged as the default (is_default — the same flag the
+    // setup page sets and the removal guards read), never merely
+    // the first row of the account list. List position only breaks
+    // the tie when no account is flagged, the state the schema
+    // permits before an owner picks a default.
+    const selectedAccount = accounts.find((account) => params.account === account.id) ||
+      accounts.find((account) => account.is_default) || accounts[0];
     const accountList = accounts.map((account) =>
       '<option value="' + escapeHtml(account.id) + '"' +
       (selectedAccount?.id === account.id ? ' selected' : '') + '>' +
       escapeHtml(account.label) + '</option>'
     ).join('');
-    const modes = selectedAccount ? service.modesFor(selectedAccount, env) : ['preview'];
+    const view = modeView(selectedAccount);
+    const modes = view.modes;
     const selectedMode = modes.includes(params.mode) ? params.mode : 'preview';
     const modeList = modes.map((mode) =>
       '<option value="' + mode + '"' + (selectedMode === mode ? ' selected' : '') + '>' + mode + '</option>'
     ).join('');
-    // VMCP-025 (AUD-W): production used to vanish from this list
-    // silently when unavailable. It now renders as a disabled option
-    // with the reason beside the Mode field — the account owner's
-    // switch being off, or this server not running its production
-    // deployment. Submission validation is unchanged (modesFor is
-    // still the authority), so the disabled option can never be
-    // posted into an authorization.
-    const productionUnavailable = selectedAccount && !modes.includes('production');
-    const productionOption = productionUnavailable ?
+    const productionOption = view.productionUnavailable ?
       '<option value="production" disabled>production (not available)</option>' : '';
-    const productionNote = !productionUnavailable ? '' :
-      (selectedAccount.production_enabled ?
-        '<p>Production mode is offered by this server\'s production deployment.</p>' :
-        '<p>Production mode is switched off for this account. The account owner can switch ' +
-        'it on in setup or with vercel_enable_production; a connection made in preview can ' +
-        'be flipped to production afterwards with vercel_set_working_box.</p>');
+    const productionNote = view.note;
+    // AUD-AE: the mode view is rendered per account, not only for
+    // the preselected one. The map below carries every account's
+    // own modes, disabled-production flag and note (server-generated
+    // values only — fixed mode names and the two fixed notes; labels
+    // never enter it), and the fixed script swaps the Mode options
+    // and the note when the account choice changes, keeping a
+    // still-offered selection and falling back to preview exactly
+    // as the server does. Without script the page is unchanged in
+    // behavior: the preselected default account's view is rendered
+    // server-side, and submission validation judges the posted
+    // account/mode pair on its own either way.
+    const accountViews = {};
+    for (const account of accounts) {
+      const accountView = modeView(account);
+      accountViews[account.id] = {
+        modes: accountView.modes,
+        productionUnavailable: accountView.productionUnavailable,
+        note: accountView.note
+      };
+    }
+    const modesData = accounts.length ?
+      '<script type="application/json" id="account-modes">' +
+      JSON.stringify(accountViews).replace(/</g, '\\u003c') + '</script>' : '';
+    const modesScript = accounts.length ?
+      '<script>(function(){' +
+      'var accountSelect=document.getElementById("account-select");' +
+      'var modeSelect=document.getElementById("mode-select");' +
+      'var note=document.getElementById("mode-note");' +
+      'var dataElement=document.getElementById("account-modes");' +
+      'if(!accountSelect||!modeSelect||!note||!dataElement)return;' +
+      'var views;try{views=JSON.parse(dataElement.textContent);}catch(error){return;}' +
+      'accountSelect.addEventListener("change",function(){' +
+      'var view=views[accountSelect.value];if(!view)return;' +
+      'var current=modeSelect.value;modeSelect.innerHTML="";' +
+      'view.modes.forEach(function(mode){' +
+      'var option=document.createElement("option");option.value=mode;' +
+      'option.textContent=mode;if(mode===current)option.selected=true;' +
+      'modeSelect.appendChild(option);});' +
+      'if(view.productionUnavailable){' +
+      'var blocked=document.createElement("option");blocked.value="production";' +
+      'blocked.disabled=true;blocked.textContent="production (not available)";' +
+      'modeSelect.appendChild(blocked);}' +
+      'if(view.modes.indexOf(modeSelect.value)===-1)modeSelect.value="preview";' +
+      'note.innerHTML=view.note;});' +
+      '})();</script>' : '';
     const profileList = PROFILES.map((profile) =>
       '<option value="' + profile + '"' + (params.profile === profile ? ' selected' : '') + '>' + profile + '</option>'
     ).join('');
@@ -145,12 +211,13 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       (accounts.length ? '<p>Choose the ' + escapeHtml(service.accountLabel) + ' and permissions for this AI connection.</p>' :
         '<p>No Vercel teams are connected yet. An administrator must add an account through the secure setup page.</p>') +
       '<form method="post">' + hidden +
-      '<label>' + escapeHtml(service.accountLabel) + '<select name="account" required>' + accountList + '</select></label>' +
-      '<label>Mode<select name="mode">' + modeList + productionOption + '</select></label>' + productionNote +
+      '<label>' + escapeHtml(service.accountLabel) + '<select name="account" id="account-select" required>' + accountList + '</select></label>' +
+      '<label>Mode<select name="mode" id="mode-select">' + modeList + productionOption + '</select></label>' + '<div id="mode-note">' + productionNote + '</div>' +
       '<label>Profile<select name="profile">' + profileList + '</select></label>' +
       '<label>Tool listing<select name="listing">' + listingList + '</select></label>' +
       '<label>Administrator passphrase<input type="password" name="passphrase" required autocomplete="current-password"></label>' +
-      '<button type="submit"' + (!accounts.length ? ' disabled' : '') + '>Authorize this connection</button></form></body></html>';
+      '<button type="submit"' + (!accounts.length ? ' disabled' : '') + '>Authorize this connection</button></form>' +
+      modesData + modesScript + '</body></html>';
   }
 
   async function authorize(req, res) {

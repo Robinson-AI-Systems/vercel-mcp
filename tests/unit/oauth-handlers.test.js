@@ -133,6 +133,112 @@ describe('OAuth registration and authorization endpoints', () => {
     expect(productionPage.body).toContain('value="production"');
   });
 
+  it('preselects the flagged default account and renders its own modes, not the first row\'s (AUD-AE)', async () => {
+    // The live shape that convicted this defect: the default account
+    // is NOT the first row of the account list, and the first row's
+    // switch is off while the default's is on. On the production
+    // deployment the old page preselected the first row and offered
+    // its modes — production disabled with the wrong note — and no
+    // account change could ever recompute them.
+    const fixture = createFixture({
+      accounts: [
+        {
+          id: 'team_scratch', label: 'AAA Scratch fixture', scope: 'team',
+          production_enabled: false, is_default: false, team_id: 'team_scratch', team_slug: 'scratch'
+        },
+        {
+          id: 'team_real', label: 'ZZZ Real fixture', scope: 'team',
+          production_enabled: true, is_default: true, team_id: 'team_real', team_slug: 'real'
+        }
+      ],
+      env: { VERCEL_ENV: 'production' }
+    });
+    const client = await register(fixture.handlers);
+    const args = authorizeArgs(client);
+    delete args.account;
+    const page = await call(fixture.handlers.authorize, request('GET', args));
+    expect(page.statusCode).toBe(200);
+    expect(page.body).toContain('<option value="team_real" selected>');
+    expect(page.body).not.toContain('<option value="team_scratch" selected>');
+    // The default account's own view: production selectable, no note.
+    expect(page.body).toContain('<option value="production">production</option>');
+    expect(page.body).not.toContain('value="production" disabled');
+    expect(page.body).toContain('<div id="mode-note"></div>');
+    // The embedded per-account map carries every account's own view,
+    // so an account change recomputes from the server's own data.
+    const embedded = /<script type="application\/json" id="account-modes">([\s\S]*?)<\/script>/.exec(page.body);
+    expect(embedded).not.toBeNull();
+    const views = JSON.parse(embedded[1].replace(/\\u003c/g, '<'));
+    expect(views.team_real).toEqual({ modes: ['preview', 'production'], productionUnavailable: false, note: '' });
+    expect(views.team_scratch.modes).toEqual(['preview']);
+    expect(views.team_scratch.productionUnavailable).toBe(true);
+    expect(views.team_scratch.note).toContain('Production mode is switched off for this account');
+    expect(page.body).toContain('accountSelect.addEventListener');
+    // And the submission the old form could never produce — the
+    // default account in production mode — is accepted by the POST
+    // validator exactly as rendered.
+    const authorized = await call(fixture.handlers.authorize, request('POST', {
+      ...authorizeArgs(client), account: 'team_real', mode: 'production',
+      passphrase: baseEnv.ADMIN_PASSPHRASE
+    }));
+    expect(authorized.statusCode).toBe(302);
+    const code = new URL(authorized.headers.Location).searchParams.get('code');
+    expect(await fixture.db.consumeAuthCode(code)).toMatchObject({
+      vercel_account: 'team_real', mode: 'production'
+    });
+  });
+
+  it('keeps both AUD-W note variants per account on a preview deployment (AUD-AE)', async () => {
+    const fixture = createFixture({
+      accounts: [
+        {
+          id: 'team_off', label: 'Switch off fixture', scope: 'team',
+          production_enabled: false, is_default: false, team_id: 'team_off', team_slug: 'off'
+        },
+        {
+          id: 'team_on', label: 'Switch on fixture', scope: 'team',
+          production_enabled: true, is_default: true, team_id: 'team_on', team_slug: 'on'
+        }
+      ]
+    });
+    const client = await register(fixture.handlers);
+    const args = authorizeArgs(client);
+    delete args.account;
+    const page = await call(fixture.handlers.authorize, request('GET', args));
+    // The default (switch on) renders the deployment variant.
+    expect(page.body).toContain('<div id="mode-note"><p>Production mode is offered by this server');
+    expect(page.body).toContain('value="production" disabled');
+    const embedded = /<script type="application\/json" id="account-modes">([\s\S]*?)<\/script>/.exec(page.body);
+    const views = JSON.parse(embedded[1].replace(/\\u003c/g, '<'));
+    expect(views.team_on.productionUnavailable).toBe(true);
+    expect(views.team_on.note).toContain('Production mode is offered by this server');
+    expect(views.team_off.productionUnavailable).toBe(true);
+    expect(views.team_off.note).toContain('Production mode is switched off for this account');
+    expect(views.team_off.note).toContain('vercel_set_working_box');
+  });
+
+  it('an explicit account choice still wins over the default, with that account\'s modes (AUD-AE)', async () => {
+    const fixture = createFixture({
+      accounts: [
+        {
+          id: 'team_off', label: 'Switch off fixture', scope: 'team',
+          production_enabled: false, is_default: false, team_id: 'team_off', team_slug: 'off'
+        },
+        {
+          id: 'team_on', label: 'Switch on fixture', scope: 'team',
+          production_enabled: true, is_default: true, team_id: 'team_on', team_slug: 'on'
+        }
+      ],
+      env: { VERCEL_ENV: 'production' }
+    });
+    const client = await register(fixture.handlers);
+    const page = await call(fixture.handlers.authorize, request('GET',
+      authorizeArgs(client, { account: 'team_off' })));
+    expect(page.body).toContain('<option value="team_off" selected>');
+    expect(page.body).toContain('<div id="mode-note"><p>Production mode is switched off for this account');
+    expect(page.body).toContain('value="production" disabled');
+  });
+
   it('authorizes a connection and binds account, mode, profile, and listing to its one-time code', async () => {
     const { db, handlers } = createFixture();
     const client = await register(handlers);
