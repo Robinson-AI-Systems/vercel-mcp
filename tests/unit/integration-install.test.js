@@ -30,8 +30,16 @@ const env = {
 // token (it 403s live; that was A-1), so it is deleted, and the
 // user read stays ONLY so the enrollment test can prove the
 // installation probe never consults it.
+// AUD-M3 remodel: the canonical fixture now carries the LIVE shape
+// the AUD-M2 fingerprint captured on the 2026-10-30 closure re-run
+// (failed=[type] types: type:absent id:string integrationId:string
+// teamId:string ownerId:string userId:string scopes:array) — the
+// live record OMITS `type` although the snapshot lists it in every
+// variant. The documented type survives as an explicit variant in
+// the AUD-M3 tests below (present-correct enrolls and is recorded
+// as evidence; present-but-wrong still refuses).
 const CONFIG = {
-  id: 'icfg_FAKE', type: 'integration-configuration',
+  id: 'icfg_FAKE',
   integrationId: 'oac_FAKECLIENT', teamId: 'team_FAKE', ownerId: 'team_FAKE',
   userId: 'user_FAKE',
   scopes: ['read:integration-configuration', 'read:team', 'read:user', 'read:project'],
@@ -384,8 +392,56 @@ describe('AUD-K: installation-aware probe branches', () => {
     expect(db.rows.get('team_FAKE').probe.installerMatchesConfiguration).toBe(null);
   });
 
+  it('AUD-M3: enrolls on the live configuration shape — type absent, evidence records absent', async () => {
+    // The canonical fixture IS the live shape the 2026-10-30
+    // fingerprint captured (type omitted; every other gate field
+    // present and correctly typed). Against the pre-fix gate this
+    // enrollment refuses with failed=[type]; with the fix it lands
+    // and the stored evidence names the posture.
+    const api = configFixture();
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const result = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch });
+    expect(result.enrolled).toBe(true);
+    expect(db.rows.get('team_FAKE').probe.configurationType).toBe('absent');
+  });
+
+  it('AUD-M3: enrolls when the configuration carries the documented type — evidence records it', async () => {
+    const api = configFixture({ config: { type: 'integration-configuration' } });
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const result = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch });
+    expect(result.enrolled).toBe(true);
+    expect(db.rows.get('team_FAKE').probe.configurationType)
+      .toBe('integration-configuration');
+  });
+
+  it('AUD-M3: refuses a present-but-wrong type — a different resource kind — WITH the fingerprint naming type', async () => {
+    const api = configFixture({ config: { type: 'some-other-resource' } });
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const err = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch })
+      .catch(e => e);
+    expect(err.probeLeg).toBe('configuration');
+    expect(err.message).toMatch(/unexpected shape/);
+    expect(err.fingerprint.failed).toEqual(['type']);
+    expect(err.fingerprint.types.type).toBe('string');
+    expect(err.fingerprintSummary + JSON.stringify(err.fingerprint))
+      .not.toContain('some-other-resource');
+    expect(db.rows.size).toBe(0);
+  });
+
+  it('AUD-M3: refuses a null type — present, but not the documented kind', async () => {
+    await refuses(configFixture({ config: { type: null } }), /unexpected shape/);
+  });
+
   it('refuses a shape-broken configuration WITH a redacted fingerprint: predicate names and types, no values', async () => {
-    const api = configFixture({ config: { scopes: 'read:team', teamId: 42 } });
+    // AUD-M3: this AUD-M2 test models the full documented-shape
+    // record (type present), so the type stays explicit in the
+    // override — the canonical fixture now carries the live
+    // type-absent shape, and this test's exact type map stands.
+    const api = configFixture({ config: { scopes: 'read:team', teamId: 42,
+      type: 'integration-configuration' } });
     const db = fakeDb();
     const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
     const err = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch })

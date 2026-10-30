@@ -414,10 +414,22 @@ export async function probeInstallationToken({ token, teamId, installationId,
   //   id            — the identity step: the record must be the very
   //                   installation the exchange named (and the id
   //                   stored for recheck's rebuild).
-  //   type          — the resource-kind discriminator: it vouches for
-  //                   the documented MEANING of every other field the
-  //                   proof consumes; a wrong or absent type leaves
-  //                   those fields' semantics unproven. Stays hard.
+  //   type          — NOT gated outright (AUD-M3): AUD-M2 kept it
+  //                   hard as the resource-kind discriminator, but
+  //                   the live record OMITS it — the journaled
+  //                   fingerprint of the 2026-10-30 closure re-run
+  //                   reads failed=[type], type:absent, with every
+  //                   other field present and correctly typed — and
+  //                   the identity it was meant to vouch for already
+  //                   rests on the by-id read, the id match above and
+  //                   the integrationId check below. A discriminator
+  //                   the provider does not send cannot vouch for
+  //                   anything, so the predicate is conditional:
+  //                   absent proceeds (the evidence records
+  //                   'absent'); present must equal the documented
+  //                   kind — a present-but-wrong value means the
+  //                   record is a different resource kind than the
+  //                   endpoint promised, refused here as shape.
   //   integrationId — consumed by the next check (this integration).
   //   teamId        — consumed by the team check below; null is its
   //                   documented personal shape, refused there as a
@@ -433,7 +445,8 @@ export async function probeInstallationToken({ token, teamId, installationId,
     { name: 'id', type: jsonTypeOf(config?.id),
       ok: config?.id === installationId },
     { name: 'type', type: jsonTypeOf(config?.type),
-      ok: config?.type === 'integration-configuration' },
+      ok: config?.type === undefined ||
+        config?.type === 'integration-configuration' },
     { name: 'integrationId', type: jsonTypeOf(config?.integrationId),
       ok: typeof config?.integrationId === 'string' && !!config.integrationId },
     { name: 'teamId', type: jsonTypeOf(config?.teamId),
@@ -533,6 +546,12 @@ export async function probeInstallationToken({ token, teamId, installationId,
     checkedAt: new Date().toISOString(),
     visibleTeamCount: 1, visibleProjectCount: projects.length,
     installation: { grantedScopes, projectSelection, configurationStatus,
+      // AUD-M3: evidence only — the configuration's type posture as
+      // the provider actually sends it: the documented kind when the
+      // field is present, 'absent' when the live record omits it (the
+      // shape the 2026-10-30 fingerprint captured), so the posture
+      // stays observable on the stored row.
+      configurationType: config.type === undefined ? 'absent' : config.type,
       // AUD-M2: evidence only — null unless BOTH sides are strings,
       // so an absent or mistyped config.userId (no longer gated)
       // records an honest unknown, never a false mismatch.
@@ -583,6 +602,7 @@ export async function storeInstallationToken({ db, token, teamId, installationId
         grantedScopes: result.installation.grantedScopes,
         projectSelection: result.installation.projectSelection,
         configurationStatus: result.installation.configurationStatus,
+        configurationType: result.installation.configurationType,
         installerMatchesConfiguration: result.installation.installerMatchesConfiguration,
         ...probeExtra
       }
