@@ -45,6 +45,12 @@ export const OPS = Object.freeze({
   // full-account tokens, so these reads must not attach it.
   projects_list_unscoped: Object.freeze({ method: 'GET', path: '/v10/projects', teamScoped: false }),
   rolling_billing_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release/billing' }),
+  // O-4 billing reads: the endpoints answer FOCUS JSON Lines
+  // (application/jsonl); tools pass {jsonl: true} and the stored teamId
+  // explicitly as a query parameter.
+  billing_charges: Object.freeze({ method: 'GET', path: '/v1/billing/charges' }),
+  billing_commitments: Object.freeze({ method: 'GET', path: '/v1/billing/contract-commitments' }),
+  events_list: Object.freeze({ method: 'GET', path: '/v3/events' }),
   rolling_config_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release/config' }),
   rolling_active_get: Object.freeze({ method: 'GET', path: '/v1/projects/{idOrName}/rolling-release' }),
   rolling_config_update: Object.freeze({ method: 'PATCH', path: '/v1/projects/{idOrName}/rolling-release/config' }),

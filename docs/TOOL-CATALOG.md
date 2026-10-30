@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2, N-3 and O-3 added 2026-10-30): 214 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 27 are planned scope for approved batches O-4–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2, N-3, O-3 and O-4 added 2026-10-30): 218 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 23 are planned scope for approved batches O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 
 
 are `vercel_dev_<job>` (contract §10).
@@ -438,6 +438,8 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 | `vercel_billing_list_commitments` | Contract commitments (Enterprise) and their draw-down | — | O | R | — | O-4 |
 | `vercel_billing_summary` | This billing period so far: total, by service and project, against the Pro monthly credit; top cost drivers | — | O | R | — | O-4 |
 | `vercel_activity_list` | Team activity log (who did what, when): deployments, settings, members, env changes | — | O Op | R | — | O-4 |
+
+**O-4 note (2026-10-30):** the four rows above are implemented. The charges and commitments endpoints answer FOCUS v1.3 JSON Lines (`application/jsonl`), which the client's normal read path cannot parse; the client therefore gained a `{jsonl: true}` read mode gated to exactly those two operations, decoding through a bounded line reader (2 MiB cap, no provider payload in errors). Amounts arrive as decimal dollars and are reported as integer cents plus a display string. `vercel_billing_summary` compares the window against the stored defaults (Pro monthly credit $20, monthly target $20 — named constants until an owner-settings surface exists). IN-12 stands: nothing here sets a budget, an alert, a pause, a plan or a payment method; alerts and controls belong to Vercel's Spend Management and are only reported.
 
 ## Owner: administration (`vercel_admin_*`, guided settings) — 5 tools + guided settings
 

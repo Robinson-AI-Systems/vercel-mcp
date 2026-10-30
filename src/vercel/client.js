@@ -1,7 +1,7 @@
 // Only API transport boundary. Tokens never appear in errors, logs or persisted results.
 import { createHash } from 'node:crypto';
 import { operation } from './operations.js';
-import { readBoundedJson } from './bounded-json.js';
+import { readBoundedJson, readBoundedJsonLines } from './bounded-json.js';
 import {sandboxBinaryPost as nativeSandboxFile,sandboxCommandLogs as nativeSandboxLogs} from './sandbox-binary.js';
 import {readBoundedRuntimeLogs} from './runtime-log-stream.js';
 import { validateRequest,documentedRead,documentedOperation } from './openapi-validation.js';
@@ -135,6 +135,9 @@ export function makeVercelClient({
       throw new TypeError('Bounded file reads apply only to the pinned deployment file endpoint');
     if(options.streamLogs===true && (id!=='runtime_logs_get'||method!=='GET'))
       throw new TypeError('Streaming is only available for runtime log reads');
+    if(options.jsonl===true && (method!=='GET' ||
+      (id!=='billing_charges'&&id!=='billing_commitments')))
+      throw new TypeError('JSONL reads apply only to the pinned billing endpoints');
     // Short read-only status polling must not inherit a 25s network stall.
     const timeoutMs = options.timeoutMs ?? PROVIDER_TIMEOUT_MS;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 25000 ||
@@ -214,6 +217,13 @@ export function makeVercelClient({
           throw error('runtime_log_stream_invalid',
             'Runtime log stream could not be safely decoded', { status: response.status });
         }
+      }
+      if(response.ok && options.jsonl===true){
+        // The billing endpoints answer JSON Lines, which response.json()
+        // cannot parse; decode through the bounded line reader instead.
+        try { return await readBoundedJsonLines(response,signal); }
+        catch { throw error('jsonl_stream_invalid',
+          'Billing JSONL response could not be safely decoded', { status: response.status }); }
       }
       if(response.ok && options.fileContent===true)
         return readBoundedJson(response,signal,8192);
