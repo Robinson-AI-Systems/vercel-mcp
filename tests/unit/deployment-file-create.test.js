@@ -407,6 +407,116 @@ describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
   });
 });
 
+describe('AUD-AG create-refusal shape fingerprint (files-create round 2)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();
+    loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
+  const deploymentId='dpl_FAKEDEPLOY01';
+  const ownerConn={...connection,kind:'connector'};
+  const deploymentRow={id:deploymentId,projectId:project,target:null,
+    readyState:'QUEUED',url:'my-app-git-preview.vercel.app'};
+  function refusalFixture(projectRow=row){
+    const f=fixture(projectRow);
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    return f;
+  }
+  const shapeRows=f=>f.audits.filter(a=>
+    typeof a.summary==='string'&&a.summary.startsWith('SHAPE-FP'));
+  it('journals the dispatched shape and provider verdict on a create refusal, result unchanged',async()=>{
+    const f=refusalFixture();
+    f.fake.when('POST','/v13/deployments').rejects(400,
+      {error:{code:'bad_request',message:'do-not-leak-marker'}});
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_create',code:'bad_request',status:400}});
+    expect(JSON.stringify(out)).not.toContain('do-not-leak-marker');
+    const rows=shapeRows(f);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({tool:'vercel_deploy_create_from_files',
+      account:'acct_FAKE',mode:'preview',dryRun:false,production:false});
+    const summary=rows[0].summary;
+    expect(summary).toContain(
+      'SHAPE-FP deployments_create failed=[400:bad_request]');
+    expect(summary).toContain('projectSettings:absent');
+    expect(summary).toContain('target:string');
+    expect(summary).toContain('files:array#2');
+    expect(summary).toContain('files[]:file:string,sha:string,size:number');
+    expect(summary).toContain('query:teamId');
+    // Never values: no project name, no file path beyond the shape
+    // words, no digest, no content, no provider message.
+    expect(summary).not.toContain('my-app');
+    expect(summary).not.toContain('Safe preview');
+    expect(summary).not.toContain('do-not-leak-marker');
+    for(const file of safeFiles){
+      const sha=createHash('sha1').update(file.content,'utf8').digest('hex');
+      expect(summary).not.toContain(sha);
+    }
+    f.fake.verify();
+  });
+  it('records settings presence on a first-deployment refusal',async()=>{
+    const f=refusalFixture({...row,framework:'nextjs',hasDeployments:false});
+    f.fake.when('POST','/v13/deployments').rejects(400,
+      {error:{code:'bad_request',message:'fake refusal'}});
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_create',code:'bad_request',status:400}});
+    const rows=shapeRows(f);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].summary).toContain('projectSettings:object');
+    f.fake.verify();
+  });
+  it('marks a production-target refusal row as production',async()=>{
+    const f=refusalFixture();
+    f.fake.when('POST','/v13/deployments').rejects(400,
+      {error:{code:'bad_request',message:'fake refusal'}});
+    const out=decode(await f.call({...args,target:'production',confirm:true},
+      {...ownerConn,mode:'production'}));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_create',status:400}});
+    const rows=shapeRows(f);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({mode:'production',production:true});
+    f.fake.verify();
+  });
+  it('journals no create fingerprint when the upload leg fails first',async()=>{
+    const f=refusalFixture();
+    f.fake.when('POST','/v2/files').rejects(503);
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_file_upload',status:503}});
+    expect(shapeRows(f)).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('keeps the outcome unchanged when journaling itself fails',async()=>{
+    const f=refusalFixture();
+    const record=f.db.recordChange;
+    f.db.recordChange=async entry=>{
+      if(typeof entry.summary==='string'&&
+        entry.summary.startsWith('SHAPE-FP'))
+        throw new Error('journal unavailable');
+      return record(entry);
+    };
+    f.fake.when('POST','/v13/deployments').rejects(400,
+      {error:{code:'bad_request',message:'fake refusal'}});
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'outcome_unknown',
+      failure:{leg:'deployments_create',code:'bad_request',status:400}});
+    expect(shapeRows(f)).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('writes no fingerprint row when the create applies',async()=>{
+    const f=refusalFixture();
+    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
+    const out=decode(await f.call({...args,confirm:true},ownerConn));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(shapeRows(f)).toHaveLength(0);
+    f.fake.verify();
+  });
+});
+
 describe('AUD-L in-progress create shape (VMCP-023)',()=>{
   beforeEach(()=>{vi.clearAllMocks();
     loadToken.mockResolvedValue({token:'vcp_FAKE',account});});

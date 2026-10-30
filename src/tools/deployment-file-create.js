@@ -62,6 +62,67 @@ function manifest(args){
   });
   return {items,total};
 }
+// AUD-AG (files-create round 2; dossier:
+// dev-preview-dossier-round2-2026-10-30.md): the AUD-M2 redacted
+// shape fingerprint, applied to this tool's create leg. Round 1
+// (AUD-AD) convicted the projectSettings resend and shipped the
+// settings-only-on-first-deployment rule; the 2026-10-30 live probe
+// then falsified its sufficiency — a settings-less create on a
+// deployed project still drew a provider 400 at deployments_create,
+// and nothing about why survived: the client strips the provider
+// message by design, the AUD-H failure detail reaches only the
+// ephemeral result, and the guarded-write executor journals no
+// change_log row for an apply-path outcome_unknown. The full-body
+// delta table (dossier §3) leaves two contract-visible suspects
+// outside evidence cannot separate — the documented framework
+// auto-detection confirmation (unsuppressed anywhere in this
+// product) and the explicit target:'preview' the documented
+// request vocabulary omits — so this card builds the instrument
+// instead of a guessed fix: on any throw out of the create write,
+// one best-effort change_log row carries the refusal's shape —
+// the AUD-H verdict fields (status, pattern-validated code) and
+// the dispatched body's field names with type words, computed
+// from the actual body object — never values: no file contents,
+// digests, sizes, identifiers or provider message. Field order
+// follows AUD-M2's truncation discipline (the recent-changes read
+// returns LEFT(summary, 160)): verdict, settings and target
+// presence (the two suspects' discriminators), files shape, then
+// the constant fields. One more live attempt reads the conviction
+// back through vercel_recent_changes.
+function jsonTypeOf(value){
+  if(value===undefined)return 'absent';
+  if(value===null)return 'null';
+  if(Array.isArray(value))return 'array';
+  return typeof value;
+}
+function createRefusalSummary(body,error){
+  const status=Number.isSafeInteger(error?.status)&&
+    error.status>=100&&error.status<=599?String(error.status):'absent';
+  const code=typeof error?.code==='string'&&
+    /^[A-Za-z][A-Za-z0-9_-]{0,60}$/.test(error.code)?error.code:'absent';
+  const files=Array.isArray(body?.files)?body.files:[];
+  const entry=files[0]&&typeof files[0]==='object'&&!Array.isArray(files[0])?
+    files[0]:null;
+  const entryShape=entry?Object.keys(entry).sort()
+    .map(key=>key+':'+jsonTypeOf(entry[key])).join(','):'absent';
+  return 'SHAPE-FP deployments_create failed=['+status+':'+code+'] types: '+
+    'projectSettings:'+jsonTypeOf(body?.projectSettings)+
+    ' target:'+jsonTypeOf(body?.target)+
+    ' files:array#'+files.length+
+    ' files[]:'+entryShape+
+    ' name:'+jsonTypeOf(body?.name)+
+    ' project:'+jsonTypeOf(body?.project)+
+    ' meta:'+jsonTypeOf(body?.meta)+
+    ' query:teamId';
+}
+async function journalCreateRefusal(ctx,before,body,error){
+  try{
+    await ctx.audit({account:ctx.connection.account,
+      mode:ctx.connection.mode,tool:'vercel_deploy_create_from_files',
+      summary:createRefusalSummary(body,error),dryRun:false,
+      production:before.target==='production'});
+  }catch{/* Best-effort, as AUD-M2: the audit trail never changes the outcome. */}
+}
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:x=>db.recordChange(x),replayStore:db.requestReplayStore(),
@@ -166,25 +227,35 @@ const create=defineWrite({
       if(uploaded?.sha!==item.sha||uploaded.size!==item.size||
         uploaded.uploaded!==true)throw new TypeError('Upload could not be verified');
     }
-    return provider.write('deployments_create',{
-      body:{name:before.name,project:before.name,
-        files:before.files,target:before.target,
-        ...(before.projectSettings?{projectSettings:before.projectSettings}:{})}
-    },{requestKey,tool:'vercel_deploy_create_from_files',shapeResult:row=>{
-      const id=row?.id??row?.uid;
-      // The documented create response has an in-progress shape with
-      // no projectId (AUD-L): it must match when carried; the durable
-      // project proof is verify()'s read-back of the full object.
-      if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
-        ((row.projectId??row.project?.id)!=null&&
-         (row.projectId??row.project?.id)!==before.project))
-        throw new TypeError('Created deployment identity unverified');
-      // No target arm (AUD-N): the documented response target enum
-      // is production/staging/null — a provider-promoted first
-      // deployment must surface as applied with verify() reporting
-      // the target honestly, never as outcome_unknown.
-      return {id};
-    }});
+    const body={name:before.name,project:before.name,
+      files:before.files,target:before.target,
+      ...(before.projectSettings?{projectSettings:before.projectSettings}:{})};
+    let created;
+    try{
+      created=await provider.write('deployments_create',{body},
+        {requestKey,tool:'vercel_deploy_create_from_files',shapeResult:row=>{
+          const id=row?.id??row?.uid;
+          // The documented create response has an in-progress shape with
+          // no projectId (AUD-L): it must match when carried; the durable
+          // project proof is verify()'s read-back of the full object.
+          if(typeof id!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(id)||
+            ((row.projectId??row.project?.id)!=null&&
+             (row.projectId??row.project?.id)!==before.project))
+            throw new TypeError('Created deployment identity unverified');
+          // No target arm (AUD-N): the documented response target enum
+          // is production/staging/null — a provider-promoted first
+          // deployment must surface as applied with verify() reporting
+          // the target honestly, never as outcome_unknown.
+          return {id};
+        }});
+    }catch(error){
+      // AUD-AG: journal the refusal's redacted shape fingerprint
+      // (best-effort) before the executor shapes the unchanged
+      // outcome_unknown result from the same error.
+      await journalCreateRefusal(ctx,before,body,error);
+      throw error;
+    }
+    return created;
   },
   async verify(_args,ctx,before,created){
     if(typeof created?.id!=='string')return {confirmed:null};
