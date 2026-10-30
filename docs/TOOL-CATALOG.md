@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-26 audit, HEAD `03b1e4b` + N-1 branch work): 123 of the 236 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 113 are planned scope for approved batches N-2/N-3, F, M, O-2–O-5, P, W, X and the write side of U-1, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`): 128 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 113 are planned scope for approved batches N-2/N-3, F, M, O-2–O-5, P, W, X and the write side of U-1, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
 
 **Naming.** Every tool name starts with `vercel_` (DECISIONS 2026-10-10 "Every tool name starts with `vercel_`"):
 Vercel, Neon and GitHub share nouns such as *project* and *branch*, and two connectors attached to one Claude chat must
@@ -544,7 +544,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | **All tools** | **241** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
-O 29 · P 5 · W 12 · U 4 · R 1 · X 1 (= 236). By lowest profile: `read_only` 103, `everyday` 160 (103 + 57), `full` all 236
+O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 5 (= 241). By lowest profile: `read_only` 103, `everyday` 160 (103 + 57), `full` all 241
 (B-6 prints the exact counts from the registry). In compact mode (`docs/designs/BATCH-C.md`) an agent loads about 20
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.
 
