@@ -497,6 +497,18 @@ Each does a whole job server-side and answers in plain English with `structuredC
 | `vercel_workflow_cost_check` | Month so far vs the target Chris sets, builds per day and branch, what drove cost, and the settings that would lower it | — | O | R | — | W-6 |
 | `vercel_workflow_security_audit` | One project's security: protection, bypass secrets, firewall, secret-kind variables, public variable names that look secret, members with access | — | O | R | — | W-6 |
 
+W-1 (2026-10-30) ships the first three Batch W reads: `vercel_workflow_project_health`,
+`vercel_workflow_release_status` and `vercel_workflow_find`. They compose the area tools through
+the registry's dispatch seam (`ctx.dispatchTool`) — the same seam `vercel_call` uses — and add no
+provider call of their own. Health judges missing variables only against a covering stored
+profile's `expected_env`; with no profile it reports inventory and says so. Find searches
+projects, deployments, domains, commit SHAs, branches and variable names under a shared time
+budget and reports `searched.complete: false` when it stops early, with the exact next call.
+Batch W completing the Workflows section also triggered OP-1's front-door composition review:
+the door's v2 membership (basis `batch-w-delta-2026-10-30`) rebalances ten most-used seats to the
+twelve workflow tools across W-1..W-6 so the full-profile front door stays strictly under the
+5,000-token owner cap; every retired tool remains one search/call away on the catalog listing.
+
 ## Everything else in Vercel: the universal tools (`vercel_api_*`) — 4
 
 The hand-built tools are the comfortable, plain-English way to do the common jobs. These four reach **every operation in
