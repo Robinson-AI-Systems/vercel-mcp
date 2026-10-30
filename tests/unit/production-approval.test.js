@@ -180,7 +180,10 @@ describe('B-2 production permission (AUD-B: word default, passphrase strictness)
       'vercel_redirect_restore','vercel_cache_invalidate','vercel_blob_put',
       'vercel_blob_delete',
       'vercel_dns_create_record','vercel_dns_update_record','vercel_dns_delete_record',
-      'vercel_dns_replace_zone','vercel_cert_issue','vercel_cert_remove']);
+      'vercel_dns_replace_zone','vercel_cert_issue','vercel_cert_remove',
+      'vercel_registrar_buy','vercel_registrar_renew','vercel_registrar_set_auto_renew',
+      'vercel_registrar_transfer_in','vercel_registrar_get_auth_code',
+      'vercel_registrar_update_nameservers']);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
     // The test runner is not a production Vercel deployment, so the
     // exposed tool must refuse even an eligible full-profile caller.
