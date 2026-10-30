@@ -215,9 +215,13 @@ const putWrite = defineWrite({
       why: live ? 'the store is connected to a production-environment project'
         : 'no linked project targets the production environment' };
   },
-  async targets(_args, before) {
+  async targets(args, before) {
+    // P-1: the profile guard judges store writes by the store's name
+    // (the connection label) and the caller's outsideApp declaration.
     return [{ kind: 'store', id: before.storeId, accountId: before.teamId,
-      name: before.pathname }];
+      name: before.pathname, storeName: before.label, storeAction: 'put',
+      overwrite: before.existing != null,
+      outsideApp: args.outsideApp === true }];
   },
   async preview(_args, _ctx, before) {
     return 'Upload ' + before.size + ' byte(s) to ' + before.pathname +
@@ -307,9 +311,10 @@ const deleteWrite = defineWrite({
       why: live ? 'the store is connected to a production-environment project'
         : 'no linked project targets the production environment' };
   },
-  async targets(_args, before) {
+  async targets(args, before) {
     return [{ kind: 'store', id: before.storeId, accountId: before.teamId,
-      name: before.pathnames[0] }];
+      name: before.pathnames[0], storeName: before.label,
+      storeAction: 'delete', outsideApp: args.outsideApp === true }];
   },
   async preview(_args, _ctx, before) {
     const lines = before.files.map(f => f.exists
@@ -363,7 +368,8 @@ registerBlobWrite(putWrite, {
     contentBase64: { type: 'string', minLength: 1, maxLength: 6000000 },
     contentType: { type: 'string', maxLength: 200 },
     access: { type: 'string', enum: ['public', 'private'] },
-    allowOverwrite: { type: 'boolean' } }),
+    allowOverwrite: { type: 'boolean' },
+    outsideApp: { type: 'boolean' } }),
   writeContract: putWrite.writeContract,
   annotations: { destructiveHint: false } });
 registerBlobWrite(deleteWrite, {
