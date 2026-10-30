@@ -10,6 +10,7 @@ export const OPS = Object.freeze({
   teams_list_unscoped: Object.freeze({ method: 'GET', path: '/v2/teams', teamScoped: false }),
   teams_get: Object.freeze({ method: 'GET', path: '/v2/teams/{teamId}', teamScoped: false }),
   teams_patch: Object.freeze({ method: 'PATCH', path: '/v2/teams/{teamId}', teamScoped: false }),
+  teams_dsync_roles: Object.freeze({ method: 'POST', path: '/v1/teams/{teamId}/dsync-roles', teamScoped: false }),
   // AUD-AB: the account-layer lifecycle lives at /v1 in the pinned snapshot
   // (create/delete), while list/get stay at /v2. Unscoped: the bearer token
   // acts as the user; no team query may be attached to an account-layer act.
