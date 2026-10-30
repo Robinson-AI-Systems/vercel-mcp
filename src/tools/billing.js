@@ -71,7 +71,8 @@ function windowOf(args) {
   return {from, to};
 }
 
-async function chargeRecords(ctx, args) {
+// Exported for the O-5 admin composition (cost review / overview spend).
+export async function chargeRecords(ctx, args) {
   const {client, account} = await readProvider(ctx);
   teamAccount(account);
   const {from, to} = windowOf(args);
