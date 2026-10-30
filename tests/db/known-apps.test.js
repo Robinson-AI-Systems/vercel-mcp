@@ -38,6 +38,15 @@ describe('known_apps storage and profile seed', () => {
     const mine = rows.find(r => r.account === 'acct_OWNER');
     expect(mine.profile.cost_target_cents).toBe(5000);
     expect(mine.source).toBe('setup_page');
+    // The account row shadows the default for its account only; every
+    // other account still sees the shipped seed untouched.
+    const others = await db.listKnownApps('acct_SOMEONE_ELSE');
+    const shared = others.find(r => r.id === 'appliance-desk');
+    expect(shared.account).toBe(null);
+    expect(shared.profile.cost_target_cents).toBe(2000);
+    expect(shared.source).toBe('default');
+    const got = await db.getKnownApp('acct_OWNER', 'appliance-desk');
+    expect(got.profile.cost_target_cents).toBe(5000);
   });
   it('scopes rows to their account; global rows apply everywhere', async () => {
     await db.upsertKnownApp({ account: 'acct_A', id: 'a-only-app',

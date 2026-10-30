@@ -19,6 +19,17 @@ export const OPS = Object.freeze({
   // Exact team ID comes only from the stored account, not the caller. This
   // endpoint takes teamId in the path, not as a redundant query parameter.
   teams_members_list: Object.freeze({ method: 'GET', path: '/v3/teams/{teamId}/members', teamScoped: false }),
+  teams_members_invite: Object.freeze({ method: 'POST', path: '/v2/teams/{teamId}/members', teamScoped: false }),
+  teams_member_patch: Object.freeze({ method: 'PATCH', path: '/v1/teams/{teamId}/members/{uid}', teamScoped: false }),
+  teams_member_delete: Object.freeze({ method: 'DELETE', path: '/v1/teams/{teamId}/members/{uid}', teamScoped: false }),
+  teams_invite_delete: Object.freeze({ method: 'DELETE', path: '/v1/teams/{teamId}/invites/{inviteId}', teamScoped: false }),
+  access_groups_list: Object.freeze({ method: 'GET', path: '/v1/access-groups' }),
+  access_group_get: Object.freeze({ method: 'GET', path: '/v1/access-groups/{idOrName}' }),
+  access_group_members: Object.freeze({ method: 'GET', path: '/v1/access-groups/{idOrName}/members' }),
+  access_group_projects: Object.freeze({ method: 'GET', path: '/v1/access-groups/{idOrName}/projects' }),
+  access_group_create: Object.freeze({ method: 'POST', path: '/v1/access-groups' }),
+  access_group_update: Object.freeze({ method: 'POST', path: '/v1/access-groups/{idOrName}' }),
+  access_group_delete: Object.freeze({ method: 'DELETE', path: '/v1/access-groups/{idOrName}' }),
   projects_list: Object.freeze({ method: 'GET', path: '/v10/projects' }),
   // Scope-inferred variants for the AUD-F project-scoped enrollment probe:
   // Vercel infers a scoped token's scope, and teamId applies only to

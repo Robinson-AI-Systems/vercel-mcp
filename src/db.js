@@ -821,21 +821,23 @@ export function createDb(query) {
       return rows.length === 1;
     },
     // P-1 (BATCH-P): project profiles are data. A row is scoped to one
-    // internal account (vercel_account) or to every account (NULL), the
-    // protected_resources semantics. The profile JSON itself follows
+    // internal account (vercel_account) or to every account ('', the
+    // protected_resources idea with a sentinel so the pair can be the
+    // primary key); an account's own row shadows the global row with
+    // the same id. The profile JSON itself follows
     // docs/designs/BATCH-P.md P2; structural validation lives in
     // src/tools/app-guard.js (validateProfile) and is enforced by the
     // tool/setup callers, so stored rows are returned as recorded.
     async listKnownApps(account) {
       if (typeof account !== 'string' || !account) throw new TypeError('Account required');
       const run = getSql();
-      const rows = await run`SELECT id, name, status, vercel_account, source,
-          profile, updated_at FROM known_apps
-        WHERE vercel_account IS NULL OR vercel_account = ${account}
-        ORDER BY id`;
+      const rows = await run`SELECT DISTINCT ON (id) id, name, status,
+          vercel_account, source, profile, updated_at FROM known_apps
+        WHERE vercel_account = '' OR vercel_account = ${account}
+        ORDER BY id, (vercel_account = ${account}) DESC`;
       return rows.map(r => ({ id: r.id, name: r.name, status: r.status,
-        account: r.vercel_account, source: r.source, profile: r.profile,
-        updatedAt: r.updated_at }));
+        account: r.vercel_account === '' ? null : r.vercel_account,
+        source: r.source, profile: r.profile, updatedAt: r.updated_at }));
     },
     async getKnownApp(account, id) {
       if (typeof account !== 'string' || !account ||
@@ -843,10 +845,12 @@ export function createDb(query) {
       const run = getSql();
       const rows = await run`SELECT id, name, status, vercel_account, source,
           profile, updated_at FROM known_apps
-        WHERE id = ${id} AND (vercel_account IS NULL OR vercel_account = ${account})
+        WHERE id = ${id} AND (vercel_account = '' OR vercel_account = ${account})
+        ORDER BY (vercel_account = ${account}) DESC
         LIMIT 1`;
       return rows.length ? { id: rows[0].id, name: rows[0].name,
-        status: rows[0].status, account: rows[0].vercel_account,
+        status: rows[0].status,
+        account: rows[0].vercel_account === '' ? null : rows[0].vercel_account,
         source: rows[0].source, profile: rows[0].profile,
         updatedAt: rows[0].updated_at } : null;
     },
@@ -865,10 +869,9 @@ export function createDb(query) {
       const body = JSON.stringify(profile);
       await run`INSERT INTO known_apps
           (id, name, status, vercel_account, source, profile)
-        VALUES (${id}, ${name}, ${status}, ${account}, ${source}, ${body}::jsonb)
-        ON CONFLICT (id) DO UPDATE SET
+        VALUES (${id}, ${name}, ${status}, ${account ?? ''}, ${source}, ${body}::jsonb)
+        ON CONFLICT (vercel_account, id) DO UPDATE SET
           name = EXCLUDED.name, status = EXCLUDED.status,
-          vercel_account = EXCLUDED.vercel_account,
           source = EXCLUDED.source, profile = EXCLUDED.profile,
           updated_at = now()`;
       return { id, name, status, account, source, profile };
@@ -1703,18 +1706,22 @@ export function createDb(query) {
       await run`CREATE INDEX IF NOT EXISTS one_time_secrets_expires_at ON one_time_secrets (expires_at)`;
       await run`CREATE INDEX IF NOT EXISTS pending_inputs_expires_at ON pending_inputs (expires_at)`;
       // P-1 (BATCH-P): project profiles. Design §2 plus the repo's account
-      // scope column (NULL = every account) and a source column; the seed
-      // upsert refreshes a row only while it is still the shipped default.
+      // scope column ('' = every account, so (vercel_account, id) can be
+      // the primary key and an account row shadows the global default)
+      // and a source column; the seed upsert refreshes a row only while
+      // it is still the shipped default.
       await run`CREATE TABLE IF NOT EXISTS known_apps (
-        id TEXT PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
-        vercel_account TEXT, source TEXT NOT NULL DEFAULT 'setup_page',
-        profile JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+        vercel_account TEXT NOT NULL DEFAULT '', id TEXT NOT NULL,
+        name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+        source TEXT NOT NULL DEFAULT 'setup_page',
+        profile JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (vercel_account, id))`;
       for (const seed of KNOWN_APP_SEED) {
         const body = JSON.stringify(seed);
         await run`INSERT INTO known_apps
             (id, name, status, vercel_account, source, profile)
-          VALUES (${seed.id}, ${seed.name}, 'active', NULL, 'default', ${body}::jsonb)
-          ON CONFLICT (id) DO UPDATE SET
+          VALUES (${seed.id}, ${seed.name}, 'active', '', 'default', ${body}::jsonb)
+          ON CONFLICT (vercel_account, id) DO UPDATE SET
             name = EXCLUDED.name, profile = EXCLUDED.profile, updated_at = now()
           WHERE known_apps.source = 'default'`;
       }
