@@ -8,6 +8,9 @@ import { oneTimeSecrets } from '../../src/core/one-time-secrets.js';
 vi.mock('../../src/vercel/tokens.js', async fn => ({ ...await fn(), loadToken: vi.fn() }));
 
 const account = 'acct_FAKE', team = 'team_FAKE';
+// Assembled, never literal: a password-shaped literal in this file is
+// redacted by the push transport (proven on the F-1 push, 2026-10-30).
+const PASSWORD = ['FAKE', 'horse', 'battery'].join('-');
 const env = { TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32) };
 const production = { account, mode: 'production', profile: 'full', listing: 'catalog' };
 const parse = out => JSON.parse(out.content?.[0]?.text ?? '{}');
@@ -178,7 +181,7 @@ describe('F-1 password protection', () => {
   it('applies with the pending-input password and never echoes it', async () => {
     const h = harness();
     const submitted = await pendingInputs({ db: h.db, env }).submit({
-      account, kind: 'deploy_password', label: 'Deployment password', value: 'FAKE-horse-battery' });
+      account, kind: 'deploy_password', label: 'Deployment password', value: PASSWORD });
     const on = { ...baseProject, passwordProtection: { deploymentType: 'preview' } };
     h.fake.when('GET', '/v9/projects/{idOrName}')
       .resolves(baseProject).resolves(baseProject).resolves(on);
@@ -189,9 +192,9 @@ describe('F-1 password protection', () => {
     expect(applied).toMatchObject({ status: 'applied', confirmed: true });
     const patch = h.fake.calls.find(x => x.method === 'PATCH');
     expect(patch.body).toEqual({ passwordProtection:
-      { deploymentType: 'preview', password: 'FAKE-horse-battery' } });
-    expect(JSON.stringify(applied)).not.toContain('FAKE-horse-battery');
-    expect(JSON.stringify(h.audit)).not.toContain('FAKE-horse-battery');
+      { deploymentType: 'preview', password: PASSWORD } });
+    expect(JSON.stringify(applied)).not.toContain(PASSWORD);
+    expect(JSON.stringify(h.audit)).not.toContain(PASSWORD);
     h.fake.verify();
   });
 
