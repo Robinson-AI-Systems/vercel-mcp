@@ -6,8 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, F-1, F-2, U-1's write side and M-2 added 2026-10-30): 161 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 80 are planned scope for approved batches N-2/N-3, F-3, M-3–M-4, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.Vercel, Neon and GitHub share nouns such as *project* and *branch*, and two connectors attached to one Claude chat must
-never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, F-1, F-2, F-3, U-1's write side and M-2 added 2026-10-30): 169 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 72 are planned scope for approved batches N-2/N-3, M-3–M-4, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 their contract names (`vercel_search_tools`, `vercel_call`, …); workflows are `vercel_workflow_<job>`; developer tools
 are `vercel_dev_<job>` (contract §10).
 
@@ -318,6 +317,8 @@ Not built: certificate **upload** (the API takes a private key; a private key ne
 | `vercel_firewall_attack_status` | Is the project under attack now, and what Vercel is doing | — | Op | R | — | F-2 |
 | `vercel_firewall_set_attack_mode` | Attack Challenge Mode on (with an end time) or off | PR | Op | E | y | F-2 |
 | `vercel_firewall_list_events` | What the firewall blocked or challenged, by rule, IP, path and time | — | Op | R | — | F-2 |
+
+**F-3 note (2026-10-30):** the eight rows below are implemented, completing Batch F. Staging tools are `P` (they apply on a preview connection; visitors see no change until publish); publish/restore/cache are production-class. Two contract facts proven during the build: redirect remove/restore-items bodies carry source **strings**, not item objects; and a numeric `statusCode` can never pass the repo validator (its `oneOf [number, string]` double-matches under `coerceTypes`), so `validateRequest` skips body validation for the two redirect write operations only when an item carries a numeric statusCode — the F-2 exemption pattern, bodies otherwise validated fully. The bulk-redirects PUT body carries the account's team id injected by the tool. The `dangerously-delete-*` cache operations are never registered or called (design F5; a grep test pins their absence). Cache invalidation has no read-back, so its verify reports `confirmed: null` honestly.
 
 ## Routes, redirects and cache (`vercel_route_*`, `vercel_redirect_*`, `vercel_cache_*`) — 8
 
