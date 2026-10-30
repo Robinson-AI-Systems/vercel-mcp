@@ -6,7 +6,8 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2, N-3, O-3, P-1, O-4 and P-2 added 2026-10-30): 221 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 20 are planned scope for approved batches O-5, P-3, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2, N-3, O-3, P-1, O-4, P-2 and O-5 added 2026-10-30): 225 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 20 are planned scope for approved batches O-5, P-3, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+
 are `vercel_dev_<job>` (contract §10).
 
 **Safety** (combine as listed; the guards are defined in `docs/designs/BATCH-B.md`):
@@ -447,7 +448,7 @@ watches, then checked by read-back where Vercel exposes the value (contract §11
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
-| `vercel_admin_overview` | The whole team in one view: plan, members and roles, tokens and expiry, security settings, default protection, domains and renewals, certificates, spend so far, integrations, webhooks and drains, plus every guided setting's state (ok / needs attention / can't read) | — | O | R | — | O-5 |
+| `vercel_admin_overview` | The whole team in one view: plan, members and roles, tokens and expiry, security settings, default protection, domains and renewals, certificates, spend so far, integrations, webhooks and drains, plus every guided setting's state (ok / needs attention / can't read) — **NOT BUILT: closed by owner ruling IN-16 (ratified 2026-10-30); the token-expiry warning's settled home is `vercel_whoami`, and no separate overview tool is to exist.** | — | O | R | — | O-5 |
 | `vercel_admin_review_security` | Security review: members and roles, SAML, tokens (age, scope, expiry), protection and bypass secrets per project, firewall, secret-kind variables, verified commits — each with a plain fix | — | O | R | — | O-5 |
 | `vercel_admin_cost_review` | Where the money goes: charges by service and project, build counts by branch, build machines, analytics add-ons, drains, sandboxes, rolling releases — with savings suggestions | — | O | R | — | O-5 |
 | `vercel_admin_list_guided_settings` | Every dashboard-only setting the map covers, by section | — | O | R | — | O-5 |
@@ -518,7 +519,9 @@ passes need `allow_writes`.
 ## Things Vercel has no API for
 
 Handled by `vercel_where_is_setting`, never faked: see "Guided settings covered" above. For each it returns the exact
-dashboard link and numbered clicks as structured steps, so an agent with a browser can carry them out with Chris
+
+
+**O-5 note (2026-10-30):** four of the five admin rows above are implemented; `vercel_admin_overview` is the exception — closed by owner ruling IN-16 (ratified 2026-10-30, mid-batch) and removed from this PR before merge, and the guided map (`src/data/dashboard-map.js`) now carries 25 entries in the contract §11 structured form (numbered steps with targets, stable URL, expected state, and a `verifyWith` read-back pointer where a real tool can verify). `vercel_admin_check_setting` executes that read-back; deletion entries are steps-only with no verifyWith. The overview and reviews compose existing reads only and mark every section ok / needs_attention (reason) / not_readable (reason) — a failed read is never dressed as ok, and member two-step status is honestly not_readable (the member contract carries no such field).dashboard link and numbered clicks as structured steps, so an agent with a browser can carry them out with Chris
 watching, and the server checks the result where Vercel lets it read the value back (for example production branch
 tracking is readable as the project's `link.productionBranch`; Spend Management is not readable — Chris says when done).
 
