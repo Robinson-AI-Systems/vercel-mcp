@@ -210,7 +210,7 @@ const update=defineWrite({
 export const teamSecurityWriteTools={
   tools:[{name:'vercel_team_update_security',writes:true,guardedWrite:true,
     area:'teams',profiles:['full'],
-    description:'Guard team privacy, secret isolation and owner-only protection changes, plus SAML enforcement/role mappings and email-domain auto-join under the lockout guard, with access warnings and verified GET readback.',
+    description:'Guard team privacy, secret isolation and strict protection settings, SAML and email-domain auto-join (lockout-guarded), with access warnings and GET readback.',
     inputSchema,writeContract:update.writeContract,
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{
