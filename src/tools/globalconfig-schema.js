@@ -6,7 +6,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js'
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {STORE,SLUG,KEY,exact,strictArgs,schema,output,RESULT_STORE_CAP} from './globalconfig-common.js';
-import {store,allItems,targets,classification,context} from './globalconfig-mutate.js';
+import {store,allItems,targets,classification,context,linkSnapshot} from './globalconfig-mutate.js';
 
 const REQUEST=/^[A-Za-z0-9_-]{8,128}$/;
 const props={
@@ -145,7 +145,7 @@ async function before(a,ctx){
     throw new TypeError('New schema cannot validate current store items');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
-    projects:[...row.projects].sort(),mode:a.mode,
+    projects:linkSnapshot(row),mode:a.mode,
     beforeDefinition:prior,desiredDefinition:definition,
     keys:Object.keys(items).sort(),invalidKeys:result.invalidKeys,
     validationErrors:result.errors};
@@ -166,7 +166,9 @@ const write=defineWrite({
       b.slug+' ('+b.id+'), checking '+b.keys.length+' existing keys. '+
       (b.invalidKeys.length?'Incompatible keys: '+b.invalidKeys.join(', ')+'. ':
         'All current items compatible. ')+
-      'Connected projects: '+b.projects.join(', ')+
+      'Connected projects: '+(b.projects===null?
+        'not reported by the provider; the store is treated as live-connected':
+        b.projects.join(', '))+
       '. Live readers are affected immediately, no item values shown';
   },
   production:classification,
@@ -192,7 +194,7 @@ const write=defineWrite({
     try{
       const {client,account,row}=await exact(ctx,b.id);
       if(account.team_id!==b.teamId||row.slug!==b.slug||
-        JSON.stringify([...row.projects].sort())!==JSON.stringify(b.projects))
+        JSON.stringify(linkSnapshot(row))!==JSON.stringify(b.projects))
         return {confirmed:null};
       const actual=await getSchema(client,b.id);
       return {confirmed:eq(actual,b.desiredDefinition)};

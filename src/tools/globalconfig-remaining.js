@@ -6,7 +6,7 @@ import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {STORE,SLUG,KEY,safeLabel,exact,strictArgs,schema} from './globalconfig-common.js';
-import {store,allItems,targets,classification,context} from './globalconfig-mutate.js';
+import {store,allItems,targets,classification,context,linkSnapshot} from './globalconfig-mutate.js';
 
 const ID=/^[A-Za-z0-9_-]{3,128}$/;
 const VERSION=/^[A-Za-z0-9_.-]{3,128}$/;
@@ -67,7 +67,7 @@ async function tokenState(a,ctx){
     new Set(rows.map(t=>t.id)).size!==rows.length)
     throw new TypeError('Duplicate read token label or provider token ID');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
-    label:a.label,updatedAt:row.updatedAt,projects:[...row.projects].sort(),
+    label:a.label,updatedAt:row.updatedAt,projects:linkSnapshot(row),
     itemCount:row.itemCount,tokenIds:rows.map(t=>t.id).sort()};
 }
 function tokenUnchanged(before,now){
@@ -93,8 +93,10 @@ const createToken=defineWrite({
   before:tokenState,
   async preview(_a,_ctx,b){
     return 'Create one read-only token '+b.label+' for Global Config '+b.slug+
-      ' ('+b.id+'), connected to '+b.projects.length+
-      ' projects; token never enters chat and is revealed ONCE on owner setup';
+      ' ('+b.id+'), '+(b.projects===null?
+        'project linkage not reported by the provider and treated as live-connected':
+        'connected to '+b.projects.length+' projects')+
+      '; token never enters chat and is revealed ONCE on owner setup';
   },
   production:classification,
   async targets(_a,b){return targets(b);},
@@ -128,7 +130,7 @@ const createToken=defineWrite({
     try{
       const {client,account,row}=await exact(ctx,b.id);
       if(account.team_id!==b.teamId||row.slug!==b.slug||
-        JSON.stringify([...row.projects].sort())!==JSON.stringify(b.projects))
+        JSON.stringify(linkSnapshot(row))!==JSON.stringify(b.projects))
         return {confirmed:null};
       const rows=rawTokens(await client.request('global_config_tokens',
         {path:{edgeConfigId:b.id}}));
@@ -227,7 +229,7 @@ async function restoreState(a,ctx){
     throw new TypeError('Backup is already identical; no restore needed');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
-    projects:[...row.projects].sort(),versionId,
+    projects:linkSnapshot(row),versionId,
     backupItemCount:Object.keys(saved).length,diff};
 }
 function restoreUnchanged(b,after){
@@ -248,7 +250,9 @@ const restore=defineWrite({
       ' ('+b.id+') with '+b.backupItemCount+' items. Create ['+
       d.create.join(', ')+']; update ['+d.update.join(', ')+
       ']; remove ['+d.remove.join(', ')+']. Item values hidden. Linked projects: '+
-      b.projects.join(', ')+'; changes can affect live consumers immediately';
+      (b.projects===null?
+        'not reported by the provider; the store is treated as live-connected':
+        b.projects.join(', '))+'; changes can affect live consumers immediately';
   },
   production:classification,
   async targets(_a,b){return targets(b);},
@@ -271,7 +275,7 @@ const restore=defineWrite({
       const {client,account,row}=await exact(ctx,b.id);
       if(account.team_id!==b.teamId||row.slug!==b.slug||
         row.updatedAt<=b.updatedAt||
-        JSON.stringify([...row.projects].sort())!==JSON.stringify(b.projects))
+        JSON.stringify(linkSnapshot(row))!==JSON.stringify(b.projects))
         return {confirmed:null};
       const path={edgeConfigId:b.id,edgeConfigBackupVersionId:b.versionId};
       const [current,backup]=await Promise.all([

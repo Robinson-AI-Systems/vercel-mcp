@@ -56,9 +56,14 @@ export function record(raw,teamId){
   const itemCount=Number.isSafeInteger(raw.itemCount)&&raw.itemCount>=0?
     raw.itemCount:Number.isSafeInteger(raw.itemsCount)&&raw.itemsCount>=0?
       raw.itemsCount:null;
+  // AUD-AF: the pinned contract names the size field sizeInBytes;
+  // size was the E-3 fakes' invention, so size read back null for
+  // every real store. Keep the legacy name as a fallback, the same
+  // dual-name tolerance itemCount already gets above.
+  const sizeRaw=Number.isSafeInteger(raw.sizeInBytes)?raw.sizeInBytes:raw.size;
   return {id:raw.id,slug:raw.slug,name:safeLabel(raw.name),
-    itemCount,projects,size: Number.isSafeInteger(raw.size)&&raw.size>=0?
-      raw.size:null,
+    itemCount,projects,size: Number.isSafeInteger(sizeRaw)&&sizeRaw>=0?
+      sizeRaw:null,
     updatedAt:Number.isSafeInteger(raw.updatedAt)&&raw.updatedAt>0?
       raw.updatedAt:null};
 }
@@ -101,19 +106,49 @@ export async function exact(ctx,id){
   if(row.id!==id)throw new TypeError('Global Config identity changed');
   return {client,account,row};
 }
-export function safeItems(raw){
-  const entries=raw?.items??raw;
-  if(!entries||typeof entries!=='object'||Array.isArray(entries)||
-    Object.keys(entries).length>200)
-    throw new TypeError('Unknown Global Config item inventory');
-  const all=Object.entries(entries).map(([key,value])=>{
-    if(!KEY.test(key)||credentialLike(key))
-      throw new TypeError('Unsafe Global Config item key');
+// AUD-AF (dossier: globalconfig-mutate-dossier): the pinned contract
+// documents GET .../items as a bare array of GlobalConfigItem objects
+// ({key, value, ...}); the family's first fakes modelled a key map
+// instead, and the items consumers accepted only that invented
+// shape. Normalize every shape the contract or the family's history
+// can produce into validated [key, value] entries — this is the
+// items endpoint's one shape authority; allItems (mutate) and
+// safeItems (below) both build from it. The documented item schema
+// requires `value` (null is a legal value); a wrapped pagination
+// response is never a complete inventory.
+export function itemEntries(raw){
+  if(raw?.pagination?.next!==undefined&&raw.pagination.next!==null)
+    throw new TypeError('Paginated Global Config items are not a complete inventory');
+  const body=raw?.items??raw;
+  let entries;
+  if(Array.isArray(body)){
+    entries=body.map(item=>{
+      if(!item||typeof item!=='object'||Array.isArray(item)||
+        typeof item.key!=='string'||!Object.hasOwn(item,'value'))
+        throw new TypeError('Global Config item inventory unverified');
+      return [item.key,item.value];
+    });
+  }else if(body&&typeof body==='object'){
+    entries=Object.entries(body);
+  }else{
+    throw new TypeError('Global Config item inventory unverified');
+  }
+  if(entries.length>200)
+    throw new TypeError('Global Config item inventory unverified');
+  const seen=new Set();
+  for(const [key,value] of entries){
+    if(!KEY.test(key)||credentialLike(key)||seen.has(key))
+      throw new TypeError('Unknown Global Config item key');
+    seen.add(key);
     if(value===undefined||typeof value==='function'||
       typeof value==='symbol'||typeof value==='bigint')
       throw new TypeError('Unpresentable Global Config item');
-    return {key,data:compact(value,RESULT_STORE_CAP)};
-  });
+  }
+  return entries;
+}
+export function safeItems(raw){
+  const all=itemEntries(raw).map(([key,value])=>({
+    key,data:compact(value,RESULT_STORE_CAP)}));
   // Never represent an unverified API response as globally complete.
   return {items:all.slice(0,20),shown:Math.min(20,all.length),
     capped:all.length>20,complete:false,

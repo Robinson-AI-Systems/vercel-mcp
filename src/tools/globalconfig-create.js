@@ -76,8 +76,14 @@ const write=defineWrite({
         row.teamId!=null&&row.teamId!==b.teamId)
         return {confirmed:false};
       const projects=row.connectedProjects??row.projects;
-      if(!Array.isArray(projects))return {confirmed:null};
-      return {confirmed:projects.length===0,store:created.id};
+      // AUD-AF: the documented record reports no project links at
+      // all, so demanding an array left every real create
+      // unconfirmed forever. Links the record DOES report must be
+      // empty; unreported linkage cannot contradict a store this
+      // call just created empty and identity-proved above.
+      if(Array.isArray(projects)&&projects.length>0)
+        return {confirmed:false};
+      return {confirmed:true,store:created.id};
     }catch{return {confirmed:null};}
   }
 });

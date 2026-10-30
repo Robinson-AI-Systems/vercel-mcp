@@ -3,7 +3,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js'
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {STORE,SLUG,safeLabel,exact,strictArgs,schema,output} from './globalconfig-common.js';
-import {store,targets,classification,context} from './globalconfig-mutate.js';
+import {store,targets,classification,context,linkSnapshot} from './globalconfig-mutate.js';
 
 const TOKEN=/^[A-Za-z0-9_-]{3,128}$/;
 const props={
@@ -57,7 +57,7 @@ async function before(a,ctx){
     throw new TypeError('Selected token no longer belongs to this store');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
-    projects:[...row.projects].sort(),
+    projects:linkSnapshot(row),
     tokenIds:[...a.tokenIds].sort(),
     tokenLabels:chosen.map(x=>x.label),
     priorTokens:all.map(x=>({id:x.id,label:x.label}))};
@@ -75,7 +75,9 @@ const revoke=defineWrite({
   async preview(_a,_ctx,b){
     return 'IRREVERSIBLY revoke '+b.tokenIds.length+' read tokens ['+
       b.tokenLabels.join(', ')+'] for Global Config '+b.slug+
-      ' ('+b.id+'). Connected projects: '+b.projects.join(', ')+
+      ' ('+b.id+'). Connected projects: '+(b.projects===null?
+        'not reported by the provider; the store is treated as live-connected':
+        b.projects.join(', '))+
       '. Applications holding revoked tokens may lose access immediately';
   },
   production:classification,
@@ -98,7 +100,7 @@ const revoke=defineWrite({
     try{
       const {client,account,row}=await exact(ctx,b.id);
       if(account.team_id!==b.teamId||row.slug!==b.slug||
-        JSON.stringify([...row.projects].sort())!==JSON.stringify(b.projects))
+        JSON.stringify(linkSnapshot(row))!==JSON.stringify(b.projects))
         return {confirmed:null};
       const next=metadata(await client.request('global_config_tokens',
         {path:{edgeConfigId:b.id}}));

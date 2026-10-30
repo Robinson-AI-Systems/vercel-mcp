@@ -5,7 +5,7 @@ import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
-import {STORE,SLUG,KEY,selected,exact,strictArgs,schema} from './globalconfig-common.js';
+import {STORE,SLUG,KEY,selected,exact,strictArgs,schema,itemEntries} from './globalconfig-common.js';
 
 const REVISION={type:'integer',minimum:1};
 const REQUEST={type:'string',pattern:'^[A-Za-z0-9_-]{8,128}$'};
@@ -98,18 +98,14 @@ function validItems(a){
   }
 }
 function allItems(raw){
-  // This endpoint returns a complete key map for an exact store in the pinned
-  // contract. A truncated or wrapped pagination response is not write proof.
-  if(raw?.pagination?.next!==undefined&&raw.pagination.next!==null)
-    throw new TypeError('Paginated Global Config items cannot be patched');
-  const items=raw?.items??raw;
-  if(!items||typeof items!=='object'||Array.isArray(items)||
-    Object.keys(items).length>200)
-    throw new TypeError('Global Config item inventory unverified');
-  const keys=Object.keys(items);
-  if(keys.some(key=>!KEY.test(key)||credentialLike(key)))
-    throw new TypeError('Unknown Global Config item key');
-  return items;
+  // The pinned contract documents this endpoint as a bare array of
+  // GlobalConfigItem objects; the legacy key maps (the documented
+  // backup payload's shape) are the other accepted input. itemEntries
+  // (globalconfig-common) is the one shape authority: it validates
+  // keys, duplicates, entry bound and value presentability, and
+  // refuses a wrapped pagination response — a truncated inventory is
+  // not write proof.
+  return Object.fromEntries(itemEntries(raw));
 }
 function assertOperations(items,existing){
   for(const item of items){
@@ -119,17 +115,30 @@ function assertOperations(items,existing){
       throw new TypeError('Global Config item key state differs from requested operation');
   }
 }
+// Canonical before-snapshot form of a store's project linkage: a
+// sorted array when the provider record reports links, null when it
+// does not. Snapshots, drift comparisons and read-backs across the
+// whole family use this one form.
+function linkSnapshot(row){
+  return row.projects===null?null:[...row.projects].sort();
+}
 async function store(ctx,args){
   const {client,account,row}=await exact(ctx,args.id);
   if(!['team','full'].includes(account.scope)||
     row.slug!==args.expectedSlug||
     row.updatedAt!==args.expectedUpdatedAt||
-    !Array.isArray(row.projects)||row.projects.length>20||
+    (row.projects!==null&&row.projects.length>20)||
     row.itemCount===null)
     throw new TypeError('Global Config owner, connections or revision cannot be classified');
-  // A team-owned store can connect to other projects. Prove every project ID
-  // and owning team rather than assuming a link is harmless.
-  for(const project of row.projects){
+  // AUD-AF: the pinned Global Config record carries NO project-link
+  // field at all (linkage lives on the project side, in the
+  // connection string a project holds), so row.projects is null for
+  // every real store — demanding an array here refused them all.
+  // Unreported linkage is classified, never assumed away (see
+  // classification). When a record DOES report links, prove every
+  // project ID and owning team rather than assuming a link is
+  // harmless.
+  for(const project of row.projects??[]){
     const meta=await client.request('projects_get',{path:{idOrName:project}});
     if(meta?.id!==project||meta.accountId!==account.team_id)
       throw new TypeError('Connected project team could not be proven');
@@ -139,7 +148,7 @@ async function store(ctx,args){
 function targets(b){
   return [{kind:'account',id:b.teamId},
     {kind:'store',id:b.id,accountId:b.teamId},
-    ...b.projects.map(id=>({kind:'project',id}))];
+    ...(b.projects??[]).map(id=>({kind:'project',id}))];
 }
 function same(a,b){
   return a.id===b.id&&a.teamId===b.teamId&&a.slug===b.slug&&
@@ -157,7 +166,7 @@ async function beforePatch(a,ctx){
   assertOperations(a.items,items);
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
-    projects:[...row.projects].sort(),keys:Object.keys(items).sort(),
+    projects:linkSnapshot(row),keys:Object.keys(items).sort(),
     ops:a.items.map(x=>({operation:x.operation,key:x.key}))};
 }
 async function beforeDelete(a,ctx){
@@ -171,7 +180,7 @@ async function beforeDelete(a,ctx){
     throw new TypeError('Store contents could not be completely enumerated');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
-    projects:[...row.projects].sort(),keys:Object.keys(contents).sort()};
+    projects:linkSnapshot(row),keys:Object.keys(contents).sort()};
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -192,6 +201,11 @@ async function dispatch(ctx,a,b,inspect){
   return provider;
 }
 function classification(_a,_ctx,b){
+  // AUD-AF: linkage the provider does not report is treated as
+  // live-connected — the conservative direction. Production stays
+  // false only for a store the record PROVES unlinked.
+  if(b.projects===null)return {production:true,
+    why:'Project linkage is not reported by the provider for Global Config stores; any project holding this store\'s connection string can read changes immediately, so the store is treated as live-connected'};
   return {production:b.projects.length>0,
     why:b.projects.length?'Connected projects can immediately read store changes':
       'Proven unlinked store with no production readers'};
@@ -218,7 +232,7 @@ const patch=defineWrite({
       const {client,account,row}=await exact(ctx,b.id);
       if(account.team_id!==b.teamId||row.slug!==b.slug||
         row.updatedAt<=b.updatedAt||
-        JSON.stringify([...row.projects].sort())!==JSON.stringify(b.projects))
+        JSON.stringify(linkSnapshot(row))!==JSON.stringify(b.projects))
         return {confirmed:null};
       const content=allItems(await client.request('global_config_items',
         {path:{edgeConfigId:b.id}}));
@@ -237,8 +251,10 @@ const remove=defineWrite({
   before:beforeDelete,
   async preview(_a,_ctx,b){
     return 'IRREVERSIBLY delete Global Config '+b.slug+' ('+b.id+') with '+
-      b.itemCount+' items and '+b.projects.length+' verified project links ['+
-      b.projects.join(', ')+']. Connected applications can lose configuration';
+      b.itemCount+' items and '+(b.projects===null?
+        'unreported project linkage (the provider does not report links for Global Config stores; treated as live-connected)':
+        b.projects.length+' verified project links ['+b.projects.join(', ')+']')+
+      '. Connected applications can lose configuration';
   },
   production:classification,
   async targets(_a,b){return targets(b);},
@@ -286,4 +302,4 @@ export const globalConfigMutateTools={
 };
 
 // Shared selected-team safeguards for related E-3 token and backup operations.
-export {store,allItems,targets,classification,context};
+export {store,allItems,targets,classification,context,linkSnapshot};

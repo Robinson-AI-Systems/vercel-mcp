@@ -6,8 +6,12 @@ import {loadToken} from '../../src/vercel/tokens.js';
 import {validateRequest} from '../../src/vercel/openapi-validation.js';
 vi.mock('../../src/vercel/tokens.js',async orig=>({...await orig(),loadToken:vi.fn()}));
 const id='ecfg_FAKE_STORE',team='team_FAKE';
-const record={id,slug:'fake-store',teamId:team,connectedProjects:[],
-  itemCount:2,size:88,updatedAt:100};
+// AUD-AF: remodelled from the pinned contract, like the mutate
+// suite — ownerId (not teamId), sizeInBytes (not size), and no
+// project-link field at all.
+const record={id,slug:'fake-store',ownerId:team,createdAt:90,
+  createdBy:'user_FAKE',digest:'digest_FAKE',itemCount:2,
+  sizeInBytes:88,updatedAt:100};
 const conn={account:'acct_FAKE',profile:'full',mode:'preview',listing:'catalog'};
 const token={token:'vcp_FAKE_global',account:{
   id:'acct_FAKE',scope:'team',team_id:team}};
@@ -34,8 +38,13 @@ function fixture(initial=[record]){
     .resolves(initial);
   fake.when('GET','/v1/global-config/{edgeConfigId}')
     .resolves(record);
+  // AUD-AF: the documented items shape — a bare array of
+  // GlobalConfigItem objects.
   fake.when('GET','/v1/global-config/{edgeConfigId}/items')
-    .resolves({items:{SAFE_FLAG:'hello',PRIVATE_FAKE_TOKEN:'vcp_FAKE_SECRET_PROBE'}});
+    .resolves([
+      {key:'SAFE_FLAG',value:'hello',edgeConfigId:id,createdAt:90,updatedAt:95},
+      {key:'PRIVATE_FAKE_TOKEN',value:'vcp_FAKE_SECRET_PROBE',
+        edgeConfigId:id,createdAt:90,updatedAt:95}]);
   const call=(name,input={},connection=conn)=>dispatchReadOnlyTool({
     registry,name,args:input,connection,db,fetchImpl:fake.fetch
   });
@@ -63,8 +72,10 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
   it('lists bounded store metadata with no tokens; the documented bare array certifies completeness',async()=>{
     const f=fixture();
     const result=parse(await f.call('vercel_globalconfig_list'));
+    // AUD-AF: linkage is honestly null (the record reports none) and
+    // size now reads the documented sizeInBytes field.
     expect(result).toMatchObject({teamScoped:true,complete:true,shown:1,
-      hasTokens:false,items:[{id,slug:'fake-store',projects:[]}]});
+      hasTokens:false,items:[{id,slug:'fake-store',projects:null,size:88}]});
     expect(result.items[0]).not.toHaveProperty('token');
     expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
     expect(f.fake.calls[0]).toMatchObject({path:'/v1/global-config',
@@ -106,10 +117,10 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
       '/v1/global-config/'+id,'/v1/global-config/'+id+'/items']);
     expect(f.fake.calls.every(x=>x.query.teamId===team)).toBe(true);
   });
-  it('creates only one empty new team store; readback proves zero linked projects',async()=>{
+  it('creates only one empty new team store against the contract record shape',async()=>{
     const f=fixture([]);
-    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',teamId:team,
-      connectedProjects:[],itemCount:0};
+    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',ownerId:team,
+      createdAt:95,digest:'digest_FAKE',itemCount:0,sizeInBytes:0,updatedAt:95};
     f.fake.when('POST','/v1/global-config')
       .resolves({...newStore,token:'vcp_FAKE_PRIVATE_REPLY'});
     f.fake.when('GET','/v1/global-config/{edgeConfigId}').resolves(newStore);
@@ -174,13 +185,14 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
     }
   });
   it('rejects foreign IDs, team metadata, duplicate rows and unknown unsafe item key',async()=>{
-    const f=fixture([{...record,teamId:'team_FOREIGN'}]);
+    const f=fixture([{...record,ownerId:'team_FOREIGN'}]);
     expect((await f.call('vercel_globalconfig_list')).isError).toBe(true);
     const duplicate=fixture([record,{...record}]);
     expect((await duplicate.call('vercel_globalconfig_list')).isError).toBe(true);
     const bad=fixture();
     bad.fake.when('GET','/v1/global-config/{edgeConfigId}/items')
-      .resolves({items:{'../../BAD':'okay'}});
+      .resolves([{key:'../../BAD',value:'okay',edgeConfigId:id,
+        createdAt:90,updatedAt:95}]);
     expect((await bad.call('vercel_globalconfig_list_items',{id})).isError).toBe(true);
     const missing=fixture();
     expect((await missing.call('vercel_globalconfig_list_items',{id:'ecfg_FAKE_OTHER'})).isError).toBe(true);
@@ -198,8 +210,8 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
     // The exact shape that refused live on 2026-10-30 (VMCP-010 probe):
     // the team's list is a bare [] with no pagination block anywhere.
     const f=fixture([]);
-    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',teamId:team,
-      connectedProjects:[],itemCount:0};
+    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',ownerId:team,
+      createdAt:95,digest:'digest_FAKE',itemCount:0,sizeInBytes:0,updatedAt:95};
     f.fake.when('POST','/v1/global-config').resolves(newStore);
     f.fake.when('GET','/v1/global-config/{edgeConfigId}').resolves(newStore);
     const out=parse(await f.call('vercel_globalconfig_create',args));
@@ -220,8 +232,8 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
     const certified=fixture([]);
     certified.fake.when('GET','/v1/global-config')
       .resolves({data:full,pagination:{next:null}});
-    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',teamId:team,
-      connectedProjects:[],itemCount:0};
+    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',ownerId:team,
+      createdAt:95,digest:'digest_FAKE',itemCount:0,sizeInBytes:0,updatedAt:95};
     certified.fake.when('POST','/v1/global-config').resolves(newStore);
     certified.fake.when('GET','/v1/global-config/{edgeConfigId}')
       .resolves(newStore);
