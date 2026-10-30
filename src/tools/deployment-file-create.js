@@ -84,17 +84,27 @@ const create=defineWrite({
     const files=manifest(args);
     if(ctx.connection?.profile!=='full')throw new TypeError('Full profile required');
     const {account,row}=await checkProject(ctx,args.project,args.expectedName);
-    // The provider requires projectSettings for a project's FIRST
-    // deployment and saves what it is given for later ones (vendored
-    // OpenAPI description; omitting them against a settings-less project
-    // is the 400 missing_project_settings of VMCP-023's 2026-10-28 live
-    // probe). Echo the project record's own stored fields back unchanged,
-    // so configured projects keep exactly their settings and a
-    // never-deployed project gets its record's values (null = the
-    // provider auto-detects) as its first saved settings.
-    const projectSettings=deploymentProjectSettings(row);
+    // projectSettings are required for a project's FIRST deployment and
+    // saved by the provider for later ones (vendored OpenAPI description;
+    // omitting them against a settings-less project is the 400
+    // missing_project_settings of VMCP-023's 2026-10-28 live probe).
+    // AUD-AD: they are sent ONLY when this create is that first
+    // deployment — the record's documented hasDeployments flag, already
+    // read above, is the proof. On a deployed project the provider
+    // inherits its saved settings (the create contract's redeploy rule:
+    // inherited unless explicitly overridden), which is the shape every
+    // other create caller uses (git create, branch previews). Resending
+    // the record's settings on a non-first deployment is the one body
+    // difference from those proven routes and is what the provider
+    // refused with HTTP 400 in the 2026-10-30 live staging (twice;
+    // dossier: dev-preview-dossier-2026-10-30.md). Effective settings
+    // are unchanged — the saved copy IS the record's values; they are
+    // no longer restated.
+    const firstDeployment=row.hasDeployments===false;
+    const projectSettings=firstDeployment?deploymentProjectSettings(row):undefined;
     const body={name:args.expectedName,project:args.expectedName,
-      files:files.items,target:args.target,projectSettings};
+      files:files.items,target:args.target,
+      ...(projectSettings?{projectSettings}:{})};
     validateRequest('deployments_create',{query:{teamId:'team_FAKE_validation'},body});
     return {project:args.project,name:args.expectedName,
       target:args.target,files:files.items,total:files.total,
@@ -159,7 +169,7 @@ const create=defineWrite({
     return provider.write('deployments_create',{
       body:{name:before.name,project:before.name,
         files:before.files,target:before.target,
-        projectSettings:before.projectSettings}
+        ...(before.projectSettings?{projectSettings:before.projectSettings}:{})}
     },{requestKey,tool:'vercel_deploy_create_from_files',shapeResult:row=>{
       const id=row?.id??row?.uid;
       // The documented create response has an in-progress shape with

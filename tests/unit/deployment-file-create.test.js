@@ -257,8 +257,9 @@ describe('AUD-H real provider shapes through the guarded tool (VMCP-023)',()=>{
     expect(out).toMatchObject({status:'applied',confirmed:true});
     f.fake.verify();
   });
-  it('echoes the project record settings into the create body (AUD-J)',async()=>{
-    const configured={...row,framework:'nextjs',buildCommand:'next build'};
+  it('echoes the project record settings into the create body of a first deployment (AUD-J, pinned to first by AUD-AD)',async()=>{
+    const configured={...row,framework:'nextjs',buildCommand:'next build',
+      hasDeployments:false};
     const f=fixture(configured);
     f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
     f.db.getTodaySpendCents=async()=>0;
@@ -301,6 +302,107 @@ describe('AUD-H real provider shapes through the guarded tool (VMCP-023)',()=>{
     const out=decode(await f.call({...args,confirm:true},ownerConn));
     expect(out).toMatchObject({status:'outcome_unknown',
       failure:{leg:'deployments_create',code:'response_shape_unverified'}});
+    f.fake.verify();
+  });
+});
+
+describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
+  beforeEach(()=>{vi.clearAllMocks();
+    loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
+  const deploymentId='dpl_FAKEDEPLOY01';
+  const ownerConn={...connection,kind:'connector'};
+  // A provider-behavior wrapper around the shared fake, encoding the
+  // documented createDeployment settings rules (dossier:
+  // dev-preview-dossier-2026-10-30.md): a first deployment without
+  // projectSettings is refused 400 missing_project_settings; a create
+  // for an already-deployed project that RESENDS a settings payload is
+  // refused 400 (the behavior the 2026-10-30 live staging hit twice —
+  // the fake encodes the convicted behavior class and HTTP status, not
+  // a specific provider code, which the live envelope screened);
+  // a non-first create without settings inherits and is created.
+  function behaviorFixture(projectRow,deploymentRow){
+    const f=fixture(projectRow);
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    f.db.getTodaySpendCents=async()=>0;
+    f.fake.when('POST','/v2/files')
+      .resolves({urls:['example-upload.aws.com']},200);
+    f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(deploymentRow);
+    const fetchImpl=async(input,init={})=>{
+      const url=new URL(String(input));
+      if((init.method||'GET').toUpperCase()==='POST'&&
+        url.pathname==='/v13/deployments'){
+        const body=JSON.parse(init.body);
+        const first=projectRow.hasDeployments===false;
+        if(first&&!('projectSettings' in body))
+          return new Response(JSON.stringify({error:{
+            code:'missing_project_settings',
+            message:'fake provider settings refusal'}}),
+            {status:400,headers:{'content-type':'application/json'}});
+        if(!first&&'projectSettings' in body)
+          return new Response(JSON.stringify({error:{
+            code:'bad_request',message:'fake provider settings refusal'}}),
+            {status:400,headers:{'content-type':'application/json'}});
+      }
+      return f.fake.fetch(input,init);
+    };
+    const call=(input=args,conn=ownerConn)=>dispatchReadOnlyTool({
+      registry,name:'vercel_deploy_create_from_files',args:input,
+      connection:conn,db:f.db,fetchImpl});
+    return {fake:f.fake,call};
+  }
+  const deployedRow={...row,framework:'nextjs',buildCommand:'next build',
+    hasDeployments:true};
+  const previewDeployment={id:deploymentId,projectId:project,target:null,
+    readyState:'QUEUED',url:'my-app-git-preview.vercel.app'};
+  it('creates a preview on a deployed project WITHOUT resending its settings',async()=>{
+    const f=behaviorFixture(deployedRow,previewDeployment);
+    const out=decode(await f.call({...args,confirm:true}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create).toBeDefined();
+    expect(create.body).not.toHaveProperty('projectSettings');
+    expect(create.body).toMatchObject({name:'my-app',project:'my-app',
+      target:'preview'});
+    f.fake.verify();
+  });
+  it('creates a production deployment on a deployed project without resending settings',async()=>{
+    const prodDeployment={...previewDeployment,target:'production'};
+    const f=behaviorFixture(deployedRow,prodDeployment);
+    const out=decode(await f.call({...args,target:'production',confirm:true},
+      {...ownerConn,mode:'production'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create.body).not.toHaveProperty('projectSettings');
+    expect(create.body.target).toBe('production');
+    f.fake.verify();
+  });
+  it('still sends the echoed settings when the create IS the first deployment',async()=>{
+    const firstRow={...deployedRow,hasDeployments:false};
+    // Platform rule: a first deployment is promoted to production, so
+    // the read-back target cannot match the requested preview and
+    // verify() honestly reports confirmed:false on an applied create —
+    // the pre-existing posture this card does not change.
+    const promoted={...previewDeployment,target:'production'};
+    const f=behaviorFixture(firstRow,promoted);
+    const out=decode(await f.call({...args,confirm:true}));
+    expect(out).toMatchObject({status:'applied',confirmed:false});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create.body.projectSettings).toEqual({
+      buildCommand:'next build',devCommand:null,framework:'nextjs',
+      installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
+  it('treats a record without the hasDeployments flag as deployed (no resend)',async()=>{
+    const f=behaviorFixture({...row,framework:'nextjs'},previewDeployment);
+    const out=decode(await f.call({...args,confirm:true}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create.body).not.toHaveProperty('projectSettings');
     f.fake.verify();
   });
 });
