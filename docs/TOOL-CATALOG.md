@@ -6,7 +6,8 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2 and N-3 added 2026-10-30): 211 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 30 are planned scope for approved batches O-3–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2, N-3 and O-3 added 2026-10-30): 214 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 27 are planned scope for approved batches O-4–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+
 
 are `vercel_dev_<job>` (contract §10).
 
@@ -424,8 +425,10 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
 | `vercel_token_list` | Access tokens of the token's user: name, scope (team/project), created, expires, last used — never values | — | O | R | — | O-3 |
-| `vercel_token_create` | New team- or project-scoped token with an expiry (required, ≤1 year); shown once on the setup page | C A 1x | O | F | — | O-3 |
+| `vercel_token_create` | New team- or project-scoped token; expiry is the creator's choice, including none (IN-04); shown once on the setup page or stored directly as a server account | C A 1x | O | F | — | O-3 |
 | `vercel_token_delete` | Revoke a token (refused for the token this server runs on) | D C | O | F | — | O-3 |
+
+**O-3 note (2026-10-30):** the three rows above are implemented. The bearer value never enters a tool result or the replay log (the client's replay screen forbids it): creation delivers either a one-time owner reveal on the setup page or stores the token directly as another account of this server through the existing probed enrollment (`storeToken`, `allowFull:false` — the design's never-full-account rule enforced by the probe itself). `storeToken` gained an additive optional `expiresAt` so tool-created tokens record their expiry at enrollment (the tool-created leg of VMCP-003's recording gap; enrollment flows that pass nothing are unchanged). Deletion protects the credential this connection runs on twice over: an exact provider-id match from the account probe for server-created tokens, and the documented suffix against the stored account's last-4 for enrolled ones.
 
 ## Owner: billing, usage and activity (`vercel_billing_*`, `vercel_activity_*`) — 4
 
