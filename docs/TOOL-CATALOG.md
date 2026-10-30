@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side and O-1R added 2026-10-30): 183 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 58 are planned scope for approved batches N-2/N-3, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.their contract names (`vercel_search_tools`, `vercel_call`, …); workflows are `vercel_workflow_<job>`; developer tools
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R and O-2 added 2026-10-30): 193 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 48 are planned scope for approved batches N-2/N-3, O-3–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.their contract names (`vercel_search_tools`, `vercel_call`, …); workflows are `vercel_workflow_<job>`; developer tools
 are `vercel_dev_<job>` (contract §10).
 
 **Safety** (combine as listed; the guards are defined in `docs/designs/BATCH-B.md`):
@@ -411,6 +411,8 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 | `vercel_access_group_create` | New access group with members and project roles | A | O | F | — | O-2 |
 | `vercel_access_group_update` | Change an access group's name, members or project roles | A | O | F | — | O-2 |
 | `vercel_access_group_delete` | Delete an access group | D C | O | F | — | O-2 |
+
+**O-2 note (2026-10-30):** the ten rows above are implemented. Contract facts proven from the pinned snapshot during the build (dossier: batch-o-dossier-2026-10-30.md): the invite body is a top-level ARRAY; the role-change response carries only the team id, so verification is a roster read-back; the member record carries NO two-step field, so `vercel_member_list` reports `twoStepLogin: null` rather than guessing; the access-group summary read carries counts only, so `vercel_access_group_get` composes the members and projects sub-reads. Seat pricing recorded from Vercel's published Pro pricing: deploying roles (OWNER/MEMBER/DEVELOPER) are $20/seat/month (the stored seat-price default), VIEWER/VIEWER_FOR_PLUS/BILLING/CONTRIBUTOR are free, and SECURITY has no published seat price — it stays `$` with "price unknown" in the preview, the one role routed to the owner under the design's stop-and-ask point. Lockout guards refuse changing or removing the token's own user and demoting or removing the last Owner, with identity from the `user_get` read of the bound credential.
 
 ## Owner: access tokens (`vercel_token_*`) — 3
 
