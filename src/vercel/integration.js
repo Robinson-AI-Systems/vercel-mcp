@@ -95,24 +95,84 @@ export async function exchangeInstallCode({ code, env = process.env,
   try {
     data = await response.json();
   } catch {
-    throw new IntegrationError('exchange_malformed',
-      'Vercel answered the install exchange in an unexpected shape');
+    throw malformedWithFingerprint(
+      [{ name: 'body', type: 'unparseable', ok: false }]);
   }
-  if (!data || typeof data.access_token !== 'string' || !data.access_token ||
-    data.token_type !== 'Bearer' ||
-    typeof data.installation_id !== 'string' ||
-    !data.installation_id.startsWith('icfg_') ||
-    typeof data.user_id !== 'string' || !data.user_id ||
-    !(data.team_id === null || (typeof data.team_id === 'string' && data.team_id))) {
-    throw new IntegrationError('exchange_malformed',
-      'Vercel answered the install exchange in an unexpected shape');
+  // AUD-M2 necessity audit — every hard predicate cites its consumer:
+  //   access_token    — the credential itself, handed to the store
+  //                     path. Stays hard.
+  //   token_type      — the exchange contract's identity: the answer
+  //                     is DEFINED as a Bearer-token response and the
+  //                     store path uses the value as one; a different
+  //                     grant type would be misused as a bearer
+  //                     credential. Stays hard.
+  //   installation_id — the probe's input and the stored identity
+  //                     recheck rebuilds from. Stays hard.
+  //   team_id         — the routing branch itself (personal vs
+  //                     team). Stays hard.
+  //   user_id         — consumed by the personal-install proof (the
+  //                     user-keyed identity cross-check): hard when
+  //                     team_id is null. On a TEAM install its only
+  //                     consumers are evidence (the probe's
+  //                     installerMatchesConfiguration), so there it
+  //                     leaves the hard gate: absent or mistyped
+  //                     demotes to a null userId and enrollment
+  //                     proceeds with the evidence recording null.
+  const exchangeChecks = [
+    { name: 'body', type: jsonTypeOf(data),
+      ok: !!data && typeof data === 'object' },
+    { name: 'access_token', type: jsonTypeOf(data?.access_token),
+      ok: typeof data?.access_token === 'string' && !!data.access_token },
+    { name: 'token_type', type: jsonTypeOf(data?.token_type),
+      ok: data?.token_type === 'Bearer' },
+    { name: 'installation_id', type: jsonTypeOf(data?.installation_id),
+      ok: typeof data?.installation_id === 'string' &&
+        data.installation_id.startsWith('icfg_') },
+    { name: 'user_id', type: jsonTypeOf(data?.user_id),
+      ok: typeof data?.user_id === 'string' && !!data.user_id },
+    { name: 'team_id', type: jsonTypeOf(data?.team_id),
+      ok: data?.team_id === null ||
+        (typeof data?.team_id === 'string' && !!data.team_id) }
+  ];
+  const teamInstall = typeof data?.team_id === 'string' && !!data.team_id;
+  const hardFailed = exchangeChecks.filter(check => !check.ok &&
+    !(teamInstall && check.name === 'user_id'));
+  if (hardFailed.length) {
+    throw malformedWithFingerprint(exchangeChecks,
+      new Set(hardFailed.map(check => check.name)));
   }
   return {
     accessToken: data.access_token,
     installationId: data.installation_id,
-    userId: data.user_id,
+    userId: exchangeChecks.find(check => check.name === 'user_id').ok ?
+      data.user_id : null,
     teamId: data.team_id
   };
+}
+
+// AUD-M2: a malformed exchange answer carries the same redacted
+// shape fingerprint as the probe's gate (type words only, never
+// values) so the callback can journal WHICH predicates failed.
+function jsonTypeOf(value) {
+  if (value === undefined) return 'absent';
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+function malformedWithFingerprint(checks, failedNames = null) {
+  const failed = checks.filter(check => failedNames ?
+    failedNames.has(check.name) : !check.ok).map(check => check.name);
+  const types = Object.fromEntries(checks.map(check => [check.name, check.type]));
+  const err = new IntegrationError('exchange_malformed',
+    'Vercel answered the install exchange in an unexpected shape');
+  err.fingerprint = { gate: 'exchange', failed, types };
+  // Same summary layout as the probe's fingerprint (tokens.js):
+  // failed names first, then the type map, failed fields ahead.
+  const ordered = [...checks.filter(check => failed.includes(check.name)),
+    ...checks.filter(check => !failed.includes(check.name))];
+  err.fingerprintSummary = 'SHAPE-FP exchange failed=[' + failed.join(',') +
+    '] types: ' + ordered.map(check => check.name + ':' + check.type).join(' ');
+  return err;
 }
 
 // Enroll an exchanged installation. Team installs go through the
@@ -182,6 +242,30 @@ function html(res, status, title, content) {
   return send(res, status, page(title, content), 'text/html; charset=utf-8');
 }
 
+// AUD-M2: a shape refusal's fingerprint is journaled into the
+// change_log — the server's existing audit trail — under the
+// install's own account key (the exchanged team id; for an exchange
+// refusal, the redirect's team id when it is id-shaped, else a fixed
+// install key), so the operator retrieves it after one live attempt
+// through the existing vercel_recent_changes read on that account.
+// The row carries ONLY the fingerprint summary (failed predicate
+// names + field→type words — never values). Journaling is
+// best-effort: a journal failure never changes the install outcome.
+const JOURNAL_TOOL = 'vercel_integration_install';
+async function journalShapeRefusal(db, account, err) {
+  if (!err?.fingerprintSummary || typeof db?.recordChange !== 'function') return;
+  try {
+    await db.recordChange({
+      account, mode: 'preview', tool: JOURNAL_TOOL,
+      summary: err.fingerprintSummary, dryRun: false, production: false
+    });
+  } catch { /* The audit trail never gates the install page. */ }
+}
+function journalAccountKey(value) {
+  return typeof value === 'string' && /^[a-zA-Z0-9_-]{3,128}$/.test(value) ?
+    value : 'integration-install';
+}
+
 // The integration's redirect target. Vercel sends the user back with
 // ?code=… after install. GET only; nothing here is authenticated —
 // the code itself is the one-time credential, and enrollment still
@@ -198,6 +282,8 @@ export async function handleIntegrationCallback(req, res, { db,
   try {
     exchange = await exchangeInstallCode({ code, env, fetchImpl, baseUrl });
   } catch (err) {
+    await journalShapeRefusal(db,
+      journalAccountKey(url.searchParams.get('teamId')), err);
     const status = err?.code === 'integration_not_configured' ? 503 : 502;
     return html(res, status, 'Install could not be completed',
       '<p>' + escapeHtml(err?.message || 'The install exchange failed.') + '</p>');
@@ -220,6 +306,8 @@ export async function handleIntegrationCallback(req, res, { db,
   try {
     result = await enrollInstallation({ db, exchange, env, fetchImpl, baseUrl });
   } catch (err) {
+    await journalShapeRefusal(db,
+      journalAccountKey(exchange.teamId ?? exchange.userId), err);
     return html(res, 502, 'Install could not be completed',
       '<p>' + escapeHtml(err?.message ||
         'The installed credential could not be verified or saved.') + '</p>');

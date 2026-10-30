@@ -84,8 +84,12 @@ function configFixture({ config = {}, configError = null, projects = null,
 
 function fakeDb() {
   const rows = new Map();
+  const changes = [];
   return {
-    rows,
+    rows, changes,
+    // AUD-M2: the change_log journal the callback writes shape
+    // fingerprints into; captured verbatim for assertion.
+    async recordChange(entry) { changes.push(entry); return changes.length; },
     async upsertVercelAccount(row) {
       rows.set(row.id, { ...row, token_enc: row.tokenEnc,
         token_expires_at: row.expiresAt,
@@ -122,6 +126,36 @@ describe('AUD-I S1: install code exchange', () => {
     await expect(exchangeInstallCode({ code: 'x', env: {}, fetchImpl: api.fetch }))
       .rejects.toMatchObject({ code: 'integration_not_configured' });
     expect(api.calls).toHaveLength(0);
+  });
+
+  it('AUD-M2: demotes a missing user_id on a TEAM install to evidence (userId null), never a refusal', async () => {
+    const api = makeFakeVercel();
+    api.when('POST', '/v2/oauth/access_token').resolves({
+      token_type: 'Bearer', access_token: INSTALL_TOKEN,
+      installation_id: 'icfg_FAKE', team_id: 'team_FAKE'
+    });
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    expect(exchange.userId).toBe(null);
+    expect(exchange.teamId).toBe('team_FAKE');
+  });
+
+  it('AUD-M2: still refuses a missing user_id on a PERSONAL install, with a fingerprint', async () => {
+    const api = makeFakeVercel();
+    api.when('POST', '/v2/oauth/access_token').resolves({
+      token_type: 'Bearer', access_token: INSTALL_TOKEN,
+      installation_id: 'icfg_FAKE', team_id: null
+    });
+    const err = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch })
+      .catch(e => e);
+    expect(err.code).toBe('exchange_malformed');
+    expect(err.fingerprint.gate).toBe('exchange');
+    expect(err.fingerprint.failed).toEqual(['user_id']);
+    expect(err.fingerprint.types).toMatchObject({
+      access_token: 'string', token_type: 'string',
+      installation_id: 'string', user_id: 'absent', team_id: 'null'
+    });
+    expect(err.fingerprintSummary).not.toContain(INSTALL_TOKEN);
+    expect(err.fingerprintSummary).not.toContain('icfg_FAKE');
   });
 
   it('classifies a refused exchange and a malformed answer distinctly', async () => {
@@ -182,6 +216,21 @@ describe('AUD-I S1: installation enrollment', () => {
     expect(JSON.stringify([...db.rows.values()])).not.toContain(INSTALL_TOKEN);
     // Every probe call is unscoped: no request carries a teamId.
     for (const call of api.calls) expect(call.query.teamId).toBeUndefined();
+  });
+
+  it('AUD-M2: enrolls a team install whose exchange carried no user_id — installer evidence is null end to end', async () => {
+    const api = configFixture();
+    api.when('POST', '/v2/oauth/access_token').resolves({
+      token_type: 'Bearer', access_token: INSTALL_TOKEN,
+      installation_id: 'icfg_FAKE', team_id: 'team_FAKE'
+    });
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const result = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch });
+    expect(result.enrolled).toBe(true);
+    const row = db.rows.get('team_FAKE');
+    expect(row.probe.installerUserId).toBe(null);
+    expect(row.probe.installerMatchesConfiguration).toBe(null);
   });
 
   it('refuses a personal install whose credential acts for a different user', async () => {
@@ -317,6 +366,60 @@ describe('AUD-K: installation-aware probe branches', () => {
     expect(db.rows.get('team_FAKE').probe.configurationStatus).toBe('ready');
   });
 
+  it('enrolls when the configuration carries no installer (userId absent) — evidence records null', async () => {
+    const api = configFixture({ config: { userId: undefined } });
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const result = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch });
+    expect(result.enrolled).toBe(true);
+    expect(db.rows.get('team_FAKE').probe.installerMatchesConfiguration).toBe(null);
+  });
+
+  it('enrolls when the configuration installer is mistyped — evidence records null, never a false mismatch', async () => {
+    const api = configFixture({ config: { userId: 42 } });
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const result = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch });
+    expect(result.enrolled).toBe(true);
+    expect(db.rows.get('team_FAKE').probe.installerMatchesConfiguration).toBe(null);
+  });
+
+  it('refuses a shape-broken configuration WITH a redacted fingerprint: predicate names and types, no values', async () => {
+    const api = configFixture({ config: { scopes: 'read:team', teamId: 42 } });
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const err = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch })
+      .catch(e => e);
+    expect(err.probeLeg).toBe('configuration');
+    expect(err.fingerprint.gate).toBe('configuration');
+    expect(err.fingerprint.failed).toEqual(expect.arrayContaining(['scopes', 'teamId']));
+    expect(err.fingerprint.types).toMatchObject({
+      id: 'string', type: 'string', integrationId: 'string',
+      teamId: 'number', ownerId: 'string', userId: 'string', scopes: 'string'
+    });
+    expect(err.fingerprint.integrationMatch).toBe('not-reached');
+    const fingerprintText = err.fingerprintSummary + JSON.stringify(err.fingerprint);
+    for (const value of ['team_FAKE', 'icfg_FAKE', 'oac_FAKECLIENT',
+      'user_FAKE', 'read:team', INSTALL_TOKEN]) {
+      expect(fingerprintText).not.toContain(value);
+    }
+    expect(err.fingerprintSummary.length).toBeLessThanOrEqual(160);
+    expect(db.rows.size).toBe(0);
+  });
+
+  it('records the integration comparison outcome in the fingerprint when it is reached', async () => {
+    const api = configFixture({ config: { integrationId: 'oac_OTHER' } });
+    const db = fakeDb();
+    const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
+    const err = await enrollInstallation({ db, exchange, env, fetchImpl: api.fetch })
+      .catch(e => e);
+    expect(err.probeLeg).toBe('configuration_integration');
+    expect(err.fingerprint.integrationMatch).toBe('mismatch');
+    expect(err.fingerprint.failed).toEqual(['integrationIdMatch']);
+    expect(JSON.stringify(err.fingerprint)).not.toContain('oac_OTHER');
+    expect(JSON.stringify(err.fingerprint)).not.toContain('oac_FAKECLIENT');
+  });
+
   it('rechecks a stored integration team seat through the configuration read', async () => {
     const api = fixture(), db = fakeDb();
     const exchange = await exchangeInstallCode({ code: 'c', env, fetchImpl: api.fetch });
@@ -408,6 +511,51 @@ describe('AUD-I S1: the callback page', () => {
     expect(res.statusCode).toBe(502);
     expect(res.body).toContain('does not match the install that was started');
     expect(db.rows.size).toBe(0);
+  });
+
+  it('AUD-M2: journals the shape fingerprint of a refused enrollment for operator read-back', async () => {
+    const api = configFixture({ config: { scopes: undefined } }), db = fakeDb(), res = fakeRes();
+    await handleIntegrationCallback(get('/api/vercel/integration?code=abc'), res,
+      { db, env, fetchImpl: api.fetch });
+    expect(res.statusCode).toBe(502);
+    expect(res.body).toContain('unexpected shape');
+    expect(res.body).not.toContain('SHAPE-FP');
+    expect(db.rows.size).toBe(0);
+    expect(db.changes).toHaveLength(1);
+    const row = db.changes[0];
+    expect(row.tool).toBe('vercel_integration_install');
+    expect(row.account).toBe('team_FAKE');
+    expect(row.summary).toContain('failed=[scopes]');
+    expect(row.summary).toContain('scopes:absent');
+    expect(row.summary.length).toBeLessThanOrEqual(160);
+    for (const value of ['team_FAKE', 'icfg_FAKE', 'user_FAKE', INSTALL_TOKEN]) {
+      expect(row.summary).not.toContain(value);
+    }
+  });
+
+  it('AUD-M2: journals an exchange shape refusal under the redirect team key', async () => {
+    const api = makeFakeVercel(), db = fakeDb(), res = fakeRes();
+    api.when('POST', '/v2/oauth/access_token').resolves({
+      token_type: 'Bearer', access_token: INSTALL_TOKEN,
+      installation_id: 'icfg_FAKE', team_id: null
+    });
+    await handleIntegrationCallback(
+      get('/api/vercel/integration?code=abc&teamId=team_FAKE'), res,
+      { db, env, fetchImpl: api.fetch });
+    expect(res.statusCode).toBe(502);
+    expect(db.rows.size).toBe(0);
+    expect(db.changes).toHaveLength(1);
+    expect(db.changes[0].account).toBe('team_FAKE');
+    expect(db.changes[0].summary).toContain('failed=[user_id]');
+    expect(db.changes[0].summary).not.toContain(INSTALL_TOKEN);
+  });
+
+  it('AUD-M2: a successful install journals nothing', async () => {
+    const api = fixture(), db = fakeDb(), res = fakeRes();
+    await handleIntegrationCallback(get('/api/vercel/integration?code=abc'), res,
+      { db, env, fetchImpl: api.fetch });
+    expect(res.statusCode).toBe(200);
+    expect(db.changes).toHaveLength(0);
   });
 
   it('without a code, stores nothing and says how to restart', async () => {
