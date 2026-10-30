@@ -43,9 +43,9 @@ describe('AUD-C front-door membership artifact (OP-1 / D-C)', () => {
       'vercel_api_search', 'vercel_batch', 'vercel_call', 'vercel_describe_tool',
       'vercel_get_result', 'vercel_search_tools', 'vercel_whoami'
     ]);
-    expect(names('read_only', 'catalog')).toHaveLength(61); // AUD-AB: +vercel_account_teams (read, all profiles); M-1: +3 reads (all profiles)
-    expect(names('everyday', 'catalog')).toHaveLength(82); // AUD-AB: +vercel_account_teams; M-1: +3 reads (all profiles)
-    expect(names('full', 'catalog')).toHaveLength(133); // AUD-Z: +vercel_set_working_box, reachable again for the owner profile; AUD-AA: +vercel_remove_account (owner catalog only); AUD-AB: +vercel_account_teams, +vercel_team_create, +vercel_team_delete; M-1: +vercel_logs_query, +vercel_logs_errors_summary, +vercel_analytics_pageviews, +vercel_analytics_set_web_analytics, +vercel_analytics_set_speed_insights
+    expect(names('read_only', 'catalog')).toHaveLength(63); // AUD-AB: +vercel_account_teams (read, all profiles); M-1: +3 reads (all profiles); M-2: +2 reads (all profiles)
+    expect(names('everyday', 'catalog')).toHaveLength(85); // AUD-AB: +vercel_account_teams; M-1: +3 reads (all profiles); M-2: +2 reads, +vercel_drain_test
+    expect(names('full', 'catalog')).toHaveLength(141); // AUD-Z: +vercel_set_working_box, reachable again for the owner profile; AUD-AA: +vercel_remove_account (owner catalog only); AUD-AB: +vercel_account_teams, +vercel_team_create, +vercel_team_delete; M-1: +vercel_logs_query, +vercel_logs_errors_summary, +vercel_analytics_pageviews, +vercel_analytics_set_web_analytics, +vercel_analytics_set_speed_insights; M-2: +vercel_drain_list, +vercel_drain_create, +vercel_drain_delete, +vercel_drain_update, +vercel_drain_test, +vercel_webhook_list, +vercel_webhook_create, +vercel_webhook_delete
     expect(names('everyday', 'catalog')).toContain('vercel_env_set');
     expect(names('everyday', 'front_door')).not.toContain('vercel_env_set');
   });
