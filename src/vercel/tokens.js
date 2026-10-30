@@ -634,7 +634,8 @@ export async function storeInstallationToken({ db, token, teamId, installationId
 }
 
 export async function storeToken({ db, token, teamId, projectId = null,
-  allowFull = false, env = process.env, fetchImpl, baseUrl, probeExtra = {} }) {
+  allowFull = false, env = process.env, fetchImpl, baseUrl, probeExtra = {},
+  expiresAt = null }) {
   if (!db?.upsertVercelAccount) throw new TypeError('Durable account storage is required');
   const result = await probeToken({ token, teamId, projectId, allowFull, fetchImpl, baseUrl });
   const id = result.projectId ? result.teamId + '/' + result.projectId : result.teamId;
@@ -643,7 +644,7 @@ export async function storeToken({ db, token, teamId, projectId = null,
     await db.upsertVercelAccount({
       id, teamId: result.teamId, teamSlug: result.teamSlug, label: result.teamName,
       scope: result.scope, projectId: result.projectId, projectName: result.projectName,
-      tokenEnc, tokenLast4: token.slice(-4), expiresAt: null,
+      tokenEnc, tokenLast4: token.slice(-4), expiresAt,
       probe: {
         checkedAt: result.checkedAt,
         visibleTeamCount: result.visibleTeamCount,
@@ -661,7 +662,7 @@ export async function storeToken({ db, token, teamId, projectId = null,
       'The verified token could not be saved; check the server storage configuration');
   }
   return { id, team: result.teamSlug, scope: result.scope, project: result.projectName,
-    expiry: null, last4: token.slice(-4) };
+    expiry: expiresAt, last4: token.slice(-4) };
 }
 
 export async function loadToken({ db, accountId, env = process.env }) {

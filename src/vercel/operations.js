@@ -23,6 +23,15 @@ export const OPS = Object.freeze({
   teams_member_patch: Object.freeze({ method: 'PATCH', path: '/v1/teams/{teamId}/members/{uid}', teamScoped: false }),
   teams_member_delete: Object.freeze({ method: 'DELETE', path: '/v1/teams/{teamId}/members/{uid}', teamScoped: false }),
   teams_invite_delete: Object.freeze({ method: 'DELETE', path: '/v1/teams/{teamId}/invites/{inviteId}', teamScoped: false }),
+  // O-3: the token family acts as the token's user (the snapshot scopes
+  // list/create/delete to the user; create takes teamId as a query).
+  tokens_list: Object.freeze({ method: 'GET', path: '/v6/user/tokens', teamScoped: false }),
+  tokens_get: Object.freeze({ method: 'GET', path: '/v5/user/tokens/{tokenId}', teamScoped: false }),
+  // tokens_create is the exception in the family: its documented teamId is a
+  // QUERY parameter, so the entry stays team-scoped and the client attaches
+  // the stored account's team itself — the caller never supplies it.
+  tokens_create: Object.freeze({ method: 'POST', path: '/v3/user/tokens' }),
+  tokens_delete: Object.freeze({ method: 'DELETE', path: '/v3/user/tokens/{tokenId}', teamScoped: false }),
   access_groups_list: Object.freeze({ method: 'GET', path: '/v1/access-groups' }),
   access_group_get: Object.freeze({ method: 'GET', path: '/v1/access-groups/{idOrName}' }),
   access_group_members: Object.freeze({ method: 'GET', path: '/v1/access-groups/{idOrName}/members' }),
