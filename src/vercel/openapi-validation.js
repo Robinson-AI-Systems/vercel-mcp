@@ -146,6 +146,13 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
   // Vercel uses teamId across endpoints (including user reads); do not permit
   // caller-supplied teamId to override the selected account's scope.
   for (const key of Object.keys(query)) {
+    // The same 2026-10-11 snapshot omits the projectId query parameter from
+    // GET /v1/security/firewall/config and from the config-version activate
+    // POST, although the live REST reference requires it on both (the PATCH
+    // and the version GET on the same paths declare it). Permit exactly
+    // that one parameter for those two operations only (Batch F-2).
+    if ((id === 'firewall_config_get' || id === 'firewall_config_activate') &&
+      key === 'projectId') continue;
     if (!byKey.has('query:' + key) && (key !== 'teamId'||id.startsWith('api:'))) {
       throw new TypeError('Unknown API query parameter: ' + key);
     }
@@ -171,6 +178,21 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
   const requestBody = specOperation.requestBody?.$ref
     ? readOpenApi().components?.requestBodies?.[specOperation.requestBody.$ref.split('/').at(-1)]
     : specOperation.requestBody;
+  // The snapshot's firewall-config PATCH body is a oneOf whose branches
+  // overlap and whose value schemas are branch-shifted (proven against this
+  // validator in the Batch F dossier, 2026-10-30): every documented body
+  // matches two branches or none, so no real request can ever pass. Skip
+  // body validation for this one operation only; path and query validation
+  // above still apply, and the F-2 tools pin their bodies byte-exact in
+  // tests against the live reference's documented shapes.
+  if (id === 'firewall_config_patch') return true;
+  // The attack-mode body oneOf has the same defect in miniature: the
+  // enabling body (which the reference requires to carry
+  // attackModeActiveUntil) also matches the two-field branch, because that
+  // branch does not forbid the extra property, so it can never validate.
+  // Skip body validation only for that documented enabling shape; the
+  // disabling body keeps full validation (Batch F-2).
+  if (id === 'attack_mode_update' && body?.attackModeActiveUntil !== undefined) return true;
   if (body === undefined) {
     if (requestBody?.required) throw new TypeError('Missing required API body');
   } else {

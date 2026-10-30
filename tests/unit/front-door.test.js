@@ -43,9 +43,9 @@ describe('AUD-C front-door membership artifact (OP-1 / D-C)', () => {
       'vercel_api_search', 'vercel_batch', 'vercel_call', 'vercel_describe_tool',
       'vercel_get_result', 'vercel_search_tools', 'vercel_whoami'
     ]);
-    expect(names('read_only', 'catalog')).toHaveLength(63); // M-1: +3 reads (all profiles); F-1: +vercel_protection_get, +vercel_protection_list_bypass (reads, all profiles)
-    expect(names('everyday', 'catalog')).toHaveLength(85); // M-1: +3 reads; F-1: +2 protection reads, +vercel_alias_set_shareable_link
-    expect(names('full', 'catalog')).toHaveLength(142); // AUD-Z: +vercel_set_working_box, reachable again for the owner profile; AUD-AA: +vercel_remove_account (owner catalog only); AUD-AB: +vercel_account_teams, +vercel_team_create, +vercel_team_delete; M-1: +5 logs/analytics tools; F-1: +8 protection tools U-1m: +vercel_api_write (full profile only).
+    expect(names('read_only', 'catalog')).toHaveLength(66); // F-2: +3 firewall reads (all profiles)
+    expect(names('everyday', 'catalog')).toHaveLength(91); // F-2: +3 firewall reads, +vercel_firewall_block_ip, +vercel_firewall_unblock_ip, +vercel_firewall_set_attack_mode
+    expect(names('full', 'catalog')).toHaveLength(153); // AUD-Z: +vercel_set_working_box, reachable again for the owner profile; AUD-AA: +vercel_remove_account (owner catalog only); AUD-AB: +vercel_account_teams, +vercel_team_create, +vercel_team_delete; M-1: +5 logs/analytics tools; F-1: +8 protection tools; U-1m: +vercel_api_write (full profile only); F-2: +11 firewall tools
     expect(names('everyday', 'catalog')).toContain('vercel_env_set');
     expect(names('everyday', 'front_door')).not.toContain('vercel_env_set');
   });
