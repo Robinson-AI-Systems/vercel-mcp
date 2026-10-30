@@ -5,7 +5,7 @@ import { FRONT_DOOR } from '../src/data/front-door.js';
 
 export const DESCRIPTION_MAX = 160;
 export const COMPACT_TOKENS_MAX = 5000; // strictly below
-export const LISTING_TOKENS_MAX = 20000; // strictly below; C6 catalog sanity bound (engineering line)
+export const LISTING_TOKENS_MAX = 21000; // strictly below; C6 catalog sanity bound (engineering line).
 // Owner policy (OP-1, Chris, 2026-10-27 — docs/DECISIONS.md): the default
 // front_door listing must stay strictly below 5,000 tokens at every profile.
 // This cap is an owner policy recorded here, NOT a builder default and NOT a

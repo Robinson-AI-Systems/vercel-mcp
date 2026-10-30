@@ -202,6 +202,17 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
   if ((id === 'bulk_redirects_stage' || id === 'bulk_redirects_update') &&
     [body?.redirect, ...(Array.isArray(body?.redirects) ? body.redirects : [])]
       .some(item => typeof item?.statusCode === 'number')) return true;
+  // The snapshot's createRecord SRV and TXT branches are unsatisfiable as
+  // generated (proven against this validator in the Batch N-2 dossier,
+  // 2026-10-30): both branches REQUIRE `name` yet omit it from
+  // `properties` under additionalProperties:false, so every documented
+  // body fails (with name: additionalProperties; without: required).
+  // The branches' own required lists are the evidence that `name`
+  // belongs in the body. Skip body validation for those two record
+  // types only; path and query validation above still apply, and the
+  // N-2 tools pin their SRV/TXT bodies byte-exact in tests against the
+  // documented branch shapes (Batch N-2).
+  if (id === 'dns_record_create' && (body?.type === 'SRV' || body?.type === 'TXT')) return true;
   if (body === undefined) {
     if (requestBody?.required) throw new TypeError('Missing required API body');
   } else {

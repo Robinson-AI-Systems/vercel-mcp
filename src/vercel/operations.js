@@ -168,6 +168,20 @@ export const OPS = Object.freeze({
   domains_remove: Object.freeze({ method: 'DELETE', path: '/v6/domains/{domain}' }),
   domains_config: Object.freeze({ method: 'GET', path: '/v6/domains/{domain}/config' }),
   domains_verification: Object.freeze({ method: 'GET', path: '/v9/domains/{domain}/verification' }),
+  // N-2: DNS records and certificates (docs/designs/BATCH-N.md §2).
+  // replaceDomainsByDomainRecords (PUT /domains/{domain}/records) is
+  // deliberately absent: the pinned snapshot and the live reference
+  // document no request body for it, so there is no contract to call
+  // (dossier §4.2); vercel_dns_replace_zone composes these operations.
+  dns_records_list: Object.freeze({ method: 'GET', path: '/v5/domains/{domain}/records' }),
+  dns_record_get: Object.freeze({ method: 'GET', path: '/domains/records/{recordId}', teamScoped: false }),
+  dns_record_create: Object.freeze({ method: 'POST', path: '/v2/domains/{domain}/records' }),
+  dns_record_update: Object.freeze({ method: 'PATCH', path: '/v1/domains/records/{recordId}' }),
+  dns_record_delete: Object.freeze({ method: 'DELETE', path: '/v2/domains/{domain}/records/{recordId}' }),
+  certs_list: Object.freeze({ method: 'GET', path: '/v8/certs' }),
+  cert_get: Object.freeze({ method: 'GET', path: '/v8/certs/{id}' }),
+  cert_issue: Object.freeze({ method: 'POST', path: '/v8/certs' }),
+  cert_remove: Object.freeze({ method: 'DELETE', path: '/v8/certs/{id}' }),
   projects_env_list: Object.freeze({ method: 'GET', path: '/v10/projects/{idOrName}/env' }),
   projects_transfer_request: Object.freeze({ method: 'POST', path: '/projects/{idOrName}/transfer-request' }),
   // V-4 exact paths from the 2026-10-11 sandbox REST surface; the binary
