@@ -2,8 +2,9 @@
 import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
-import {common,exact,owned,safeBranch,noPreview,SHA,DEPLOY,context,respond,
+import {common,exact,owned,safeBranch,SHA,DEPLOY,context,respond,
   startRun,preIntent,record,markIntent,selectedWrite} from './dev-preview-common.js';
+import {previewBranchRefusal} from './app-guard.js';
 const props={...common,gitRef:{type:'string',minLength:1,maxLength:128},
   gitSha:{type:'string',pattern:SHA.source}};
 const schema={type:'object',properties:props,required:['runId','project','gitRef','gitSha'],
@@ -14,7 +15,8 @@ const branch=defineWrite({
   async before(a,ctx){
     exact(a,props,schema.required);
     if(!safeBranch(a.gitRef)||!SHA.test(a.gitSha)||
-       noPreview(a.gitRef,a.outsideApp))
+       await previewBranchRefusal({db:ctx.db,account:ctx.connection?.account,
+         branch:a.gitRef,outsideApp:a.outsideApp}))
       throw new RefusalError('Prohibited no-preview branch or ambiguous commit reference');
     const b=await owned(a,ctx);
     const {client}=await readProvider(ctx);

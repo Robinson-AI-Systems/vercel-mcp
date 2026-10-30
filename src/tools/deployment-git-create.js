@@ -88,8 +88,11 @@ const create=defineWrite({
     return {production:before.target==='production',
       why:'The exact requested deployment target is binding'};
   },
-  async targets(_args,before){
-    return [{kind:'project',id:before.id,name:before.name}];
+  async targets(args,before){
+    // P-1: the profile guard reads the deploy target and the caller's
+    // outsideApp declaration from the project target (additive fields).
+    return [{kind:'project',id:before.id,name:before.name,
+      deployTarget:before.target,outsideApp:args.outsideApp===true}];
   },
   async spend(){
     return {cents:null,recurring:true,

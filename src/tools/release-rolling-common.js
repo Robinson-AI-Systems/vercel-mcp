@@ -117,7 +117,8 @@ export function sameRollout(a,b){
 }
 export function releaseTargets(snapshot,canary){
   return [{kind:'account',id:snapshot.account.team_id},
-    {kind:'project',id:snapshot.project},
+    {kind:'project',id:snapshot.project,
+      ...(snapshot.projectName?{projectName:snapshot.projectName}:{})},
     ...(canary?[{kind:'deployment',id:canary,
       projectId:snapshot.project}]:[]),
     ...(snapshot.rollout?.current?[{kind:'deployment',id:snapshot.rollout.current,
