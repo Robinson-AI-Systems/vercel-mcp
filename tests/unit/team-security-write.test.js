@@ -43,13 +43,42 @@ describe('O-1 guarded owner team profile mutation',()=>{
    expect(r.status).toBe('needs_confirmation');expect(r.preview).toMatch(/ACCESS WIDENING/);
    expect(f.api.calls).toHaveLength(1);
  });
- it('refuses SAML, auto-join, malformed policy and caller identity',async()=>{
+ it('refuses malformed SAML, auto-join, policy and caller identity',async()=>{
    const f=fixture();
-   for(const args of [{saml:{enforced:true}},{emailDomain:'example.com'},
+   for(const args of [{saml:{enforced:'yes'}},{saml:{}},{saml:{roles:{g:'SUPERUSER'}}},
+     {saml:{roles:{g:{accessGroupId:''}}}},{emailDomain:'not a domain'},{emailDomain:'EXAMPLE.com'},
      {teamId:'team_OTHER',hideIpAddresses:true},{sensitiveEnvironmentVariablePolicy:'default'},
      {strictShareableLinks:{enabled:true,extra:true}},{hideIpAddresses:1}])
      expect(read(await f.call(args)).status).toBe('refused_by_guard');
    expect(f.api.calls).toHaveLength(0);
+ });
+ it('refuses SAML enforcement when no SAML connection exists (lockout guard)',async()=>{
+   const f=fixture();f.api.when('GET','/v2/teams/{teamId}').resolves(old);
+   const r=read(await f.call({saml:{enforced:true},confirm:true}));
+   expect(r.status).toBe('refused_by_guard');
+   expect(JSON.stringify(r)).toMatch(/no SAML connection configured/);
+   expect(f.api.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+   f.api.verify();
+ });
+ it('enforces SAML when a connection exists, with verified readback',async()=>{
+   const f=fixture();
+   const withSaml={...old,saml:{enforced:false,connection:{type:'OktaSAML',state:'active',
+     status:'ok',connectedAt:1700000000000}}};
+   const enforced={...withSaml,saml:{...withSaml.saml,enforced:true}};
+   f.api.when('GET','/v2/teams/{teamId}').resolves(withSaml).resolves(withSaml).resolves(enforced);
+   f.api.when('PATCH','/v2/teams/{teamId}').resolves(enforced);
+   expect(read(await f.call({saml:{enforced:true},confirm:true})))
+     .toMatchObject({status:'applied',confirmed:true});
+   expect(f.api.calls.find(x=>x.method==='PATCH').body).toEqual({saml:{enforced:true}});
+   f.api.verify();
+ });
+ it('warns in plain words who gains access when an email domain auto-joins',async()=>{
+   const f=fixture();f.api.when('GET','/v2/teams/{teamId}').resolves({...old,emailDomain:null});
+   const r=read(await f.call({emailDomain:'example.com'}));
+   expect(r.status).toBe('needs_confirmation');
+   expect(r.preview).toMatch(/ACCESS WIDENING: anyone with an @example\.com email/);
+   expect(f.api.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+   f.api.verify();
  });
  it('refuses stale settings and team rotation before mutation',async()=>{
    const f=fixture();f.api.when('GET','/v2/teams/{teamId}').resolves(old)
