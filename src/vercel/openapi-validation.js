@@ -193,6 +193,15 @@ export function validateRequest(id, { path = {}, query = {}, body } = {}) {
   // Skip body validation only for that documented enabling shape; the
   // disabling body keeps full validation (Batch F-2).
   if (id === 'attack_mode_update' && body?.attackModeActiveUntil !== undefined) return true;
+  // The bulk-redirect item's statusCode is oneOf [number, string]; this
+  // validator compiles with coerceTypes, so a numeric statusCode matches
+  // BOTH branches (301 and "301") and can never validate, while the string
+  // form validates. Skip body validation for the two redirect write
+  // operations only when an item carries a numeric statusCode — the wire
+  // keeps the caller's documented numeric form (Batch F-3).
+  if ((id === 'bulk_redirects_stage' || id === 'bulk_redirects_update') &&
+    [body?.redirect, ...(Array.isArray(body?.redirects) ? body.redirects : [])]
+      .some(item => typeof item?.statusCode === 'number')) return true;
   if (body === undefined) {
     if (requestBody?.required) throw new TypeError('Missing required API body');
   } else {
