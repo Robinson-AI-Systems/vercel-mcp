@@ -141,4 +141,51 @@ describe('E-3 guarded Global Config item patch and store removal',()=>{
     expect(out.status).toBe('refused_by_guard');
     expect(f.mutations()).toHaveLength(0);
   });
+  it('AUD-AC: the published item schema and the runtime validator agree on value',async()=>{
+    // The published schema must name exactly the keys the validator
+    // accepts, and its value description must state the runtime rule:
+    // required for create/update/upsert, forbidden for delete.
+    const tool=registry.tools.find(x=>x.name==='vercel_globalconfig_patch_items');
+    const itemSchema=tool.inputSchema.properties.items.items;
+    expect(itemSchema.additionalProperties).toBe(false);
+    expect(Object.keys(itemSchema.properties).sort())
+      .toEqual(['key','operation','value']);
+    expect(itemSchema.required).toEqual(['operation','key']);
+    expect(itemSchema.properties.value.description)
+      .toMatch(/Required for create, update and upsert/);
+    expect(itemSchema.properties.value.description)
+      .toMatch(/must not be supplied for delete/);
+    expect(itemSchema.properties.value.description).toMatch(/8192/);
+    const published=listMcpTools(registry,conn)
+      .find(x=>x.name==='vercel_globalconfig_patch_items');
+    expect(published.inputSchema.properties.items.items)
+      .toEqual(itemSchema);
+    // Validator verdicts match the published rule, operation by operation:
+    // a missing value refuses for create/update/upsert; a supplied value
+    // refuses for delete; delete without a value is the one that proceeds.
+    for(const operation of ['create','update','upsert']){
+      const f=fixture(row,{});
+      const out=parse(await f.call('vercel_globalconfig_patch_items',
+        {...core,items:[{operation,key:'NEW_FLAG'}]}));
+      expect(out.status).toBe('refused_by_guard');
+      expect(f.mutations()).toHaveLength(0);
+    }
+    const withValue=fixture();
+    expect(parse(await withValue.call('vercel_globalconfig_patch_items',
+      {...core,items:[{operation:'delete',key:'FLAG',value:'enabled'}]}))
+      .status).toBe('refused_by_guard');
+    expect(withValue.mutations()).toHaveLength(0);
+    const del=fixture();
+    del.fake.when('PATCH','/v1/global-config/{edgeConfigId}/items')
+      .resolves({});
+    del.fake.when('GET','/v1/global-config/{edgeConfigId}')
+      .resolves(row).resolves(row).resolves({...row,updatedAt:101});
+    del.fake.when('GET','/v1/global-config/{edgeConfigId}/items')
+      .resolves({items:{FLAG:'disabled'}})
+      .resolves({items:{FLAG:'disabled'}}).resolves({items:{}});
+    const out=parse(await del.call('vercel_globalconfig_patch_items',
+      {...core,items:[{operation:'delete',key:'FLAG'}]}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(del.mutations()).toHaveLength(1);
+  });
 });

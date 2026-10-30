@@ -75,8 +75,20 @@ export function listRows(page,team){
     ids.add(item.id);slugs.add(item.slug);return item;
   });
   const next=page?.pagination?.next;
-  // A raw array is a bounded presentation, not a proof of completeness.
-  const verified=Boolean(page?.pagination&&next===null);
+  // AUD-AC completeness rule (dossier: globalconfig-create-dossier):
+  // the pinned contract for GET /v1/global-config documents the 200
+  // response as the bare array of ALL stores — no envelope, no
+  // pagination parameters — and the live response (2026-10-30) carries
+  // no pagination block either. So an inventory with no pagination
+  // block IS the whole inventory, duplicate-checked and under the
+  // 100-row bound above; at exactly the bound a silent provider cap
+  // is indistinguishable from a genuine 100, so only an explicit
+  // pagination end (next === null) certifies there. A pagination
+  // block whose next is anything else never certifies.
+  const paginated=page!==null&&typeof page==='object'&&
+    !Array.isArray(page)&&page.pagination!==undefined&&
+    page.pagination!==null;
+  const verified=paginated?next===null:rows.length<100;
   return {rows,complete:verified,next:typeof next==='number'&&
     Number.isSafeInteger(next)&&next>0?next:null};
 }

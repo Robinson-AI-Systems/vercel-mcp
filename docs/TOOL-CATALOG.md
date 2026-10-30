@@ -210,7 +210,7 @@ names, targets, kind (Config/Secret), branch and dates come out.
 | `vercel_globalconfig_create` | New store | P | B | E | — | E-3 (source candidate; native provider pending) |
 | `vercel_globalconfig_delete` | Delete a store (refused while connected to a live project unless confirmed as production) | D Cp | O | F | y | E-3 (guarded source candidate; provider pending) |
 | `vercel_globalconfig_list_items` | Items in a store (keys and values; values are configuration, key-shaped strings hidden) | — | B Op | R | — | E-3 (source candidate; native provider pending) |
-| `vercel_globalconfig_patch_items` | Create, update or delete items in one batch (live projects read them immediately) | Cp | B Op | E | y | E-3 (guarded source candidate; provider pending) |
+| `vercel_globalconfig_patch_items` | Create, update or delete items in one batch (live projects read them immediately); the published item schema states the `value` contract — required for create/update/upsert, forbidden for delete, plain-JSON limits (AUD-AC) | Cp | B Op | E | y | E-3 (guarded source candidate; provider pending) |
 | `vercel_globalconfig_create_token` | Read token for a store, shown once on the setup page | C A 1x | B | F | — | E-3 (guarded source candidate; native TEST pending) |
 | `vercel_globalconfig_restore_backup` | Restore a store to a backup version (newest before a time, or by version) | Cp | Op | E | y | E-3 (guarded source candidate; native TEST pending) |
 | `vercel_globalconfig_list_tokens` | Read tokens of a store: label, ID, created — never the token itself | — | B O | R | — | E-4 (source candidate; native TEST pending) |
