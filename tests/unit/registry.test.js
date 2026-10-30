@@ -29,7 +29,10 @@ describe('tool registry', () => {
       'vercel_firewall_restore_version','vercel_firewall_set_attack_mode','vercel_route_list',
       'vercel_redirect_list','vercel_route_stage','vercel_redirect_stage',
       'vercel_route_publish','vercel_redirect_publish','vercel_redirect_restore',
-      'vercel_cache_invalidate']);
+      'vercel_cache_invalidate',
+      'vercel_dns_list','vercel_dns_get_record','vercel_dns_create_record',
+      'vercel_dns_update_record','vercel_dns_delete_record','vercel_dns_replace_zone',
+      'vercel_cert_list','vercel_cert_issue','vercel_cert_remove']);
     expect(registry.tools.filter(x=>x.writes===true && x.guardedWrite===true).map(x=>x.name))
       .toEqual(['vercel_project_create', 'vercel_project_update_settings', 'vercel_project_add_member', 'vercel_project_remove_member', 'vercel_project_pause', 'vercel_project_unpause', 'vercel_project_delete','vercel_project_transfer','vercel_project_set_build_resources','vercel_rolling_update_config','vercel_rolling_start','vercel_rolling_approve_stage','vercel_rolling_complete','vercel_deploy_promote','vercel_deploy_rollback','vercel_alias_assign','vercel_alias_delete','vercel_deploy_cancel','vercel_deploy_delete','vercel_deploy_redeploy','vercel_deploy_create_from_git','vercel_deploy_create_from_files','vercel_shared_env_set','vercel_shared_env_delete','vercel_globalconfig_create','vercel_globalconfig_patch_items','vercel_globalconfig_delete','vercel_globalconfig_create_token','vercel_globalconfig_restore_backup','vercel_globalconfig_revoke_tokens','vercel_globalconfig_set_schema','vercel_environment_create','vercel_environment_update','vercel_environment_delete','vercel_env_set','vercel_env_delete','vercel_env_copy','vercel_env_set_many','vercel_env_delete_many','vercel_team_update_profile','vercel_team_create','vercel_team_delete', 'vercel_team_update_security', 'vercel_team_set_default_protection','vercel_api_write','vercel_dev_seed','vercel_dev_cleanup','vercel_dev_preview_branch','vercel_dev_wire_preview_env','vercel_dev_alias_preview','vercel_dev_create_bypass','vercel_dev_send_test_webhook',
       'vercel_dev_sandbox_create','vercel_dev_sandbox_run','vercel_dev_sandbox_write_files',
@@ -47,7 +50,9 @@ describe('tool registry', () => {
       'vercel_firewall_set_managed_rules','vercel_firewall_block_ip','vercel_firewall_unblock_ip',
       'vercel_firewall_restore_version','vercel_firewall_set_attack_mode','vercel_route_stage',
       'vercel_redirect_stage','vercel_route_publish','vercel_redirect_publish',
-      'vercel_redirect_restore','vercel_cache_invalidate']);
+      'vercel_redirect_restore','vercel_cache_invalidate',
+      'vercel_dns_create_record','vercel_dns_update_record','vercel_dns_delete_record',
+      'vercel_dns_replace_zone','vercel_cert_issue','vercel_cert_remove']);
   });
   it('refuses fabricated routine-write contracts and unbound handlers', () => {
     const tool={name:'vercel_fake_mutation',writes:true,guardedWrite:true,
