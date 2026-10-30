@@ -12,6 +12,7 @@ import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
 import {inspectPassRequest,consumePassRequest} from './pass-requests.js';
+import {BLOB_CONTEXT} from './blob.js';
 import {registry} from '../tools/index.js';
 import { inspectOwnerAccountChange, consumeOwnerAccountChange,
   applyApprovedOwnerAccountChange } from './owner-approvals.js';
@@ -99,7 +100,11 @@ function ownerRequestSummary(req) {
   return 'Revoke connector '+req.connectionRef+' from '+req.issuerAccount+
     ' (subject to last-active protection)';
 }
-function panel(accounts, csrf, message = '', connections = []) {
+async function blobStoresOf(db) {
+  if (typeof db?.listBlobStoreConnections !== 'function') return [];
+  try { return await db.listBlobStoreConnections(); } catch { return []; }
+}
+function panel(accounts, csrf, message = '', connections = [], blobStores = []) {
   const options = accounts.map(a => '<option value="' + escapeHtml(a.id) + '">' +
     escapeHtml(a.label) + '</option>').join('');
   // AUD-E (D-E/VMCP-003/IN-04): each account row states its token expiry
@@ -142,6 +147,29 @@ function panel(accounts, csrf, message = '', connections = []) {
     '<label>Vercel token<input name="token" type="password" required autocomplete="off"></label>' +
     '<label><input type="checkbox" name="allowFull" value="yes">Allow broader account-visible token (explicit owner choice)</label>' +
     '<button type="submit">Verify and save encrypted token</button></form></section>' +
+    '<section><h2>Blob stores</h2>' +
+    '<p>Blob file tools work on stores connected here (IN-15: an unconnected store is a state, not a rule). ' +
+    'Find the store ID and its read-write token in the Vercel dashboard under Storage → the store → Settings. ' +
+    'The token is stored encrypted, is never shown again, and is used only by the Blob tools for this store. ' +
+    'Stores reachable only through a project OIDC token cannot be connected in this version.</p>' +
+    (blobStores.length ? '<ul>' + blobStores.map(s =>
+      '<li>' + escapeHtml(s.label) + ' — ' + escapeHtml(s.storeId) + ' — ' +
+      escapeHtml(s.access) + ' — token …' + escapeHtml(s.tokenLast4) +
+      ' <form method="post" style="display:inline">' + csrfInput(csrf) +
+      '<input type="hidden" name="action" value="disconnect_blob_store">' +
+      '<input type="hidden" name="account" value="' + escapeHtml(s.account) + '">' +
+      '<input type="hidden" name="storeId" value="' + escapeHtml(s.storeId) + '">' +
+      '<label><input type="checkbox" name="confirm" value="yes" required>Disconnect</label>' +
+      '<button type="submit">Remove connection</button></form></li>').join('') + '</ul>'
+      : '<p>No Blob stores connected yet.</p>') +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="connect_blob_store">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Store ID<input name="storeId" required autocomplete="off"></label>' +
+    '<label>Label<input name="label" required autocomplete="off"></label>' +
+    '<label>Access<select name="access"><option value="public">public</option><option value="private">private</option></select></label>' +
+    '<label>Read-write token<input name="token" type="password" required autocomplete="off"></label>' +
+    '<button type="submit">Connect store</button></form></section>' +
     '<section><h2>Default account for new connections (owner only)</h2>' +
     '<p>This account appears first for new connections. Existing connections keep their team, profile and mode. ' +
     'This setting changes the server database, not any real Vercel resource. Disabled on preview deployments.</p>' +
@@ -389,7 +417,7 @@ export async function handleSetup(req, res, {
     if (!session) return html(res, 200, 'Administrator sign in', loginForm());
     const accounts = await db.listVercelAccounts();
     return html(res, 200, 'Vercel account setup', panel(accounts, session.csrf,
-      '', await connectionChoices(db, accounts)));
+      '', await connectionChoices(db, accounts), await blobStoresOf(db)));
 
   }
   let params;
@@ -969,12 +997,47 @@ export async function handleSetup(req, res, {
       // Display to the authenticated owner exactly once; no token leaves via MCP.
       return html(res, 200, 'One-time secret', '<p>Copy this value now. It cannot be viewed again.</p>' +
         '<pre>' + escapeHtml(one.value) + '</pre>');
+    } else if (params.action === 'connect_blob_store') {
+      // M-4: credential enrollment, same bar as add_token — owner
+      // session + CSRF (enforced above); the token is encrypted under
+      // its (account, store) context and never rendered back.
+      const account = String(params.account || '');
+      const storeId = String(params.storeId || '').trim();
+      const label = String(params.label || '').trim();
+      const access = params.access === 'private' ? 'private' : 'public';
+      const token = String(params.token || '');
+      if (!accounts.some(a => a.id === account)) {
+        return html(res, 400, 'Invalid account', '<p>Choose a connected account.</p>');
+      }
+      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(storeId) || !label || label.length > 200) {
+        return html(res, 400, 'Invalid store', '<p>Give the store ID and a label.</p>');
+      }
+      if (!token.startsWith('vercel_blob_rw_') || token.length < 24) {
+        return html(res, 400, 'Invalid token', '<p>That does not look like a Blob read-write token (it starts with vercel_blob_rw_).</p>');
+      }
+      const ciphertext = encryptSecret(token, BLOB_CONTEXT(account, storeId), env);
+      await db.insertBlobStoreConnection({ account, storeId, label, access,
+        ciphertext, tokenLast4: token.slice(-4) });
+      message = 'Blob store ' + storeId + ' connected as ' + label +
+        '; its token is stored encrypted and will not be shown again.';
+    } else if (params.action === 'disconnect_blob_store') {
+      const account = String(params.account || '');
+      const storeId = String(params.storeId || '').trim();
+      if (params.confirm !== 'yes') {
+        return html(res, 403, 'Permission denied', '<p>Tick the disconnect box to remove a store connection.</p>');
+      }
+      const removed = typeof db.deleteBlobStoreConnection === 'function' &&
+        await db.deleteBlobStoreConnection({ account, storeId });
+      message = removed
+        ? 'Blob store ' + storeId + ' disconnected; its stored token was deleted. Files in the store were not touched.'
+        : 'That Blob store connection was not found.';
     } else {
       return html(res, 400, 'Invalid form', '<p>Unknown operation.</p>');
     }
     const updated = await db.listVercelAccounts();
     return html(res, 200, 'Vercel account setup',
-      panel(updated, session.csrf, message, await connectionChoices(db, updated)));
+      panel(updated, session.csrf, message, await connectionChoices(db, updated),
+        await blobStoresOf(db)));
 
   } catch (err) {
     // AUD-F (VMCP-022): a probe-originated failure names its leg — the leg

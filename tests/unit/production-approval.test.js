@@ -177,7 +177,8 @@ describe('B-2 production permission (AUD-B: word default, passphrase strictness)
       'vercel_firewall_set_managed_rules','vercel_firewall_block_ip','vercel_firewall_unblock_ip',
       'vercel_firewall_restore_version','vercel_firewall_set_attack_mode','vercel_route_stage',
       'vercel_redirect_stage','vercel_route_publish','vercel_redirect_publish',
-      'vercel_redirect_restore','vercel_cache_invalidate']);
+      'vercel_redirect_restore','vercel_cache_invalidate','vercel_blob_put',
+      'vercel_blob_delete']);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
     // The test runner is not a production Vercel deployment, so the
     // exposed tool must refuse even an eligible full-profile caller.
