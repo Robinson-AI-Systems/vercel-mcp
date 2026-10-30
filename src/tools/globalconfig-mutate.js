@@ -27,7 +27,12 @@ const patchProps={
     properties:{
       operation:{type:'string',enum:[...OPS]},
       key:{type:'string',pattern:KEY.source},
-      value:{}
+      // AUD-AC: the published schema states the runtime validator's
+      // contract (validItems/safeJson below) — previously value was an
+      // empty schema, so the conditional requirement was unlearnable
+      // from the published shape. Schema<->validator agreement is
+      // pinned by tests/unit/globalconfig-mutate.test.js.
+      value:{description:'The item value as plain JSON. Required for create, update and upsert; must not be supplied for delete. Strings and object keys must not be credential-shaped and must not contain control characters; numbers must be finite; nesting is limited to 8 levels with at most 100 entries per array or object; the serialized value must be at most 8192 bytes.'}
     }
   }}
 };

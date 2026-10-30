@@ -27,8 +27,11 @@ function fixture(initial=[record]){
       release:async({key})=>{pending.delete(key);return true;}
     })};
   loadToken.mockResolvedValue(token);
+  // AUD-AC: the documented list contract (vendored snapshot: 200 = a bare
+  // array, "List of all Global Configs", no pagination parameters) and the
+  // shape captured live 2026-10-30 — the array itself, no pagination block.
   fake.when('GET','/v1/global-config')
-    .resolves({data:initial,pagination:{next:null}});
+    .resolves(initial);
   fake.when('GET','/v1/global-config/{edgeConfigId}')
     .resolves(record);
   fake.when('GET','/v1/global-config/{edgeConfigId}/items')
@@ -57,7 +60,7 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
     expect(validateRequest('global_config_create',{query:{teamId:team},
       body:{slug:'new-fake-store'}})).toBe(true);
   });
-  it('lists bounded store metadata with no tokens or fictitious completion',async()=>{
+  it('lists bounded store metadata with no tokens; the documented bare array certifies completeness',async()=>{
     const f=fixture();
     const result=parse(await f.call('vercel_globalconfig_list'));
     expect(result).toMatchObject({teamScoped:true,complete:true,shown:1,
@@ -67,10 +70,30 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
     expect(f.fake.calls[0]).toMatchObject({path:'/v1/global-config',
       query:{teamId:team}});
     f.fake.verify();
-    const unpaged=fixture();
-    unpaged.fake.when('GET','/v1/global-config').resolves([record]);
-    expect(parse(await unpaged.call('vercel_globalconfig_list'))
-      .complete).toBe(false);
+    // AUD-AC: every non-paginated shape the provider returns certifies —
+    // the bare array (documented + live), an envelope without a pagination
+    // block, and an envelope whose pagination explicitly ends (next:null).
+    for(const page of [
+      [record],
+      {data:[record]},
+      {edgeConfigs:[record]},
+      {data:[record],pagination:{next:null}}
+    ]){
+      const v=fixture();
+      v.fake.when('GET','/v1/global-config').resolves(page);
+      expect(parse(await v.call('vercel_globalconfig_list'))
+        .complete).toBe(true);
+    }
+    // A pagination block that does not end the inventory never certifies.
+    for(const page of [
+      {data:[record],pagination:{next:99}},
+      {data:[record],pagination:{}}
+    ]){
+      const v=fixture();
+      v.fake.when('GET','/v1/global-config').resolves(page);
+      expect(parse(await v.call('vercel_globalconfig_list'))
+        .complete).toBe(false);
+    }
   });
   it('returns projected Config item values but redacts credential-shaped strings',async()=>{
     const f=fixture();
@@ -165,10 +188,46 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
   it('refuses concurrent slug collision at pre-dispatch proof without a provider write',async()=>{
     const f=fixture([]);
     f.fake.when('GET','/v1/global-config')
-      .resolves({data:[],pagination:{next:null}})
-      .resolves({data:[{...record,slug:args.slug}],pagination:{next:null}});
+      .resolves([])
+      .resolves([{...record,slug:args.slug}]);
     const out=parse(await f.call('vercel_globalconfig_create',args));
     expect(out.status).toBe('refused_by_guard');
     expect(changes(f)).toHaveLength(0);
+  });
+  it('AUD-AC: creates against the live-shaped list (bare empty array, no pagination block)',async()=>{
+    // The exact shape that refused live on 2026-10-30 (VMCP-010 probe):
+    // the team's list is a bare [] with no pagination block anywhere.
+    const f=fixture([]);
+    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',teamId:team,
+      connectedProjects:[],itemCount:0};
+    f.fake.when('POST','/v1/global-config').resolves(newStore);
+    f.fake.when('GET','/v1/global-config/{edgeConfigId}').resolves(newStore);
+    const out=parse(await f.call('vercel_globalconfig_create',args));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(changes(f)).toHaveLength(1);
+  });
+  it('AUD-AC: a full-bound inventory without an explicit pagination end still refuses create',async()=>{
+    // At exactly the 100-row bound with no pagination.next === null, a
+    // silent provider cap is indistinguishable from a genuine 100, so
+    // slug uniqueness is unprovable and the refusal must stay.
+    const full=Array.from({length:100},(_,i)=>({...
+      record,id:'ecfg_FAKE_'+i,slug:'store-'+i}));
+    const f=fixture(full);
+    expect(parse(await f.call('vercel_globalconfig_create',args)).status)
+      .toBe('refused_by_guard');
+    expect(changes(f)).toHaveLength(0);
+    // The same 100 rows WITH pagination.next === null certify: create plans.
+    const certified=fixture([]);
+    certified.fake.when('GET','/v1/global-config')
+      .resolves({data:full,pagination:{next:null}});
+    const newStore={id:'ecfg_FAKE_NEW',slug:'new-fake-store',teamId:team,
+      connectedProjects:[],itemCount:0};
+    certified.fake.when('POST','/v1/global-config').resolves(newStore);
+    certified.fake.when('GET','/v1/global-config/{edgeConfigId}')
+      .resolves(newStore);
+    const dry=parse(await certified.call('vercel_globalconfig_create',
+      {...args,confirm:false,dryRun:true,requestKey:'globalConfigFake02'}));
+    expect(dry.status).toBe('preview');
+    expect(changes(certified)).toHaveLength(0);
   });
 });
