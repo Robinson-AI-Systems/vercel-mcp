@@ -38,9 +38,14 @@ describe('B-3 protected-resource guard',()=>{
       {db:{listProtectedResources:async()=>{throw Error('offline');}},connection:{account:'team_FAKE'}});
     expect(denied.blocked).toBe(true);
   });
-  it('allows known unprotected projects and keeps pre-profile hook stable',async()=>{
+  it('allows known unprotected projects; the profile hook fails closed without data (P-1)',async()=>{
     expect(block([{kind:'project',id:'prj_ALLOWED'}])).toEqual({blocked:false});
-    expect((await checkApp([{kind:'project',id:'prj_ALLOWED'}],{})).blocked).toBe(false);
+    // B-3's stub allowed because no profiles could exist. Since P-1 the
+    // hook enforces real profiles, so — like checkProtected — it refuses
+    // when profile data is unavailable rather than silently allowing.
+    expect((await checkApp([{kind:'project',id:'prj_ALLOWED'}],{})).blocked).toBe(true);
+    const noProfiles={db:{listKnownApps:async()=>[]},connection:{account:'team_FAKE'}};
+    expect((await checkApp([{kind:'project',id:'prj_ALLOWED'}],noProfiles)).blocked).toBe(false);
   });
   it('exposes the protected list as read-only, excluding internal secrets',async()=>{
     const db={listProtectedResources:async()=>rules.map(r=>({...r,source:'default',token_enc:'must_not_leak'}))};
