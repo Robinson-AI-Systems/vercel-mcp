@@ -140,6 +140,15 @@ export const OPS = Object.freeze({
   // is actually granted (integration-configuration scope), unlike the
   // teams list it cannot call.
   integrations_configuration_get: Object.freeze({ method: 'GET', path: '/v1/integrations/configuration/{id}' }),
+  integrations_configurations_list: Object.freeze({ method: 'GET', path: '/v1/integrations/configurations' }),
+  integrations_configuration_delete: Object.freeze({ method: 'DELETE', path: '/v1/integrations/configuration/{id}' }),
+  installations_resources_list: Object.freeze({ method: 'GET', path: '/v1/installations/{integrationConfigurationId}/resources' }),
+  installations_resource_connect: Object.freeze({ method: 'POST', path: '/v1/integrations/installations/{integrationConfigurationId}/resources/{resourceId}/connections' }),
+  integration_product_plans: Object.freeze({ method: 'GET', path: '/v1/integrations/integration/{integrationIdOrSlug}/products/{productIdOrSlug}/plans' }),
+  storage_store_get: Object.freeze({ method: 'GET', path: '/storage/stores/{id}', teamScoped: false }),
+  storage_blob_create: Object.freeze({ method: 'POST', path: '/storage/stores/blob', teamScoped: false }),
+  storage_blob_delete: Object.freeze({ method: 'DELETE', path: '/storage/stores/blob/{id}', teamScoped: false }),
+  storage_integration_direct_create: Object.freeze({ method: 'POST', path: '/v1/storage/stores/integration/direct' }),
   git_namespaces: Object.freeze({ method: 'GET', path: '/v1/integrations/git-namespaces', teamScoped: false }),
   git_repos_search: Object.freeze({ method: 'GET', path: '/v1/integrations/search-repo' }),
   projects_create: Object.freeze({ method: 'POST', path: '/v11/projects' }),

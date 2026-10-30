@@ -169,15 +169,15 @@ describe('B-2 production permission (AUD-B: word default, passphrase strictness)
       'vercel_domain_verify_project_domain','vercel_analytics_set_web_analytics',
       'vercel_analytics_set_speed_insights','vercel_drain_create','vercel_drain_delete',
       'vercel_drain_update','vercel_drain_test','vercel_webhook_create',
-      'vercel_webhook_delete',
-      'vercel_protection_set_vercel_auth',
-      'vercel_protection_set_password','vercel_protection_set_trusted_ips',
-      'vercel_protection_create_bypass','vercel_protection_revoke_bypass',
-      'vercel_alias_set_shareable_link','vercel_firewall_add_rule','vercel_firewall_update_rule',
-      'vercel_firewall_remove_rule','vercel_firewall_set_managed_rules','vercel_firewall_block_ip',
-      'vercel_firewall_unblock_ip','vercel_firewall_restore_version','vercel_firewall_set_attack_mode',
-      'vercel_route_stage','vercel_redirect_stage','vercel_route_publish',
-      'vercel_redirect_publish','vercel_redirect_restore','vercel_cache_invalidate']);
+      'vercel_webhook_delete','vercel_integration_remove','vercel_integration_connect_resource',
+      'vercel_integration_create_store','vercel_storage_create_blob_store','vercel_storage_delete_blob_store',
+      'vercel_protection_set_vercel_auth','vercel_protection_set_password','vercel_protection_set_trusted_ips',
+      'vercel_protection_create_bypass','vercel_protection_revoke_bypass','vercel_alias_set_shareable_link',
+      'vercel_firewall_add_rule','vercel_firewall_update_rule','vercel_firewall_remove_rule',
+      'vercel_firewall_set_managed_rules','vercel_firewall_block_ip','vercel_firewall_unblock_ip',
+      'vercel_firewall_restore_version','vercel_firewall_set_attack_mode','vercel_route_stage',
+      'vercel_redirect_stage','vercel_route_publish','vercel_redirect_publish',
+      'vercel_redirect_restore','vercel_cache_invalidate']);
     const r=await dispatchReadOnlyTool({registry,name:'vercel_enable_production',args:{dryRun:true},connection:conn,db});
     // The test runner is not a production Vercel deployment, so the
     // exposed tool must refuse even an eligible full-profile caller.
