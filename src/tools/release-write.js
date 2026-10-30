@@ -1,5 +1,5 @@
 // D-4: explicit production-only promotion and verified historical rollback.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -29,17 +29,17 @@ function valid(args){
         !/^[A-Za-z0-9 .,;:!()?/_-]*$/.test(args.reason))||
     args.requestKey!==undefined&&
       !/^[A-Za-z0-9_-]{8,128}$/.test(args.requestKey))
-    throw new TypeError('Exact project, target and observed current production revision required');
+    throw new RefusalError('Exact project, target and observed current production revision required');
 }
 async function candidate(a,ctx,mode){
   valid(a);
   if(ctx.connection?.profile!=='full')
-    throw new TypeError('Production traffic changes need full profile');
+    throw new RefusalError('Production traffic changes need full profile');
   const scoped=await projectContext(a,ctx);
   const aliases=await ownedAliases(scoped,scoped.project);
   const current=currentDeployment(aliases);
   if(current!==a.expectedCurrent||current===a.deployment)
-    throw new TypeError('Current production routing changed since owner preview');
+    throw new RefusalError('Current production routing changed since owner preview');
   const target=await targetDeployment({...ctx,account:scoped.account},
     scoped.project,a.deployment);
   const old=await targetDeployment({...ctx,account:scoped.account},
@@ -48,9 +48,9 @@ async function candidate(a,ctx,mode){
     // A ready but never serving build is not an eligible rollback target.
     if(target.servedAt===null||target.createdAt===null||old.createdAt===null||
       target.createdAt>=old.createdAt)
-      throw new TypeError('Rollback target was not a prior serving production build');
+      throw new RefusalError('Rollback target was not a prior serving production build');
   }else if(target.servedAt!==null){
-    throw new TypeError('Previously promoted deployments must use rollback, not promote');
+    throw new RefusalError('Previously promoted deployments must use rollback, not promote');
   }
   return {project:scoped.project,teamId:scoped.account.team_id,
     mode,current,target:a.deployment,aliases,commit:target.commit,

@@ -1,5 +1,5 @@
 // V-2 branch previews: exact linked Git identity and a metered build fail-closed under IN-08.
-import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {common,exact,owned,safeBranch,noPreview,SHA,DEPLOY,context,respond,
@@ -15,13 +15,13 @@ const branch=defineWrite({
     exact(a,props,schema.required);
     if(!safeBranch(a.gitRef)||!SHA.test(a.gitSha)||
        noPreview(a.gitRef,a.outsideApp))
-      throw new TypeError('Prohibited no-preview branch or ambiguous commit reference');
+      throw new RefusalError('Prohibited no-preview branch or ambiguous commit reference');
     const b=await owned(a,ctx);
     const {client}=await readProvider(ctx);
     const row=await client.request('projects_get',{path:{idOrName:b.project}});
     const git=row?.link;
     if(git?.type!=='github'||!REPO.test(git.org??'')||!REPO.test(git.repo??''))
-      throw new TypeError('Project must have verified linked GitHub origin');
+      throw new RefusalError('Project must have verified linked GitHub origin');
     const body={name:b.name,project:b.name,target:'preview',
       gitSource:{type:'github',org:git.org,repo:git.repo,ref:a.gitRef,sha:a.gitSha},
       meta:{rtc_run:b.runId}};

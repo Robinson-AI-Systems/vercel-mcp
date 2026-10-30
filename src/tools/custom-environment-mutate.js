@@ -1,6 +1,6 @@
 // E-2: exact custom-environment update and irreversible removal.
 // Nonproduction-only, with no domains/deployment aliases and safe provider rechecks.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {scope,context,PROJECT,NAME,SLUG,BRANCH,ENV,RESERVED} from './custom-environment-create.js';
@@ -37,14 +37,14 @@ function valid(a,change=false){
     a.outsideApp!==true||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
-    throw new TypeError('Exact custom environment identity and revision required');
+    throw new RefusalError('Exact custom environment identity and revision required');
   if(change){
     if(a.slug===undefined&&a.branch===undefined&&a.description===undefined)
-      throw new TypeError('An explicit environment change is required');
-    if(a.slug!==undefined&&(!SLUG.test(a.slug)||RESERVED.has(a.slug)))throw new TypeError('Invalid next slug');
-    if(a.branch!==undefined&&!goodBranch(a.branch))throw new TypeError('Invalid next branch');
+      throw new RefusalError('An explicit environment change is required');
+    if(a.slug!==undefined&&(!SLUG.test(a.slug)||RESERVED.has(a.slug)))throw new RefusalError('Invalid next slug');
+    if(a.branch!==undefined&&!goodBranch(a.branch))throw new RefusalError('Invalid next branch');
     if(a.description!==undefined&&(!safeDescription(a.description)))
-      throw new TypeError('Unsafe environment description');
+      throw new RefusalError('Unsafe environment description');
   }
 }
 function goodBranch(branch){
@@ -68,7 +68,7 @@ async function getExact(client,project,id,a,productionBranch){
     !Array.isArray(r.currentDeploymentAliases)||
     r.currentDeploymentAliases.length!==0||
     (r.projectId!=null&&r.projectId!==project))
-    throw new TypeError('Custom environment revision, branch or emptiness changed');
+    throw new RefusalError('Custom environment revision, branch or emptiness changed');
   return r;
 }
 function proposed(a){
@@ -82,17 +82,17 @@ async function conflicts(client,project,id,slug,branch){
   const rows=Array.isArray(page)?page:page?.environments;
   // An incomplete or oversized inventory cannot prove no collision.
   if(!Array.isArray(rows)||rows.length>100||page?.pagination?.next)
-    throw new TypeError('Cannot verify custom environment uniqueness');
+    throw new RefusalError('Cannot verify custom environment uniqueness');
   const seen=new Set();
   for(const r of rows){
     if(!r||!ENV.test(r.id??'')||!SLUG.test(r.slug??'')||
-      seen.has(r.id))throw new TypeError('Unverified custom environment inventory');
+      seen.has(r.id))throw new RefusalError('Unverified custom environment inventory');
     seen.add(r.id);
     if(r.id!==id&&(r.slug===slug||
       r.branchMatcher?.type==='equals'&&r.branchMatcher.pattern===branch))
-      throw new TypeError('Another environment owns the requested slug or branch');
+      throw new RefusalError('Another environment owns the requested slug or branch');
   }
-  if(!seen.has(id))throw new TypeError('Selected environment missing from inventory');
+  if(!seen.has(id))throw new RefusalError('Selected environment missing from inventory');
 }
 async function state(args,ctx,change){
   valid(args,change);
@@ -100,11 +100,11 @@ async function state(args,ctx,change){
   const row=await getExact(client,args.project,args.id,args,productionBranch);
   const next=change?proposed(args):{slug:args.expectedSlug,branch:args.expectedBranch};
   if(next.branch===productionBranch)
-    throw new TypeError('Cannot attach a custom environment to production');
+    throw new RefusalError('Cannot attach a custom environment to production');
   if(change){
     if(next.slug===row.slug&&next.branch===row.branchMatcher.pattern&&
       (args.description===undefined||args.description===(row.description??'')))
-      throw new TypeError('No change to the selected custom environment');
+      throw new RefusalError('No change to the selected custom environment');
     await conflicts(client,args.project,args.id,next.slug,next.branch);
   }
   if(!change)await conflicts(client,args.project,args.id,row.slug,row.branchMatcher.pattern);
@@ -170,7 +170,7 @@ const remove=defineWrite({
   name:'vercel_environment_delete',
   async before(a,ctx){
     if(ctx.connection?.profile!=='full')
-      throw new TypeError('Full owner profile required for irreversible environment removal');
+      throw new RefusalError('Full owner profile required for irreversible environment removal');
     return state(a,ctx,false);
   },
   async preview(_a,_ctx,b){return 'IRREVERSIBLY remove isolated custom environment '+b.slug+

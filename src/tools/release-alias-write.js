@@ -1,6 +1,6 @@
 // D-4 alias administration: exact previously routed project domains only.
 // Domain removals and assignment both affect traffic and are always production.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -27,19 +27,19 @@ function validate(a,mode){
     a.outsideApp!==true||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
-    throw new TypeError('Exact alias, existing deployment and separate owner intent required');
+    throw new RefusalError('Exact alias, existing deployment and separate owner intent required');
 }
 async function before(a,ctx,mode){
   validate(a,mode);
-  if(ctx.connection?.profile!=='full')throw new TypeError('Alias traffic change requires full profile');
+  if(ctx.connection?.profile!=='full')throw new RefusalError('Alias traffic change requires full profile');
   const {client,account,project}=await projectContext(a,ctx);
   const aliases=await ownedAliases({client,account},project);
   const current=aliases.find(row=>row.domain===a.alias);
   if(!current||current.id!==a.aliasId||current.deployment!==a.expectedCurrent)
-    throw new TypeError('Alias ID, domain or currently serving deployment changed');
+    throw new RefusalError('Alias ID, domain or currently serving deployment changed');
   const initial=await targetDeployment({...ctx,account},project,a.expectedCurrent);
   if(initial.id!==a.expectedCurrent)
-    throw new TypeError('Current alias deployment not verified');
+    throw new RefusalError('Current alias deployment not verified');
   if(mode==='assign')await targetDeployment({...ctx,account},project,a.deployment);
   return {project,teamId:account.team_id,alias:a.alias,
     aliasId:a.aliasId,current:a.expectedCurrent,

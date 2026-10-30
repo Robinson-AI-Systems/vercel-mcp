@@ -1,5 +1,5 @@
 // D-3: cancel only a verified, unfinished preview deployment.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {scopedDeployment} from './deployments.js';
 import {writeProvider,readProvider} from '../vercel/provider.js';
@@ -21,24 +21,24 @@ function checkArgs(args){
      typeof args.deployment!=='string'||!ID.test(args.deployment)||
      args.dryRun!==undefined&&typeof args.dryRun!=='boolean'||
      args.confirm!==undefined&&typeof args.confirm!=='boolean')
-    throw new TypeError('Invalid preview deployment cancellation request');
+    throw new RefusalError('Invalid preview deployment cancellation request');
 }
 function previewOnly(row){
   if(!row||typeof row!=='object'||Array.isArray(row)||
      !Object.hasOwn(row,'target')||
      !(row.target===null||row.target==='preview'))
-    throw new TypeError('Unknown or production deployment target cannot be canceled');
+    throw new RefusalError('Unknown or production deployment target cannot be canceled');
 }
 function identity(row,expected){
   if(row?.uid!=null&&row?.id!=null&&row.uid!==row.id ||
      row?.uid!==expected.id && row?.id!==expected.id)
-    throw new TypeError('Deployment identity changed');
+    throw new RefusalError('Deployment identity changed');
   if(row.projectId!==expected.project||
      row.project?.id!=null&&row.project.id!==expected.project)
-    throw new TypeError('Deployment ownership changed');
+    throw new RefusalError('Deployment ownership changed');
   previewOnly(row);
   if((row.readyState??row.state)!==expected.state)
-    throw new TypeError('Deployment state changed since preview');
+    throw new RefusalError('Deployment state changed since preview');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -58,7 +58,7 @@ const cancel=defineWrite({
     const expected={id:verified.id,project,state:verified.state};
     identity(row,expected);
     if(!STATES.has(verified.state)&&verified.state!=='CANCELED')
-      throw new TypeError('Only in-progress or already-canceled previews can be canceled');
+      throw new RefusalError('Only in-progress or already-canceled previews can be canceled');
     return expected;
   },
   async preview(_args,_ctx,before){

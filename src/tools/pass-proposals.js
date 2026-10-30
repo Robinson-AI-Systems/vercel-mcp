@@ -1,5 +1,5 @@
 // A direct MCP owner operation proposes a pass; it never issues a bearer.
-import {defineWrite} from '../core/write.js';
+import {defineWrite, RefusalError } from '../core/write.js';
 import {ownerWriteContext} from './owner-proposals.js';
 import {passScope,requestPass,inspectPassRequest} from '../vercel/pass-requests.js';
 const props={mode:{type:'string',enum:['preview','test']},hours:{type:'integer',minimum:1,maximum:720},
@@ -13,9 +13,9 @@ const proposal=defineWrite({
    if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).some(k=>!Object.hasOwn(props,k))||
      ['confirm','dryRun'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
      args.requestKey!==undefined&&(typeof args.requestKey!=='string'||!/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey))||
-     ctx.env?.VERCEL_ENV!=='production'||ctx.connection?.profile!=='full')throw new TypeError('Owner pass proposal unavailable');
+     ctx.env?.VERCEL_ENV!=='production'||ctx.connection?.profile!=='full')throw new RefusalError('Owner pass proposal unavailable');
    const account=ctx.connection.account;
-   if(!(await ctx.db.listVercelAccounts()).some(x=>x.id===account))throw new TypeError('Configured account required');
+   if(!(await ctx.db.listVercelAccounts()).some(x=>x.id===account))throw new RefusalError('Configured account required');
    return {account,scope:passScope(Object.fromEntries(['mode','hours','areas','rateLimitPerMinute'].filter(k=>args[k]!==undefined).map(k=>[k,args[k]])),known(ctx.registry))};
  },
  async preview(_args,_ctx,before){

@@ -1,6 +1,6 @@
 // D-3: irreversible cleanup is restricted to terminal, unaliased previews.
 // The write contract, not tool metadata, enforces confirmation and owner guards.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {scopedDeployment} from './deployments.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -26,7 +26,7 @@ function checkArgs(args){
     !TERMINAL.has(args.expectedState)||args.outsideApp!==true||
     args.confirm!==undefined&&typeof args.confirm!=='boolean'||
     args.dryRun!==undefined&&typeof args.dryRun!=='boolean')
-    throw new TypeError('Exact terminal preview identity and outside-app intent required');
+    throw new RefusalError('Exact terminal preview identity and outside-app intent required');
 }
 function prove(row,expected){
   if(!row||typeof row!=='object'||Array.isArray(row)||
@@ -34,7 +34,7 @@ function prove(row,expected){
     (row.uid??row.id)!==expected.id||
     row.projectId!==expected.project||
     row.project?.id!=null&&row.project.id!==expected.project)
-    throw new TypeError('Provider deployment identity or project is unverified');
+    throw new RefusalError('Provider deployment identity or project is unverified');
   // VMCP-028 (AUD-V): 'preview' is a request-side literal only — on
   // every documented read-back shape a preview deployment's target
   // is null (the response enum is production/staging/null, per the
@@ -44,14 +44,14 @@ function prove(row,expected){
   // carries it — the deployment-cancel proof's tolerant form);
   // production, staging, and absent targets all refuse.
   if(!(row.target===null||row.target==='preview'))
-    throw new TypeError('Only preview deployments can be deleted');
+    throw new RefusalError('Only preview deployments can be deleted');
   // A preview can be assigned to an externally serving domain. Absent alias
   // metadata is unknown, not evidence that the deployment is unaliased.
   if(!Array.isArray(row.alias)||row.alias.length!==0||
      row.aliases!=null&&(!Array.isArray(row.aliases)||row.aliases.length!==0))
-    throw new TypeError('Cannot prove deployment has no serving aliases');
+    throw new RefusalError('Cannot prove deployment has no serving aliases');
   if((row.readyState??row.state)!==expected.state||!TERMINAL.has(expected.state))
-    throw new TypeError('Only unchanged failed or canceled previews can be deleted');
+    throw new RefusalError('Only unchanged failed or canceled previews can be deleted');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -64,7 +64,7 @@ const remove=defineWrite({
   async before(args,ctx){
     checkArgs(args);
     const {client,account,project,verified}=await scopedDeployment(args,ctx);
-    if(verified.state!==args.expectedState)throw new TypeError('Deployment state is not the expected state');
+    if(verified.state!==args.expectedState)throw new RefusalError('Deployment state is not the expected state');
     const state={id:verified.id,project,state:verified.state,teamId:account.team_id};
     const raw=await client.request('deployments_get',{path:{idOrUrl:state.id}});
     prove(raw,state);

@@ -1,7 +1,7 @@
 // D-3: redeploy the exact existing source with its verified original target.
 // Creating a build incurs unbounded metered usage: the independent owner
 // ceiling gate refuses execution unless Vercel can enforce a total per-operation cap.
-import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {scopedDeployment} from './deployments.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -30,7 +30,7 @@ function check(args){
     args.outsideApp!==true||
     args.dryRun!==undefined&&typeof args.dryRun!=='boolean'||
     args.confirm!==undefined&&typeof args.confirm!=='boolean')
-    throw new TypeError('Exact original deployment, immutable target and outside-app intent required');
+    throw new RefusalError('Exact original deployment, immutable target and outside-app intent required');
 }
 function prove(row,before){
   if(!row||typeof row!=='object'||Array.isArray(row)||
@@ -41,7 +41,7 @@ function prove(row,before){
     row.name!==before.name||
     (row.readyState??row.state)!==before.state||
     row.target!==before.target)
-    throw new TypeError('Original deployment identity, project, state or target changed');
+    throw new RefusalError('Original deployment identity, project, state or target changed');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -53,16 +53,16 @@ const redeploy=defineWrite({
   name:'vercel_deploy_redeploy',risk:{spend:true},
   async before(args,ctx){
     check(args);
-    if(ctx.connection?.profile!=='full')throw new TypeError('Full profile required');
+    if(ctx.connection?.profile!=='full')throw new RefusalError('Full profile required');
     const {client,account,project,verified}=await scopedDeployment(args,ctx);
     if(project!==args.project||verified.state!==args.expectedState||
       verified.target!==args.expectedTarget)
-      throw new TypeError('Deployment scope, state or target mismatch');
+      throw new RefusalError('Deployment scope, state or target mismatch');
     const original=await client.request('deployments_get',
       {path:{idOrUrl:args.deployment}});
     if(typeof original?.name!=='string'||
       !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(original.name))
-      throw new TypeError('Deployment project name is unavailable');
+      throw new RefusalError('Deployment project name is unavailable');
     const before={deployment:args.deployment,project,name:original.name,
       state:args.expectedState,target:args.expectedTarget,teamId:account.team_id};
     prove(original,before);

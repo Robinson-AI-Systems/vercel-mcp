@@ -1,7 +1,7 @@
 // E-2: team-scoped shared environment variable lifecycle. Writes never return
 // provider values; shared scope/links/production impact must be independently proven.
 import {randomBytes} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {pendingInputs} from '../core/pending-inputs.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -66,7 +66,7 @@ function validSet(a){
     (a.mode==='create'&&(a.id!==undefined||a.expectedUpdatedAt!==undefined))||
     (a.mode==='update'&&(!ENV.test(a.id??'')||
       !Number.isSafeInteger(a.expectedUpdatedAt)||a.expectedUpdatedAt<1)))
-    throw new TypeError('Shared write requires exact nonproduction project, kind and private value source');
+    throw new RefusalError('Shared write requires exact nonproduction project, kind and private value source');
 }
 function validRemoval(a){
   if(!only(a,removeKeys)||!['unlink','delete'].includes(a.mode)||
@@ -78,7 +78,7 @@ function validRemoval(a){
     a.requestKey!==undefined&&!REQUEST.test(a.requestKey)||
     (a.mode==='unlink'&&!PROJECT.test(a.project??''))||
     (a.mode==='delete'&&a.project!==undefined))
-    throw new TypeError('Shared removal needs exact ID, revision, kind and unlink/delete intent');
+    throw new RefusalError('Shared removal needs exact ID, revision, kind and unlink/delete intent');
 }
 function rowMeta(raw,teamId){
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||
@@ -88,14 +88,14 @@ function rowMeta(raw,teamId){
     !['plain','encrypted','sensitive'].includes(raw.type)||
     (raw.customEnvironmentIds!==undefined&&(!Array.isArray(raw.customEnvironmentIds)||
       raw.customEnvironmentIds.length>50)))
-    throw new TypeError('Shared variable ownership, identity or custom links unknown');
+    throw new RefusalError('Shared variable ownership, identity or custom links unknown');
   const projects=typeof raw.projectId==='string'?[raw.projectId]:raw.projectId;
   const target=typeof raw.target==='string'?[raw.target]:raw.target;
   if(!Array.isArray(projects)||projects.length>50||
     projects.some(x=>!PROJECT.test(x))||new Set(projects).size!==projects.length||
     !Array.isArray(target)||target.length<1||target.length>3||
     target.some(t=>!TARGETS.has(t))||new Set(target).size!==target.length)
-    throw new TypeError('Cannot safely classify shared variable project or production targets');
+    throw new RefusalError('Cannot safely classify shared variable project or production targets');
   return {id:raw.id,key:raw.key,kind:raw.visibility==='secret'||
     raw.type!=='plain'?'Secret':'Config',projects:[...projects].sort(),
     updatedAt:raw.updatedAt,previewOnly:target.length===1&&target[0]==='preview',
@@ -106,10 +106,10 @@ async function inventory(client,teamId){
   const page=await client.request('shared_env_list');
   if(!Array.isArray(page?.data)||page.data.length>100||
     !page.pagination||page.pagination.next!==null)
-    throw new TypeError('Complete selected-team shared variable inventory unavailable');
+    throw new RefusalError('Complete selected-team shared variable inventory unavailable');
   const seenIds=new Set(),rows=page.data.map(r=>{
     const meta=rowMeta(r,teamId);
-    if(seenIds.has(meta.id))throw new TypeError('Duplicate shared variable ID');
+    if(seenIds.has(meta.id))throw new RefusalError('Duplicate shared variable ID');
     seenIds.add(meta.id);return meta;
   });
   return rows;
@@ -117,11 +117,11 @@ async function inventory(client,teamId){
 async function selected(ctx,project){
   const {client,account}=await readProvider(ctx);
   if(!['team','full'].includes(account.scope))
-    throw new TypeError('Team-scoped stored connection required for shared writes');
+    throw new RefusalError('Team-scoped stored connection required for shared writes');
   if(project){
     const p=await client.request('projects_get',{path:{idOrName:project}});
     if(p?.id!==project||p.accountId!=null&&p.accountId!==account.team_id)
-      throw new TypeError('Project does not belong to selected Vercel team');
+      throw new RefusalError('Project does not belong to selected Vercel team');
   }
   return {client,account};
 }
@@ -132,14 +132,14 @@ async function beforeSet(a,ctx){
   let item=null;
   if(a.mode==='create'){
     if(rows.some(x=>x.key===a.key))
-      throw new TypeError('Shared variable key already exists in selected team');
+      throw new RefusalError('Shared variable key already exists in selected team');
   } else {
     item=rows.find(x=>x.id===a.id);
     if(!item||item.key!==a.key||item.kind!==a.kind||
       !item.previewOnly||!item.noCustomLinks||
       item.updatedAt!==a.expectedUpdatedAt||
       item.projects.length!==1||item.projects[0]!==a.project)
-      throw new TypeError('Shared variable kind, revision or project link changed');
+      throw new RefusalError('Shared variable kind, revision or project link changed');
   }
   return {mode:a.mode,project:a.project,teamId:account.team_id,
     id:item?.id??null,key:a.key,kind:a.kind,
@@ -148,7 +148,7 @@ async function beforeSet(a,ctx){
 async function beforeRemoval(a,ctx){
   validRemoval(a);
   if(ctx.connection?.profile!=='full')
-    throw new TypeError('Full profile required for shared unlink or deletion');
+    throw new RefusalError('Full profile required for shared unlink or deletion');
   const {client,account}=await selected(ctx,a.project);
   const rows=await inventory(client,account.team_id);
   const row=rows.find(x=>x.id===a.id);
@@ -157,7 +157,7 @@ async function beforeRemoval(a,ctx){
     row.updatedAt!==a.expectedUpdatedAt||
     (a.mode==='unlink'&&!row.projects.includes(a.project))||
     (a.mode==='delete'&&row.projects.length!==0))
-    throw new TypeError('Shared variable changed or deletion still has project links');
+    throw new RefusalError('Shared variable changed or deletion still has project links');
   return {mode:a.mode,project:a.project??null,teamId:account.team_id,
     id:row.id,key:row.key,kind:row.kind,updatedAt:row.updatedAt,
     projects:row.projects};

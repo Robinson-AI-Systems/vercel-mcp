@@ -1,6 +1,6 @@
 // D-1o: transfer initiation only. The claim code is encrypted into an owner-only
 // one-time vault; never return it through an MCP result or a replay/audit record.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -24,7 +24,7 @@ function assertArgs(args){
     typeof args.expectedName!=='string'||!ID.test(args.expectedName)||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
-    throw new TypeError('Invalid project transfer request');
+    throw new RefusalError('Invalid project transfer request');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -37,17 +37,17 @@ const transfer=defineWrite({
   risk:{access:true},secretOut:true,
   async before(args,ctx){
     assertArgs(args);
-    if(ctx.connection.profile!=='full')throw new TypeError('Full profile required');
+    if(ctx.connection.profile!=='full')throw new RefusalError('Full profile required');
     validateRequest('projects_transfer_request',{
       path:{idOrName:args.project},query:{teamId:'team_FAKE_validation'},body:{}
     });
     const {client,account}=await readProvider(ctx);
     if(!['team','full'].includes(account.scope))
-      throw new TypeError('Team account required');
+      throw new RefusalError('Team account required');
     const row=await client.request('projects_get',{path:{idOrName:args.project}});
     if(typeof row?.id!=='string'||!ID.test(row.id)||
       typeof row?.name!=='string'||row.name!==args.expectedName)
-      throw new TypeError('Project name must match independent provider identity');
+      throw new RefusalError('Project name must match independent provider identity');
     return {id:row.id,name:row.name,accountId:account.id,
       teamId:account.team_id};
   },

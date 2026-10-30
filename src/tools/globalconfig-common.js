@@ -1,6 +1,7 @@
 // E-3 Global Config: common selected-team identity and safe shape primitives.
 // An absent connected-project, owner or pagination proof is UNKNOWN, never empty.
 import {readProvider} from '../vercel/provider.js';
+import { RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 export const STORE=/^ecfg_[A-Za-z0-9_-]{3,124}$/;
 export const SLUG=/^[A-Za-z0-9_-]{1,64}$/;
@@ -20,7 +21,7 @@ export const schema=(properties,required=[])=>({
 export function strictArgs(args,keys){
   if(!args||typeof args!=='object'||Array.isArray(args)||
     Object.keys(args).some(k=>!keys.includes(k)))
-    throw new TypeError('Unsupported Global Config selector');
+    throw new RefusalError('Unsupported Global Config selector');
 }
 export function safeLabel(value,max=128){
   return typeof value==='string'&&value.length>0&&value.length<=max&&
@@ -29,7 +30,7 @@ export function safeLabel(value,max=128){
 export async function selected(ctx,teamOnly=false){
   const {client,account}=await readProvider(ctx);
   if(teamOnly&&!['team','full'].includes(account.scope))
-    throw new TypeError('Selected team credential required');
+    throw new RefusalError('Selected team credential required');
   return {client,account};
 }
 export function record(raw,teamId){
@@ -38,20 +39,20 @@ export function record(raw,teamId){
     credentialLike(raw.slug)||
     (raw.teamId!=null&&raw.teamId!==teamId)||
     (raw.ownerId!=null&&raw.ownerId!==teamId))
-    throw new TypeError('Unknown Global Config store owner or identity');
+    throw new RefusalError('Unknown Global Config store owner or identity');
   // Vercel versions differ in connection metadata. Never invent a list.
   const links=raw.connectedProjects??raw.projects;
   let projects=null;
   if(links!==undefined){
     if(!Array.isArray(links)||links.length>50)
-      throw new TypeError('Global Config connected-project metadata is unsafe');
+      throw new RefusalError('Global Config connected-project metadata is unsafe');
     projects=links.map(x=>{
       const id=typeof x==='string'?x:x?.id??x?.projectId;
-      if(!ID.test(id??''))throw new TypeError('Unknown linked project');
+      if(!ID.test(id??''))throw new RefusalError('Unknown linked project');
       return id;
     });
     if(new Set(projects).size!==projects.length)
-      throw new TypeError('Duplicate linked project');
+      throw new RefusalError('Duplicate linked project');
   }
   const itemCount=Number.isSafeInteger(raw.itemCount)&&raw.itemCount>=0?
     raw.itemCount:Number.isSafeInteger(raw.itemsCount)&&raw.itemsCount>=0?
@@ -71,12 +72,12 @@ export function listRows(page,team){
   const raw=Array.isArray(page)?page:
     page?.data??page?.edgeConfigs??page?.stores;
   if(!Array.isArray(raw)||raw.length>100)
-    throw new TypeError('Global Config inventory unavailable or too large');
+    throw new RefusalError('Global Config inventory unavailable or too large');
   const ids=new Set(),slugs=new Set();
   const rows=raw.map(x=>{
     const item=record(x,team);
     if(ids.has(item.id)||slugs.has(item.slug))
-      throw new TypeError('Duplicate Global Config store metadata');
+      throw new RefusalError('Duplicate Global Config store metadata');
     ids.add(item.id);slugs.add(item.slug);return item;
   });
   const next=page?.pagination?.next;
@@ -98,12 +99,12 @@ export function listRows(page,team){
     Number.isSafeInteger(next)&&next>0?next:null};
 }
 export async function exact(ctx,id){
-  if(!STORE.test(id??''))throw new TypeError('Exact store ID required');
+  if(!STORE.test(id??''))throw new RefusalError('Exact store ID required');
   const {client,account}=await selected(ctx);
   const raw=await client.request('global_config_get',{
     path:{edgeConfigId:id}});
   const row=record(raw,account.team_id);
-  if(row.id!==id)throw new TypeError('Global Config identity changed');
+  if(row.id!==id)throw new RefusalError('Global Config identity changed');
   return {client,account,row};
 }
 // AUD-AF (dossier: globalconfig-mutate-dossier): the pinned contract
@@ -118,31 +119,31 @@ export async function exact(ctx,id){
 // response is never a complete inventory.
 export function itemEntries(raw){
   if(raw?.pagination?.next!==undefined&&raw.pagination.next!==null)
-    throw new TypeError('Paginated Global Config items are not a complete inventory');
+    throw new RefusalError('Paginated Global Config items are not a complete inventory');
   const body=raw?.items??raw;
   let entries;
   if(Array.isArray(body)){
     entries=body.map(item=>{
       if(!item||typeof item!=='object'||Array.isArray(item)||
         typeof item.key!=='string'||!Object.hasOwn(item,'value'))
-        throw new TypeError('Global Config item inventory unverified');
+        throw new RefusalError('Global Config item inventory unverified');
       return [item.key,item.value];
     });
   }else if(body&&typeof body==='object'){
     entries=Object.entries(body);
   }else{
-    throw new TypeError('Global Config item inventory unverified');
+    throw new RefusalError('Global Config item inventory unverified');
   }
   if(entries.length>200)
-    throw new TypeError('Global Config item inventory unverified');
+    throw new RefusalError('Global Config item inventory unverified');
   const seen=new Set();
   for(const [key,value] of entries){
     if(!KEY.test(key)||credentialLike(key)||seen.has(key))
-      throw new TypeError('Unknown Global Config item key');
+      throw new RefusalError('Unknown Global Config item key');
     seen.add(key);
     if(value===undefined||typeof value==='function'||
       typeof value==='symbol'||typeof value==='bigint')
-      throw new TypeError('Unpresentable Global Config item');
+      throw new RefusalError('Unpresentable Global Config item');
   }
   return entries;
 }

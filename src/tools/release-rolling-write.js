@@ -1,5 +1,5 @@
 // D-4: complete owner-gated production rolling-release lifecycle.
-import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {accountSpendGuard} from '../vercel/spend.js';
@@ -65,7 +65,7 @@ function verifyInput(a,kind){
         a.expectedStageIndex<0||a.expectedStageIndex>9||
         !Number.isSafeInteger(a.expectedUpdatedAt)||
         a.expectedUpdatedAt<=0))
-    throw new TypeError('Exact selected rolling release, production authority and intent required');
+    throw new RefusalError('Exact selected rolling release, production authority and intent required');
 }
 function stageKey(stages){
   return JSON.stringify(stages.map(x=>({targetPercentage:x.targetPercentage,
@@ -79,41 +79,41 @@ function plannedConfig(a){
 async function candidate(a,ctx,kind){
   verifyInput(a,kind);
   if(ctx.connection?.profile!=='full')
-    throw new TypeError('Rolling releases require full owner profile');
+    throw new RefusalError('Rolling releases require full owner profile');
   const s=await rollingSnapshot(a,ctx,
     {billing:kind==='config'||kind==='start'});
   const configHash=configFingerprint(s.config);
   if(kind==='config'){
     if(configHash!==a.expectedConfigHash)
-      throw new TypeError('Rolling-release configuration changed since preview');
+      throw new RefusalError('Rolling-release configuration changed since preview');
     if(s.rollout?.state==='ACTIVE'||s.rollout?.state==='PAUSED')
-      throw new TypeError('Active traffic must be completed or rolled back before changing config');
+      throw new RefusalError('Active traffic must be completed or rolled back before changing config');
     if(a.enabled===true && !s.billing?.eligible)
-      throw new TypeError('Rolling-release billing/slot eligibility cannot be proven');
+      throw new RefusalError('Rolling-release billing/slot eligibility cannot be proven');
     const desired=plannedConfig(a);
     if(a.enabled===s.config.enabled&&
       (a.enabled===false||
         desired.advancementType===s.config.advancementType&&
         stageKey(desired.stages)===stageKey(s.config.stages)))
-      throw new TypeError('No rolling-release configuration change requested');
+      throw new RefusalError('No rolling-release configuration change requested');
     return {project:s.project,teamId:s.account.team_id,kind,
       desired,configHash,rollout:s.rollout,billing:s.billing,
       previous:s.config,targets:releaseTargets(s)};
   }
   if(!s.config.enabled||s.config.stages.length<2)
-    throw new TypeError('Project does not have verified enabled rolling-release configuration');
+    throw new RefusalError('Project does not have verified enabled rolling-release configuration');
   if(kind==='start'){
     if(!s.billing?.eligible)
-      throw new TypeError('Provider rolling-release slot unavailable');
+      throw new RefusalError('Provider rolling-release slot unavailable');
     if(s.rollout?.state==='ACTIVE'||s.rollout?.state==='PAUSED')
-      throw new TypeError('An active rolling release already exists');
+      throw new RefusalError('An active rolling release already exists');
     const aliases=await ownedAliases(s,s.project);
     if(currentDeployment(aliases)!==a.expectedCurrent)
-      throw new TypeError('Current production deployment changed');
+      throw new RefusalError('Current production deployment changed');
     const target=await targetDeployment({...ctx,account:s.account},
       s.project,a.deployment);
     if(target.servedAt!==null)
-      throw new TypeError('Rollout target must be a never-serving staged deployment');
+      throw new RefusalError('Rollout target must be a never-serving staged deployment');
     return {project:s.project,teamId:s.account.team_id,kind,
       canary:a.deployment,current:a.expectedCurrent,
       configHash,rollout:s.rollout,aliases,
@@ -126,21 +126,21 @@ async function candidate(a,ctx,kind){
     r.canary!==a.deployment||r.current!==a.expectedCurrent||
     r.stageIndex!==a.expectedStageIndex||
     r.updatedAt!==a.expectedUpdatedAt)
-    throw new TypeError('Rolling release is absent, paused or changed since preview');
+    throw new RefusalError('Rolling release is absent, paused or changed since preview');
   if(kind==='approve'&&(!r.requiresApproval||
     r.nextStageIndex!==r.stageIndex+1||r.finalStage))
-    throw new TypeError('Next rolling-release stage is not awaiting approval');
+    throw new RefusalError('Next rolling-release stage is not awaiting approval');
   if(kind==='complete'&&r.finalStage)
-    throw new TypeError('Rolling release is already at the final stage');
+    throw new RefusalError('Rolling release is already at the final stage');
   const old=await targetDeployment({...ctx,account:s.account},
     s.project,r.current);
   const target=await targetDeployment({...ctx,account:s.account},
     s.project,r.canary);
   if(old.id!==r.current||target.id!==r.canary)
-    throw new TypeError('Deployment identities changed during rollout');
+    throw new RefusalError('Deployment identities changed during rollout');
   const aliases=await ownedAliases(s,s.project);
   if(aliases.length===0)
-    throw new TypeError('Production routing inventory is empty');
+    throw new RefusalError('Production routing inventory is empty');
   return {project:s.project,teamId:s.account.team_id,kind,
     canary:r.canary,current:r.current,aliases,
     configHash,rollout:r,targets:[

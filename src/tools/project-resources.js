@@ -1,7 +1,7 @@
 // D-1q: grouped, usage-billed project resource settings; cost follows the account purchase policy (AUD-A2).
 // No owner settings or user-supplied price; all writes require production mode.
 import {createHash} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -51,7 +51,7 @@ function validate(args){
        args.functionDefaultRegions.some(x=>typeof x!=='string'||!/^[a-z]{3}[1-9]$/.test(x))))||
     (args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean'))
-    throw new TypeError('Invalid project resource settings');
+    throw new RefusalError('Invalid project resource settings');
 }
 function candidate(args){
   return Object.fromEntries(CONFIG_KEYS.filter(k=>args[k]!==undefined).map(k=>
@@ -88,25 +88,25 @@ const change=defineWrite({
   name:'vercel_project_set_build_resources',risk:{spend:true},
   async before(args,ctx){
     validate(args);
-    if(ctx.connection?.profile!=='full')throw new TypeError('Full profile required');
+    if(ctx.connection?.profile!=='full')throw new RefusalError('Full profile required');
     const changes=candidate(args);
     const body={resourceConfig:patch(changes)};
     validateRequest('projects_update',{
       path:{idOrName:args.project},query:{teamId:'team_FAKE_validation'},body});
     const {client,account}=await readProvider(ctx);
     if(!['team','full'].includes(account.scope))
-      throw new TypeError('Team account required');
+      throw new RefusalError('Team account required');
     const row=await client.request('projects_get',{path:{idOrName:args.project}});
     if(typeof row?.id!=='string'||!ID.test(row.id)||
       typeof row?.name!=='string'||row.name!==args.expectedName)
-      throw new TypeError('Project identity mismatch');
+      throw new RefusalError('Project identity mismatch');
     if(!row.resourceConfig||typeof row.resourceConfig!=='object'||
       Array.isArray(row.resourceConfig))
-      throw new TypeError('Existing resource configuration is unknown');
+      throw new RefusalError('Existing resource configuration is unknown');
     const selected=Object.fromEntries(Object.entries(changes)
       .filter(([key,value])=>!equivalent(value,observed(row.resourceConfig,key))));
     if(!Object.keys(selected).length)
-      throw new TypeError('No resource changes required');
+      throw new RefusalError('No resource changes required');
     return {id:row.id,name:row.name,changes:selected,
       resourceFingerprint:resourceFingerprint(row.resourceConfig,Object.keys(selected))};
   },

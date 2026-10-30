@@ -97,6 +97,9 @@ describe('V-1 recorded development runs and strict cleanup',()=>{
     const args={scenario:'static-site',outsideApp:true,confirm:true,requestKey:'seedNoSpend123'};
     const denied=parse(await f.call(name,args,{...owner,mode:'production'}));
     expect(denied.status).toBe('refused_by_guard');
+    // AUD-AH: the by-design preview-mode guard reaches the caller in its
+    // own words, not the preflight's generic sentence.
+    expect(denied.reason).toBe('Development runs require full-profile preview connection');
     expect(f.fake.calls).toHaveLength(0);
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const blocked=parse(await f.call(name,args));

@@ -1,7 +1,7 @@
 // E-2: create an isolated preview custom environment on a verified project.
 // No variable bytes are read or returned. Vercel copies requested nonproduction
 // variables internally, after the branch and selected team are re-proven.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -40,7 +40,7 @@ function check(a){
     a.copyFrom!==undefined&&!['preview','development'].includes(a.copyFrom)||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
-    throw new TypeError('Exact nonproduction custom environment request required');
+    throw new RefusalError('Exact nonproduction custom environment request required');
 }
 function requestBody(a){
   return {slug:a.slug,branchMatcher:{type:'equals',pattern:a.branch},
@@ -50,15 +50,15 @@ function requestBody(a){
 export async function scope(ctx,project,expectedName){
   const {client,account}=await readProvider(ctx);
   if(account.scope==='project'&&account.project_id!==project)
-    throw new TypeError('Project outside selected credential');
+    throw new RefusalError('Project outside selected credential');
   const p=await client.request('projects_get',{path:{idOrName:project}});
   if(p?.id!==project||p.name!==expectedName||
     p.accountId!=null&&p.accountId!==account.team_id)
-    throw new TypeError('Project identity or team is unverified');
+    throw new RefusalError('Project identity or team is unverified');
   const productionBranch=p.link?.productionBranch;
   if(typeof productionBranch!=='string'||!BRANCH.test(productionBranch)||
     productionBranch.includes('..'))
-    throw new TypeError('Production Git branch is unknown');
+    throw new RefusalError('Production Git branch is unknown');
   return {client,account,productionBranch};
 }
 async function noConflict(client,project,slug,branch){
@@ -66,11 +66,11 @@ async function noConflict(client,project,slug,branch){
     path:{idOrName:project}});
   const items=Array.isArray(page)?page:page?.environments;
   if(!Array.isArray(items)||items.length>100)
-    throw new TypeError('Custom environment inventory unverified');
+    throw new RefusalError('Custom environment inventory unverified');
   if(items.some(x=>!x||typeof x!=='object'||
     x.slug===slug||x.branchMatcher?.type==='equals'&&
       x.branchMatcher.pattern===branch))
-    throw new TypeError('Custom environment name or branch already assigned');
+    throw new RefusalError('Custom environment name or branch already assigned');
 }
 export function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -83,10 +83,10 @@ const create=defineWrite({
   async before(args,ctx){
     check(args);
     if(!['everyday','full'].includes(ctx.connection?.profile))
-      throw new TypeError('Elevated connection profile required');
+      throw new RefusalError('Elevated connection profile required');
     const {client,account,productionBranch}=await scope(ctx,args.project,args.expectedName);
     if(args.branch===productionBranch)
-      throw new TypeError('Cannot attach a custom environment to production branch');
+      throw new RefusalError('Cannot attach a custom environment to production branch');
     await noConflict(client,args.project,args.slug,args.branch);
     validateRequest('custom_environments_create',{
       path:{idOrName:args.project},query:{teamId:'team_FAKE_validation'},

@@ -1,7 +1,7 @@
 // N-1: team and project domains. Reads verify team/project ownership the same
 // way other read tools do; writes are guarded defineWrite operations with
 // production classification per BATCH-N N1 and independent read-back.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
@@ -23,7 +23,7 @@ const REDIRECT_CODES=[301,302,307,308];
 function exactArgs(args,allowed){
   if(!args||typeof args!=='object'||Array.isArray(args)||
     Object.keys(args).some(key=>!allowed.includes(key)))
-    throw new TypeError('Invalid domain tool arguments');
+    throw new RefusalError('Invalid domain tool arguments');
 }
 const safeText=(value,max=256)=>typeof value==='string'&&value.length<=max&&
   !/[\x00-\x1f\x7f]/.test(value)&&!credentialLike(value)?value:null;
@@ -37,20 +37,20 @@ function safeHostname(value){
 // Never silently claim end-of-list when the provider's cursor is malformed.
 function pageCursor(reply,rows,limit){
   if(!Array.isArray(rows)||rows.length>limit||!reply?.pagination)
-    throw new TypeError('Domain list page is incomplete or oversized');
+    throw new RefusalError('Domain list page is incomplete or oversized');
   const next=reply.pagination.next;
   if(next===null){
     if(reply.pagination.hasNext===true||reply.pagination.hasMore===true||
       reply.hasMore===true)
-      throw new TypeError('Conflicting list pagination flags');
+      throw new RefusalError('Conflicting list pagination flags');
     return null;
   }
   if(reply.pagination.hasNext===false||reply.pagination.hasMore===false||
     reply.hasMore===false)
-    throw new TypeError('Conflicting list continuation');
+    throw new RefusalError('Conflicting list continuation');
   const numeric=typeof next==='string'&&/^[1-9][0-9]{0,15}$/.test(next)?Number(next):next;
   if(!Number.isSafeInteger(numeric)||numeric<1)
-    throw new TypeError('Provider returned an unusable pagination cursor');
+    throw new RefusalError('Provider returned an unusable pagination cursor');
   return numeric;
 }
 function completePage(reply,rows,limit,label){
@@ -61,7 +61,7 @@ function completePage(reply,rows,limit,label){
 async function teamContext(ctx){
   const {client,account}=await readProvider(ctx);
   if(!['team','full'].includes(account.scope))
-    throw new TypeError('Team domains are not available to a project-scoped connection');
+    throw new RefusalError('Team domains are not available to a project-scoped connection');
   return {client,account};
 }
 // GET /v5/domains/{domain} wraps the record in a {domain} envelope (pinned
@@ -70,14 +70,14 @@ async function getTeamDomain(client,domain){
   const reply=await client.request('domains_get',{path:{domain}});
   const row=reply?.domain;
   if(!row||typeof row!=='object'||Array.isArray(row))
-    throw new TypeError('Invalid domain response');
+    throw new RefusalError('Invalid domain response');
   return row;
 }
 function domainSummary(row,teamId){
   if(!row||typeof row!=='object'||Array.isArray(row))
-    throw new TypeError('Invalid domain response');
+    throw new RefusalError('Invalid domain response');
   if(row.teamId!==undefined&&row.teamId!==null&&row.teamId!==teamId)
-    throw new TypeError('Domain belongs to a different team');
+    throw new RefusalError('Domain belongs to a different team');
   return {name:safeAlias(row.name),
     verified:typeof row.verified==='boolean'?row.verified:null,
     serviceType:safeText(row.serviceType,32),
@@ -88,9 +88,9 @@ function domainSummary(row,teamId){
 }
 function projectDomainSummary(row,project){
   if(!row||typeof row!=='object'||Array.isArray(row))
-    throw new TypeError('Invalid project domain response');
+    throw new RefusalError('Invalid project domain response');
   if(row.projectId!==undefined&&row.projectId!==null&&row.projectId!==project)
-    throw new TypeError('Project domain belongs to a different project');
+    throw new RefusalError('Project domain belongs to a different project');
   return {name:safeAlias(row.name),project,
     apexName:safeText(row.apexName,253),
     gitBranch:typeof row.gitBranch==='string'?safeText(row.gitBranch,250):null,
@@ -129,7 +129,7 @@ async function domainUsage(client,account,domain){
   const aliasRows=completePage(aliasPage,aliasPage?.aliases,100,'Alias');
   const aliases=aliasRows.map(row=>{
     const name=safeAlias(row?.alias??row?.domain??row?.name);
-    if(name!==domain)throw new TypeError('Alias inventory returned an unrelated domain');
+    if(name!==domain)throw new RefusalError('Alias inventory returned an unrelated domain');
     const deployment=row?.deploymentId??row?.deployment?.id??row?.deployment?.uid;
     return {domain:name,
       projectId:typeof row?.projectId==='string'&&PROJECT.test(row.projectId)?
@@ -142,7 +142,7 @@ async function domainUsage(client,account,domain){
   for(const project of projects){
     const id=typeof project?.id==='string'?project.id:null;
     if(!id||!IDENT.test(id))
-      throw new TypeError('Team project inventory has an invalid identity');
+      throw new RefusalError('Team project inventory has an invalid identity');
     const page=await client.request('projects_domains_list',
       {path:{idOrName:id},query:{limit:100}});
     const rows=completePage(page,page?.domains,100,'Project domain');
@@ -157,18 +157,18 @@ function assertControl(args){
   if((args.confirm!==undefined&&typeof args.confirm!=='boolean')||
     (args.dryRun!==undefined&&typeof args.dryRun!=='boolean')||
     (args.requestKey!==undefined&&!REQUEST.test(args.requestKey)))
-    throw new TypeError('Invalid write control arguments');
+    throw new RefusalError('Invalid write control arguments');
 }
 function assertOutsideApp(args){
   if(args.outsideApp!==true)
-    throw new TypeError('Domain changes need outsideApp confirmation');
+    throw new RefusalError('Domain changes need outsideApp confirmation');
 }
 function assertFull(ctx){
-  if(ctx.connection?.profile!=='full')throw new TypeError('Full profile required');
+  if(ctx.connection?.profile!=='full')throw new RefusalError('Full profile required');
 }
 function assertEveryday(ctx){
   if(!EVERYDAY.includes(ctx.connection?.profile))
-    throw new TypeError('Everyday or full profile required');
+    throw new RefusalError('Everyday or full profile required');
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
@@ -294,9 +294,9 @@ async function addBefore(args,ctx){
   exactArgs(args,['domain','zone','cdnEnabled','outsideApp','confirm','dryRun','requestKey']);
   const domain=safeAlias(args.domain);
   if(args.zone!==undefined&&typeof args.zone!=='boolean')
-    throw new TypeError('Invalid DNS zone flag');
+    throw new RefusalError('Invalid DNS zone flag');
   if(args.cdnEnabled!==undefined&&typeof args.cdnEnabled!=='boolean')
-    throw new TypeError('Invalid CDN flag');
+    throw new RefusalError('Invalid CDN flag');
   assertOutsideApp(args);assertControl(args);assertFull(ctx);
   validateRequest('domains_add',{query:{teamId:'team_FAKE_validation'},
     body:{name:domain,...(args.zone!==undefined?{zone:args.zone}:{}),
@@ -309,7 +309,7 @@ async function addBefore(args,ctx){
       zone:args.zone??null,cdnEnabled:args.cdnEnabled??null};
     throw error;
   }
-  throw new TypeError('Domain is already on this team');
+  throw new RefusalError('Domain is already on this team');
 }
 const addWrite=defineWrite({
   name:'vercel_domain_add_to_team',before:addBefore,
@@ -359,13 +359,13 @@ async function updateBefore(args,ctx){
   const move=args.destination!==undefined;
   const change=args.zone!==undefined||args.echMode!==undefined;
   if(move===change)
-    throw new TypeError('Choose exactly one team-domain change: move or update');
+    throw new RefusalError('Choose exactly one team-domain change: move or update');
   if(move&&(typeof args.destination!=='string'||!DESTINATION.test(args.destination)))
-    throw new TypeError('Invalid move destination');
+    throw new RefusalError('Invalid move destination');
   if(args.echMode!==undefined&&!['auto','disabled'].includes(args.echMode))
-    throw new TypeError('Invalid encrypted-client-hello mode');
+    throw new RefusalError('Invalid encrypted-client-hello mode');
   if(args.zone!==undefined&&typeof args.zone!=='boolean')
-    throw new TypeError('Invalid DNS zone flag');
+    throw new RefusalError('Invalid DNS zone flag');
   assertOutsideApp(args);assertControl(args);assertFull(ctx);
   const body=move?{op:'move-out',destination:args.destination}:
     {op:'update',...(args.zone!==undefined?{zone:args.zone}:{}),
@@ -506,13 +506,13 @@ async function attachBefore(args,ctx){
     'redirectStatusCode','outsideApp','confirm','dryRun','requestKey']);
   const domain=safeAlias(args.domain);
   if(args.gitBranch!==undefined&&(typeof args.gitBranch!=='string'||!BRANCH.test(args.gitBranch)))
-    throw new TypeError('Invalid project domain branch');
+    throw new RefusalError('Invalid project domain branch');
   if(args.customEnvironmentId!==undefined&&(typeof args.customEnvironmentId!=='string'||
     !ENV_ID.test(args.customEnvironmentId)))
-    throw new TypeError('Invalid custom environment identifier');
+    throw new RefusalError('Invalid custom environment identifier');
   if(args.redirect!==undefined)safeAlias(args.redirect);
   if(args.redirectStatusCode!==undefined&&!REDIRECT_CODES.includes(args.redirectStatusCode))
-    throw new TypeError('Invalid redirect status code');
+    throw new RefusalError('Invalid redirect status code');
   assertOutsideApp(args);assertControl(args);assertEveryday(ctx);
   const body={name:domain,...(args.gitBranch!==undefined?{gitBranch:args.gitBranch}:{}),
     ...(args.customEnvironmentId!==undefined?{customEnvironmentId:args.customEnvironmentId}:{}),
@@ -525,11 +525,11 @@ async function attachBefore(args,ctx){
     const env=await client.request('custom_environments_get',
       {path:{idOrName:project,environmentSlugOrId:args.customEnvironmentId}});
     if(!env||typeof env!=='object')
-      throw new TypeError('Custom environment not found in this project');
+      throw new RefusalError('Custom environment not found in this project');
   }
   try{
     await client.request('projects_domains_get',{path:{idOrName:project,domain}});
-    throw new TypeError('Domain is already attached to this project');
+    throw new RefusalError('Domain is already attached to this project');
   }catch(error){
     if(error?.status===404)return {project,teamId:account.team_id,domain,
       gitBranch:args.gitBranch??null,customEnvironmentId:args.customEnvironmentId??null,
@@ -608,14 +608,14 @@ async function updateProjectBefore(args,ctx){
   const domain=safeAlias(args.domain);
   if(args.gitBranch!==undefined&&args.gitBranch!==null&&
     (typeof args.gitBranch!=='string'||!BRANCH.test(args.gitBranch)))
-    throw new TypeError('Invalid project domain branch');
+    throw new RefusalError('Invalid project domain branch');
   if(args.redirect!==undefined&&args.redirect!==null)safeAlias(args.redirect);
   if(args.redirectStatusCode!==undefined&&args.redirectStatusCode!==null&&
     !REDIRECT_CODES.includes(args.redirectStatusCode))
-    throw new TypeError('Invalid redirect status code');
+    throw new RefusalError('Invalid redirect status code');
   if(args.gitBranch===undefined&&args.redirect===undefined&&
     args.redirectStatusCode===undefined)
-    throw new TypeError('No project domain change supplied');
+    throw new RefusalError('No project domain change supplied');
   assertOutsideApp(args);assertControl(args);assertEveryday(ctx);
   const body={...(args.gitBranch!==undefined?{gitBranch:args.gitBranch}:{}),
     ...(args.redirect!==undefined?{redirect:args.redirect}:{}),

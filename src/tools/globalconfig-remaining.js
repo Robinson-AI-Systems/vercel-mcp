@@ -1,6 +1,6 @@
 // E-3: finish the store workflow with one-time owner token delivery and
 // version-pinned backup restore. No token or provider snapshot value enters MCP.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {encryptSecret} from '../core/secret-box.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {credentialLike} from '../core/util.js';
@@ -33,23 +33,23 @@ function controlsValid(a,keys){
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean'||
     a.requestKey!==undefined&&!/^[A-Za-z0-9_-]{8,128}$/.test(a.requestKey))
-    throw new TypeError('Exact current store revision and outside-app intent required');
+    throw new RefusalError('Exact current store revision and outside-app intent required');
 }
 function secretReady(ctx){
   if(typeof ctx.db?.insertOneTimeSecret!=='function'||
     typeof ctx.db?.consumeOneTimeSecret!=='function')
-    throw new TypeError('Encrypted one-time owner delivery is unavailable');
+    throw new RefusalError('Encrypted one-time owner delivery is unavailable');
   // Fail before provider POST if the owner vault encryption key is missing.
   encryptSecret('probe','globalconfig:preflight',ctx.env);
 }
 function rawTokens(page){
   const rows=Array.isArray(page)?page:page?.tokens??page?.data;
   if(!Array.isArray(rows)||rows.length>100||page?.pagination?.next)
-    throw new TypeError('Cannot safely inspect store token metadata');
+    throw new RefusalError('Cannot safely inspect store token metadata');
   return rows.map(r=>{
     if(!r||typeof r!=='object'||!ID.test(r.id??'')||
       safeLabel(r.label,52)===null)
-      throw new TypeError('Unverified read token identity');
+      throw new RefusalError('Unverified read token identity');
     // Vercel GET can include bearer values: retain ONLY safe identity/label.
     return {id:r.id,label:r.label};
   });
@@ -58,14 +58,14 @@ async function tokenState(a,ctx){
   controlsValid(a,tokenFields);
   if(safeLabel(a.label,52)===null||credentialLike(a.label)||
     ctx.connection?.profile!=='full')
-    throw new TypeError('Full profile and a safe token label are required');
+    throw new RefusalError('Full profile and a safe token label are required');
   secretReady(ctx);
   const {client,account,row}=await store(ctx,a);
   const rows=rawTokens(await client.request('global_config_tokens',
     {path:{edgeConfigId:row.id}}));
   if(rows.some(t=>t.label===a.label)||
     new Set(rows.map(t=>t.id)).size!==rows.length)
-    throw new TypeError('Duplicate read token label or provider token ID');
+    throw new RefusalError('Duplicate read token label or provider token ID');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     label:a.label,updatedAt:row.updatedAt,projects:linkSnapshot(row),
     itemCount:row.itemCount,tokenIds:rows.map(t=>t.id).sort()};
@@ -141,15 +141,15 @@ const createToken=defineWrite({
 function backupVersion(raw,id,storeId){
   const version=raw?.id??raw?.versionId??raw?.version;
   if(version!==id||raw?.edgeConfigId!=null&&raw.edgeConfigId!==storeId)
-    throw new TypeError('Wrong Global Config backup version or store');
+    throw new RefusalError('Wrong Global Config backup version or store');
   const items=allItems(raw?.data?.items?raw.data:raw);
   if(Object.keys(items).length>100)
-    throw new TypeError('Backup is too large for an independently proven preview');
+    throw new RefusalError('Backup is too large for an independently proven preview');
   for(const [key,value] of Object.entries(items)){
     if(!KEY.test(key)||credentialLike(key)||
       value===undefined||JSON.stringify(value)===undefined||
       Buffer.byteLength(JSON.stringify(value))>8192)
-      throw new TypeError('Backup item is unsafe to restore');
+      throw new RefusalError('Backup item is unsafe to restore');
   }
   return items;
 }
@@ -159,11 +159,11 @@ function timestamp(value){
   if(typeof value==='number'&&Number.isSafeInteger(value)&&value>=1e11&&
     value<=4102444800000)return value;
   if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value))
-    throw new TypeError('Backup timestamp must be an exact UTC instant');
+    throw new RefusalError('Backup timestamp must be an exact UTC instant');
   const millis=Date.parse(value);
   if(!Number.isSafeInteger(millis)||new Date(millis).toISOString()!==value||
     millis<1e11||millis>4102444800000)
-    throw new TypeError('Backup timestamp unverified');
+    throw new RefusalError('Backup timestamp unverified');
   return millis;
 }
 async function newestBefore(client,id,instant){
@@ -172,33 +172,33 @@ async function newestBefore(client,id,instant){
   const rows=Array.isArray(raw)?raw:raw?.backups??raw?.data;
   if(!Array.isArray(rows)||rows.length>50||
     !raw?.pagination||raw.pagination.next!==null)
-    throw new TypeError('Backup inventory is incomplete; select an exact version');
+    throw new RefusalError('Backup inventory is incomplete; select an exact version');
   const seen=new Set(),parsed=rows.map(row=>{
     const version=row?.id??row?.versionId??row?.version;
     if(!VERSION.test(version??'')||seen.has(version))
-      throw new TypeError('Unverified or duplicated backup identity');
+      throw new RefusalError('Unverified or duplicated backup identity');
     seen.add(version);
     if(row.edgeConfigId!=null&&row.edgeConfigId!==id)
-      throw new TypeError('Backup belongs to a different store');
+      throw new RefusalError('Backup belongs to a different store');
     return {version,at:timestamp(row.createdAt)};
   });
   const eligible=parsed.filter(x=>x.at<instant).sort((a,b)=>b.at-a.at);
-  if(!eligible.length)throw new TypeError('No backup existed before requested UTC instant');
+  if(!eligible.length)throw new RefusalError('No backup existed before requested UTC instant');
   if(eligible.length>1&&eligible[0].at===eligible[1].at)
-    throw new TypeError('Newest backup timestamp is ambiguous');
+    throw new RefusalError('Newest backup timestamp is ambiguous');
   return eligible[0].version;
 }
 async function chosenBackup(a,client,storeId){
   const hasVersion=a.versionId!==undefined,hasTime=a.beforeTime!==undefined;
   if(hasVersion===hasTime)
-    throw new TypeError('Choose exactly one backup version ID or UTC beforeTime');
+    throw new RefusalError('Choose exactly one backup version ID or UTC beforeTime');
   if(hasVersion){
-    if(!VERSION.test(a.versionId??''))throw new TypeError('Invalid exact backup ID');
+    if(!VERSION.test(a.versionId??''))throw new RefusalError('Invalid exact backup ID');
     return a.versionId;
   }
   const until=timestamp(a.beforeTime);
   if(until>Date.now())
-    throw new TypeError('Cannot select a future backup cutoff');
+    throw new RefusalError('Cannot select a future backup cutoff');
   return newestBefore(client,storeId,until);
 }
 
@@ -223,10 +223,10 @@ async function restoreState(a,ctx){
   ]);
   const current=allItems(now),saved=backupVersion(backup,versionId,row.id);
   if(Object.keys(current).length!==row.itemCount)
-    throw new TypeError('Store item inventory did not match declared item count');
+    throw new RefusalError('Store item inventory did not match declared item count');
   const diff=describeDiff(current,saved);
   if(!Object.values(diff).some(x=>x.length))
-    throw new TypeError('Backup is already identical; no restore needed');
+    throw new RefusalError('Backup is already identical; no restore needed');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
     projects:linkSnapshot(row),versionId,

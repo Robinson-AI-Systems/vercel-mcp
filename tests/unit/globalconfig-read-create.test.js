@@ -144,6 +144,12 @@ describe('E-3 Global Config metadata, safe items and guarded creation',()=>{
         .toBe('refused_by_guard');
       expect(changes(f)).toHaveLength(0);
     }
+    // AUD-AH: the slug-uniqueness refusal reaches the caller in its own
+    // words, not the preflight's generic sentence.
+    const collision=fixture([record,{...record,id:'ecfg_FAKE_OTHER',slug:'new-fake-store'}]);
+    expect(parse(await collision.call('vercel_globalconfig_create',args)))
+      .toMatchObject({status:'refused_by_guard',
+        reason:'Unable to prove unique selected-team Global Config slug'});
     const page=fixture([]);
     page.fake.when('GET','/v1/global-config')
       .resolves({data:[],pagination:{next:99}});

@@ -1,6 +1,6 @@
 // E-3: guarded item patch and version-checked store removal.
 // A live-linked store is always treated as production; unknown links fail closed.
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
@@ -44,56 +44,56 @@ function validBase(a,keys){
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean'||
     a.requestKey!==undefined&&!/^[A-Za-z0-9_-]{8,128}$/.test(a.requestKey))
-    throw new TypeError('Exact Global Config store ID, slug, revision and outside-app intent required');
+    throw new RefusalError('Exact Global Config store ID, slug, revision and outside-app intent required');
 }
 function safeJson(value,depth=0){
-  if(depth>8)throw new TypeError('Config values cannot be deeply nested');
+  if(depth>8)throw new RefusalError('Config values cannot be deeply nested');
   if(typeof value==='string'){
     if(credentialLike(value)||/[\x00-\x08\x0b-\x1f\x7f]/.test(value))
-      throw new TypeError('Global Config cannot store credentials or control bytes');
+      throw new RefusalError('Global Config cannot store credentials or control bytes');
     return;
   }
   if(value===null||typeof value==='boolean'||typeof value==='number'){
     if(typeof value==='number'&&!Number.isFinite(value))
-      throw new TypeError('Global Config value must be finite');
+      throw new RefusalError('Global Config value must be finite');
     return;
   }
   if(Array.isArray(value)){
-    if(value.length>100)throw new TypeError('Config array is oversized');
+    if(value.length>100)throw new RefusalError('Config array is oversized');
     value.forEach(x=>safeJson(x,depth+1));return;
   }
   if(value&&typeof value==='object'&&Object.getPrototypeOf(value)===Object){
-    if(Object.keys(value).length>100)throw new TypeError('Config object is oversized');
+    if(Object.keys(value).length>100)throw new RefusalError('Config object is oversized');
     for(const [key,part] of Object.entries(value)){
       if(credentialLike(key)||key==='__proto__'||key==='constructor'||
         key==='prototype'||/[\x00-\x1f\x7f]/.test(key))
-        throw new TypeError('Unsafe Global Config item field');
+        throw new RefusalError('Unsafe Global Config item field');
       safeJson(part,depth+1);
     }
     return;
   }
-  throw new TypeError('Unsupported Global Config value');
+  throw new RefusalError('Unsupported Global Config value');
 }
 function validItems(a){
   validBase(a,Object.keys(patchProps));
   if(!Array.isArray(a.items)||a.items.length<1||a.items.length>10)
-    throw new TypeError('One to ten exact changes required');
+    throw new RefusalError('One to ten exact changes required');
   const seen=new Set();
   for(const item of a.items){
     if(!item||typeof item!=='object'||Array.isArray(item)||
       Object.keys(item).some(k=>!['operation','key','value'].includes(k))||
       !OPS.has(item.operation)||!KEY.test(item.key??'')||
       credentialLike(item.key)||seen.has(item.key))
-      throw new TypeError('Invalid Global Config operation or duplicate key');
+      throw new RefusalError('Invalid Global Config operation or duplicate key');
     seen.add(item.key);
     if(item.operation==='delete'){
-      if(Object.hasOwn(item,'value'))throw new TypeError('Delete cannot supply an item value');
+      if(Object.hasOwn(item,'value'))throw new RefusalError('Delete cannot supply an item value');
     }else{
       if(!Object.hasOwn(item,'value'))
-        throw new TypeError('Upsert/update/create requires an explicit value');
+        throw new RefusalError('Upsert/update/create requires an explicit value');
       safeJson(item.value);
       if(Buffer.byteLength(JSON.stringify(item.value),'utf8')>8192)
-        throw new TypeError('Item exceeds safe request size');
+        throw new RefusalError('Item exceeds safe request size');
     }
   }
 }
@@ -112,7 +112,7 @@ function assertOperations(items,existing){
     const exists=Object.hasOwn(existing,item.key);
     if(item.operation==='create'&&exists||
       ['update','delete'].includes(item.operation)&&!exists)
-      throw new TypeError('Global Config item key state differs from requested operation');
+      throw new RefusalError('Global Config item key state differs from requested operation');
   }
 }
 // Canonical before-snapshot form of a store's project linkage: a
@@ -129,7 +129,7 @@ async function store(ctx,args){
     row.updatedAt!==args.expectedUpdatedAt||
     (row.projects!==null&&row.projects.length>20)||
     row.itemCount===null)
-    throw new TypeError('Global Config owner, connections or revision cannot be classified');
+    throw new RefusalError('Global Config owner, connections or revision cannot be classified');
   // AUD-AF: the pinned Global Config record carries NO project-link
   // field at all (linkage lives on the project side, in the
   // connection string a project holds), so row.projects is null for
@@ -141,7 +141,7 @@ async function store(ctx,args){
   for(const project of row.projects??[]){
     const meta=await client.request('projects_get',{path:{idOrName:project}});
     if(meta?.id!==project||meta.accountId!==account.team_id)
-      throw new TypeError('Connected project team could not be proven');
+      throw new RefusalError('Connected project team could not be proven');
   }
   return {client,account,row};
 }
@@ -162,7 +162,7 @@ async function beforePatch(a,ctx){
   const items=allItems(await client.request('global_config_items',
     {path:{edgeConfigId:row.id}}));
   if(Object.keys(items).length!==row.itemCount)
-    throw new TypeError('Incomplete Global Config item inventory');
+    throw new RefusalError('Incomplete Global Config item inventory');
   assertOperations(a.items,items);
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
@@ -172,12 +172,12 @@ async function beforePatch(a,ctx){
 async function beforeDelete(a,ctx){
   validBase(a,common);
   if(ctx.connection?.profile!=='full')
-    throw new TypeError('Irreversible store deletion needs a full profile');
+    throw new RefusalError('Irreversible store deletion needs a full profile');
   const {client,account,row}=await store(ctx,a);
   const contents=allItems(await client.request('global_config_items',
     {path:{edgeConfigId:row.id}}));
   if(Object.keys(contents).length!==row.itemCount)
-    throw new TypeError('Store contents could not be completely enumerated');
+    throw new RefusalError('Store contents could not be completely enumerated');
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
     projects:linkSnapshot(row),keys:Object.keys(contents).sort()};

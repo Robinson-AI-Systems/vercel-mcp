@@ -1,6 +1,7 @@
 // D-2a: bounded deployment list/detail reads. Stored account controls every team
 // and project scope; never trust arbitrary upstream metadata or a caller token.
 import {readProvider} from '../vercel/provider.js';
+import { RefusalError } from '../core/write.js';
 import {credentialLike} from '../core/util.js';
 
 const PROFILES=['read_only','everyday','full'];
@@ -34,29 +35,29 @@ function deploymentLocator(value){
 export function projectFor(args,account){
   const requested=args.project;
   if(requested!==undefined && (typeof requested!=='string'||!IDENT.test(requested)))
-    throw new TypeError('Select a valid project ID');
+    throw new RefusalError('Select a valid project ID');
   if(account.scope==='project'){
     if(typeof account.project_id!=='string'||!IDENT.test(account.project_id)||
       requested!==undefined&&requested!==account.project_id)
-      throw new TypeError('Connection cannot inspect a different project');
+      throw new RefusalError('Connection cannot inspect a different project');
     return account.project_id;
   }
-  if(requested===undefined)throw new TypeError('Select the exact project ID to read deployments');
+  if(requested===undefined)throw new RefusalError('Select the exact project ID to read deployments');
   return requested;
 }
 function deploymentProject(row){
   if(row?.projectId!=null&&row?.project?.id!=null&&row.projectId!==row.project.id)
-    throw new TypeError('Conflicting provider project identity');
+    throw new RefusalError('Conflicting provider project identity');
   const project=row?.projectId??row?.project?.id;
   if(typeof project!=='string'||!IDENT.test(project))
-    throw new TypeError('Deployment project identity is unverified');
+    throw new RefusalError('Deployment project identity is unverified');
   return project;
 }
 function summary(row,project){
   if(!row||typeof row!=='object'||Array.isArray(row)||
-    deploymentProject(row)!==project)throw new TypeError('Deployment outside requested project — deployment reads are keyed by the exact project ID (prj_…), not a project name');
+    deploymentProject(row)!==project)throw new RefusalError('Deployment outside requested project — deployment reads are keyed by the exact project ID (prj_…), not a project name');
   const id=name(row.uid??row.id,128);
-  if(!id)throw new TypeError('Provider deployment ID is unsafe');
+  if(!id)throw new RefusalError('Provider deployment ID is unsafe');
   const git=row.meta&&typeof row.meta==='object'?row.meta:{};
   const aliases=Array.isArray(row.alias)?row.alias.slice(0,10)
     .map(alias=>name(typeof alias==='string'?alias:alias?.alias,253)).filter(Boolean):[];
@@ -90,12 +91,12 @@ function cursorFor(reply,items,limit){
 // ancillary GET. File names and log text may contain secrets: do not return raw.
 export async function scopedDeployment(args,ctx,requestOptions={}){
   if(typeof args.deployment!=='string'||!/^dpl_[A-Za-z0-9_-]{3,120}$/.test(args.deployment))
-    throw new TypeError('Select a valid deployment ID');
+    throw new RefusalError('Select a valid deployment ID');
   const {client,account}=await readProvider(ctx);
   const project=projectFor(args,account);
   const row=await client.request('deployments_get',{path:{idOrUrl:args.deployment}},requestOptions);
   const verified=summary(row,project);
-  if(verified.id!==args.deployment)throw new TypeError('Deployment identity changed');
+  if(verified.id!==args.deployment)throw new RefusalError('Deployment identity changed');
   return {client,account,project,verified};
 }
 function buildEventSummary(events){

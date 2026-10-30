@@ -1,6 +1,6 @@
 // Bounded provider batch mutations. No raw environment values in tool responses.
 import {randomBytes} from 'node:crypto';
-import {defineWrite,bindGuardedWrite,requirePreDispatch} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
 import {pendingInputs} from '../core/pending-inputs.js';
@@ -51,7 +51,7 @@ function base(a,allowed){
    (a.confirm!==undefined&&typeof a.confirm!=='boolean')||
    (a.dryRun!==undefined&&typeof a.dryRun!=='boolean')||
    !Array.isArray(a.items)||a.items.length<2||a.items.length>10)
-   throw new TypeError('Invalid bounded project environment batch');
+   throw new RefusalError('Invalid bounded project environment batch');
 }
 function checkCreate(a){
  base(a,['project','items','confirm','dryRun','requestKey']);
@@ -63,41 +63,41 @@ function checkCreate(a){
      item.targets.some(t=>!TARGETS.has(t))||
      new Set(item.targets).size!==item.targets.length||
      ![undefined,'Config','Secret'].includes(item.kind))
-     throw new TypeError('Duplicate or invalid environment key/target');
+     throw new RefusalError('Duplicate or invalid environment key/target');
    keys.add(item.key);
    const kind=item.kind??'Secret';
    const from=['value','pendingInputId','generate'].filter(k=>item[k]!==undefined);
    if(from.length!==1||(kind==='Config'&&from[0]!=='value')||
      (kind==='Secret'&&(from[0]==='value'||item.targets.includes('development'))))
-     throw new TypeError('Invalid private value source');
+     throw new RefusalError('Invalid private value source');
    if(from[0]==='value'){
      if(typeof item.value!=='string'||item.value.length<1||
        item.value.length>65536||credentialLike(item.value))
-       throw new TypeError('Invalid Config value');
+       throw new RefusalError('Invalid Config value');
      bytes+=Buffer.byteLength(item.value);
    }else if(from[0]==='pendingInputId'){
      if(!UUID.test(item.pendingInputId)||inputs.has(item.pendingInputId))
-       throw new TypeError('Duplicate/invalid owner pending input');
+       throw new RefusalError('Duplicate/invalid owner pending input');
      inputs.add(item.pendingInputId);bytes+=64;
    }else{
      if(!only(item.generate,['bytes','encoding'])||
        item.generate.bytes!==32||!['hex','base64url'].includes(item.generate.encoding))
-       throw new TypeError('Invalid cryptographic generation request');
+       throw new RefusalError('Invalid cryptographic generation request');
      bytes+=64;
    }
  }
- if(bytes>65536)throw new TypeError('Batch total value bound exceeded');
+ if(bytes>65536)throw new RefusalError('Batch total value bound exceeded');
 }
 function checkDelete(a){
  base(a,['project','items','outsideApp','confirm','dryRun','requestKey']);
- if(a.outsideApp!==true)throw new TypeError('Explicit outside-app intent required');
+ if(a.outsideApp!==true)throw new RefusalError('Explicit outside-app intent required');
  const ids=new Set(),keys=new Set();
  for(const i of a.items){
    if(!only(i,['id','expectedKey','expectedUpdatedAt'])||
      !ID.test(i.id??'')||!KEY.test(i.expectedKey??'')||
      !Number.isSafeInteger(i.expectedUpdatedAt)||i.expectedUpdatedAt<1||
      ids.has(i.id)||keys.has(i.expectedKey))
-     throw new TypeError('Duplicate/invalid deletion identity');
+     throw new RefusalError('Duplicate/invalid deletion identity');
    ids.add(i.id);keys.add(i.expectedKey);
  }
 }
@@ -105,7 +105,7 @@ function exactRow(raw,project,input){
  const row=envMeta(raw,project);
  if(row.id!==input.id||row.key!==input.expectedKey||
    row.updatedAt!==input.expectedUpdatedAt)
-   throw new TypeError('Variable identity or revision drifted');
+   throw new RefusalError('Variable identity or revision drifted');
  return row;
 }
 function context({db,connection,env,fetchImpl}){

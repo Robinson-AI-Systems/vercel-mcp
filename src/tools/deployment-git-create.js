@@ -1,7 +1,7 @@
 // D-3: guarded Git-sourced deployment. Building is metered; IN-08's
 // provider-enforced per-operation total ceiling is unavailable, so the
 // shared spending gate must refuse confirmed execution before POST.
-import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor} from '../core/write.js';
+import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {deploymentTargetMatches} from '../vercel/deployment-target.js';
@@ -35,18 +35,18 @@ function check(args){
     args.outsideApp!==true||
     args.dryRun!==undefined&&typeof args.dryRun!=='boolean'||
     args.confirm!==undefined&&typeof args.confirm!=='boolean')
-    throw new TypeError('Exact authorized Git project, branch, commit and target required');
+    throw new RefusalError('Exact authorized Git project, branch, commit and target required');
 }
 function sourceProject(project,row){
   if(row?.id!==project||typeof row?.name!=='string'||!NAME.test(row.name)||
     row.accountId!=null&&typeof row.accountId!=='string')
-    throw new TypeError('Project scope or identity could not be proven');
+    throw new RefusalError('Project scope or identity could not be proven');
   // Vercel Git source may belong to a linked repository. Never let the agent
   // select a different Git owner/repository than the verified Vercel project.
   const git=row.link;
   if(!git||git.type!=='github'||!REPO.test(git.org??'')||
     !REPO.test(git.repo??'')||git.repo.includes('..')||git.org.includes('..'))
-    throw new TypeError('Project has no verified GitHub repository linkage');
+    throw new RefusalError('Project has no verified GitHub repository linkage');
   return {id:row.id,name:row.name,org:git.org,repo:git.repo};
 }
 function same(a,b){
@@ -62,15 +62,15 @@ const create=defineWrite({
   name:'vercel_deploy_create_from_git',risk:{spend:true},
   async before(args,ctx){
     check(args);
-    if(ctx.connection?.profile!=='full')throw new TypeError('Full profile required');
+    if(ctx.connection?.profile!=='full')throw new RefusalError('Full profile required');
     const {client,account}=await readProvider(ctx);
     if(account.scope==='project'&&account.project_id!==args.project)
-      throw new TypeError('Project outside connected scope');
+      throw new RefusalError('Project outside connected scope');
     const row=await client.request('projects_get',{path:{idOrName:args.project}});
     const checked=sourceProject(args.project,row);
     if(checked.name!==args.expectedName||
       row.accountId!=null&&row.accountId!==account.team_id)
-      throw new TypeError('Vercel project or team changed');
+      throw new RefusalError('Vercel project or team changed');
     const body={name:checked.name,project:checked.name,
       gitSource:{type:'github',org:checked.org,repo:checked.repo,
         ref:args.gitRef,sha:args.gitSha},target:args.target};
