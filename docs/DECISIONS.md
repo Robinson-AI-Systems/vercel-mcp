@@ -9,6 +9,25 @@ remain binding. This document is not implementation or live verification.
 
 # Decisions (dated)
 
+**2026-10-30 — Batch W front-door composition review (OP-1 delta).** The OP-1 decision
+promised the front door's composition would be reviewed "at each audit delta"; Batch W is that
+delta. OP-1's 5,000-token cap is owner policy and does not move. Completing the Workflows
+section adds twelve `vercel_workflow_*` tools, and the listing code auto-includes every workflow
+tool in the front-door and compact listings; at the pre-W registry the full-profile front door
+already measured 4,890 tokens, so twelve compact workflow schemas (~120–160 tokens each) cannot
+join without rebalancing. The membership artifact moves to version 2 (basis
+`batch-w-delta-2026-10-30`): the twelve workflow tools take seats across W-1..W-6, and ten
+most-used seats retire to the catalog listing — `vercel_deploy_redeploy`,
+`vercel_deploy_get_runtime_logs`, `vercel_git_search_repos`, `vercel_deploy_wait`,
+`vercel_domain_get`, `vercel_deploy_get_build_logs`, `vercel_cron_list`, `vercel_alias_get`,
+`vercel_team_get`, `vercel_check_token` (~1,593 tokens at the full profile). Retired tools stay
+registered and reachable in one search/describe/call hop; several are superseded inside the
+door itself (`deploy_and_wait` covers `deploy_wait`; `why_did_build_fail` covers build logs).
+Projected full-profile front door after W: ~4,697 tokens. `vercel_project_create` stays: the
+front-door suite pins it on the everyday door and it is genuinely most-used. The C6
+everyday-listing engineering line steps 24000 → 24500 with the growth (measured ~24,104 at 230
+tools); per BATCH-C that line is an engineering sanity bound, not owner policy.
+
 **2026-10-29 — AUD-I S1b: how a personal install is proven and labeled.** Built the same day as the S1 boundary it discharges. The proof is user-keyed: the token's own identity read (a new `user_get_unscoped` operation, following the existing `*_unscoped` pattern) must name exactly the user the Integrations exchange says installed it, the unscoped project list is the account's granted set, and any team visibility beyond the personal account is broader than the box and refuses without the explicit allowance. The account record keys on the user id (Vercel's account-id space is shared between users and teams). The store's scope enum (`team`/`project`/`full`) has no personal value; rather than widen the enum in this slice, the row records scope `team` for the account-shaped box and the probe record carries `accountKind: 'personal'` with `declaredBox: 'personal'` — S3's whoami reporting renders the personal label from the probe record, never from the enum. If a future slice widens the enum, this pairing is the migration note.
 
 **2026-10-29 — AUD-I S1: team installs enroll now; personal installs are an honest boundary, slice S1b.** The Integrations exchange returns `team_id: null` for a personal-account install. The shipped probe (`probeToken`) proves a credential by its visibility of a *team*; a personal installation token has no team to be visible to it, and keying it under the user's id through the team probe would record a scope the probe never proved. So S1 enrolls team installs through the standard probe/store path (installation identity + declared box on the probe record, via storeToken's additive `probeExtra`) and reports personal installs as detected-but-not-enrolled, storing nothing. S1b designs the user-keyed probe (identity + unscoped project visibility, account keyed on the user id) before any personal enrollment ships. Rationale: the declared box is the record — an enrollment whose probe proves a different box than the label claims is exactly the fixture-blindness failure this audit exists to kill.
