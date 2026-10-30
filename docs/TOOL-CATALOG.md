@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`): 128 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 113 are planned scope for approved batches N-2/N-3, F, M, O-2–O-5, P, W, X and the write side of U-1, plus `vercel_undo_change`. (M-1, this branch: +5 — 133 of 241.) A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; updated by M-1 and U-1's write side): 134 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 107 are planned scope for approved batches N-2/N-3, F, the rest of M, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
 
 **Naming.** Every tool name starts with `vercel_` (DECISIONS 2026-10-10 "Every tool name starts with `vercel_`"):
 Vercel, Neon and GitHub share nouns such as *project* and *branch*, and two connectors attached to one Claude chat must
@@ -491,10 +491,10 @@ OpenAPI snapshot. The server never guesses an operation or a parameter.
 | `vercel_api_search` | Find Vercel operations by plain words: method, path, one-line summary, and whether it reads, changes, spends or returns a secret | — | B O Op | R | — | U-1 (metadata built #148) |
 | `vercel_api_describe` | Parameters for one operation, trimmed to what matters, from the OpenAPI snapshot | — | B O Op | R | — | U-1 (metadata built #148) |
 | `vercel_api_read` | Audited pinned flags only: canonical exact-ID single flags, team/project inventories, bounded verified capacity, deployment counts, segment and revision identities; foreign ownership, raw targeting and secrets refused | — | B O Op | R | — | U-1 (#150–#165; real provider/RTC proof pending) |
-| `vercel_api_write` | Any POST/PUT/PATCH/DELETE operation through the full safety layer: always `confirm`; spend table; production detection; hand-built tools win | C (always) | B O Op | F | y | U-1 |
+| `vercel_api_write` | Any POST/PUT/PATCH/DELETE operation through the full safety layer: always `confirm`; spend table; production detection; hand-built tools win | C (always) $ A | B O Op | F | y | U-1 (built — this PR) |
 
 How `vercel_api_write` stays safe (details `docs/designs/BATCH-U.md`): always `confirm`, supports `dryRun`; spend
-detection from a table (`src/vercel/spend-operations.js`, planned file — not present yet) with a safe default (unknown operations whose summary says buy,
+detection from a table (`src/vercel/spend-operations.js`) with a safe default (unknown operations whose summary says buy,
 purchase, renew, upgrade, credits or billing are treated as spend); production detection from the target (B2); secret
 rule (operations that return or take credentials are refused and named); hand-built tools win (refused, naming the
 tool); self-protection and profile guards apply; read-back when the response has an ID; change log; `full` profile only;

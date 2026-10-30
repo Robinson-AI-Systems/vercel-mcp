@@ -33,17 +33,18 @@ export function readOpenApi() {
   return spec;
 }
 
-export function documentedRead(op){
+function findDocumented(op){
   if(typeof op!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(op))
-    throw new TypeError('Invalid documented read operation');
+    throw new TypeError('Invalid documented operation');
   const matches=[];
   for(const [path,pathItem] of Object.entries(readOpenApi().paths))
     for(const method of HTTP_METHODS){
       const specOperation=pathItem[method];
       if(specOperation?.operationId===op)matches.push({path,method:method.toUpperCase(),pathItem,specOperation});
     }
-  if(matches.length!==1||!['GET','HEAD'].includes(matches[0].method))
-    throw new TypeError('Only an unambiguous documented GET or HEAD is allowed');
+  return matches;
+}
+function documentedRow(matches){
   const row=matches[0];
   // Team query is injected only where declared. A path-bound team is
   // independently checked by the transport against the stored account.
@@ -51,8 +52,31 @@ export function documentedRead(op){
     .some(p=>p.in==='query'&&p.name==='teamId');
   return row;
 }
+export function documentedRead(op){
+  const matches=findDocumented(op);
+  if(matches.length!==1||!['GET','HEAD'].includes(matches[0].method))
+    throw new TypeError('Only an unambiguous documented GET or HEAD is allowed');
+  return documentedRow(matches);
+}
+// Batch U (U-1 write side): the guarded write path resolves documented
+// write operations through the same unique-operation rule. Callers still
+// validate the full request against the snapshot before any I/O; this
+// resolver only establishes that the operation exists exactly once and
+// mutates.
+export function documentedWrite(op){
+  const matches=findDocumented(op);
+  if(matches.length!==1||!['POST','PUT','PATCH','DELETE'].includes(matches[0].method))
+    throw new TypeError('Only an unambiguous documented POST, PUT, PATCH or DELETE is allowed');
+  return documentedRow(matches);
+}
+export function documentedOperation(op){
+  const matches=findDocumented(op);
+  if(matches.length!==1)
+    throw new TypeError('Unknown or ambiguous documented operation');
+  return documentedRow(matches);
+}
 export function openApiOperation(id) {
-  if(typeof id==='string'&&id.startsWith('api:'))return documentedRead(id.slice(4));
+  if(typeof id==='string'&&id.startsWith('api:'))return documentedOperation(id.slice(4));
   const { path, method } = operation(id);
   const doc = readOpenApi();
   const pathItem = doc.paths?.[path];

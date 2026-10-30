@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {loadToken} from './tokens.js';
 import {makeVercelClient} from './client.js';
 import {operation} from './operations.js';
+import {documentedWrite} from './openapi-validation.js';
 
 async function bind({db,connection,env,fetchImpl},writable){
   if(!connection || typeof connection.account!=='string' || !connection.account ||
@@ -77,6 +78,21 @@ export async function writeProvider(ctx){
         throw new TypeError('Guarded mutation must declare tool and safe shape');
       return client.request(id,params,{
         requestKey:transportReplayKey(requestKey,id,params,mutationId),tool,mode:ctx.connection.mode,
+        shapeResult
+      });
+    },
+    // Batch U: the universal write dispatches a documented operation that
+    // has no OPS-table entry. Same guarded contract as write(): a named
+    // tool, a safe result shape, and a transport key bound to the logical
+    // request key, the operation and the exact mutation parameters.
+    writeApi(op,params,{requestKey,tool,shapeResult,mutationId}={}){
+      documentedWrite(op);
+      if(typeof tool!=='string' || !/^vercel_[a-z0-9_]+$/.test(tool) ||
+        typeof shapeResult!=='function')
+        throw new TypeError('Guarded mutation must declare tool and safe shape');
+      return client.request('api:'+op,params,{
+        documentedWrite:true,
+        requestKey:transportReplayKey(requestKey,'api:'+op,params,mutationId),tool,mode:ctx.connection.mode,
         shapeResult
       });
     }
