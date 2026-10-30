@@ -10,6 +10,11 @@ export const OPS = Object.freeze({
   teams_list_unscoped: Object.freeze({ method: 'GET', path: '/v2/teams', teamScoped: false }),
   teams_get: Object.freeze({ method: 'GET', path: '/v2/teams/{teamId}', teamScoped: false }),
   teams_patch: Object.freeze({ method: 'PATCH', path: '/v2/teams/{teamId}', teamScoped: false }),
+  // AUD-AB: the account-layer lifecycle lives at /v1 in the pinned snapshot
+  // (create/delete), while list/get stay at /v2. Unscoped: the bearer token
+  // acts as the user; no team query may be attached to an account-layer act.
+  teams_create: Object.freeze({ method: 'POST', path: '/v1/teams', teamScoped: false }),
+  teams_delete: Object.freeze({ method: 'DELETE', path: '/v1/teams/{teamId}', teamScoped: false }),
   // Exact team ID comes only from the stored account, not the caller. This
   // endpoint takes teamId in the path, not as a redundant query parameter.
   teams_members_list: Object.freeze({ method: 'GET', path: '/v3/teams/{teamId}/members', teamScoped: false }),

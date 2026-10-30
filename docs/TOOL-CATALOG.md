@@ -381,13 +381,16 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 | `vercel_blob_put` | Upload one small file (≤4 MB, sent inline) to a connected store; refuses to overwrite unless asked; a store connected to a live project counts as production | Cp | B | E | y | M-4 |
 | `vercel_blob_delete` | Delete named files (≤100 per call; no wildcards); preview lists each file and size; refused on a profiled app's store without `outsideApp` | D Cp | O Op | F | y | M-4 |
 
-## Owner: team and security settings (`vercel_team_*`) — 7
+## Owner: team and security settings (`vercel_team_*`) — 10
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
 | `vercel_team_list` | One strictly stored-account selected team from the provider list, with projected metadata; never other teams or credentials | — | O | R | — | O-1 (read built #144) |
-| `vercel_team_get` | Selected team ID verified with provider; allowlisted profile/plan/security flags, no secret values | — | O | R | — | O-1 (read built #144) |
+| `vercel_team_get` | Selected team ID verified with provider; allowlisted profile/plan/security flags, no secret values. Optional teamId reads one other team from an account-wide seat only | — | O | R | — | O-1 (read built #144); AUD-AB |
+| `vercel_account_teams` | Every team an account-wide credential can see from the bounded provider page, each safely projected, with the selected team marked; narrower seats refuse | — | O | R | — | AUD-AB |
 | `vercel_team_update_profile` | Guarded full-profile production update for name, slug, description and preview suffix; strict team preflight, race check and GET readback | C | O | F | — | O-1 (guarded write #145) |
+| `vercel_team_create` | Guarded account-layer team creation (slug, optional name); plan terms disclosed in the preview, provider refusals classified with remedies, GET readback verification | C | O | F | — | AUD-AB |
+| `vercel_team_delete` | Guarded account-layer team deletion, permanent; enrolled seats on the target refuse until removed as their own act; default-team change disclosed; provider verdicts classified | C D | O | F | — | AUD-AB |
 | `vercel_team_update_security` | SAML enforced, IP addresses hidden in logs, verified commits required, separate production secret values, strict protection settings, email-domain auto-join | C A | O | F | — | O-1 (guarded privacy/secret/strict controls #146; SAML and auto-join pending) |
 | `vercel_team_set_default_protection` | Default deployment protection for new projects | C A | O | F | — | O-1 (guarded standard authentication #147) |
 | `vercel_team_set_deployment_retention` | How long deployments are kept, per target (shortening deletes old deployments) | C D | O | F | y | O-1 |
@@ -529,21 +532,23 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Drains and webhooks | 8 | M |
 | Integrations and storage | 8 | M |
 | Blob files | 4 | M |
-| Owner: team and security settings | 7 | O |
+| Owner: team and security settings | 10 | O |
 | Owner: members and access groups | 10 | O |
 | Owner: access tokens | 3 | O |
 | Owner: billing, usage and activity | 4 | O |
 | Owner: administration | 5 | O |
 | Project profiles | 5 | P |
 | Workflows | 12 | W |
-| **Hand-built total** | **234** | |
+| **Hand-built total** | **237** | |
 | Universal tools | 4 | U |
-| **All tools** | **238** | |
+| **All tools** | **241** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
 O 29 · P 5 · W 12 · U 4 · R 1 · X 1 (= 236). By lowest profile: `read_only` 103, `everyday` 160 (103 + 57), `full` all 236
 (B-6 prints the exact counts from the registry). In compact mode (`docs/designs/BATCH-C.md`) an agent loads about 20
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.
+
+**AUD-AB account-layer team lifecycle (2026-10-30, VMCP-026 A-13):** the team family gains its account layer. `vercel_account_teams` lists every team an account-wide (Full Account) credential can see — each row through the O-1 safe projector with the connection's selected team marked — and `vercel_team_get` accepts an optional `teamId` for one other team from that same seat; `vercel_team_list` keeps its seat-bound O-1 contract for narrower seats untouched. `vercel_team_create` and `vercel_team_delete` are guarded writes on the pinned /v1 contract: project seats refuse with the account-layer reason, plan/billing/state verdicts are Vercel's — attempted, classified and given remedies, never pre-judged — and the one product-owned refusal is data integrity: a team with enrolled accounts seated on it (this product's own hosting team included, by derivation, never by a named ID) refuses deletion until the enrollments are removed as their own act (`vercel_remove_account`, AUD-AA). Deleting the account's default team is disclosed, with `newDefaultTeamId` as the contract's own replacement mechanism.
 
 **C-1b common result summaries (#42):** Reusable summary/field projection utilities now available to future provider tool cards. Secret-value keys are omitted even at full detail and unknown selectors are reported. No new MCP tool was registered in this slice; the result handle and default dispatcher integration belong to C-1c.
 

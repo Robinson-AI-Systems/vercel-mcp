@@ -70,3 +70,60 @@ describe('O-1 team owner reads never escape a selected stored team',()=>{
    expect((await invoke('vercel_team_list',{},f)).isError).toBe(true);
  });
 });
+describe('AUD-AB account-layer team reads',()=>{
+ beforeEach(()=>{vi.clearAllMocks();loadToken.mockResolvedValue({token:'vcp_FAKE',
+   account:{id:'acct_TEAM',team_id:team,scope:'team'}});});
+ const other={id:'team_OTHER',name:'Other Team',slug:'other-team',
+   billing:{plan:'hobby'},inviteCode:'NEVER_EXPOSE'};
+ const full=()=>loadToken.mockResolvedValue({token:'vcp_FAKE',
+   account:{id:'acct_TEAM',team_id:team,scope:'full'}});
+ it('lists every team for a full seat, marks the selected one, projects safely',async()=>{
+   full();
+   const f=makeFakeVercel();
+   f.when('GET','/v2/teams').resolves({teams:[row,other],pagination:{next:null}});
+   const result=body(await invoke('vercel_account_teams',{},f));
+   expect(result).toMatchObject({count:2,providerPageComplete:true,
+     teams:[{id:team,selected:true},{id:'team_OTHER',selected:false,plan:'hobby'}]});
+   expect(JSON.stringify(result)).not.toMatch(/NEVER_EXPOSE|inviteCode/);
+   expect(f.calls[0]).toMatchObject({method:'GET',query:{limit:'100'}});
+   f.verify();
+ });
+ it('refuses the account list for team and project seats before provider reads',async()=>{
+   const f=provider();
+   expect((await invoke('vercel_account_teams',{},f)).isError).toBe(true);
+   loadToken.mockResolvedValueOnce({token:'vcp_FAKE',
+     account:{id:'acct_TEAM',team_id:team,scope:'project',project_id:'prj_1'}});
+   expect((await invoke('vercel_account_teams',{},f)).isError).toBe(true);
+   expect(f.calls).toHaveLength(0);
+ });
+ it('refuses duplicate, foreign-only or malformed account inventory',async()=>{
+   full();
+   for(const teams of [[row,row],[other],[row,{id:'bad id!'}]]){
+     const f=makeFakeVercel();
+     f.when('GET','/v2/teams').resolves({teams,pagination:{next:null}});
+     expect((await invoke('vercel_account_teams',{},f)).isError).toBe(true);
+   }
+ });
+ it('gets another team by id for a full seat, and the selected team by default',async()=>{
+   full();
+   const f=makeFakeVercel();
+   f.when('GET','/v2/teams/{teamId}').resolves(other);
+   const cross=body(await invoke('vercel_team_get',{teamId:'team_OTHER'},f));
+   expect(cross).toMatchObject({onlyConnectedTeam:false,
+     team:{id:'team_OTHER',slug:'other-team',plan:'hobby'}});
+   expect(JSON.stringify(cross)).not.toContain('NEVER_EXPOSE');
+   expect(f.calls[0]).toMatchObject({method:'GET',params:{teamId:'team_OTHER'}});
+   const g=makeFakeVercel();
+   g.when('GET','/v2/teams/{teamId}').resolves(row);
+   expect(body(await invoke('vercel_team_get',{teamId:team},g)))
+     .toMatchObject({onlyConnectedTeam:true,team:{id:team}});
+   expect(body(await invoke('vercel_team_get',{},g)))
+     .toMatchObject({onlyConnectedTeam:true,team:{id:team}});
+ });
+ it('refuses a foreign team id for a team seat before provider reads',async()=>{
+   const f=provider();
+   expect((await invoke('vercel_team_get',{teamId:'team_OTHER'},f)).isError).toBe(true);
+   expect((await invoke('vercel_team_get',{teamId:'bad id!'},f)).isError).toBe(true);
+   expect(f.calls).toHaveLength(0);
+ });
+});
