@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, F-1, F-2, F-3 and U-1's write side added 2026-10-30): 177 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 64 are planned scope for approved batches N-2/N-3, M-4, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.their contract names (`vercel_search_tools`, `vercel_call`, …); workflows are `vercel_workflow_<job>`; developer tools
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, F-1, F-2, F-3, U-1's write side and O-1R added 2026-10-30): 179 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 62 are planned scope for approved batches N-2/N-3, M-4, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.their contract names (`vercel_search_tools`, `vercel_call`, …); workflows are `vercel_workflow_<job>`; developer tools
 are `vercel_dev_<job>` (contract §10).
 
 **Safety** (combine as listed; the guards are defined in `docs/designs/BATCH-B.md`):
@@ -390,10 +390,12 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 | `vercel_team_update_profile` | Guarded full-profile production update for name, slug, description and preview suffix; strict team preflight, race check and GET readback | C | O | F | — | O-1 (guarded write #145) |
 | `vercel_team_create` | Guarded account-layer team creation (slug, optional name); plan terms disclosed in the preview, provider refusals classified with remedies, GET readback verification | C | O | F | — | AUD-AB |
 | `vercel_team_delete` | Guarded account-layer team deletion, permanent; enrolled seats on the target refuse until removed as their own act; default-team change disclosed; provider verdicts classified | C D | O | F | — | AUD-AB |
-| `vercel_team_update_security` | SAML enforced, IP addresses hidden in logs, verified commits required, separate production secret values, strict protection settings, email-domain auto-join | C A | O | F | — | O-1 (guarded privacy/secret/strict controls #146; SAML and auto-join pending) |
+| `vercel_team_update_security` | SAML enforced, IP addresses hidden in logs, verified commits required, separate production secret values, strict protection settings, email-domain auto-join | C A | O | F | — | O-1 (guarded privacy/secret/strict controls #146); O-1R (SAML + auto-join under the lockout guard) |
 | `vercel_team_set_default_protection` | Default deployment protection for new projects | C A | O | F | — | O-1 (guarded standard authentication #147) |
-| `vercel_team_set_deployment_retention` | How long deployments are kept, per target (shortening deletes old deployments) | C D | O | F | y | O-1 |
-| `vercel_team_set_directory_role_mappings` | Directory-sync (SAML) group → role mappings (Enterprise) | C A | O | F | — | O-1 |
+| `vercel_team_set_deployment_retention` | How long deployments are kept, per target (shortening deletes old deployments) | C D | O | F | y | O-1R |
+| `vercel_team_set_directory_role_mappings` | Directory-sync (SAML) group → role mappings (Enterprise) | C A | O | F | — | O-1R |
+
+**O-1R note (2026-10-30):** the three rows above complete Batch O's O-1 scope. Contract facts proven from the pinned snapshot during the build (dossier: batch-o-dossier-2026-10-30.md): the team record reads retention back as DAYS (`expirationDays*` + `deploymentsToKeep`) while the write model uses duration enums, so retention verify converts through the duration table and never rounds an unknown read-back into success; `saml.connection` on the team record is the enforcement lockout guard's evidence; directory mappings have NO read-back endpoint, so that tool's verify reports `confirmed: null` on the documented `{ok:true}` acceptance. Retention shortening counts the deployments it would remove from real `deployments_list` pages before asking, and refuses when the count cannot be read.
 
 ## Owner: members and access groups (`vercel_member_*`, `vercel_access_group_*`) — 10
 
