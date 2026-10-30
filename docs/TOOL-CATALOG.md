@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side and O-1R added 2026-10-30): 183 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 58 are planned scope for approved batches N-2/N-3, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.their contract names (`vercel_search_tools`, `vercel_call`, …); workflows are `vercel_workflow_<job>`; developer tools
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R and N-2 added 2026-10-30): 192 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 49 are planned scope for approved batches N-3, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 are `vercel_dev_<job>` (contract §10).
 
 **Safety** (combine as listed; the guards are defined in `docs/designs/BATCH-B.md`):
@@ -266,11 +266,13 @@ Every DNS write is production: DNS carries the live site **and email** (B2).
 | `vercel_dns_update_record` | Change a record | PR | O Op | E | y | N-2 |
 | `vercel_dns_delete_record` | Delete a record | D PR | O Op | F | y | N-2 |
 | `vercel_dns_replace_zone` | Replace a domain's records with a given set (preview lists every add, change and removal) | D PR | O | F | y | N-2 |
-| `vercel_cert_list` | Certificates: domains covered, issuer, expiry, auto-renewing | — | O Op | R | — | N-2 |
+| `vercel_cert_list` | Certificates: domains covered, expiry, auto-renewing (the provider contract carries no issuer field — N-2 dossier §4.3) | — | O Op | R | — | N-2 |
 | `vercel_cert_issue` | Ask Vercel to issue (or re-issue) a certificate for domains | PR | O Op | E | — | N-2 |
 | `vercel_cert_remove` | Remove a certificate | D PR | O | F | y | N-2 |
 
 Not built: certificate **upload** (the API takes a private key; a private key never passes through chat) — guided.
+
+Build notes (N-2, dossier-first): `vercel_dns_replace_zone` replaces the set in one tool call composed over the documented create/update/delete endpoints — the documented PUT for whole-zone replacement carries no request-body contract in the pinned snapshot or the live reference, so no door calls it (dossier §4.2). The snapshot's SRV and TXT create branches require `name` but omit it from their properties (additionalProperties:false), so no documented body can validate; a scoped exemption in the request validator covers those two record types only, with bodies pinned byte-exact in tests (dossier §4.1).
 
 ## Domain registrar (`vercel_registrar_*`) — 9
 
