@@ -155,7 +155,11 @@ export function makeVercelClient({
     if (pathname.includes('{')) throw new TypeError('Missing API path parameter');
     const url = new URL(pathname, base);
     asQuery(url, query);
-    const isWrite = !READS.has(method);
+    // M-1: an op explicitly declared readOnly in the OPS table (the
+    // observability query — a POST that only reads) takes the read
+    // path: no replay claim, no outcome_unknown wrapping. Every other
+    // non-GET/HEAD op keeps the write path unchanged.
+    const isWrite = !READS.has(method) && spec.readOnly !== true;
     let key, claimId;
     if (isWrite) {
       if (!replayStore?.claim || !replayStore?.complete || typeof options.shapeResult !== 'function') {
