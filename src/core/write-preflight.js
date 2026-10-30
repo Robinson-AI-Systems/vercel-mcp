@@ -1,7 +1,32 @@
 // Provider-neutral write policy. Unknown targets and missing guards always deny.
-import { compact } from './util.js';
+import { compact, credentialLike } from './util.js';
 export function refusal(reason, status = 'refused_by_guard') {
   return { status, confirmed: false, reason };
+}
+// AUD-AH: a tool's own classification refusal, constructed value-free by
+// the tool itself (a static plain-words sentence naming the failed
+// predicate). The preflight passes a RefusalError's reason to the caller
+// verbatim after the boundary screen in refusalReason; every other throw
+// keeps the generic sentence, because arbitrary error text is unvetted —
+// provider errors can echo messages, identifiers and values. Extends
+// TypeError so the class change is invisible everywhere else: the
+// read/plain handler error path screens TypeError messages the same way,
+// the executor's failure detail reads fields rather than classes, and
+// pre-dispatch re-checks re-wrap every error alike.
+export class RefusalError extends TypeError {
+  constructor(reason) {
+    super(reason);
+    this.name = 'RefusalError';
+  }
+}
+const ID_SHAPED = /\b(?:team|prj|dpl|ecfg|store|conn)_[A-Za-z0-9_-]{12,}\b/;
+export function refusalReason(error, generic) {
+  if (!(error instanceof RefusalError)) return generic;
+  const reason = error.message;
+  if (typeof reason !== 'string' || reason.length < 1 || reason.length > 300 ||
+    /[\x00-\x1f\x7f]/.test(reason) || credentialLike(reason) ||
+    ID_SHAPED.test(reason)) return generic;
+  return reason;
 }
 // AUD-A2 (design D-A, owner ruling OP-2): connection classification for the
 // purchase branch. Only a server-minted classification counts — the MCP auth
@@ -175,8 +200,9 @@ export async function writePreflight(spec, args, ctx) {
       typeof production.why !== 'string' || !Array.isArray(targets)) {
       return { refused: refusal('Unknown production status or affected targets') };
     }
-  } catch {
-    return { refused: refusal('Could not safely preview or classify the change') };
+  } catch (error) {
+    return { refused: refusal(refusalReason(error,
+      'Could not safely preview or classify the change')) };
   }
   if (production.production && conn.mode !== 'production') {
     return { refused: refusal('Live resources cannot be changed from a preview connection') };
@@ -262,8 +288,9 @@ export async function writePreflight(spec, args, ctx) {
             '. Separately authenticated approval for this transaction is mandatory.';
         }
       }
-    }catch{
-      return {refused:refusal('Unable to verify pricing before the request')};
+    }catch(error){
+      return {refused:refusal(refusalReason(error,
+        'Unable to verify pricing before the request'))};
     }
   }
   if (spec.risk?.access) {
@@ -274,8 +301,9 @@ export async function writePreflight(spec, args, ctx) {
         (access.widens && (!access.who || !access.what))) {
         return { refused: refusal('Access widening cannot be verified') };
       }
-    } catch {
-      return { refused: refusal('Access widening could not be verified') };
+    } catch (error) {
+      return { refused: refusal(refusalReason(error,
+        'Access widening could not be verified')) };
     }
   }
   return { before, production, targets, summary, moneyLine, spendCents,
