@@ -7,7 +7,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections'
 ]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
@@ -685,6 +685,53 @@ export function createDb(query) {
         AND expires_at > now()
         RETURNING id, vercel_account, kind, label, ciphertext`;
       return rows[0] ?? null;
+    },
+    // M-4: Blob store connections. The list method never selects the
+    // ciphertext; only resolveBlobStore (the Blob wrapper) and the owner
+    // setup routes may call the ciphertext method.
+    async insertBlobStoreConnection({ account, storeId, label, access = 'public',
+      ciphertext, tokenLast4 }) {
+      if (!account || !storeId || !label || !ciphertext ||
+        !['public', 'private'].includes(access) ||
+        !/^[a-zA-Z0-9]{4}$/.test(tokenLast4 || '')) {
+        throw new TypeError('Invalid Blob store connection');
+      }
+      const run = getSql();
+      await run`INSERT INTO blob_store_connections
+        (vercel_account, store_id, label, access, ciphertext, token_last4)
+        VALUES (${account}, ${storeId}, ${label}, ${access}, ${ciphertext}, ${tokenLast4})
+        ON CONFLICT (vercel_account, store_id) DO UPDATE SET
+          label = EXCLUDED.label, access = EXCLUDED.access,
+          ciphertext = EXCLUDED.ciphertext, token_last4 = EXCLUDED.token_last4,
+          updated_at = now()`;
+    },
+    async listBlobStoreConnections(account = null) {
+      const run = getSql();
+      const rows = account
+        ? await run`SELECT vercel_account, store_id, label, access, token_last4,
+            created_at, updated_at FROM blob_store_connections
+            WHERE vercel_account = ${account} ORDER BY label`
+        : await run`SELECT vercel_account, store_id, label, access, token_last4,
+            created_at, updated_at FROM blob_store_connections
+            ORDER BY vercel_account, label`;
+      return rows.map(r => ({ account: r.vercel_account, storeId: r.store_id,
+        label: r.label, access: r.access, tokenLast4: r.token_last4,
+        createdAt: r.created_at, updatedAt: r.updated_at }));
+    },
+    async getBlobStoreConnectionCiphertext({ account, storeId }) {
+      if (!account || !storeId) return null;
+      const run = getSql();
+      const rows = await run`SELECT ciphertext FROM blob_store_connections
+        WHERE vercel_account = ${account} AND store_id = ${storeId}`;
+      return rows[0]?.ciphertext ?? null;
+    },
+    async deleteBlobStoreConnection({ account, storeId }) {
+      if (!account || !storeId) return false;
+      const run = getSql();
+      const rows = await run`DELETE FROM blob_store_connections
+        WHERE vercel_account = ${account} AND store_id = ${storeId}
+        RETURNING store_id`;
+      return rows.length === 1;
     },
     // Only owner setup routes may call these credential methods. Tool handlers
     // must never select token_enc or return decrypted credentials.
@@ -1392,6 +1439,7 @@ export function createDb(query) {
           v_deleted INTEGER;
           v_tokens INTEGER; v_passes INTEGER; v_codes INTEGER;
           v_inputs INTEGER; v_secrets INTEGER; v_protections INTEGER;
+          v_blob_conns INTEGER;
         BEGIN
           SELECT is_default INTO v_default FROM vercel_accounts
             WHERE id = p_target FOR UPDATE;
@@ -1417,6 +1465,8 @@ export function createDb(query) {
           GET DIAGNOSTICS v_secrets = ROW_COUNT;
           DELETE FROM protected_resources WHERE vercel_account = p_target;
           GET DIAGNOSTICS v_protections = ROW_COUNT;
+          DELETE FROM blob_store_connections WHERE vercel_account = p_target;
+          GET DIAGNOSTICS v_blob_conns = ROW_COUNT;
           INSERT INTO change_log
             (vercel_account, mode, tool, summary, dry_run, production, after)
           VALUES (p_target, 'production', 'vercel_remove_account',
@@ -1427,6 +1477,7 @@ export function createDb(query) {
               'pendingInputsDeleted', v_inputs,
               'pendingSecretsDeleted', v_secrets,
               'protectionsDeleted', v_protections,
+              'blobConnectionsDeleted', v_blob_conns,
               'wasDefault', v_default));
           RETURN 'removed';
         END;
@@ -1439,6 +1490,17 @@ export function createDb(query) {
         id TEXT PRIMARY KEY, vercel_account TEXT NOT NULL, kind TEXT NOT NULL, label TEXT NOT NULL,
         ciphertext TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         expires_at TIMESTAMPTZ NOT NULL, used_at TIMESTAMPTZ)`;
+      // M-4 (IN-15): Blob store connections are connection STATE, entered
+      // by the owner on the setup page and held encrypted like every
+      // other credential. One row per (account, store); reconnecting a
+      // store replaces its token.
+      await run`CREATE TABLE IF NOT EXISTS blob_store_connections (
+        vercel_account TEXT NOT NULL, store_id TEXT NOT NULL,
+        label TEXT NOT NULL, access TEXT NOT NULL DEFAULT 'public',
+        ciphertext TEXT NOT NULL, token_last4 TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (vercel_account, store_id))`;
       await run`CREATE TABLE IF NOT EXISTS protected_resources (
         id BIGSERIAL PRIMARY KEY, vercel_account TEXT, kind TEXT NOT NULL, match TEXT NOT NULL, note TEXT,
         source TEXT NOT NULL DEFAULT 'default', added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
