@@ -73,7 +73,7 @@ describe('U-1 universal write classification (pure)', () => {
     expect(secretWriteOperation(apiOperation('createFlag'))).toBe(false);
   });
   it('hand-built write map covers every OPS write operation', () => {
-    expect(Object.keys(handBuiltWrites)).toHaveLength(54);
+    expect(Object.keys(handBuiltWrites)).toHaveLength(60);
     expect(handBuiltWrites.createProjectEnv).toBe('vercel_env_set');
     expect(handBuiltWrites.createDeployment).toBe('vercel_deploy_create_from_git');
   });
