@@ -3,6 +3,7 @@ import {ownerProposal,ownerWriteContext} from './owner-proposals.js';
 const defaultRequest=ownerProposal('vercel_set_default_account','default');
 const spendRequest=ownerProposal('vercel_set_spend_limit','spend');
 const revokeRequest=ownerProposal('vercel_revoke_connection','revoke');
+const removeRequest=ownerProposal('vercel_remove_account','remove');
 const text=payload=>({isError:['refused_by_guard','outcome_unknown'].includes(payload.status),
   content:[{type:'text',text:JSON.stringify(payload)}]});
 export const ownerTools={
@@ -33,6 +34,15 @@ export const ownerTools={
     },required:['connectionId'],additionalProperties:false},
     annotations:{readOnlyHint:false,destructiveHint:true},
     writeContract:revokeRequest.writeContract
+  },{
+    name:'vercel_remove_account',writes:true,localAdmin:true,profiles:['full'],
+    description:'Propose removing one exact enrolled account row and everything scoped to it — credential, connections, passes, settings; separate owner approval required.',
+    inputSchema:{type:'object',properties:{
+      account:{type:'string',minLength:3,maxLength:256},
+      dryRun:{type:'boolean'},confirm:{type:'boolean'}
+    },required:['account'],additionalProperties:false},
+    annotations:{readOnlyHint:false,destructiveHint:true},
+    writeContract:removeRequest.writeContract
   }],
   handlers:{
     async vercel_set_default_account(args,{connection,db,env}){
@@ -43,6 +53,9 @@ export const ownerTools={
     },
     async vercel_revoke_connection(args,{connection,db,env}){
       return text(await revokeRequest.run(args,ownerWriteContext({connection,db,env})));
+    },
+    async vercel_remove_account(args,{connection,db,env}){
+      return text(await removeRequest.run(args,ownerWriteContext({connection,db,env})));
     }
   }
 };

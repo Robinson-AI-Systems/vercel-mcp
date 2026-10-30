@@ -4,16 +4,19 @@ import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { decryptSecret } from '../core/secret-box.js';
 
 const KIND = 'owner_account_change';
-const ACTIONS = new Set(['default','spend','revoke']);
+const ACTIONS = new Set(['default','spend','revoke','remove']);
 const IDS = /^[a-zA-Z0-9_/-]{3,256}$/;
 const REF = /^conn_[a-f0-9]{20}$/;
 const allowed = new Set(['action','targetAccount','connectionRef','limitCents','confirm','dryRun']);
 function denied(reason) {
   return {status:'refused_by_guard',confirmed:false,reason};
 }
-function format(action, account, target, amount) {
+function format(action, account, target, amount, row = null) {
   if(action==='default') return 'Propose changing the default account to '+target;
   if(action==='revoke') return 'Propose revoking one OAuth connector on '+account;
+  if(action==='remove') return 'Propose removing the enrolled account '+
+    (row ? row.label+' ('+target+'; '+row.scope+'; token ending '+row.token_last4+')' : target)+
+    ' — its stored credential, connections, passes and account-scoped settings are removed with it';
   return 'Propose setting '+account+' daily spend limit to $'+
     Math.floor(amount/100)+'.'+String(amount%100).padStart(2,'0');
 }
@@ -37,13 +40,29 @@ export async function requestOwnerAccountChange({
   if (!configured.some(row => row.id === connection.account)) {
     return denied('Current account is not configured');
   }
-  let target=null, amount=null;
+  let target=null, amount=null, targetRow=null;
   if(action==='default') {
     if(!IDS.test(args.targetAccount||'') ||
         args.connectionRef!==undefined || args.limitCents!==undefined) {
       return denied('An existing target account is required');
     }
     if(!configured.some(row=>row.id===args.targetAccount)) return denied('Target account is not configured');
+    target=args.targetAccount;
+  } else if(action==='remove') {
+    if(!IDS.test(args.targetAccount||'') ||
+        args.connectionRef!==undefined || args.limitCents!==undefined) {
+      return denied('An existing target account is required');
+    }
+    targetRow=configured.find(row=>row.id===args.targetAccount) ?? null;
+    if(!targetRow) return denied('Target account is not configured');
+    // AUD-AA default guard (mirrored inside rmcp_owner_remove_account
+    // for approval-time truth): deleting the default row would
+    // silently promote the next account in list order into the
+    // new-connection default. The remedy is one owner act away.
+    if(targetRow.is_default && configured.length>1) {
+      return denied('That account is the default for new connections while other accounts remain; '+
+        'choose a new default first (vercel_set_default_account or owner setup), then propose the removal');
+    }
     target=args.targetAccount;
   } else if(action==='spend') {
     if(args.targetAccount!==undefined || args.connectionRef!==undefined ||
@@ -62,12 +81,12 @@ export async function requestOwnerAccountChange({
     target=args.connectionRef;
   }
   const account=connection.account;
-  const summary=format(action,account,target,amount);
+  const summary=format(action,account,target,amount,targetRow);
   if (args.dryRun===true) return {status:'preview',dryRun:true,preview:summary,
     ownerApprovalRequired:true};
   if(args.confirm!==true) return {status:'needs_confirmation',confirmed:false,
     preview:summary,ownerApprovalRequired:true};
-  const payload={version:1,issuerAccount:account,action,targetAccount:action==='default'?target:null,
+  const payload={version:1,issuerAccount:account,action,targetAccount:action==='default'||action==='remove'?target:null,
     connectionRef:action==='revoke'?target:null,limitCents:amount};
   const receipt=await oneTimeSecrets({db,env,now}).issue({
     account,kind:KIND,label:'Owner account change approval',value:JSON.stringify(payload),
@@ -85,6 +104,8 @@ function validateOwnerEnvelope(payload,account) {
   if(!payload || payload.version!==1 || payload.issuerAccount!==account ||
     !ACTIONS.has(payload.action)) return null;
   if(payload.action==='default' && IDS.test(payload.targetAccount||'') &&
+    payload.connectionRef===null && payload.limitCents===null) return payload;
+  if(payload.action==='remove' && IDS.test(payload.targetAccount||'') &&
     payload.connectionRef===null && payload.limitCents===null) return payload;
   if(payload.action==='spend' && payload.targetAccount===null &&
     payload.connectionRef===null && Number.isInteger(payload.limitCents) &&
@@ -149,6 +170,13 @@ export async function applyApprovedOwnerAccountChange({db,request}) {
     ok=await db.revokeOwnerConnection({
       account:request.issuerAccount,connectionId:request.connectionRef
     });
+  } else if(request.action==='remove'){
+    // AUD-AA: the target must still be the configured row the owner
+    // reviewed; the db operation re-derives every guard under lock.
+    if(!accounts.some(row=>row.id===request.targetAccount) ||
+      typeof db.removeOwnerAccount!=='function')
+      return {status:'refused',confirmed:false};
+    ok=(await db.removeOwnerAccount(request.targetAccount))==='removed';
   }
   return {status:ok===true?'applied':'unverified',confirmed:ok===true,
     action:request.action};

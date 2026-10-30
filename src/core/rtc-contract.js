@@ -5,7 +5,8 @@ const IDENT=/^vercel_[a-z0-9_]+$/;
 const AREA=/^[a-z][a-z0-9_]{0,47}$/;
 const META_MUTATIONS=new Set(['vercel_call']);
 const OWNER_TOOLS=new Set(['vercel_set_default_account','vercel_set_spend_limit',
-  'vercel_revoke_connection','vercel_enable_production','vercel_disable_production']);
+  'vercel_revoke_connection','vercel_enable_production','vercel_disable_production',
+  'vercel_remove_account']);
 function safeDescription(value){
   const text=typeof value==='string'?value.trim():'';
   return (text||'Read Vercel account metadata').slice(0,160);

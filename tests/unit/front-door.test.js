@@ -45,7 +45,7 @@ describe('AUD-C front-door membership artifact (OP-1 / D-C)', () => {
     ]);
     expect(names('read_only', 'catalog')).toHaveLength(57);
     expect(names('everyday', 'catalog')).toHaveLength(78);
-    expect(names('full', 'catalog')).toHaveLength(124); // AUD-Z: +vercel_set_working_box, reachable again for the owner profile
+    expect(names('full', 'catalog')).toHaveLength(125); // AUD-Z: +vercel_set_working_box, reachable again for the owner profile; AUD-AA: +vercel_remove_account (owner catalog only)
     expect(names('everyday', 'catalog')).toContain('vercel_env_set');
     expect(names('everyday', 'front_door')).not.toContain('vercel_env_set');
   });
