@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, F-1 and U-1's write side added 2026-10-30): 142 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 99 are planned scope for approved batches N-2/N-3, F-2/F-3, M-2–M-4, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
+**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, F-1, F-2 and U-1's write side added 2026-10-30): 153 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 88 are planned scope for approved batches N-2/N-3, F-3, M-2–M-4, O-2–O-5, P, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.
 
 **Naming.** Every tool name starts with `vercel_` (DECISIONS 2026-10-10 "Every tool name starts with `vercel_`"):
 Vercel, Neon and GitHub share nouns such as *project* and *branch*, and two connectors attached to one Claude chat must
@@ -303,6 +303,8 @@ Not built: certificate **upload** (the API takes a private key; a private key ne
 | `vercel_protection_create_bypass` | New bypass secret for automation (shown once on the setup page) | PR A 1x | O | F | y | F-1 |
 | `vercel_protection_revoke_bypass` | Revoke a bypass secret (deployments built with it stop bypassing) | PR | O | F | y | F-1 |
 | `vercel_alias_set_shareable_link` | Make or revoke a shareable link for one protected URL (the link is shown once on the setup page) | A 1x | O Op | E | y | F-1 |
+
+**F-2 note (2026-10-30):** the eleven firewall rows below are implemented. Three snapshot defects were proven against the repo's own validator during the build and handled with narrow, commented exemptions in `validateRequest` (the `sandbox_command_run` precedent): the config GET and the activate POST omit the `projectId` the live reference requires; the config PATCH body oneOf double-matches its documented branches (bodies are built per the live reference and pinned byte-exact in tests); the attack-mode enabling body double-matches its oneOf. The design's §5.2 spend mark for managed rule sets was NOT carried: the rows below carry no `$`, no per-call price exists in the provider contract, and plan-gated refusals surface as classified errors. Every config write journals `vercel_firewall_restore_version` to the previously active version as its undo. Attack mode requires an end time when turning on, capped at 24 hours (design F4).
 
 ## Firewall (`vercel_firewall_*`) — 11
 
