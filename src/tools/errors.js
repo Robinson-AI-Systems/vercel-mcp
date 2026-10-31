@@ -74,6 +74,16 @@ function normalized(raw) {
   }
   const input = raw?.error && typeof raw.error === 'object' ? raw.error : raw;
   const candidate = input?.code;
+  // AUD-BN: the transport received no provider answer (or, on the write
+  // path, could not verify one) and computed the failure class itself.
+  // That class is in-repo fact, safe to surface; without this branch the
+  // code fell through to unknown_error with the false claim that the
+  // provider returned an unrecognized error code.
+  if (candidate === 'outcome_unknown') {
+    const failureClass = ['timeout', 'http_status'].includes(input?.failureClass) ?
+      input.failureClass : 'network';
+    return { code: 'outcome_unknown', status: null, failureClass };
+  }
   // Provider-supplied codes are not safe to echo unless recognized.
   const recognized = typeof candidate === 'string' && CODE.test(candidate) &&
     (KNOWN_CODES.has(candidate) || /^env_[a-z0-9_-]{1,36}$/.test(candidate));
@@ -86,7 +96,7 @@ function normalized(raw) {
 }
 /** For an error from the sanitized central client (no raw provider text). */
 export function explainVercelError(raw, context = {}) {
-  const {code,status,own,leg} = normalized(raw);
+  const {code,status,own,leg,failureClass} = normalized(raw);
   let what='Vercel could not complete the request.';
   let why='The provider did not return a recognized safe error code.';
   let next='Verify your account selection and try a read-only status check before retrying.';
@@ -108,6 +118,24 @@ export function explainVercelError(raw, context = {}) {
     else if (status !== null && status >= 500) why='Vercel itself failed that check (HTTP ' + status + ').';
     else why='The check itself refused: the token reach or the answer shape did not match what the recheck can verify.';
     next='A redacted fingerprint of the refusal was journaled — read it with vercel_recent_changes, or review the connection with vercel_whoami.';
+  } else if (code==='outcome_unknown') {
+    // AUD-BN: no provider answer arrived (or its outcome is unverified);
+    // the class the transport computed decides the plain-words cause, in
+    // the IN-18 shape — say why, and name the remedy. Provider text is
+    // never involved: there is none.
+    if (failureClass === 'timeout') {
+      what='Vercel did not answer before this request\'s time limit.';
+      why='The request ran past its time limit with no answer from Vercel — Vercel returned no error; the answer is slower than the bound allows, or the provider is slow to start answering.';
+      next='Retry the read. If it repeats, keep the check pending: this is provider latency or an undersized bound, not a refusal by Vercel.';
+    } else if (failureClass === 'http_status') {
+      what='Vercel answered with a server error before the outcome could be verified.';
+      why='The provider returned a server error (5xx) while the request was in flight, so whether it took effect cannot be told from the answer.';
+      next='Read the resource back before retrying; do not repeat a change blindly.';
+    } else {
+      what='The request to Vercel could not be completed.';
+      why='The connection to Vercel failed before an answer arrived, so there is no provider error to report.';
+      next='Retry the read; if it repeats, treat the provider path as unreachable for now and keep the check pending.';
+    }
   } else
   if (['unauthorized','invalid_token','token_expired','expired_token'].includes(code) || status === 401) {
     what='The Vercel account token is no longer accepted.';

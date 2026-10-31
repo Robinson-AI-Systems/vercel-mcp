@@ -5,6 +5,13 @@ import {mergeNamespaces} from '../../src/core/registry.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
 import {makeVercelClient} from '../../src/vercel/client.js';
+import {vercelErrorResult} from '../../src/tools/errors.js';
+// AUD-BN: production wires formatError: vercelErrorResult into dispatch
+// (the live surface renders its text); the plain harness omits it and so
+// falls back to the dispatch safe-default sentence.
+const callFormatted=(args,fetchImpl)=>dispatchReadOnlyTool({registry,
+  name:'vercel_deploy_get_runtime_logs',args,connection:conn,db,fetchImpl,
+  formatError:vercelErrorResult});
 vi.mock('../../src/vercel/tokens.js',async m=>({...await m(),loadToken:vi.fn()}));
 const conn={account:'acct_ONE',profile:'read_only',mode:'preview',listing:'catalog'};
 const db={getAccountCredential:async()=>({})};
@@ -150,5 +157,33 @@ describe('D-2 project-verified bounded runtime logs',()=>{
    expect(got.scanned).toBeLessThanOrEqual(50);
    expect(got.transport).toMatchObject({cutoff:'row_limit',complete:false});
    expect(Buffer.byteLength(JSON.stringify(got))).toBeLessThan(8192);
+ });
+ it('classifies a stream fetch timeout instead of unknown_error (AUD-BN)',async()=>{
+   const f=makeFetch([]);
+   const original=f.fetch;
+   const fetch=async(url,init)=>{
+     if(new URL(url).pathname.includes('/runtime-logs'))
+       throw Object.assign(new Error('timeout'),{name:'TimeoutError'});
+     return original(url,init);
+   };
+   const result=await callFormatted({deployment},fetch);
+   expect(result.isError).toBe(true);
+   const text=result.content[0].text;
+   expect(text).toContain('did not answer');
+   expect(text).toContain('outcome_unknown');
+   expect(text).not.toContain('unknown_error');
+ });
+ it('classifies a stream network failure instead of unknown_error (AUD-BN)',async()=>{
+   const f=makeFetch([]);
+   const original=f.fetch;
+   const fetch=async(url,init)=>{
+     if(new URL(url).pathname.includes('/runtime-logs'))throw new Error('fetch failed');
+     return original(url,init);
+   };
+   const result=await callFormatted({deployment},fetch);
+   expect(result.isError).toBe(true);
+   const text=result.content[0].text;
+   expect(text).toContain('could not be completed');
+   expect(text).not.toContain('unknown_error');
  });
 });

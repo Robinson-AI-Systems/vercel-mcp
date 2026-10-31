@@ -94,3 +94,35 @@ describe('VMCP-030: the tools own validation errors are legible',()=>{
    expect(rendered).not.toContain('unknown_error');
  });
 });
+
+describe('AUD-BN: unanswered requests classify by their transport failure class',()=>{
+ it('renders a timeout in plain words, never as unknown_error',()=>{
+   const obj=explainVercelError({code:'outcome_unknown',failureClass:'timeout'});
+   expect(obj.technical).toContain('outcome_unknown');
+   expect(obj.what).toContain('did not answer');
+   expect(obj.why).toContain('returned no error');
+   expect(obj.next).toContain('not a refusal');
+   const rendered=JSON.stringify(obj);
+   expect(rendered).not.toContain('unknown_error');
+   expect(rendered).not.toContain('did not return a recognized safe error code');
+ });
+ it('renders a network failure distinctly from a timeout',()=>{
+   const obj=explainVercelError({code:'outcome_unknown',failureClass:'network'});
+   expect(obj.what).toContain('could not be completed');
+   expect(obj.why).toContain('no provider error to report');
+   expect(JSON.stringify(obj)).not.toContain('unknown_error');
+ });
+ it('defaults a class-less outcome_unknown to the network wording',()=>{
+   expect(explainVercelError({code:'outcome_unknown'}).what).toContain('could not be completed');
+ });
+ it('renders an unverified 5xx outcome with a read-back remedy',()=>{
+   const obj=explainVercelError({code:'outcome_unknown',failureClass:'http_status'});
+   expect(obj.what).toContain('server error');
+   expect(obj.next).toContain('Read the resource back');
+   expect(JSON.stringify(obj)).not.toContain('unknown_error');
+ });
+ it('keeps a code-less failure on unknown_error — the class boundary did not move',()=>{
+   expect(explainVercelError(new Error('boom')).technical).toBe('Vercel unknown_error');
+   expect(explainVercelError(null).technical).toBe('Vercel unknown_error');
+ });
+});
