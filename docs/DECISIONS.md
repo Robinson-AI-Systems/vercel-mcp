@@ -9,6 +9,21 @@ remain binding. This document is not implementation or live verification.
 
 # Decisions (dated)
 
+**2026-10-31 — CAP-1's operation ledger is a generated, check-enforced artifact (AUD-BE).**
+The owner commissioned the one unbuilt CAP-1 artifact (waiver declined). It is built as a
+generator over the server's own living records — the pinned OpenAPI snapshot enumerated
+through the runtime's index, joined against the OPS table, the hand-built map and the
+universal doors' own policies/classifiers — and committed as `docs/operation-ledger.json`
+plus the generated family gap report `docs/OPERATION-LEDGER.md`. `npm run check`
+regenerates and compares, so the ledger can never silently drift from the code it
+describes. Fields no repo source records (per-operation permissions/entitlements, owner
+unit, response tests, live proof, installation-token support) are carried as explicit
+unknowns in the artifact itself; filling them without a source would be the invented
+coverage CAP-1's own rules forbid. The artifact carries no generation date — its checked
+date is the snapshot's — so regeneration is byte-stable and the drift check is meaningful.
+CAP-1's SUPERSEDED verdict (#337) is unchanged: the ledger is the reporting artifact the
+verdict named, not a reopening of the inventory program.
+
 **2026-10-31 — One sign-in; the sign-in cleanup program (AUD-AZ…AUD-AY).** The owner
 ruled that owner-setup is removed, not relocated, and the program shipped the same
 day: there is exactly one sign-in. The consent form asks for the account and the

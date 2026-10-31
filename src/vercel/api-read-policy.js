@@ -10,6 +10,10 @@ import {projectFor} from '../tools/deployments.js';
 const ALLOWED=new Set(['listFlags','listFlagsV2','getFlag','listFlagVersions',
   'getFlagSettings','listFlagSegments','getFlagSegment','listTeamFlagsV2',
   'listTeamFlagSettings','getDeploymentFeatureFlags']);
+// AUD-BE: the generated operation ledger (scripts/operation-ledger.mjs)
+// reads the audited set from here so the allowlist keeps one source of
+// truth; the set itself is unchanged.
+export const auditedReadOps=ALLOWED;
 const IDENT=/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 function plain(x){return x!==null&&typeof x==='object'&&!Array.isArray(x);}
 function inputs(args){
