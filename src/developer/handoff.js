@@ -1,18 +1,20 @@
 // Mobile OAuth handoff; owner consent and native token exchange remain authoritative.
 // The polling client holds the PKCE verifier, RSA private key and polling secret.
+// AUD-AW: the handoff requests the standard connection only. It carries no
+// profile or listing choice of its own — consent derives those values exactly
+// as it does for any other sign-in — and no public page links this route.
 import {createHash,createPublicKey,publicEncrypt,constants,randomBytes} from 'node:crypto';
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const random=()=>randomBytes(32).toString('base64url');
 const token=/^[A-Za-z0-9_-]{43}$/;
 const codePattern=/^[A-Za-z0-9_-]{32,128}$/;
 const clientPattern=/^[A-Za-z0-9_-]{8,128}$/;
-const profiles=new Set(['read_only','everyday','full']);
 export const callbackPath='/api/developer/connect';
 export function validateStart(p){
   if(!p||typeof p!=='object'||Array.isArray(p)||
-    Object.keys(p).some(k=>!['client_id','challenge','poll_hash','public_key','profile'].includes(k))||
+    Object.keys(p).some(k=>!['client_id','challenge','poll_hash','public_key'].includes(k))||
     !clientPattern.test(p.client_id||'')||!token.test(p.challenge||'')||
-    !/^[a-f0-9]{64}$/.test(p.poll_hash||'')||!profiles.has(p.profile)||
+    !/^[a-f0-9]{64}$/.test(p.poll_hash||'')||
     typeof p.public_key!=='string'||p.public_key.length>1000)throw Error('invalid_request');
   const key=createPublicKey(p.public_key);
   if(key.asymmetricKeyType!=='rsa'||key.asymmetricKeyDetails?.modulusLength!==2048)
@@ -40,7 +42,7 @@ export function createHandoff({store,origin,getClient,clientIp=req=>req.socket?.
         const u=new URL('/api/oauth/authorize',origin);
         const q={client_id:p.client_id,redirect_uri:origin+callbackPath,response_type:'code',
           code_challenge:p.challenge,code_challenge_method:'S256',resource:origin+'/api/mcp',
-          state,profile:p.profile,listing:'compact'};
+          state};
         for(const [k,v]of Object.entries(q))u.searchParams.set(k,v);
         return json(201,{request_id:state,authorization_url:u.href,expires_at:expires.toISOString(),poll_after_seconds:5});
       }
