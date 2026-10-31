@@ -37,7 +37,10 @@ describe('Postgres encrypted account persistence and rotation', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].token_enc).not.toContain(first);
     expect(rows[0].token_last4).toBe('1111');
-    expect(rows[0].production_enabled).toBe(false);
+    // AUD-BD (the login fix): a newly enrolled account is born with
+    // its production switch ON, so the owner's sign-in lands in
+    // production by default instead of silently starting in preview.
+    expect(rows[0].production_enabled).toBe(true);
     expect((await loadToken({ db, accountId: 'team_FAKE', env })).token).toBe(first);
 
     await rawQuery('UPDATE vercel_accounts SET production_enabled = TRUE WHERE id = $1', ['team_FAKE']);
@@ -51,6 +54,24 @@ describe('Postgres encrypted account persistence and rotation', () => {
     expect(rotated[0].production_enabled).toBe(true);
     expect(rotated[0].token_enc).not.toContain(updated);
     expect((await loadToken({ db, accountId: 'team_FAKE', env })).token).toBe(updated);
+
+    // AUD-BD: rotation preserves the owner's standing choice in the
+    // other direction too — an account whose switch was turned OFF
+    // keeps it off across re-enrollment (the upsert's ON CONFLICT
+    // update never names the column).
+    await rawQuery('UPDATE vercel_accounts SET production_enabled = FALSE WHERE id = $1', ['team_FAKE']);
+    const third = 'vcp_FAKEpostgresToken_3333';
+    await storeToken({ db, token: third, teamId: 'team_FAKE', env, fetchImpl: api().fetch });
+    const rotatedOff = await rawQuery(
+      'SELECT token_last4, production_enabled FROM vercel_accounts WHERE id = $1', ['team_FAKE']
+    );
+    expect(rotatedOff).toHaveLength(1);
+    expect(rotatedOff[0].token_last4).toBe('3333');
+    expect(rotatedOff[0].production_enabled).toBe(false);
+    // Restore this describe's shared end state (the next test builds
+    // on the team row holding token _2222 with the switch on).
+    await storeToken({ db, token: updated, teamId: 'team_FAKE', env, fetchImpl: api().fetch });
+    await rawQuery('UPDATE vercel_accounts SET production_enabled = TRUE WHERE id = $1', ['team_FAKE']);
   });
 
   it('isolates a project-scoped account from its containing team credential', async () => {

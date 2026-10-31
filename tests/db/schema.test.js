@@ -46,7 +46,7 @@ it('enforces safe defaults and has no plaintext token columns', async () => {
     "SELECT column_name, column_default, is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'vercel_accounts'"
   );
   const accountDefaults = Object.fromEntries(accounts.map((row) => [row.column_name, row.column_default]));
-  expect(accountDefaults.production_enabled).toMatch(/false/i);
+  expect(accountDefaults.production_enabled).toMatch(/true/i); // AUD-BD: new accounts are born with the production switch on
   expect(accountDefaults.spend_limit_cents).toBe('0');
   expect(accountDefaults.sandbox_minutes_per_day).toBeNull(); // Deprecated legacy setting, no new default.
   expect(accounts.find((row) => row.column_name === 'scope').is_nullable).toBe('NO');

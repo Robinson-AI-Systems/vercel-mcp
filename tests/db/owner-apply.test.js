@@ -32,8 +32,12 @@ beforeAll(async () => {
   await rawQuery("INSERT INTO vercel_accounts (id,team_id,team_slug,label,scope,token_enc,token_last4) VALUES " +
     "('team_ALPHA','team_ALPHA','alpha','Alpha','team','cipher_FAKE_a','1234')," +
     "('team_BETA','team_BETA','beta','Beta','team','cipher_FAKE_b','5678')");
-  await rawQuery("INSERT INTO vercel_accounts (id,team_id,team_slug,label,scope,token_enc,token_last4,production_enable_strictness) VALUES " +
-    "('team_GAMMA','team_GAMMA','gamma','Gamma','team','cipher_FAKE_g','9012','passphrase')");
+  // team_GAMMA starts with production explicitly OFF: since AUD-BD a
+  // fresh account row is born with the switch ON, so the disabled
+  // precondition the production-enable leg exercises is stated in the
+  // fixture, not inherited from the old schema default.
+  await rawQuery("INSERT INTO vercel_accounts (id,team_id,team_slug,label,scope,token_enc,token_last4,production_enabled,production_enable_strictness) VALUES " +
+    "('team_GAMMA','team_GAMMA','gamma','Gamma','team','cipher_FAKE_g','9012',false,'passphrase')");
 });
 afterAll(async () => closeIsolatedSchema());
 

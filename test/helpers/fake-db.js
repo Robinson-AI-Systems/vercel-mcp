@@ -48,7 +48,10 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
     // Mirrors the real upsertVercelAccount (src/db.js): the same
     // validation, and the AUD-E semantics — every enrollment resets
     // token_no_expiry and mints a fresh token_version, so a rotated
-    // token never inherits the previous key's attestation.
+    // token never inherits the previous key's attestation. AUD-BD:
+    // a NEW row is born with production_enabled true (the real
+    // upsert writes it explicitly on insert); an existing row's
+    // switch is preserved, as the real ON CONFLICT update omits it.
     async upsertVercelAccount({ id, teamId, teamSlug, label, scope, projectId = null,
       projectName = null, tokenEnc, tokenLast4, expiresAt = null, probe }) {
       if (!id || !teamId || !teamSlug || !label ||
@@ -57,7 +60,7 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         (scope === 'project' && !projectId)) throw new TypeError('Invalid Vercel account');
       const existing = accountRows.get(id);
       accountRows.set(id, {
-        ...(existing || { production_enabled: false, is_default: false,
+        ...(existing || { production_enabled: true, is_default: false,
           spend_limit_cents: 0, purchase_budget_cents: null, purchase_grant_required: false,
           production_enable_strictness: 'word' }),
         id, team_id: teamId, team_slug: teamSlug, label, scope,

@@ -1121,13 +1121,20 @@ export function createDb(query) {
       // and every enrollment mints a fresh non-secret token_version that
       // attestation submissions are bound to.
       const tokenVersion = randomUUID();
+      // AUD-BD (the login fix): the INSERT names production_enabled
+      // TRUE — a newly enrolled account is born with its production
+      // switch on, so the owner's sign-in lands in production by
+      // default (IN-09's default, applied at enrollment). The ON
+      // CONFLICT update below deliberately does NOT name the column:
+      // rotation/re-enrollment preserves the existing row's switch —
+      // the owner's standing choice in either direction — untouched.
       await run`INSERT INTO vercel_accounts
         (id, team_id, team_slug, label, scope, project_id, project_name,
           token_enc, token_last4, token_expires_at, token_checked_at, token_probe,
-          token_version)
+          token_version, production_enabled)
         VALUES (${id}, ${teamId}, ${teamSlug}, ${label}, ${scope}, ${projectId}, ${projectName},
           ${tokenEnc}, ${tokenLast4}, ${expiresAt}, now(), ${summary}::jsonb,
-          ${tokenVersion})
+          ${tokenVersion}, TRUE)
         ON CONFLICT (id) DO UPDATE SET
           team_slug = EXCLUDED.team_slug, label = EXCLUDED.label, scope = EXCLUDED.scope,
           project_id = EXCLUDED.project_id, project_name = EXCLUDED.project_name,
@@ -1773,7 +1780,7 @@ export function createDb(query) {
         scope TEXT NOT NULL, project_id TEXT, project_name TEXT, token_enc TEXT NOT NULL, token_last4 TEXT NOT NULL,
         token_expires_at TIMESTAMPTZ, token_checked_at TIMESTAMPTZ, token_probe JSONB,
         token_no_expiry BOOLEAN NOT NULL DEFAULT FALSE, token_version TEXT,
-        production_enabled BOOLEAN NOT NULL DEFAULT FALSE, spend_limit_cents INTEGER NOT NULL DEFAULT 0,
+        production_enabled BOOLEAN NOT NULL DEFAULT TRUE, spend_limit_cents INTEGER NOT NULL DEFAULT 0,
         purchase_budget_cents INTEGER, purchase_grant_required BOOLEAN NOT NULL DEFAULT FALSE,
         production_enable_strictness TEXT NOT NULL DEFAULT 'word',
         sandbox_minutes_per_day INTEGER, is_default BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1829,6 +1836,14 @@ export function createDb(query) {
       // stored rows keep the listing they were issued with — never rewritten.
       await run`ALTER TABLE oauth_codes ALTER COLUMN listing SET DEFAULT 'front_door'`;
       await run`ALTER TABLE oauth_tokens ALTER COLUMN listing SET DEFAULT 'front_door'`;
+      // AUD-BD (the login fix): a NEW vercel_accounts row is born with
+      // its production switch ON, so a normal end-user sign-in lands in
+      // production instead of silently starting in preview. Align the
+      // column default on tables created before this change (the
+      // AUD-C pattern above); stored rows keep the switch value they
+      // hold — never rewritten — and upsertVercelAccount writes the
+      // value explicitly on insert regardless of the default.
+      await run`ALTER TABLE vercel_accounts ALTER COLUMN production_enabled SET DEFAULT TRUE`;
       // AUD-AQ: the read-only end-user switch — a per-connection flag on
       // oauth_tokens, born off, flipped only by the connection's own user
       // (vercel_set_read_only). Additive; existing rows read as off and no

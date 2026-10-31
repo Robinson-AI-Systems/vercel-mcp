@@ -9,6 +9,24 @@ remain binding. This document is not implementation or live verification.
 
 # Decisions (dated)
 
+**2026-10-31 — The login fix (AUD-BD): a normal end-user sign-in lands
+production/full by default.** The owner ruled (request of 2026-10-31 ~01:47 UTC,
+filed by the coordinator the same day) that a normal end-user login lands
+entirely in production mode with a full profile, never silently
+preview-only/read-only. Two cleanup-program defaults are superseded: **D1**
+(the sign-in profile no longer derives from the enrollment door — `full` on
+both doors; the credential's own Vercel-side scope, read back at enrollment,
+remains the ceiling) and the enrollment-default half of **D7** (a new account
+row is born with its `production_enabled` switch ON — the residual IN-09's
+AUD-AN note recorded as "an owner policy call" — so the switch-derived initial
+mode is production on the production deployment). Untouched: D7's derivation
+itself (a user who turns their switch off keeps starting in preview — their
+standing choice), the server-deployment conjunct (a non-production deployment
+of this server never mints a production connection), grandfathering (D6 —
+stored rows are never rewritten, and rotation preserves an existing row's
+switch in either direction), the enrollment probe + scope read-back, RTC
+passes (D5), and the read-only switch (AUD-AQ, born off). Live proof rides a
+nightly train; the owner's single sign-in sitting is the acceptance.
 **2026-10-31 — CAP-1's operation ledger is a generated, check-enforced artifact (AUD-BE).**
 The owner commissioned the one unbuilt CAP-1 artifact (waiver declined). It is built as a
 generator over the server's own living records — the pinned OpenAPI snapshot enumerated
