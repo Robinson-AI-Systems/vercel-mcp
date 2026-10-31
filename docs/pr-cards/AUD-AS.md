@@ -32,7 +32,8 @@ stranded: proposable, never applicable.
    against the four envelope stores and return the exact
    plain-words summary the setup page's review renders; inspect
    never consumes. confirm = **apply**: re-inspect, consume
-   single-use, compare, apply (below). Registry 240 → 241.
+   single-use, compare, apply (below). Registry +1 (240 → 241 at
+   build; 242 on merged main — AUD-AQ landed first).
 2. **The apply engine** (`src/vercel/owner-apply.js`) calls the
    same functions the page calls, in the page's order, with each
    family's existing change_log journaling unchanged:
