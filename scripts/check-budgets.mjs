@@ -96,7 +96,7 @@ async function main(){
   const {registry}=await import('../src/tools/index.js');
   const failures=checkBudgets(registry.tools);
   const m=measureBudgets(registry.tools);
-  console.log(`Pinned gpt-tokenizer 3.4.0 budgets: everyday catalog ${m.catalog}/<20000, compact ${m.compact}/<5000, full catalog ${m.full}, read-only catalog ${m.readOnly}, max schema ${Math.max(0,...m.schemas.map(x=>x.tokens))}/<1500 (${registry.tools.length} registered)`);
+  console.log(`Pinned gpt-tokenizer 3.4.0 budgets: everyday catalog ${m.catalog}/<${LISTING_TOKENS_MAX}, compact ${m.compact}/<${COMPACT_TOKENS_MAX}, full catalog ${m.full}, read-only catalog ${m.readOnly}, max schema ${Math.max(0,...m.schemas.map(x=>x.tokens))}/<${SCHEMA_TOKENS_MAX} (${registry.tools.length} registered)`);
   console.log(`Front door (owner policy OP-1): membership ${m.frontDoorMembership.source} v${m.frontDoorMembership.version} (basis ${m.frontDoorMembership.basis}, ${m.frontDoorMembership.tools} tools): read_only ${m.frontDoorReadOnly}, everyday ${m.frontDoor}, full ${m.frontDoorFull} (each must be <${FRONT_DOOR_TOKENS_MAX})`);
   if(failures.length){console.error(failures.join('\n'));process.exitCode=1;}
   if(process.argv.includes('--print'))console.log(JSON.stringify(m,null,2));
