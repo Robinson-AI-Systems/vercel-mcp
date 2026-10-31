@@ -9,6 +9,20 @@ remain binding. This document is not implementation or live verification.
 
 # Decisions (dated)
 
+**2026-10-31 — Retention clocks (Production Gate decision, AUD-AO).** The fleet
+retention clocks apply to this server: the change journal (`change_log`) and the
+purchase ledger (`purchase_intents`) are retained 400 days, then sweep-purged;
+authorizations that were never exercised (unredeemed OAuth codes, unconsumed
+one-time secrets and pending inputs, still-pending purchase intents, never-used
+RTC passes) are purged 180 days after they lapse. Exercised authorizations are
+not "unused": approved/consumed intents ride the 400-day ledger clock, and used
+or revoked passes are not swept by the 180-day rule. `oauth_tokens` is excluded
+from the sweep — it has no durable use marker (`last_used_at` is never written)
+and refresh rows are live credentials; misclassifying them would delete
+returning users' grants. A stated consequence: the 400-day journal clock bounds
+`vercel_undo_change` history at 400 days. Removal copy now discloses the number
+("kept for 400 days") where it previously said only "kept".
+
 **2026-10-30 — Batch W front-door composition review (OP-1 delta).** The OP-1 decision
 promised the front door's composition would be reviewed "at each audit delta"; Batch W is that
 delta. OP-1's 5,000-token cap is owner policy and does not move. Completing the Workflows

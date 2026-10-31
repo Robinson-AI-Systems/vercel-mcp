@@ -69,7 +69,7 @@ describe('AUD-AA guarded account-removal proposal',()=>{
     expect(plan.preview).toContain('1 pass');
     expect(plan.preview).toContain('2 account-scoped protection rules');
     expect(plan.preview).toContain('Production is switched on for this account');
-    expect(plan.preview).toContain('Audit history and purchase records are kept');
+    expect(plan.preview).toContain('Audit history and purchase records are kept for 400 days');
     expect(f.store.size).toBe(0);
     expect(f.db.removeOwnerAccount).not.toHaveBeenCalled();
   });

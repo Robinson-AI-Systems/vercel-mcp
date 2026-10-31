@@ -10,6 +10,24 @@ export const SCHEMA_TABLES = Object.freeze([
   'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections', 'known_apps'
 ]);
 
+// AUD-AO (Production Gate decision, 2026-10-31): the fleet retention
+// clocks. The change journal and the purchase ledger are kept 400 days,
+// then sweep-purged; authorizations that were never exercised are out
+// 180 days after they lapse. sweepRetention() below enforces them; the
+// dossier (retention-clocks-dossier-2026-10-31.md) records which stores
+// each clock covers and which are excluded, with reasons.
+export const CHANGE_LOG_RETENTION_DAYS = 400;
+export const PURCHASE_LEDGER_RETENTION_DAYS = 400;
+export const UNUSED_AUTHORIZATION_RETENTION_DAYS = 180;
+// This codebase has no scheduler: maintenance is opportunistic on
+// requests (initSchema runs at every entry route; the result store
+// already sweeps its own expired rows at read). The retention sweep
+// follows that shape, throttled in-process so a busy instance sweeps
+// at most hourly; the deletes are idempotent, so overlap between
+// instances is harmless.
+const RETENTION_SWEEP_INTERVAL_MS = 3600000;
+let lastRetentionSweepAt = 0;
+
 // P-1 (BATCH-P): the seeded project profile. A profile is data, not code:
 // one row in known_apps per app, generated from docs/APP-NEEDS-APPLIANCE-DESK.md
 // as re-verified against the app repo on 2026-10-30 (docs/pr-cards/P-1.md §4
@@ -1599,6 +1617,87 @@ export function createDb(query) {
         AND expires_at>now() LIMIT 1`;
       return rows[0]||null;
     },
+    // AUD-AO: the retention sweep. One bounded batch per store per run,
+    // in the result store's CTE shape. The 400-day clocks purge the
+    // journal and the purchase ledger by age; the 180-day clock purges
+    // only authorizations that were never exercised — for codes,
+    // one-time secrets and pending inputs, consumption deletes the
+    // row, so a surviving row past its lapse is unused by construction;
+    // for purchase intents, "unused" is still-pending; for RTC passes
+    // it is window_count = 0 (authorizeRtcPass debits the window on
+    // first use and it never returns to 0) and never revoked. Exercised
+    // intents and passes, and every oauth_tokens row (no durable use
+    // marker exists and refresh rows are live credentials), are NOT
+    // swept here — see the AUD-AO dossier for the per-store reasons.
+    // A sweep that purges anything journals exactly one change_log row
+    // with counts only, never contents (the AUD-AA precedent); the row
+    // carries no account, so it appears in no account's audit list.
+    async sweepRetention({ batch = 1000 } = {}) {
+      if (!Number.isInteger(batch) || batch < 1 || batch > 10000) {
+        throw new TypeError('Invalid retention sweep batch');
+      }
+      const run = getSql();
+      const counts = {
+        changeLog: 0, purchaseIntents: 0, purchaseIntentsUnused: 0,
+        oauthCodes: 0, oneTimeSecrets: 0, pendingInputs: 0, rtcPassesUnused: 0
+      };
+      const purged = async (rows) => rows.length;
+      counts.changeLog = await purged(await run`WITH aged AS (
+          SELECT id FROM change_log
+          WHERE at < now() - interval '400 days' ORDER BY at LIMIT ${batch})
+        DELETE FROM change_log USING aged WHERE change_log.id = aged.id
+        RETURNING change_log.id`);
+      counts.purchaseIntentsUnused = await purged(await run`WITH aged AS (
+          SELECT id FROM purchase_intents
+          WHERE status = 'pending' AND approved_at IS NULL
+            AND consumed_at IS NULL
+            AND expires_at < now() - interval '180 days'
+          ORDER BY created_at LIMIT ${batch})
+        DELETE FROM purchase_intents USING aged
+        WHERE purchase_intents.id = aged.id RETURNING purchase_intents.id`);
+      counts.purchaseIntents = await purged(await run`WITH aged AS (
+          SELECT id FROM purchase_intents
+          WHERE created_at < now() - interval '400 days'
+          ORDER BY created_at LIMIT ${batch})
+        DELETE FROM purchase_intents USING aged
+        WHERE purchase_intents.id = aged.id RETURNING purchase_intents.id`);
+      counts.oauthCodes = await purged(await run`WITH aged AS (
+          SELECT code FROM oauth_codes
+          WHERE expires_at < now() - interval '180 days'
+          ORDER BY expires_at LIMIT ${batch})
+        DELETE FROM oauth_codes USING aged WHERE oauth_codes.code = aged.code
+        RETURNING oauth_codes.code`);
+      counts.oneTimeSecrets = await purged(await run`WITH aged AS (
+          SELECT id FROM one_time_secrets
+          WHERE expires_at < now() - interval '180 days'
+          ORDER BY expires_at LIMIT ${batch})
+        DELETE FROM one_time_secrets USING aged
+        WHERE one_time_secrets.id = aged.id RETURNING one_time_secrets.id`);
+      counts.pendingInputs = await purged(await run`WITH aged AS (
+          SELECT id FROM pending_inputs
+          WHERE expires_at < now() - interval '180 days'
+          ORDER BY expires_at LIMIT ${batch})
+        DELETE FROM pending_inputs USING aged
+        WHERE pending_inputs.id = aged.id RETURNING pending_inputs.id`);
+      counts.rtcPassesUnused = await purged(await run`WITH aged AS (
+          SELECT pass_id FROM rtc_passes
+          WHERE window_count = 0 AND revoked_at IS NULL
+            AND expires_at < now() - interval '180 days'
+          ORDER BY expires_at LIMIT ${batch})
+        DELETE FROM rtc_passes USING aged WHERE rtc_passes.pass_id = aged.pass_id
+        RETURNING rtc_passes.pass_id`);
+      const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+      if (total > 0) {
+        await run`INSERT INTO change_log
+            (vercel_account, mode, tool, summary, dry_run, production, after)
+          VALUES (NULL, 'production', 'vercel_retention_sweep',
+            ${'Retention sweep purged ' + total + ' aged record(s) under the ' +
+              '400-day journal/ledger and 180-day unused-authorization clocks ' +
+              '(counts only; contents never recorded)'},
+            FALSE, TRUE, ${JSON.stringify(counts)}::jsonb)`;
+      }
+      return { ...counts, total, journaled: total > 0 };
+    },
     async initSchema() {
       const run = getSql();
       await run`CREATE TABLE IF NOT EXISTS vercel_accounts (
@@ -1893,6 +1992,16 @@ export function createDb(query) {
           ON CONFLICT (vercel_account, id) DO UPDATE SET
             name = EXCLUDED.name, profile = EXCLUDED.profile, updated_at = now()
           WHERE known_apps.source = 'default'`;
+      }
+      // AUD-AO: the retention sweep rides the one hook every entry
+      // route already calls, throttled in-process (see the constants
+      // at the top of this module). A sweep failure must never break
+      // schema init or the request it rode in on, so it is contained
+      // here; the sweep itself stays strict and testable on its own.
+      const sweepNow = Date.now();
+      if (sweepNow - lastRetentionSweepAt >= RETENTION_SWEEP_INTERVAL_MS) {
+        lastRetentionSweepAt = sweepNow;
+        try { await this.sweepRetention(); } catch { /* contained above */ }
       }
     }
   };
