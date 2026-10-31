@@ -222,7 +222,8 @@ const undoChange = defineWrite({
       return { undo: 'The undo did not land; nothing to reverse' };
     }
     return applied.stepChangeId
-      ? { tool: 'vercel_undo_change', change_id: applied.stepChangeId }
+      ? { tool: 'vercel_undo_change',
+          description: { change_id: applied.stepChangeId } }
       : { undo: 'The undo landed but its step change row could not be identified; reverse the step change directly with vercel_undo_change on its row' };
   },
   async publicReceipt(_args, before, applied) {

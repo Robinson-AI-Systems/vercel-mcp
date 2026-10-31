@@ -106,7 +106,7 @@ describe('vercel_undo_change (X-1)', () => {
     const undoRow = world.journal.find((j) => j.tool === 'vercel_undo_change' &&
       j.dry_run === false);
     expect(undoRow.inverse).toEqual({ tool: 'vercel_undo_change',
-      change_id: done.receipt.stepChangeId });
+      description: { change_id: done.receipt.stepChangeId } });
   });
 
   it('undoes a promote by dispatching rollback with the recorded pair', async () => {
@@ -228,6 +228,7 @@ describe('vercel_undo_change (X-1)', () => {
     const redone = await call(world, { description: { change_id: undoRow.id },
       confirm: true, requestKey: 'undokey0005' });
     expect(redone.status).toBe('applied');
+    expect(redone.receipt.undone).toBe(true);
     expect(world.dispatched.some((d) => d.tool === 'vercel_project_pause' &&
       d.args.confirm === true)).toBe(true);
   });
