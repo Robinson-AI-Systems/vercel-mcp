@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { createFakeDb } from '../../test/helpers/fake-db.js';
 import { createOAuthHandlers } from '../../src/core/oauth-handlers.js';
 import { createVercelLoginService } from '../../src/vercel/login.js';
-import { hashToken } from '../../src/core/oauth.js';
+import { hashToken, randomToken } from '../../src/core/oauth.js';
+import { listMcpTools } from '../../src/core/mcp-server.js';
+import { requireMcpToken } from '../../src/core/mcp-auth.js';
+import { registry } from '../../src/tools/index.js';
 
 const baseEnv = {
   PUBLIC_BASE_URL: 'https://vercel-mcp.example.test',
@@ -59,10 +62,14 @@ async function register(handlers, redirectUris = [callback]) {
   return json(res);
 }
 function authorizeArgs(client, extra = {}) {
+  // AUD-AZ: the clean sign-in posts no mode/profile/listing — those
+  // values are derived from the chosen account at issuance. Tests
+  // that pass them do so deliberately, to prove they cannot steer
+  // the issued connection.
   return {
     client_id: client.client_id, redirect_uri: callback, response_type: 'code',
     code_challenge: challenge, code_challenge_method: 'S256', state: 'state-fixture',
-    resource, account: 'team_fixture', mode: 'preview', profile: 'full', listing: 'compact',
+    resource, account: 'team_fixture',
     ...extra
   };
 }
@@ -91,7 +98,7 @@ describe('OAuth registration and authorization endpoints', () => {
     expect(authMethod.statusCode).toBe(400);
   });
 
-  it('renders only the modes allowed for the selected account and deployment', async () => {
+  it('renders account + passphrase only — no mode, profile or listing pickers (AUD-AZ)', async () => {
     const { handlers } = createFixture({
       accounts: [{
         id: 'team_fixture', label: 'Fixture team', scope: 'team',
@@ -102,11 +109,27 @@ describe('OAuth registration and authorization endpoints', () => {
     const previewPage = await call(handlers.authorize, request('GET', authorizeArgs(client)));
     expect(previewPage.statusCode).toBe(200);
     expect(previewPage.body).toContain('Fixture team');
-    // VMCP-025 (AUD-W): production no longer vanishes silently — it
-    // renders disabled with its reason. This fixture's switch is ON,
-    // so the reason is the deployment, not the account.
-    expect(previewPage.body).toContain('value="production" disabled');
-    expect(previewPage.body).toContain('production (not available)');
+    // The pickers and the per-account modes script are gone: the
+    // form carries exactly the account choice and the passphrase.
+    expect(previewPage.body).not.toContain('name="mode"');
+    expect(previewPage.body).not.toContain('name="profile"');
+    expect(previewPage.body).not.toContain('name="listing"');
+    expect(previewPage.body).not.toContain('<script');
+    expect(previewPage.body).not.toContain('account-modes');
+    expect(previewPage.body).toContain('name="account"');
+    expect(previewPage.body).toContain('name="passphrase"');
+    // The enrollment branch is linked as part of this same flow,
+    // and the consent body names no setup surface. (The shared
+    // shell's footer link is AUD-AV's removal, sequenced with the
+    // route deletion; the assertion is scoped to the page body
+    // above the footer for exactly that reason.)
+    expect(previewPage.body).toContain('/api/oauth/enroll');
+    const consentBody = previewPage.body.split('<footer>')[0];
+    expect(consentBody).not.toContain('/api/vercel/setup');
+    expect(previewPage.body).not.toContain('setup page');
+    // The AUD-W production note survives as information: this
+    // fixture's switch is ON, so the reason is the deployment.
+    expect(previewPage.body).toContain('starts in preview');
     expect(previewPage.body).toContain('Production mode is offered by this server');
 
     const productionFixture = createFixture({
@@ -116,6 +139,11 @@ describe('OAuth registration and authorization endpoints', () => {
       }],
       env: { VERCEL_ENV: 'production' }
     });
+    const productionClient = await register(productionFixture.handlers);
+    const productionPage = await call(productionFixture.handlers.authorize, request('GET', authorizeArgs(productionClient)));
+    expect(productionPage.body).toContain('starts in production');
+    expect(productionPage.body).toContain('<div id="mode-note"></div>');
+
     const switchedOff = createFixture({
       accounts: [{
         id: 'team_fixture', label: 'Fixture team', scope: 'team',
@@ -125,21 +153,19 @@ describe('OAuth registration and authorization endpoints', () => {
     });
     const switchedOffClient = await register(switchedOff.handlers);
     const switchedOffPage = await call(switchedOff.handlers.authorize, request('GET', authorizeArgs(switchedOffClient)));
-    expect(switchedOffPage.body).toContain('value="production" disabled');
+    expect(switchedOffPage.body).toContain('starts in preview');
     expect(switchedOffPage.body).toContain('Production mode is switched off for this account');
     expect(switchedOffPage.body).toContain('vercel_set_working_box');
-    const productionClient = await register(productionFixture.handlers);
-    const productionPage = await call(productionFixture.handlers.authorize, request('GET', authorizeArgs(productionClient)));
-    expect(productionPage.body).toContain('value="production"');
   });
 
-  it('preselects the flagged default account and renders its own modes, not the first row\'s (AUD-AE)', async () => {
-    // The live shape that convicted this defect: the default account
-    // is NOT the first row of the account list, and the first row's
-    // switch is off while the default's is on. On the production
-    // deployment the old page preselected the first row and offered
-    // its modes — production disabled with the wrong note — and no
-    // account change could ever recompute them.
+  it('preselects the flagged default account and captions every account with its own posture (AUD-AE/AUD-AZ)', async () => {
+    // The live shape that convicted the AUD-AE defect: the default
+    // account is NOT the first row of the account list, and the
+    // first row's switch is off while the default's is on. AUD-AE
+    // fixed the preselection and rendered per-account mode views;
+    // AUD-AZ keeps the preselection and the per-account truth, and
+    // deletes the pickers the views served: every option now
+    // carries its own derivation as its caption, with no script.
     const fixture = createFixture({
       accounts: [
         {
@@ -160,35 +186,29 @@ describe('OAuth registration and authorization endpoints', () => {
     expect(page.statusCode).toBe(200);
     expect(page.body).toContain('<option value="team_real" selected>');
     expect(page.body).not.toContain('<option value="team_scratch" selected>');
-    // The default account's own view: production selectable, no note.
-    expect(page.body).toContain('<option value="production">production</option>');
-    expect(page.body).not.toContain('value="production" disabled');
+    // Each account's own posture, in its caption: the default
+    // starts in production (no note), the scratch account in
+    // preview — the server's derivation, not the first row's.
+    expect(page.body).toContain('ZZZ Real fixture — Team · starts in production');
+    expect(page.body).toContain('AAA Scratch fixture — Team · starts in preview');
     expect(page.body).toContain('<div id="mode-note"></div>');
-    // The embedded per-account map carries every account's own view,
-    // so an account change recomputes from the server's own data.
-    const embedded = /<script type="application\/json" id="account-modes">([\s\S]*?)<\/script>/.exec(page.body);
-    expect(embedded).not.toBeNull();
-    const views = JSON.parse(embedded[1].replace(/\\u003c/g, '<'));
-    expect(views.team_real).toEqual({ modes: ['preview', 'production'], productionUnavailable: false, note: '' });
-    expect(views.team_scratch.modes).toEqual(['preview']);
-    expect(views.team_scratch.productionUnavailable).toBe(true);
-    expect(views.team_scratch.note).toContain('Production mode is switched off for this account');
-    expect(page.body).toContain('accountSelect.addEventListener');
-    // And the submission the old form could never produce — the
-    // default account in production mode — is accepted by the POST
-    // validator exactly as rendered.
+    expect(page.body).not.toContain('account-modes');
+    expect(page.body).not.toContain('<script');
+    // The consent the old form could never produce — the default
+    // account in production — is now simply what derivation issues
+    // for it: no mode is posted at all.
     const authorized = await call(fixture.handlers.authorize, request('POST', {
-      ...authorizeArgs(client), account: 'team_real', mode: 'production',
+      ...authorizeArgs(client), account: 'team_real',
       passphrase: baseEnv.ADMIN_PASSPHRASE
     }));
     expect(authorized.statusCode).toBe(302);
     const code = new URL(authorized.headers.Location).searchParams.get('code');
     expect(await fixture.db.consumeAuthCode(code)).toMatchObject({
-      vercel_account: 'team_real', mode: 'production'
+      vercel_account: 'team_real', mode: 'production', profile: 'full', listing: 'front_door'
     });
   });
 
-  it('keeps both AUD-W note variants per account on a preview deployment (AUD-AE)', async () => {
+  it('keeps both AUD-W note variants, rendered for the selected account (AUD-AE/AUD-AZ)', async () => {
     const fixture = createFixture({
       accounts: [
         {
@@ -205,19 +225,21 @@ describe('OAuth registration and authorization endpoints', () => {
     const args = authorizeArgs(client);
     delete args.account;
     const page = await call(fixture.handlers.authorize, request('GET', args));
-    // The default (switch on) renders the deployment variant.
+    // The default (switch on, preview deployment) renders the
+    // deployment variant as its note; both accounts caption their
+    // own preview start, and no embedded map or script remains.
     expect(page.body).toContain('<div id="mode-note"><p>Production mode is offered by this server');
-    expect(page.body).toContain('value="production" disabled');
-    const embedded = /<script type="application\/json" id="account-modes">([\s\S]*?)<\/script>/.exec(page.body);
-    const views = JSON.parse(embedded[1].replace(/\\u003c/g, '<'));
-    expect(views.team_on.productionUnavailable).toBe(true);
-    expect(views.team_on.note).toContain('Production mode is offered by this server');
-    expect(views.team_off.productionUnavailable).toBe(true);
-    expect(views.team_off.note).toContain('Production mode is switched off for this account');
-    expect(views.team_off.note).toContain('vercel_set_working_box');
+    expect(page.body).not.toContain('account-modes');
+    // The other account's own variant renders when it is the
+    // selected account — the note follows the selection exactly as
+    // the AUD-AE page's did, now by re-render instead of script.
+    const offArgs = authorizeArgs(client, { account: 'team_off' });
+    const offPage = await call(fixture.handlers.authorize, request('GET', offArgs));
+    expect(offPage.body).toContain('<div id="mode-note"><p>Production mode is switched off for this account');
+    expect(offPage.body).toContain('vercel_set_working_box');
   });
 
-  it('an explicit account choice still wins over the default, with that account\'s modes (AUD-AE)', async () => {
+  it('an explicit account choice still wins over the default, with that account\'s posture (AUD-AE/AUD-AZ)', async () => {
     const fixture = createFixture({
       accounts: [
         {
@@ -236,10 +258,10 @@ describe('OAuth registration and authorization endpoints', () => {
       authorizeArgs(client, { account: 'team_off' })));
     expect(page.body).toContain('<option value="team_off" selected>');
     expect(page.body).toContain('<div id="mode-note"><p>Production mode is switched off for this account');
-    expect(page.body).toContain('value="production" disabled');
+    expect(page.body).not.toContain('name="mode"');
   });
 
-  it('authorizes a connection and binds account, mode, profile, and listing to its one-time code', async () => {
+  it('authorizes a connection and binds the derived account, mode, profile, and listing to its one-time code', async () => {
     const { db, handlers } = createFixture();
     const client = await register(handlers);
     const params = authorizeArgs(client);
@@ -252,9 +274,12 @@ describe('OAuth registration and authorization endpoints', () => {
     expect(redirect.searchParams.get('state')).toBe('state-fixture');
     const code = redirect.searchParams.get('code');
     expect(code).toBeTruthy();
+    // The fixture account is a token enrollment (Door 2 → full)
+    // with its production switch off (→ preview); the listing is
+    // always the front door for an OAuth issuance (AUD-AZ).
     expect(await db.consumeAuthCode(code)).toMatchObject({
       client_id: client.client_id, vercel_account: 'team_fixture',
-      mode: 'preview', profile: 'full', listing: 'compact'
+      mode: 'preview', profile: 'full', listing: 'front_door'
     });
   });
 
@@ -280,17 +305,111 @@ describe('OAuth registration and authorization endpoints', () => {
     expect(unavailable.statusCode).toBe(503);
   });
 
-  it('refuses unknown accounts and forged production mode, including enabled accounts on preview deployments', async () => {
-    const { handlers } = createFixture();
+  it('refuses unknown accounts, and posted mode/profile/listing cannot steer the issued values (AUD-AZ)', async () => {
+    const { db, handlers } = createFixture();
     const client = await register(handlers);
     const unknown = await call(handlers.authorize, request('POST', {
       ...authorizeArgs(client), account: 'team_unknown', passphrase: baseEnv.ADMIN_PASSPHRASE
     }));
     expect(unknown.statusCode).toBe(400);
+    // The pre-AUD-AZ refusal of a forged production mode becomes a
+    // stronger property: the posted values are not read at all, so
+    // a client asking for production + read_only + catalog is
+    // issued exactly what the account derives — preview, full,
+    // front_door for this switch-off token enrollment.
     const forged = await call(handlers.authorize, request('POST', {
-      ...authorizeArgs(client), mode: 'production', passphrase: baseEnv.ADMIN_PASSPHRASE
+      ...authorizeArgs(client), mode: 'production', profile: 'read_only', listing: 'catalog',
+      passphrase: baseEnv.ADMIN_PASSPHRASE
     }));
-    expect(forged.statusCode).toBe(400);
+    expect(forged.statusCode).toBe(302);
+    const code = new URL(forged.headers.Location).searchParams.get('code');
+    expect(await db.consumeAuthCode(code)).toMatchObject({
+      vercel_account: 'team_fixture', mode: 'preview', profile: 'full', listing: 'front_door'
+    });
+  });
+
+  it('derives profile from the door and mode from the account switch (AUD-AZ matrix)', async () => {
+    const integrationProbe = { source: 'integration', declaredBox: 'team', accountKind: 'team' };
+    const cases = [
+      { name: 'token door, switch off', account: {}, env: {}, profile: 'full', mode: 'preview' },
+      { name: 'token door, switch on, production deployment', account: { production_enabled: true }, env: { VERCEL_ENV: 'production' }, profile: 'full', mode: 'production' },
+      { name: 'token door, switch on, preview deployment', account: { production_enabled: true }, env: {}, profile: 'full', mode: 'preview' },
+      { name: 'integration door, switch off', account: { token_probe: integrationProbe }, env: { VERCEL_ENV: 'production' }, profile: 'everyday', mode: 'preview' },
+      { name: 'integration door, switch on, production deployment', account: { token_probe: integrationProbe, production_enabled: true }, env: { VERCEL_ENV: 'production' }, profile: 'everyday', mode: 'production' },
+      { name: 'integration door, switch on, preview deployment', account: { token_probe: integrationProbe, production_enabled: true }, env: {}, profile: 'everyday', mode: 'preview' }
+    ];
+    for (const testCase of cases) {
+      const fixture = createFixture({
+        accounts: [{
+          id: 'team_fixture', label: 'Fixture team', scope: 'team',
+          production_enabled: false, team_id: 'team_fixture', team_slug: 'fixture',
+          ...testCase.account
+        }],
+        env: testCase.env
+      });
+      const client = await register(fixture.handlers);
+      const authorized = await call(fixture.handlers.authorize, request('POST', {
+        ...authorizeArgs(client), passphrase: baseEnv.ADMIN_PASSPHRASE
+      }));
+      expect(authorized.statusCode, testCase.name).toBe(302);
+      const code = new URL(authorized.headers.Location).searchParams.get('code');
+      expect(await fixture.db.consumeAuthCode(code), testCase.name).toMatchObject({
+        vercel_account: 'team_fixture', mode: testCase.mode,
+        profile: testCase.profile, listing: 'front_door'
+      });
+    }
+  });
+
+  it('drives the real tool boundary from the issued values and leaves stored legacy connections untouched (AUD-AZ)', async () => {
+    const connect = async (fixture, token) => requireMcpToken(
+      { headers: { authorization: 'Bearer ' + token } }, response(), fixture.db, fixture.env);
+    const exchange = async (fixture, client) => {
+      const authorized = await call(fixture.handlers.authorize, request('POST', {
+        ...authorizeArgs(client), passphrase: baseEnv.ADMIN_PASSPHRASE
+      }));
+      expect(authorized.statusCode).toBe(302);
+      const code = new URL(authorized.headers.Location).searchParams.get('code');
+      const granted = await call(fixture.handlers.token, request('POST', {
+        grant_type: 'authorization_code', client_id: client.client_id,
+        client_secret: client.client_secret, redirect_uri: callback,
+        code, code_verifier: verifier, resource
+      }));
+      expect(granted.statusCode).toBe(200);
+      return json(granted);
+    };
+    // Door 1 (integration) enrollment → everyday at the boundary.
+    const door1 = createFixture({
+      accounts: [{
+        id: 'team_fixture', label: 'Fixture team', scope: 'team',
+        production_enabled: false, team_id: 'team_fixture', team_slug: 'fixture',
+        token_probe: { source: 'integration', declaredBox: 'team', accountKind: 'team' }
+      }]
+    });
+    const client1 = await register(door1.handlers);
+    // A connection stored before derivation existed (the AUD-C
+    // shape): grandfathered — new issuance must never rewrite it.
+    const legacyAccess = randomToken();
+    await door1.db.createAccessToken({
+      accessToken: legacyAccess, refreshToken: randomToken(), clientId: client1.client_id,
+      vercelAccount: 'team_fixture', mode: 'preview', profile: 'read_only', listing: 'compact'
+    });
+    const connection1 = await connect(door1, (await exchange(door1, client1)).access_token);
+    expect(connection1).toMatchObject({ profile: 'everyday', listing: 'front_door', mode: 'preview' });
+    const door1Names = listMcpTools(registry, connection1).map((tool) => tool.name);
+    expect(door1Names).toContain('vercel_whoami');
+    expect(door1Names).not.toContain('vercel_workflow_project_setup');
+    const legacy = await connect(door1, legacyAccess);
+    expect(legacy).toMatchObject({ profile: 'read_only', listing: 'compact', mode: 'preview' });
+    expect(await door1.db.getAccessToken(legacyAccess)).toMatchObject({
+      profile: 'read_only', listing: 'compact'
+    });
+    // Door 2 (token) enrollment → full at the same boundary.
+    const door2 = createFixture();
+    const client2 = await register(door2.handlers);
+    const connection2 = await connect(door2, (await exchange(door2, client2)).access_token);
+    expect(connection2).toMatchObject({ profile: 'full', listing: 'front_door', mode: 'preview' });
+    expect(listMcpTools(registry, connection2).map((tool) => tool.name))
+      .toContain('vercel_workflow_project_setup');
   });
 
   it('publishes fixed OAuth metadata and exact protected-resource metadata', async () => {
@@ -333,7 +452,7 @@ describe('OAuth registration and authorization endpoints', () => {
     expect(original.expires_in).toBe(3600);
     expect(await fixture.db.getAccessToken(original.access_token)).toMatchObject({
       client_id: client.client_id, vercel_account: 'team_fixture',
-      mode: 'preview', profile: 'full', listing: 'compact'
+      mode: 'preview', profile: 'full', listing: 'front_door'
     });
 
     const replayedCode = await call(fixture.handlers.token, request('POST', {
@@ -353,7 +472,7 @@ describe('OAuth registration and authorization endpoints', () => {
     const second = json(refreshed);
     expect(await fixture.db.getAccessToken(second.access_token)).toMatchObject({
       client_id: client.client_id, vercel_account: 'team_fixture',
-      mode: 'preview', profile: 'full', listing: 'compact'
+      mode: 'preview', profile: 'full', listing: 'front_door'
     });
     const replayedRefresh = await call(fixture.handlers.token, request('POST', {
       grant_type: 'refresh_token', client_id: client.client_id,
