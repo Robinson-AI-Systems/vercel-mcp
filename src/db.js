@@ -1564,6 +1564,16 @@ export function createDb(query) {
         AND expires_at>now() LIMIT 1`;
       return rows[0]||null;
     },
+    // The public health check's only store question: can the server's
+    // store answer at all? One constant read — no schema setup, no table
+    // dependency, no row data leaves this method, only the boolean.
+    async storeReachable() {
+      try {
+        const run = getSql();
+        const rows = await run`SELECT 1 AS one`;
+        return Array.isArray(rows) && rows.length > 0;
+      } catch { return false; }
+    },
     async initSchema() {
       const run = getSql();
       await run`CREATE TABLE IF NOT EXISTS vercel_accounts (
