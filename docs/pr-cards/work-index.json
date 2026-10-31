@@ -671,15 +671,16 @@
       "readiness": "CARD_WRITTEN",
       "ownerInputs": [],
       "pr": [
+        203,
         205
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next D-4 implementer",
-        "reason": "Seven release-routing/alias tools merged #203; five rolling-release tools assembled in draft PR #205. Source still requires exact-head CI/review and official provider contracts. D-4 counts zero completed until merged. Native custom MCP acceptance separately queued.",
-        "nextAction": "Fix complete PR #205 exact-head check/unit/review failures and merge when green; preserve owner spending/production gating and enqueue authenticated native acceptance on checked READY deployment.",
-        "checkpoint": "Draft PR #205 verified head, exact CI results and release queue after next READY deployment",
-        "evidenceNeeded": "Exact-head tests/code/CI, predispatch route change/readback, staged-produce vs previously-serving rollback proof, alias exact identity/owner; rolling-release 5 operation source+tests; real provider fixture acceptance separate",
+        "reason": "Source phase COMPLETE: all 12 approved D-4 tools are merged — the seven release-routing/alias tools in PR #203 (merge 3938e65) and the five rolling-release tools in PR #205 (merge 51a64e4, head 8f6122ab, merged 2026-10-15 with ci and release-policy success at the exact head and zero unresolved threads; re-verified 2026-10-31, AUD-BK). The pre-refresh text described #205 as an unmerged draft needing check/unit/review fixes; that premise was falsified by the merged PR and is corrected in this dated refresh, not silently edited. The #205 merge is in live's ancestry (live 8fb9e83 after the 2026-10-31 promotion), discharging the D-4 card's checked-production-ancestry gate. Status stays IN_PROGRESS under AUD-BC's D-batch acceptance-lifecycle ruling; externalAcceptance remains NOT_VERIFIED — no native provider acceptance has run and positive rolling-release activation stays fail-closed under IN-08.",
+        "nextAction": "Native acceptance on the checked READY deployment with an owner-approved disposable TEST fixture (release acceptance queue): predispatch route change/readback, staged-produce vs previously-serving rollback proof, alias exact identity/owner, rolling-release read/denial/readback and cleanup. One open evidence item from the #205 handoff rides with it: reconcile the paid PATCH configuration body's pinned official shape (existing tests prove the other rolling-release methods and the safe DELETE disable, not a positive billed PATCH). Preserve owner spending/production gating; no live promotion, rollback, alias write or activation without the fixture and grant.",
+        "checkpoint": "Source phase closed (#205 merged 2026-10-15; merge in live's ancestry at 8fb9e83, verified 2026-10-31); next checkpoint is the TEST-fixture acceptance run",
+        "evidenceNeeded": "Rolling-release 5-operation source+tests and exact-head CI — DONE (#205, head 8f6122ab, ci + release-policy success). Still needed for acceptance: predispatch route change/readback, staged-produce vs previously-serving rollback proof, alias exact identity/owner; the paid PATCH configuration body reconciled against the pinned official shape; real provider fixture acceptance separate",
         "eligibilityCondition": "D-4 source development eligible; live promotion requires owner-enabled production mode and protected disposable test fixture",
         "dependencies": [
           "D-3"
