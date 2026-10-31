@@ -147,9 +147,14 @@ describe('A-3b OAuth persistence on throwaway PostgreSQL', () => {
     }));
     expect(granted.statusCode).toBe(200);
     const first = json(granted);
+    // AUD-AZ: the params above still post the pre-cleanup shape
+    // (profile 'read_only', listing 'compact'); the persisted
+    // connection settings are the DERIVED values — this fixture is
+    // a token enrollment with its production switch off, so full /
+    // front_door / preview — and they persist through refresh.
     expect(await db.getAccessToken(first.access_token)).toMatchObject({
       vercel_account: 'team_persistent_fixture', mode: 'preview',
-      profile: 'read_only', listing: 'compact'
+      profile: 'full', listing: 'front_door'
     });
     const refreshed = await call(handlers.token, request('POST', {
       grant_type: 'refresh_token', client_id: client.client_id,
@@ -159,7 +164,7 @@ describe('A-3b OAuth persistence on throwaway PostgreSQL', () => {
     const second = json(refreshed);
     expect(await db.getAccessToken(second.access_token)).toMatchObject({
       vercel_account: 'team_persistent_fixture', mode: 'preview',
-      profile: 'read_only', listing: 'compact'
+      profile: 'full', listing: 'front_door'
     });
     const rows = await rawQuery('SELECT token_hash, refresh_hash FROM oauth_tokens WHERE client_id = $1', [client.client_id]);
     expect(rows).toHaveLength(1);
