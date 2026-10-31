@@ -16,7 +16,17 @@ the 2026-10-26 re-base: N-1 is merged (all 11 `vercel_domain_*` tools registered
 (AUD-AA `vercel_remove_account`; AUD-AB `vercel_account_teams`, `vercel_team_create`, `vercel_team_delete`); the
 2026-10-30 audit fixes AUD-AE…AUD-AI are merged. O-3 note: `vercel_token_create` / `vercel_token_delete` remain
 **proposed** — only `vercel_check_token` exists. Where a row below contradicts this paragraph, this paragraph and
-`work-index.json` win. Tests/operations
+`work-index.json` win.
+
+**Re-based 2026-10-31 at main `8fb9e83` (documentation audit AUD-AN; registry: 240 tools; catalog: 241, of which
+1 unimplemented).** The 2026-10-30 build-out completed every batch: N-2/N-3, F-1…F-3, M-1…M-4, O-2…O-5, P-1…P-3,
+W-1…W-6, X-1 (`vercel_undo_change`) and R-1W (write-capable RTC passes) are all merged, and O-3 shipped —
+`vercel_token_create` / `vercel_token_delete` exist (PR #314); the U-1 row's `vercel_api_write` and
+`src/vercel/spend-operations.js` are built (PR #297), and the R row's write-capable passes are built (R-1W).
+The one unbuilt catalog row, `vercel_admin_overview`, is closed by owner ruling IN-16 and will not be built.
+Genuinely remaining: the live acceptance program (`docs/STATUS.md`), R-2's separate HTTP write-contract leg,
+R-3 conformance, the X-2 scratch run, and CAP-5/UA-18 two-tenant live acceptance. Where a row below contradicts
+this paragraph, this paragraph wins. Tests/operations
 are selected JIT from the actual predecessor, catalog and snapshot; this map does not pin unverified future API versions
 or add scope. All paths marked **proposed** below were absent at the inspected baseline (2026-10-11); check the current
 tree before treating any of them as still absent.
