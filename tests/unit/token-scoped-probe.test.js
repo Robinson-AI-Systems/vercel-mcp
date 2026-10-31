@@ -32,6 +32,11 @@ function fakeDb() {
 describe('AUD-F scoped-token enrollment probe', () => {
   it.each(['refuse', 'empty'])('enrolls a project-scoped token when user/teams reads are %s', async teams => {
     const api = makeFakeVercel().scopedProject(PROJECT, { teams });
+    // AUD-BI: the enrollment expiry leg's token-list read — a scoped
+    // token's list carries no match here, so nothing is recorded and
+    // the enrollment rests on the scoped proof alone.
+    api.when('GET', '/v6/user/tokens').resolves({ tokens: [],
+      pagination: { count: 0, next: null, prev: null } });
     const db = fakeDb();
     const receipt = await storeToken({ db, token: TOKEN, teamId: 'team_FAKE',
       projectId: 'prj_FAKE', env, fetchImpl: api.fetch });

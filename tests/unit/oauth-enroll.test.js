@@ -61,6 +61,15 @@ function provider({ multipleTeams = false } = {}) {
   api.when('GET', '/v10/projects').resolves({ projects: [
     { id: 'prj_FAKE', name: 'fixture' }
   ], pagination: { next: null } });
+  // AUD-BI: the enrollment expiry leg's token-list read — the team
+  // fixture token's own record, carrying a real expiry.
+  api.when('GET', '/v6/user/tokens').resolves({ tokens: [{
+    id: 'tokid_FAKE1', name: 'fixture token', type: 'oauth2-token',
+    prefix: 'vcp_', suffix: '345678',
+    createdAt: 1700000000000, activeAt: 1700000000000,
+    scopes: [{ type: 'team', teamId: 'team_FAKE', createdAt: 1700000000000 }],
+    expiresAt: 1798761600000
+  }], pagination: { count: 1, next: null, prev: null } });
   return api;
 }
 function createFixture({ multipleTeams = false } = {}) {
@@ -130,11 +139,18 @@ describe('OAuth enrollment branch (AUD-AR)', () => {
     expect(res.headers.Location).toBeUndefined();
     expect(res.body).not.toContain(teamToken);
     // The probe ran (identity, teams, projects) before the store,
-    // and only ciphertext was persisted.
-    expect(api.calls).toHaveLength(3);
+    // and only ciphertext was persisted. AUD-BI adds the one
+    // documented token-list read after the probe: 4 calls.
+    expect(api.calls).toHaveLength(4);
+    expect(api.calls[3].path).toBe('/v6/user/tokens');
     const accounts = await db.listVercelAccounts();
     expect(accounts).toHaveLength(1);
     expect(accounts[0]).toMatchObject({ id: 'team_FAKE', scope: 'team', token_last4: '5678' });
+    // AUD-BI: the enrollment recorded the token's real expiry from
+    // its provider record, with the evidence on the probe record.
+    expect(accounts[0].token_expires_at).toBe('2027-01-01T00:00:00.000Z');
+    expect(accounts[0].token_probe.tokenExpiry)
+      .toEqual({ state: 'recorded', providerTokenId: 'tokid_FAKE1' });
     expect(JSON.stringify(accounts)).not.toContain(teamToken);
     const loaded = await loadToken({ db, accountId: 'team_FAKE', env: baseEnv });
     expect(loaded.token).toBe(teamToken);
