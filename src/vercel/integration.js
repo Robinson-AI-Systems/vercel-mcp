@@ -31,7 +31,7 @@
 // They are never logged, never echoed, never returned.
 import { storePersonalToken, storeInstallationToken } from './tokens.js';
 import { escapeHtml, send } from '../core/http.js';
-import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
+import { FRONT_DOOR_CSP, FRONT_DOOR_PRODUCT_NAME, frontDoorPage } from '../front-door.js';
 
 const EXCHANGE_PATH = '/v2/oauth/access_token';
 const DEFAULT_BASE = 'https://api.vercel.com';
@@ -227,16 +227,21 @@ export async function enrollInstallation({ db, exchange, declaredBox,
     account: receipt };
 }
 
+// AUD-AX: the callback result pages render on the shared fleet
+// shell (frontDoorPage) like every other surviving public page.
+// Titles are fixed strings from this module; content arrives
+// pre-escaped by the call sites.
 function page(title, content) {
-  return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
-    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>' + escapeHtml(title) + ' — ' + escapeHtml(SERVICE_DISPLAY_NAME) + '</title>' +
-    '<style>body{font:16px system-ui;max-width:650px;margin:4vh auto;padding:20px}</style>' +
-    '</head><body><main><h1>' + escapeHtml(title) + '</h1>' + content + '</main></body></html>';
+  return frontDoorPage({
+    title: title + ' — ' + FRONT_DOOR_PRODUCT_NAME,
+    heading: escapeHtml(title),
+    body: content
+  });
 }
 
 function html(res, status, title, content) {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Security-Policy', FRONT_DOOR_CSP);
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   return send(res, status, page(title, content), 'text/html; charset=utf-8');

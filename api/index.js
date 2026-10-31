@@ -45,14 +45,13 @@ export default function handler(req, res) {
     const body =
       '<p class="muted">Status: hosted service endpoint</p>' +
       '<p>' + FRONT_DOOR_PRODUCT_NAME + ' connects Claude, ChatGPT and other AI ' +
-      'apps to your Vercel account. You sign in with your own Vercel account ' +
-      'and choose what the assistant may do.</p>' +
+      'apps to your Vercel account. You sign in with your own Vercel account; ' +
+      'what a connection can do follows the account you connect.</p>' +
       '<ul>' +
       '<li>Work across projects, deployments, domains, DNS, storage, teams and billing.</li>' +
       '<li>Changes are previewed first; spending follows the purchase policy you set, and everything is journaled.</li>' +
-      '<li>Read-only connections prevent all changes. You can disconnect at any time.</li>' +
+      '<li>Switch a connection to read-only and it can look but not change anything — switch it back whenever you like. You can disconnect at any time.</li>' +
       '</ul>' +
-      '<p><small>Not affiliated with or endorsed by Vercel.</small></p>' +
       '<section id="connect"><h2>Connect your AI app</h2>' +
       '<p>Paste this address into your AI app when it asks for a server or connector address:</p>' +
       '<code class="addr" id="address">' + BRANDED_ORIGIN + '/api/mcp</code>' +
