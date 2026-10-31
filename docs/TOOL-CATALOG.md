@@ -509,6 +509,19 @@ the door's v2 membership (basis `batch-w-delta-2026-10-30`) rebalances ten most-
 twelve workflow tools across W-1..W-6 so the full-profile front door stays strictly under the
 5,000-token owner cap; every retired tool remains one search/call away on the catalog listing.
 
+W-2 (2026-10-30) adds `vercel_workflow_why_did_build_fail` and `vercel_workflow_deploy_and_wait`.
+The diagnosis composes the deployment, build-log and check-run reads: the area tools never return
+raw log text (the no-secrets rule), so the workflow renders the first error's build step and
+position, a likely cause and exact fix keyed to that step, failed check runs as evidence, and a
+redeploy-would-help verdict that is only ever "yes" when the build log carries no error events.
+Deploy-and-wait is a guarded write whose single step dispatches `vercel_deploy_create_from_git`
+through that tool's own pipeline — its full-profile gate and purchase policy apply there — after
+resolving the exact commit (the caller's full SHA, or the newest deployment on the branch). It
+polls with `vercel_deploy_wait` under a 45-second budget; a stop returns the deployment id and
+the exact `vercel_deploy_wait` continuation, never a suggestion to re-run the workflow. Its
+catalog Safety mark is Cp with no $: the workflow declares no spend of its own (card verdict
+W2-C1); the metered build spend is the create step's.
+
 ## Everything else in Vercel: the universal tools (`vercel_api_*`) — 4
 
 The hand-built tools are the comfortable, plain-English way to do the common jobs. These four reach **every operation in
