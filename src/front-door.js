@@ -45,7 +45,18 @@ const BRAND_CSS =
   'a.button{display:block;text-align:center;font:600 16px Inter,-apple-system,sans-serif;' +
   'color:#fff;background:var(--grad);border-radius:50px;padding:13px 20px;text-decoration:none;margin:14px 0}' +
   'ul.links{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px}' +
-  'footer{margin-top:28px;color:var(--muted);font-size:14px}';
+  'footer{margin-top:28px;color:var(--muted);font-size:14px}' +
+  // Form elements: the authorize page (AUD-AZ) is the shell's first
+  // form. The status and connection pages contain no form elements,
+  // so these rules leave their rendering untouched.
+  'form{display:grid;gap:14px}' +
+  'label{display:grid;gap:6px;color:var(--muted)}' +
+  'input,select{font:inherit;padding:10px;border-radius:8px;border:1px solid var(--border);' +
+  'background:var(--surface);color:var(--text)}' +
+  'button{font:600 16px Inter,-apple-system,"Segoe UI",sans-serif;color:#fff;background:var(--grad);' +
+  'border:0;border-radius:50px;padding:13px 20px;cursor:pointer}' +
+  'button[disabled]{opacity:.45;cursor:default}' +
+  'p[role="alert"]{color:var(--err)}';
 
 export const brandHeader = () =>
   '<header class="brand"><img src="' + ICON_PATH + '" alt="" width="44" height="44"><div><b>' +

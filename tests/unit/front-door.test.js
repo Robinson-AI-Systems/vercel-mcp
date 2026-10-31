@@ -171,15 +171,21 @@ describe('AUD-C OAuth authorize door', () => {
     resource, account: 'team_fixture', mode: 'preview', profile: 'full', ...extra
   });
 
-  it('preselects front_door when no listing is chosen and honors an explicit catalog choice', async () => {
-    const { handlers, client } = await fixture();
-    const noChoice = response();
-    await handlers.authorize(request('GET', args(client)), noChoice);
-    expect(noChoice.body).toContain('<option value="front_door" selected>');
-    const explicit = response();
-    await handlers.authorize(request('GET', args(client, { listing: 'catalog' })), explicit);
-    expect(explicit.body).toContain('<option value="catalog" selected>');
-    expect(explicit.body).not.toContain('<option value="front_door" selected>');
+  it('renders no listing picker, and a posted catalog choice still derives front_door (AUD-AZ)', async () => {
+    // AUD-C offered the listing as a consent choice with front_door
+    // preselected; AUD-AZ removes the choice — an OAuth issuance's
+    // listing is always the front door, whatever a client posts.
+    const { db, handlers, client } = await fixture();
+    const page = response();
+    await handlers.authorize(request('GET', args(client)), page);
+    expect(page.body).not.toContain('name="listing"');
+    expect(page.body).not.toContain('<option value="catalog"');
+    expect(page.body).not.toContain('<option value="compact"');
+    const posted = response();
+    await handlers.authorize(request('POST', args(client, { listing: 'catalog', passphrase: 'test-passphrase-fixture' })), posted);
+    expect(posted.statusCode).toBe(302);
+    const code = new URL(posted.headers.Location).searchParams.get('code');
+    expect((await db.consumeAuthCode(code)).listing).toBe('front_door');
   });
 
   it('binds front_door to the issued code when that listing is submitted', async () => {

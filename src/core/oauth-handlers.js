@@ -5,9 +5,14 @@ import {
   evaluateLogin, clientIp, LOCKOUT_WINDOW_MINUTES
 } from './oauth.js';
 import { publicOrigin, send, escapeHtml, paramsOf, only } from './http.js';
+import { frontDoorPage } from '../front-door.js';
 
-const PROFILES = ['read_only', 'everyday', 'full'];
-const LISTINGS = ['catalog', 'compact', 'front_door'];
+// AUD-AZ: an OAuth connection's listing is always the OP-1 front
+// door. catalog/compact survive only as RTC pass properties (the
+// pass door's own contract), which are not sign-ins; stored rows
+// issued before derivation keep the listing they were issued with
+// (grandfathering, dossier D6) — this constant governs issuance.
+const OAUTH_LISTING = 'front_door';
 // Muse (Meta) publishes no client metadata document of its own, so a server
 // that accepts Muse connections hosts one for it (the client-id metadata
 // document pattern): the document's URL is the client_id, Muse's only
@@ -24,7 +29,7 @@ const bad = (res, status, code, description) => send(res, status, { error: code,
 const str = (value) => typeof value === 'string' ? value : '';
 
 export function createOAuthHandlers({ db, env = process.env, service }) {
-  if (!service || typeof service.listAccounts !== 'function' || typeof service.modesFor !== 'function') {
+  if (!service || typeof service.listAccounts !== 'function' || typeof service.issuanceFor !== 'function') {
     throw new TypeError('An OAuth service adapter is required');
   }
   function urls() {
@@ -90,31 +95,13 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     });
   }
 
-  // One account's mode view: the modes modesFor allows, whether
-  // production renders as the AUD-W disabled option, and the reason
-  // note for that case. The initial render and the embedded
-  // per-account map both come from here, so the page's script can
-  // never drift from the server's own rendering; modesFor stays the
-  // sole authority in both layers.
-  function modeView(account) {
-    const modes = account ? service.modesFor(account, env) : ['preview'];
-    const productionUnavailable = Boolean(account) && !modes.includes('production');
-    // VMCP-025 (AUD-W): production used to vanish from this list
-    // silently when unavailable. It renders as a disabled option
-    // with the reason beside the Mode field — the account owner's
-    // switch being off, or this server not running its production
-    // deployment. Submission validation is unchanged (modesFor is
-    // still the authority), so the disabled option can never be
-    // posted into an authorization.
-    const note = !productionUnavailable ? '' :
-      (account.production_enabled ?
-        '<p>Production mode is offered by this server\'s production deployment.</p>' :
-        '<p>Production mode is switched off for this account. The account owner can switch ' +
-        'it on in setup or with vercel_enable_production; a connection made in preview can ' +
-        'be flipped to production afterwards with vercel_set_working_box.</p>');
-    return { modes, productionUnavailable, note };
-  }
-
+  // AUD-AZ: there are no mode/profile/listing pickers to render a
+  // view for. The service's issuanceFor derivation is the single
+  // authority for both layers that remain — each account option's
+  // caption and posture note on this page, and the values bound to
+  // the auth code at issuance — so the page can never drift from
+  // what a consent actually issues (the AUD-AE lesson, kept without
+  // the per-account script the pickers needed).
   function authorizePage(params, accounts, error = '') {
     const hiddenFields = [
       'client_id', 'redirect_uri', 'response_type', 'code_challenge',
@@ -132,92 +119,42 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     // permits before an owner picks a default.
     const selectedAccount = accounts.find((account) => params.account === account.id) ||
       accounts.find((account) => account.is_default) || accounts[0];
+    // Every option is captioned with its own derivation (declared
+    // box + the posture a connection on it starts in), so the page
+    // is truthful for every account with no script at all.
     const accountList = accounts.map((account) =>
       '<option value="' + escapeHtml(account.id) + '"' +
       (selectedAccount?.id === account.id ? ' selected' : '') + '>' +
-      escapeHtml(account.label) + '</option>'
+      escapeHtml(account.label) + ' — ' + escapeHtml(service.issuanceFor(account, env).caption) + '</option>'
     ).join('');
-    const view = modeView(selectedAccount);
-    const modes = view.modes;
-    const selectedMode = modes.includes(params.mode) ? params.mode : 'preview';
-    const modeList = modes.map((mode) =>
-      '<option value="' + mode + '"' + (selectedMode === mode ? ' selected' : '') + '>' + mode + '</option>'
-    ).join('');
-    const productionOption = view.productionUnavailable ?
-      '<option value="production" disabled>production (not available)</option>' : '';
-    const productionNote = view.note;
-    // AUD-AE: the mode view is rendered per account, not only for
-    // the preselected one. The map below carries every account's
-    // own modes, disabled-production flag and note (server-generated
-    // values only — fixed mode names and the two fixed notes; labels
-    // never enter it), and the fixed script swaps the Mode options
-    // and the note when the account choice changes, keeping a
-    // still-offered selection and falling back to preview exactly
-    // as the server does. Without script the page is unchanged in
-    // behavior: the preselected default account's view is rendered
-    // server-side, and submission validation judges the posted
-    // account/mode pair on its own either way.
-    const accountViews = {};
-    for (const account of accounts) {
-      const accountView = modeView(account);
-      accountViews[account.id] = {
-        modes: accountView.modes,
-        productionUnavailable: accountView.productionUnavailable,
-        note: accountView.note
-      };
-    }
-    const modesData = accounts.length ?
-      '<script type="application/json" id="account-modes">' +
-      JSON.stringify(accountViews).replace(/</g, '\\u003c') + '</script>' : '';
-    const modesScript = accounts.length ?
-      '<script>(function(){' +
-      'var accountSelect=document.getElementById("account-select");' +
-      'var modeSelect=document.getElementById("mode-select");' +
-      'var note=document.getElementById("mode-note");' +
-      'var dataElement=document.getElementById("account-modes");' +
-      'if(!accountSelect||!modeSelect||!note||!dataElement)return;' +
-      'var views;try{views=JSON.parse(dataElement.textContent);}catch(error){return;}' +
-      'accountSelect.addEventListener("change",function(){' +
-      'var view=views[accountSelect.value];if(!view)return;' +
-      'var current=modeSelect.value;modeSelect.innerHTML="";' +
-      'view.modes.forEach(function(mode){' +
-      'var option=document.createElement("option");option.value=mode;' +
-      'option.textContent=mode;if(mode===current)option.selected=true;' +
-      'modeSelect.appendChild(option);});' +
-      'if(view.productionUnavailable){' +
-      'var blocked=document.createElement("option");blocked.value="production";' +
-      'blocked.disabled=true;blocked.textContent="production (not available)";' +
-      'modeSelect.appendChild(blocked);}' +
-      'if(view.modes.indexOf(modeSelect.value)===-1)modeSelect.value="preview";' +
-      'note.innerHTML=view.note;});' +
-      '})();</script>' : '';
-    const profileList = PROFILES.map((profile) =>
-      '<option value="' + profile + '"' + (params.profile === profile ? ' selected' : '') + '>' + profile + '</option>'
-    ).join('');
-    // No listing choice on the authorize page means the OP-1 front door
-    // (AUD-C/D-C): preselect it; an explicit catalog/compact choice is
-    // honored exactly as chosen.
-    const selectedListing = LISTINGS.includes(params.listing) ? params.listing : 'front_door';
-    const listingList = LISTINGS.map((listing) =>
-      '<option value="' + listing + '"' + (selectedListing === listing ? ' selected' : '') + '>' + listing + '</option>'
-    ).join('');
-    return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>Connect ' + escapeHtml(service.name) + ' MCP</title>' +
-      '<style>body{font:16px system-ui,sans-serif;max-width:410px;margin:6vh auto;padding:20px}' +
-      'form{display:grid;gap:14px}input,select,button{font:inherit;padding:10px}button{cursor:pointer}p{line-height:1.5}</style>' +
-      '</head><body><h1>Connect ' + escapeHtml(service.name) + ' MCP</h1>' +
+    const productionNote = selectedAccount ? service.issuanceFor(selectedAccount, env).note : '';
+    // The enrollment branch of this same sign-in flow (AUD-AR)
+    // carries the in-flight OAuth parameters, so enrolling returns
+    // to this exact consent; the doors page covers the Door 1
+    // install and the explainer. No setup page is named or linked:
+    // enrollment is part of sign-in, not a separate surface.
+    const enrollPairs = hiddenFields
+      .filter((name) => typeof params[name] === 'string' && params[name] !== '')
+      .map((name) => encodeURIComponent(name) + '=' + encodeURIComponent(params[name]));
+    const enrollHref = '/api/oauth/enroll' + (enrollPairs.length ? '?' + enrollPairs.join('&') : '');
+    const enrollLinks = '<p><a href="' + escapeHtml(enrollHref) + '">Enroll another account with a Vercel token</a>' +
+      ' · <a href="/api/vercel/connect">How connecting works</a></p>';
+    const body =
       (error ? '<p role="alert">' + escapeHtml(error) + '</p>' : '') +
-      (accounts.length ? '<p>Choose the ' + escapeHtml(service.accountLabel) + ' and permissions for this AI connection.</p>' :
-        '<p>No Vercel teams are connected yet. An administrator must add an account through the secure setup page.</p>') +
+      (accounts.length ? '<p>Choose the ' + escapeHtml(service.accountLabel) + ' for this AI connection. ' +
+        'What the connection can do follows the account you pick — each caption states the reach it starts with.</p>' :
+        '<p>No Vercel teams are connected yet. Enroll an account first, then return here to authorize this connection.</p>') +
       '<form method="post">' + hidden +
       '<label>' + escapeHtml(service.accountLabel) + '<select name="account" id="account-select" required>' + accountList + '</select></label>' +
-      '<label>Mode<select name="mode" id="mode-select">' + modeList + productionOption + '</select></label>' + '<div id="mode-note">' + productionNote + '</div>' +
-      '<label>Profile<select name="profile">' + profileList + '</select></label>' +
-      '<label>Tool listing<select name="listing">' + listingList + '</select></label>' +
+      '<div id="mode-note">' + productionNote + '</div>' +
       '<label>Administrator passphrase<input type="password" name="passphrase" required autocomplete="current-password"></label>' +
       '<button type="submit"' + (!accounts.length ? ' disabled' : '') + '>Authorize this connection</button></form>' +
-      modesData + modesScript + '</body></html>';
+      enrollLinks;
+    return frontDoorPage({
+      title: 'Connect ' + escapeHtml(service.name) + ' MCP',
+      heading: 'Connect ' + escapeHtml(service.name) + ' MCP',
+      body
+    });
   }
 
   async function authorize(req, res) {
@@ -250,16 +187,18 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       return send(res, 401, authorizePage(params, accounts, 'Incorrect passphrase'), 'text/html; charset=utf-8');
     }
     const account = accounts.find((item) => item.id === params.account);
-    const modes = account ? service.modesFor(account, env) : [];
-    if (!account || !modes.includes(params.mode) ||
-      !PROFILES.includes(params.profile) || !LISTINGS.includes(params.listing)) {
-      return send(res, 400, authorizePage(params, accounts, 'Invalid account, mode, or connection settings'), 'text/html; charset=utf-8');
+    if (!account) {
+      return send(res, 400, authorizePage(params, accounts, 'Invalid account'), 'text/html; charset=utf-8');
     }
+    // AUD-AZ: mode, profile and listing are DERIVED from the chosen
+    // account at issuance (dossier §2.3) — any mode/profile/listing
+    // a client posts is not read and cannot steer the connection.
+    const issuance = service.issuanceFor(account, env);
     const code = randomToken(32);
     await db.createAuthCode({
       code, clientId: params.client_id, redirectUri: params.redirect_uri,
       codeChallenge: params.code_challenge, codeChallengeMethod: 'S256',
-      vercelAccount: params.account, mode: params.mode, profile: params.profile, listing: params.listing
+      vercelAccount: params.account, mode: issuance.mode, profile: issuance.profile, listing: OAUTH_LISTING
     });
     const destination = new URL(params.redirect_uri);
     destination.searchParams.set('code', code);
