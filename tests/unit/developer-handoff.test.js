@@ -1,11 +1,12 @@
 import {describe,it,expect} from 'vitest';
+import {readFileSync} from 'node:fs';
 import {generateKeyPairSync,createHash,privateDecrypt,constants} from 'node:crypto';
 import {createHandoff,validateStart} from '../../src/developer/handoff.js';
 const keys=generateKeyPairSync('rsa',{modulusLength:2048});
 const origin='https://service.example';
 const secret='p'.repeat(43),challenge='c'.repeat(43),code='a'.repeat(43);
 const body=()=>({client_id:'developer_client',challenge,poll_hash:createHash('sha256').update(secret).digest('hex'),
-  public_key:keys.publicKey.export({type:'spki',format:'pem'}),profile:'full'});
+  public_key:keys.publicKey.export({type:'spki',format:'pem'})});
 function response(){return {headers:{},statusCode:200,setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(v){this.data=v;return this;},send(v){this.data=v;return this;}};}
 function fixture(){
  let row;
@@ -17,12 +18,29 @@ function fixture(){
  return {handler,store,row:()=>row};
 }
 describe('mobile developer OAuth handoff',()=>{
- it('preserves owner-selected full development authorization; no production catalog restriction',async()=>{
+ it('requests the standard connection only: no profile or listing override on the authorize URL',async()=>{
   const {handler,row}=fixture();const r=response();await handler({method:'POST',body:body(),headers:{}},r);
   expect(r.statusCode).toBe(201);const u=new URL(r.data.authorization_url);
-  expect(u.searchParams.get('profile')).toBe('full');expect(u.searchParams.get('code_challenge')).toBe(challenge);
+  // AUD-AW: the handoff bakes in no sign-in class. Consent derives profile
+  // and listing exactly as it does for any other sign-in.
+  expect(u.searchParams.get('profile')).toBeNull();expect(u.searchParams.get('listing')).toBeNull();
+  expect(u.searchParams.get('code_challenge')).toBe(challenge);
   expect(u.searchParams.get('redirect_uri')).toBe(origin+'/api/developer/connect');
   expect(JSON.stringify(r.data)).not.toContain(secret);expect(row().poll_hash).not.toBe(secret);
+ });
+ it('refuses a start carrying a profile or listing field as an unknown key',async()=>{
+  expect(()=>validateStart({...body(),profile:'full'})).toThrow();
+  expect(()=>validateStart({...body(),listing:'compact'})).toThrow();
+  const {handler}=fixture();const r=response();
+  await handler({method:'POST',body:{...body(),profile:'read_only'},headers:{}},r);
+  expect(r.statusCode).toBe(400);expect(r.data.error).toBe('invalid_request');
+ });
+ it('is not linked from any public page or the public sign-in',()=>{
+  // AUD-AW: the handoff route must have nothing to do with the public
+  // sign-in — no public surface may reference it (the §1C scan pattern).
+  for(const file of ['api/index.js','api/connection.js','src/front-door.js',
+    'src/vercel/connect.js','src/core/oauth-handlers.js'])
+   expect(readFileSync(file,'utf8'),file).not.toContain('/api/developer');
  });
  it('completes browser consent with an encrypted single-use handoff and no copied pass',async()=>{
   const {handler,row}=fixture();await handler({method:'POST',body:body(),headers:{}},response());
