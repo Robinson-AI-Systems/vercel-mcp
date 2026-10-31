@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-27",
+  "updated": "2026-10-31",
   "order": [
     "A",
     "B",
@@ -940,13 +940,13 @@
         "V-1"
       ],
       "card": "docs/pr-cards/V-4.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "dev_sandbox_usage",
       "budget": 400,
       "units": [
         "V-4"
       ],
-      "readiness": "CARD_WRITTEN",
+      "readiness": "VERIFIED_AND_MERGED",
       "ownerInputs": [
         "IN-13"
       ],
@@ -979,13 +979,13 @@
         "V-1"
       ],
       "card": "docs/pr-cards/V-5.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "none",
       "budget": 200,
       "units": [
         "V-5"
       ],
-      "readiness": "CARD_WRITTEN",
+      "readiness": "VERIFIED_AND_MERGED",
       "ownerInputs": [],
       "pr": [
         216
@@ -1012,14 +1012,17 @@
         "V-4"
       ],
       "card": "docs/pr-cards/V-6.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 300,
       "units": [
         "V-6"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "VERIFIED_AND_MERGED",
+      "ownerInputs": [],
+      "pr": [
+        335
+      ]
     },
     {
       "id": "N-1",
@@ -1030,19 +1033,22 @@
         "D-1"
       ],
       "card": "docs/pr-cards/N-1.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "N-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [],
+      "pr": [
+        223
+      ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next N-1 implementer/acceptance agent",
-        "reason": "All 11 N-1 domain tools implemented on branch marley/audit-vercel-mcp-20261025 (src/tools/domains.js, 12 pinned operations, 19 fake-provider unit tests); not yet merged, no PR. Live/provider acceptance pending.",
-        "nextAction": "Review the branch, merge when authorized, then execute native acceptance on an owner-authorised fixture (IN-06 scratch or equivalent): domain attach + config readback, remove-refused-while-aliases-exist, branch-domain production classification.",
+        "reason": "All 11 N-1 domain tools merged in PR #223 (99a103c, 'N-1 team/project domains (112 to 123 tools)'); source implementation with fake-provider proof is complete. The 'not yet merged, no PR' state recorded here at last update no longer holds. Live/provider acceptance remains queued.",
+        "nextAction": "Execute native acceptance on an owner-authorised fixture (IN-06 scratch or equivalent): domain attach + config readback, remove-refused-while-aliases-exist, branch-domain production classification.",
         "checkpoint": "At merge of the N-1 branch and first eligible serving READY revision",
         "evidenceNeeded": "Exact-head CI on the branch, review, merge, and native TEST provider read/write/readback evidence per docs/pr-cards/N-1.md",
         "eligibilityCondition": "Source and fake tests eligible now; live acceptance needs checked release and owner-authorised fixture",
@@ -1060,14 +1066,17 @@
         "N-1"
       ],
       "card": "docs/pr-cards/N-2.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "N-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        307
+      ]
     },
     {
       "id": "N-3",
@@ -1078,15 +1087,18 @@
         "N-1"
       ],
       "card": "docs/pr-cards/N-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "N-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-08"
+      ],
+      "pr": [
+        311
       ]
     },
     {
@@ -1098,14 +1110,17 @@
         "D-1"
       ],
       "card": "docs/pr-cards/F-1.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "F-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        296
+      ]
     },
     {
       "id": "F-2",
@@ -1116,14 +1131,17 @@
         "F-1"
       ],
       "card": "docs/pr-cards/F-2.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "F-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        298
+      ]
     },
     {
       "id": "F-3",
@@ -1134,14 +1152,17 @@
         "F-1"
       ],
       "card": "docs/pr-cards/F-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 350,
       "units": [
         "F-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        300
+      ]
     },
     {
       "id": "M-1",
@@ -1152,14 +1173,17 @@
         "D-2"
       ],
       "card": "docs/pr-cards/M-1.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 350,
       "units": [
         "M-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        292
+      ]
     },
     {
       "id": "M-2",
@@ -1170,14 +1194,17 @@
         "M-1"
       ],
       "card": "docs/pr-cards/M-2.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 340,
       "units": [
         "M-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        299
+      ]
     },
     {
       "id": "M-3",
@@ -1188,14 +1215,17 @@
         "M-1"
       ],
       "card": "docs/pr-cards/M-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 350,
       "units": [
         "M-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        301
+      ]
     },
     {
       "id": "M-4",
@@ -1206,15 +1236,18 @@
         "M-3"
       ],
       "card": "docs/pr-cards/M-4.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 350,
       "units": [
         "M-4"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-15"
+      ],
+      "pr": [
+        302
       ],
       "revisit": {
         "reason": "IN-15 was answered by the owner on 2026-10-27: no Blob stores connected is the default connection STATE, controlled by the user, not a server rule. The M-4 owner-input gate is cleared; the card is written when its dependencies land.",
@@ -1242,25 +1275,26 @@
         "C-2"
       ],
       "card": "docs/pr-cards/O-1.md",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "O-1"
       ],
-      "readiness": "READY",
+      "readiness": "MERGED",
       "ownerInputs": [],
       "pr": [
         144,
         145,
         146,
-        147
+        147,
+        305
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next O-1 Vercel MCP implementer",
-        "reason": "Guarded profile/security and standard default authentication implemented; SAML/auto-join, advanced paid/password protection, retention and directory mappings plus hosted acceptance remain.",
-        "nextAction": "Recheck SAML owner configuration/access proof, destructive retention inventory and storage billing ceilings, directory mapping last-owner proofs. Continue independent U-1 discovery/read contracts on merged C-2.",
+        "reason": "Guarded profile/security and standard default authentication implemented in PRs #144-#147; the remainders named here at last update were closed by the O-1 remainder card O-1R in PR #305 (deployment retention, directory role mappings, SAML + auto-join under the lockout guard). Hosted acceptance remains queued.",
+        "nextAction": "Execute owner-hosted scoped provider acceptance for the O-1 surface (SAML configuration/access proof, retention behavior, directory mapping proofs) when an authenticated owner deployment is available; no engineering remainder is open on this card.",
         "checkpoint": "After #147 and every PR boundary/session start",
         "evidenceNeeded": "Guarded-write contract, true REST body mapping and adversarial tests; actual owner-hosted scoped provider evidence separately.",
         "eligibilityCondition": "O-1 read and code-level guarded previews independently eligible; real owner activation and connected verification require authenticated owner deployment.",
@@ -1278,15 +1312,18 @@
         "O-1"
       ],
       "card": "docs/pr-cards/O-2.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "O-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-08"
+      ],
+      "pr": [
+        309
       ]
     },
     {
@@ -1298,15 +1335,18 @@
         "O-1"
       ],
       "card": "docs/pr-cards/O-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 250,
       "units": [
         "O-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-04"
+      ],
+      "pr": [
+        314
       ],
       "revisit": {
         "reason": "IN-04 was revisited and ruled by the owner on 2026-10-27: key expiry is a choice belonging to the key owner at creation (including never); the imposed 90-day term is retired as policy. The O-3 token tools must be built to the ruled shape. Audit finding VMCP-003 (2026-10-27) adds the enrolled-token leg: the server account token's expiry (token_expires_at, src/vercel/tokens.js) is surfaced nowhere and nothing notifies ahead; design D-E is filed as a BATCH-O amendment (2026-10-27). Audit finding VMCP-022 (2026-10-28, P1) lands on this card's enrollment seam: probeToken in src/vercel/tokens.js requires user_get, teams_list and projects_list reads from a newly enrolled token (teamId attached) and refuses to save unless the team is visible in teams_list, which a genuinely project-scoped token cannot satisfy per Vercel's scoped-token documentation (scope inferred; teamId applies to full-account tokens only). Live evidence: the IN-06 rtc-scratch token, verified in Vercel's own list, failed setup enrollment twice on 2026-10-28 with the generic catch-all failure, which also hides which probe leg failed (the D10 aspect).",
@@ -1334,14 +1374,17 @@
         "O-1"
       ],
       "card": "docs/pr-cards/O-4.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 300,
       "units": [
         "O-4"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [],
+      "pr": [
+        319
+      ],
       "revisit": {
         "reason": "Audit finding VMCP-004 (docs/MCP-AUDIT-2026-10-27.md): the server tracks its own spend total and its own daily limit (the owner's spendLimitCents setting) while nothing anywhere in the codebase references Vercel's own Spend Management state - no read of the configured limit, threshold or notification state. IN-12 was ruled by the owner on 2026-10-27: spend alerts belong to Vercel's Spend Management, existing only if the user set them there; the MCP reads and reports, never controls or enforces. The BATCH-O amendment note (2026-10-27) assigns the read/report surface to this card's billing family.",
         "trigger": "design-amendment",
@@ -1369,14 +1412,17 @@
         "M-3"
       ],
       "card": "docs/pr-cards/O-5.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 500,
       "units": [
         "O-5"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [],
+      "pr": [
+        322
+      ],
       "revisit": {
         "reason": "Audit finding VMCP-021 (docs/MCP-AUDIT-2026-10-27.md): revocation and connection removal are strong, but no surface exports the server's own records - the change journal, saved large results and account metadata exist only inside the running service, so a user leaving takes nothing with them except a manual database dump. The BATCH-O amendment note (2026-10-27) assigns a records export to this card's admin scope: exit is a feature of the same surface that governs the account.",
         "trigger": "design-amendment",
@@ -1400,14 +1446,17 @@
         "O-5"
       ],
       "card": "docs/pr-cards/O-5b.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 500,
       "units": [
         "O-5b"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        332
+      ]
     },
     {
       "id": "O-6",
@@ -1418,14 +1467,19 @@
         "O-5"
       ],
       "card": "docs/pr-cards/O-6.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 300,
       "units": [
         "O-6"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        338,
+        339,
+        340
+      ]
     },
     {
       "id": "P-1",
@@ -1441,15 +1495,18 @@
         "V-2"
       ],
       "card": "docs/pr-cards/P-1.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "known_apps",
       "budget": 400,
       "units": [
         "P-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [
         "IN-11"
+      ],
+      "pr": [
+        317
       ],
       "revisit": {
         "reason": "IN-11 was answered YES by the owner on 2026-10-27: the server defers to the release workflow Appliance Desk declares. The P-1 policy gate is cleared; the card is written when its dependencies land. Audit finding VMCP-005 (2026-10-27) confirms the current code state: src/tools/app-guard.js is still the B-7 constant-allow stub, so the deference this revisit describes has a hook and no behavior until P-1 lands; a dated note is filed in BATCH-P (2026-10-27).",
@@ -1483,14 +1540,17 @@
         "O-5"
       ],
       "card": "docs/pr-cards/P-2.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 500,
       "units": [
         "P-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        321
+      ]
     },
     {
       "id": "P-3",
@@ -1501,14 +1561,17 @@
         "P-2"
       ],
       "card": "docs/pr-cards/P-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "P-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        323
+      ]
     },
     {
       "id": "W-1",
@@ -1520,14 +1583,17 @@
         "M-1"
       ],
       "card": "docs/pr-cards/W-1.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 450,
       "units": [
         "W-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        324
+      ]
     },
     {
       "id": "W-2",
@@ -1538,14 +1604,17 @@
         "V-3"
       ],
       "card": "docs/pr-cards/W-2.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 300,
       "units": [
         "W-2"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        325
+      ]
     },
     {
       "id": "W-3",
@@ -1557,14 +1626,17 @@
         "P-1"
       ],
       "card": "docs/pr-cards/W-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "W-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        326
+      ]
     },
     {
       "id": "W-4",
@@ -1575,14 +1647,17 @@
         "N-2"
       ],
       "card": "docs/pr-cards/W-4.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 350,
       "units": [
         "W-4"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        327
+      ]
     },
     {
       "id": "W-5",
@@ -1593,14 +1668,17 @@
         "E-2"
       ],
       "card": "docs/pr-cards/W-5.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "W-5"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        328
+      ]
     },
     {
       "id": "W-6",
@@ -1612,14 +1690,17 @@
         "F-2"
       ],
       "card": "docs/pr-cards/W-6.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "W-6"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        329
+      ]
     },
     {
       "id": "U-1",
@@ -1703,14 +1784,17 @@
         "B-8"
       ],
       "card": "docs/pr-cards/R-1W.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "rtc_passes write columns (additive)",
       "budget": 500,
       "units": [
         "R-1W"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        333
+      ]
     },
     {
       "id": "R-2",
@@ -1783,14 +1867,17 @@
         "F-3"
       ],
       "card": "docs/pr-cards/X-1.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 400,
       "units": [
         "X-1"
       ],
-      "readiness": "WRITE_CARD_AT_START",
+      "readiness": "MERGED",
       "ownerInputs": [],
+      "pr": [
+        330
+      ],
       "revisit": {
         "reason": "Audit finding VMCP-012 (docs/MCP-AUDIT-2026-10-27.md), as corrected at S4 review: the journal's storage seam for undo exists (change_log.inverse) but capture is per-tool and almost nothing supplies it - src/core/write.js stores spec.inverse when a tool provides one and NULL otherwise, and only the globalconfig-schema family provides one at baseline - so vercel_undo_change cannot be built on today's journal. The BATCH-X amendment note (2026-10-27) makes inverse capture the first X-1 work unit.",
         "trigger": "design-amendment",
@@ -1871,14 +1958,17 @@
         "CAP-1"
       ],
       "card": "docs/pr-cards/CAP-2.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "JIT contract before implementation",
       "budget": 650,
       "units": [
         "CAP-2"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "pr": [
+        337
+      ]
     },
     {
       "id": "CAP-3",
@@ -1889,14 +1979,17 @@
         "CAP-1"
       ],
       "card": "docs/pr-cards/CAP-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "JIT contract before implementation",
       "budget": 650,
       "units": [
         "CAP-3"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "pr": [
+        337
+      ]
     },
     {
       "id": "CAP-4",
@@ -1909,14 +2002,17 @@
         "CAP-3"
       ],
       "card": "docs/pr-cards/CAP-4.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "JIT contract before implementation",
       "budget": 650,
       "units": [
         "CAP-4"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "pr": [
+        337
+      ]
     },
     {
       "id": "CAP-5",
