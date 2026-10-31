@@ -1410,6 +1410,24 @@
       "ownerInputs": []
     },
     {
+      "id": "O-6",
+      "title": "Branded front door — status page conformance, connection page, branded address",
+      "batch": "O",
+      "design": "docs/designs/BATCH-O.md",
+      "dependencies": [
+        "O-5"
+      ],
+      "card": "docs/pr-cards/O-6.md",
+      "status": "APPROVED",
+      "migration": "none",
+      "budget": 300,
+      "units": [
+        "O-6"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
       "id": "P-1",
       "title": "known_apps, Appliance Desk seed, profile guard, profile reads",
       "batch": "P",
