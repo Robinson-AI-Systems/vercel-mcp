@@ -10,13 +10,30 @@ import { FRONT_DOOR_TOOLS } from '../data/front-door.js';
 // Explicit local owner operations are the only writes permitted before the general gateway.
 const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection', 'vercel_create_pass',
-  'vercel_set_working_box', 'vercel_remove_account'];
+  'vercel_set_working_box', 'vercel_remove_account', 'vercel_set_read_only'];
 const COMPACT_TOOLS = ['vercel_whoami','vercel_search_tools','vercel_describe_tool',
   'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'];
 const FRONT_DOOR_SET = new Set(FRONT_DOOR_TOOLS);
-export const listMcpTools = (registry, connection) =>
-  listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS })
+// AUD-AQ gate 1 (listing) and gate 2 (dispatch) share one predicate: while
+// a connection's own read-only switch is on, every write is closed to it —
+// except the switch itself, the one write whose subject is the switch, so
+// the user can always flip back. Pass connections never carry the flag
+// (the RTC door mints them without it), so passes are untouched here.
+const READ_ONLY_SWITCH_TOOL = 'vercel_set_read_only';
+const switchAllows = (tool, connection) =>
+  connection?.readOnly !== true || tool?.writes === false ||
+  tool?.name === READ_ONLY_SWITCH_TOOL;
+export const listMcpTools = (registry, connection) => {
+  // Listing entries are public shapes: the registry's `writes` field is
+  // internal and stripped from them, so gate 1 resolves each listed
+  // name back to its definition before judging it.
+  const definitions = new Map((registry?.tools || []).map(tool => [tool.name, tool]));
+  return listProfileTools(registry, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS })
+    .filter(tool=>switchAllows(definitions.get(tool.name), connection))
     .filter(tool=>{
+      // While the switch is on, the switch itself stays listed under every
+      // listing: a read-only connection must see its own way back.
+      if (connection?.readOnly === true && tool.name === READ_ONLY_SWITCH_TOOL) return true;
       // front_door (OP-1/D-C): the versioned membership in src/data/front-door.json
       // intersected with this connection's profile-permitted tools; compound
       // workflow tools join the front door as they are built (BATCH-C D-C).
@@ -40,9 +57,14 @@ export const listMcpTools = (registry, connection) =>
         }
       }};
     });
+};
 export const profileToolCounts = registry =>
   countByProfile(registry, { localOwnerTools: LOCAL_OWNER_TOOLS });
 function mayUse(tool, connection) {
+  // AUD-AQ gate 2 (dispatch): the switch refuses by name, before the
+  // profile predicate — a full-profile connection with its switch on
+  // cannot invoke any write except the switch itself.
+  if (!switchAllows(tool, connection)) return false;
   return visibleToProfile(tool, connection?.profile, { localOwnerTools: LOCAL_OWNER_TOOLS });
 }
 export async function dispatchReadOnlyTool({ registry, name, args, connection, db, env, fetchImpl, formatError, shapeResult }) {

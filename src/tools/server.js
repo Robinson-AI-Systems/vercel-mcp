@@ -34,6 +34,14 @@ export const serverTools = {
       }, required: ['mode'], additionalProperties: false },
       annotations: { readOnlyHint: false, destructiveHint: false },
       writeContract: { production: true, targets: true }, writes: true, localAdmin: true, profiles: ['full'] },
+    { name: 'vercel_set_read_only',
+      description: 'Flip this connection\'s own read-only switch on or off, effective the next call; while on, every write through this connection refuses.',
+      inputSchema: { type: 'object', properties: {
+        readOnly: { type: 'boolean' },
+        confirm: { type: 'boolean' }, dryRun: { type: 'boolean' }
+      }, required: ['readOnly'], additionalProperties: false },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      writeContract: { production: true, targets: true }, writes: true, localAdmin: true, profiles: ['full'] },
     { name:'vercel_get_result',writes:false,profiles:PROFILES,
       description:'Read a page of a stored large result; only the original authenticated bearer can access it.',
       inputSchema:{type:'object',properties:{
@@ -95,8 +103,13 @@ export const serverTools = {
       // account-layer consequence (A-12) and the flip picture (A-10),
       // all rendered from the stored enrollment record.
       const box = boxReport(row);
+      // AUD-AQ: the read-only switch beside mode/profile, and the flip
+      // named in the flip picture — a fresh agent reading whoami alone
+      // can state the posture and the way back (A-10 cold relay).
+      const readOnly = connection.readOnly === true;
       return asText({ account: safe(row), mode: connection.mode,
         profile: connection.profile, listing: connection.listing,
+        readOnly,
         spendLimitCents: Number(row.spend_limit_cents || 0), spentTodayCents: spent,
         purchaseBudgetCents: row.purchase_budget_cents ?? null,
         purchaseGrantRequired: Boolean(row.purchase_grant_required),
@@ -105,7 +118,10 @@ export const serverTools = {
         expiryPostureText: posture.label,
         tokenWarning, box,
         accountLayer: accountLayerText(box),
-        workingBoxChanges: flipReport(box) });
+        workingBoxChanges: { ...flipReport(box),
+          readOnlySwitch: readOnly ?
+            'on — this connection can read but not change anything; the switch is yours, flip it off with vercel_set_read_only, effective the next call' :
+            'off — this connection writes as its profile allows; flip it on with vercel_set_read_only to make this connection read-only, effective the next call' } });
     },
     async vercel_list_accounts(args, { connection, db }) {
       // A connector is bound to one Vercel account. The owner setup page,
@@ -180,6 +196,64 @@ export const serverTools = {
       return asText({ flipped: true, from: result.from, to: result.to,
         effective: 'next call',
         note: 'This call finishes under ' + result.from + '; your next call runs under ' + result.to + '.' });
+    },
+    async vercel_set_read_only(args, { connection, db }) {
+      // AUD-AQ: the read-only end-user switch, under the same
+      // plan/confirm contract as the working-box flip. The switch is
+      // the connection's own safety dial (IN-09 one layer down): it
+      // flips only the caller's own connection, never another, and
+      // takes effect on the NEXT call — this call finishes under
+      // the posture it started with, because the connection's
+      // context is fixed at auth (the S4 precedent).
+      if (!args || typeof args !== 'object' || Array.isArray(args) ||
+          Object.keys(args).some(k => !['readOnly', 'confirm', 'dryRun'].includes(k)) ||
+          typeof args.readOnly !== 'boolean' ||
+          (args.confirm !== undefined && typeof args.confirm !== 'boolean') ||
+          (args.dryRun !== undefined && typeof args.dryRun !== 'boolean')) {
+        return { isError: true, content: [{ type: 'text', text: 'Invalid read-only switch request' }] };
+      }
+      if (typeof connection?.account !== 'string' || typeof connection?.connectionId !== 'string' ||
+          typeof db?.setOwnConnectionReadOnly !== 'function') {
+        throw new Error('Read-only switch unavailable');
+      }
+      const current = connection.readOnly === true;
+      if (current === args.readOnly) {
+        return asText({ flipped: false, readOnly: current,
+          note: 'This connection\'s read-only switch is already ' + (current ? 'on' : 'off') + '; nothing to flip.' });
+      }
+      if (args.dryRun === true) {
+        return asText({ status: 'planned', flipped: false, from: current, to: args.readOnly,
+          effective: 'next call',
+          note: 'On confirm, this connection\'s read-only switch flips ' + (args.readOnly ? 'on' : 'off') +
+            ' from your next call; this call finishes with the switch ' + (current ? 'on' : 'off') + '.' });
+      }
+      if (args.confirm !== true) {
+        return { isError: true, content: [{ type: 'text', text: JSON.stringify({
+          status: 'refused_by_guard', confirmed: false,
+          reason: 'Preview this flip with dryRun: true, or apply it with confirm: true' }) }] };
+      }
+      const result = await db.setOwnConnectionReadOnly({
+        account: connection.account, connectionId: connection.connectionId, readOnly: args.readOnly
+      });
+      if (!result) return { isError: true,
+        content: [{ type: 'text', text: 'Connection unavailable for a read-only flip' }] };
+      // Journaled like every other connection change, so the flip
+      // reads back through vercel_recent_changes; journaling never
+      // changes the flip's outcome.
+      if (typeof db?.recordChange === 'function') {
+        try {
+          await db.recordChange({
+            account: connection.account, mode: connection.mode, tool: 'vercel_set_read_only',
+            summary: 'Read-only switch flipped ' + (result.from ? 'on' : 'off') +
+              ' to ' + (result.to ? 'on' : 'off') + ' on this connection',
+            dryRun: false, production: connection.mode === 'production'
+          });
+        } catch { /* the flip stands */ }
+      }
+      return asText({ flipped: true, from: result.from, to: result.to,
+        effective: 'next call',
+        note: 'This call finishes with the switch ' + (result.from ? 'on' : 'off') +
+          '; your next call runs with it ' + (result.to ? 'on' : 'off') + '.' });
     },
     async vercel_check_token(args, { connection, db, env, fetchImpl }) {
       // The MCP dispatcher does not currently enforce argument schemas itself.
