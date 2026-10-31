@@ -147,3 +147,58 @@ reads actually executed. OAuth client login to original `/api/mcp`, true
 Toolkit Hub relay, Vercel Sandbox, and any unauthenticated-to-authenticated
 connection transition remain **separate** manual acceptance gates. A TEST
 pass **cannot** read Vercel provider data; never relabel preview as TEST.
+
+## 9. The 3AM watch — failure runbook
+
+A scripted watch (no agent tokens) probes this server every few minutes
+and wakes an agent only on a **confirmed** failure. Nobody wakes the
+owner for a probe failure; this section is the recovery half the woken
+agent follows.
+
+**What the watch checks — three legs.**
+
+1. The front-door document at the root of the public origin: the
+   service-status JSON naming `endpoint`, `oauth` and `health`.
+2. `GET /api/health`: healthy is HTTP 200 with `status: "ok"`. A 503
+   with `status: "degraded"` is a failure signal to triage, not proof
+   of an outage.
+3. Keyless `POST /api/mcp`: must answer 401 with the documented
+   unauthorized shape (`{"error":"unauthorized", ...}`). Any other
+   answer — a success, a different error, no answer — is a posture
+   failure.
+
+**Triage, in order.**
+
+1. **Re-probe once.** A single failed probe can be a transient network
+   or platform blip; only a confirmed second failure starts this
+   runbook.
+2. **Read `/api/health`'s five fields.** `version` and
+   `deployed_source_sha` say *what* is running, `tools` says the
+   registry loaded, and `timestamp` proves the answer is live rather
+   than cached.
+3. **Check for a fresh promotion before blaming the code.** Compare
+   `deployed_source_sha` with the `live` branch head and read the
+   project's production deployment in the official Vercel deployment
+   list. A failure that begins with a promotion is a release problem;
+   a failure on an unchanged deployment is an environment problem.
+4. **Follow the degraded leg.** With the front door and the 401 leg
+   healthy, `degraded` means a checked dependency is down. The store
+   read failing points first at the database connection — check the
+   database's own status and reachability, and never print connection
+   strings. OAuth metadata inconsistency points first at configuration
+   — the configured public origin against the served metadata. Deeper
+   posture is authenticated: `vercel_whoami` for the connection's own
+   read-back, `vercel_recent_changes` for what changed last.
+
+**Escalation.** Nobody wakes the owner for a probe failure. Escalate to
+the owner only for owner-only needs — credentials, payment, a legal
+signature — or a confirmed security or data-loss event. Everything
+else is agent-handled, verified fixed by re-probe, and reported in the
+morning summary.
+
+**What not to do.** Do not promote outside the nightly train; the only
+exception is the daily-live workflow's documented recovery dispatch
+(`recover_missed_daily`, gated to the owner's own actor) when a
+scheduled promotion was missed. Do not run writes against real Vercel
+teams while diagnosing a posture failure — diagnosis is reads only
+until the cause is known.
