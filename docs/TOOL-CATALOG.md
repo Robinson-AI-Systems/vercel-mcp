@@ -535,6 +535,23 @@ history), shows the covering profile's `rollback_caution` in the preview, verifi
 read-back, and reports whether errors are still occurring (error rows last seen after the
 rollback moment), with `null` when the summary cannot be read.
 
+W-6 (2026-10-30) adds `vercel_workflow_cost_check` and `vercel_workflow_security_audit`
+(both reads, all profiles), completing Batch W. Cost check composes `vercel_billing_summary`
+and `vercel_billing_list_charges` for the window, counts builds by day and branch from
+`vercel_deploy_list` paged under a 45-second budget, and compares the effective total with
+the covering profile's `cost_target_cents` when a project is named and profiled, otherwise
+the billing summary's own stored target. Every cost driver and every suggestion is tied to a
+charge actually present in the window's FOCUS rows (verdict W6-C1) — drains, sandbox,
+analytics and rolling-release suggestions exist only when those charges do. Security audit
+reports five sections — protection, bypass secrets, firewall, variables, access — each
+`ok` / `needs_attention` (reasons) / `not_readable` (reason), and never lets one unreadable
+area fail the whole audit: bypass secrets older than 90 days are flagged with their age,
+`NEXT_PUBLIC_*` names matching KEY/SECRET/TOKEN/PASSWORD/PASSWD/PRIVATE/CREDENTIAL are
+flagged as secrets shipped to the browser, and the protection judgement uses only the
+fields `vercel_protection_get` actually returns (W6-C2). Batch W closes at 239 registered
+tools; the C6 everyday-listing engineering line steps 25000 → 25500 (the 239-tool registry
+measures ~25,023).
+
 W-5 (2026-10-30) adds `vercel_workflow_env_sync` (everyday+full) and
 `vercel_workflow_rotate_secret` (full only). Sync plans from `vercel_env_list` on both sides —
 values are never read by the workflow — and dispatches one `vercel_env_copy` step per name the
