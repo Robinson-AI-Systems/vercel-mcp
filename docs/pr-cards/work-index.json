@@ -1726,16 +1726,22 @@
         153,
         154,
         155,
-        156
+        156,
+        159,
+        162,
+        163,
+        164,
+        165,
+        297
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next Vercel MCP implementer",
-        "reason": "Bounded scope-verified universal feature-flag GET source and significant incomplete universal REST surface remain; independently authorized direct provider/MCP acceptance is unverified. Hub routing is owned and accepted in Hub, not a U-1 blocker. Audit finding VMCP-013 (2026-10-27) adds the missing write half of this card's universal surface: vercel_api_read is built and vercel_api_write is not, so any unbuilt provider write is impossible through the server even though Batch U designed it (U1-U8).",
-        "nextAction": "Secure private direct/preview TEST passes plus approved disposable nonproduction deployment to execute #160 runner and verify provider project/flag payload mapping; continue next substantive approved independent U-1/O-1 work while external evidence is unavailable. VMCP-013 direction (2026-10-27): build vercel_api_write to the BATCH-U design (U1-U8) as a substantive U-1 slice - not a narrower substitute; its U4 spend detection consumes the D-A delegation model (packet AUD-A2) and its U6 production detection the D-B switch (packet AUD-B), so sequence the write slice after those two packets land.",
+        "reason": "Bounded scope-verified universal feature-flag GET source is merged (slices U-1a-U-1l, PRs #148-#165) and the universal write half is built: vercel_api_write merged in U-1m (PR #297, 186b898, 2026-10-30) to the BATCH-U design (U1-U8) plus the 2026-10-27 VMCP-013 amendment, sequenced after AUD-A2/AUD-B as the amendment directed. The 'vercel_api_write is not built' premise this entry carried is falsified by #297 and is corrected here (2026-10-31, AUD-BK - the shipped tool was re-verified decision-by-decision against BATCH-U on main a104d234; see docs/pr-cards/AUD-BK.md). What remains open is acceptance, not engineering: independently authorized direct provider/MCP acceptance is unverified, including the amendment's live leg - an operation with no hand-built tool completing live through vercel_api_write under the eight write-contract checks. Hub routing is owned and accepted in Hub, not a U-1 blocker.",
+        "nextAction": "Execute the live acceptance legs as separately authorized probes: secure private direct/preview TEST passes plus approved disposable nonproduction deployment to execute #160 runner and verify provider project/flag payload mapping; and a first live vercel_api_write call against a disposable fixture (an operation with no hand-built tool, e.g. a feature-flag write) with read-back, on a checked release. The VMCP-013 build direction recorded here (2026-10-27) is discharged by U-1m (#297); no further U-1 engineering is queued behind it.",
         "checkpoint": "After #165 aligned session close-out and at every PR/session start; immediately upon owner-issued scoped passes and approved nonproduction evidence",
         "evidenceNeeded": "Pinned schemas, scope readback, secret exclusions and meaningful HTTP tests; connected evidence separate.",
-        "eligibilityCondition": "C-2 merged; safe read implementation independently eligible. Writes need all safety contracts.",
+        "eligibilityCondition": "C-2 merged; read and write source complete. Live acceptance needs owner-issued scoped passes and an approved disposable fixture.",
         "dependencies": [
           "C-2"
         ]
