@@ -833,6 +833,22 @@ export function createDb(query) {
       return rows[0] ?? null;
     },
 
+    // AUD-AS: the production-enable sibling of the two reads above —
+    // scoped, non-consuming inspection of a passphrase-strictness
+    // enable receipt so vercel_apply_owner_approval can preview it
+    // before approveProductionEnable consumes it.
+    async getProductionEnableRequest({account,reference}) {
+      if(typeof account!=='string'||!/^[a-zA-Z0-9_/-]{3,256}$/.test(account)||
+        typeof reference!=='string'||!/^[0-9a-f-]{36}$/.test(reference))
+        throw new TypeError('Invalid pending production enable lookup');
+      const run=getSql();
+      const rows=await run`SELECT id,vercel_account,kind,ciphertext,expires_at
+        FROM one_time_secrets WHERE id=${reference} AND vercel_account=${account}
+          AND kind='production_enable' AND expires_at>now()
+          AND viewed_at IS NULL LIMIT 1`;
+      return rows[0]??null;
+    },
+
     // Proposal metadata stays service-owned and encrypted; never returns a bearer.
     async getRtcPassRequest({account,reference}) {
       if(typeof account!=='string'||!/^[a-zA-Z0-9_/-]{3,256}$/.test(account)||

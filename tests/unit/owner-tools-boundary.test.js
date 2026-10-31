@@ -12,13 +12,14 @@ import { describe, it, expect } from 'vitest';
 import { registry } from '../../src/tools/index.js';
 import { listMcpTools, dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
 
-// The owner operations as filed (AUD-Z card, extended by AUD-AA and
-// AUD-AQ): the six pre-existing LOCAL_OWNER_TOOLS entries plus
-// vercel_set_working_box, vercel_remove_account and vercel_set_read_only.
+// The owner operations as filed (AUD-Z card, extended by AUD-AA,
+// AUD-AQ and AUD-AS): the six pre-existing LOCAL_OWNER_TOOLS entries
+// plus vercel_set_working_box, vercel_remove_account,
+// vercel_set_read_only and vercel_apply_owner_approval.
 const OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection',
   'vercel_create_pass', 'vercel_set_working_box', 'vercel_remove_account',
-  'vercel_set_read_only'];
+  'vercel_set_read_only', 'vercel_apply_owner_approval'];
 
 const listed = (profile) =>
   listMcpTools(registry, { profile, listing: 'catalog' }).map(t => t.name);

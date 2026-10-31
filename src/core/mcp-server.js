@@ -10,7 +10,8 @@ import { FRONT_DOOR_TOOLS } from '../data/front-door.js';
 // Explicit local owner operations are the only writes permitted before the general gateway.
 const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection', 'vercel_create_pass',
-  'vercel_set_working_box', 'vercel_remove_account', 'vercel_set_read_only'];
+  'vercel_set_working_box', 'vercel_remove_account', 'vercel_apply_owner_approval',
+  'vercel_set_read_only'];
 const COMPACT_TOOLS = ['vercel_whoami','vercel_search_tools','vercel_describe_tool',
   'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'];
 const FRONT_DOOR_SET = new Set(FRONT_DOOR_TOOLS);

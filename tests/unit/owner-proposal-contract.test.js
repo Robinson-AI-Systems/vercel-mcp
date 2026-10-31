@@ -55,7 +55,7 @@ describe('B-8 owner request write contracts',()=>{
       }};
     const outcome=await spec.run({confirm:true},ctx);
     expect(outcome).toMatchObject({status:'awaiting_owner_approval',confirmed:false,
-      ownerApprovalRequired:true,reviewAt:'/api/vercel/setup'});
+      ownerApprovalRequired:true,reviewAt:'vercel_apply_owner_approval'});
     expect(state.result).toEqual(outcome);
     expect(outcome).not.toHaveProperty('applied');
   });

@@ -20,7 +20,7 @@ function centsText(cents) {
   return '$' + Math.floor(cents / 100) + '.' + String(cents % 100).padStart(2, '0');
 }
 const REMOVE_DEFAULT_GUARD = 'That account is the default for new connections while other accounts remain; ' +
-  'choose a new default first (vercel_set_default_account or owner setup), then propose the removal';
+  'choose a new default first (vercel_set_default_account, applied with vercel_apply_owner_approval), then propose the removal';
 // AUD-AA: the removal plan, in plain words — the row, its posture and
 // exactly what the cascade revokes or deletes, plus the disclosures
 // the dossier's shape map requires (own connection, last account,

@@ -48,11 +48,11 @@ export async function requestProductionEnable({
   if (account.production_enabled) return { status: 'already_enabled', account: account.id, strictness };
   if (dryRun) return { status: 'preview', dryRun: true, account: account.id, strictness,
     message: strictness === 'passphrase' ?
-      'Requires confirmation here AND passphrase reentry on owner setup within 10 minutes' :
+      'Requires confirmation here AND owner approval with vercel_apply_owner_approval within 10 minutes' :
       'Requires confirmation here; this team is set to word strictness, so confirmation enables production immediately on your word' };
   if (confirm !== true) return { status: 'needs_confirmation', account: account.id, strictness,
     message: strictness === 'passphrase' ?
-      'After confirmation, reenter your passphrase on owner setup to enable this team' :
+      'After confirmation, approve the request with vercel_apply_owner_approval to enable this team' :
       'Confirm here to enable production for this team on your word (this team is set to word strictness)' };
   if (strictness === 'word') {
     const enabled = await performProductionEnable({ db, account: account.id,
