@@ -143,7 +143,8 @@ export const serverTools = {
       // AUD-I S4: the working-box flip, under the product's write
       // contract (plan with dryRun, apply with confirm — the
       // production tools' shape). In-ceiling flips are instant and
-      // journaled by the write path; the credential is untouched.
+      // journaled like the read-only flip (AUD-BB); the credential
+      // is untouched.
       // A-10 cold relay: the flip applies to the NEXT call — this
       // call finishes under the mode it started with, because the
       // connection's context is fixed at auth.
@@ -193,6 +194,21 @@ export const serverTools = {
       });
       if (!result) return { isError: true,
         content: [{ type: 'text', text: 'Connection unavailable for a mode flip' }] };
+      // AUD-BB: journaled like the read-only flip (AUD-AQ), so the
+      // flip reads back through vercel_recent_changes; journaling
+      // never changes the flip's outcome. Only an actual change
+      // journals — a same-state result (a stale-context ask the db
+      // already satisfies) writes no degenerate row.
+      if (result.from !== result.to && typeof db?.recordChange === 'function') {
+        try {
+          await db.recordChange({
+            account: connection.account, mode: connection.mode, tool: 'vercel_set_working_box',
+            summary: 'Working-box mode flipped ' + result.from + ' to ' + result.to +
+              ' on this connection',
+            dryRun: false, production: connection.mode === 'production'
+          });
+        } catch { /* the flip stands */ }
+      }
       return asText({ flipped: true, from: result.from, to: result.to,
         effective: 'next call',
         note: 'This call finishes under ' + result.from + '; your next call runs under ' + result.to + '.' });
