@@ -4,15 +4,15 @@
 // projects on Vercel's own screens and hands over nothing permanent.
 // Door 2 is the token tier ("god mode"), fully visible on the same
 // page, never greyed or hidden: its Five Points in plain English and
-// the route to the secure setup page, where the guided enrollment
-// itself lives (setup.js) with nothing else added. This page holds
-// no secrets and asks for none; both doors end at surfaces that
-// verify before anything activates.
+// the route to the enrollment branch of the sign-in flow (AUD-AR),
+// where the guided token enrollment itself lives with nothing else
+// added. This page holds no secrets and asks for none; both doors
+// end at surfaces that verify before anything activates.
 import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 import { escapeHtml, send } from '../core/http.js';
 
 const CONTENT_TYPE = 'text/html; charset=utf-8';
-const SETUP_PATH = '/api/vercel/setup';
+const ENROLL_PATH = '/api/oauth/enroll';
 
 // The install entry is operator configuration (the integration's
 // page on Vercel), never user input. Only an https URL on vercel.com
@@ -66,15 +66,15 @@ export function renderConnectPage(env = process.env) {
   return page(
     '<section><h2>Connect a team — recommended</h2>' + door1 + '</section>' +
     '<section><h2>Want account-wide control?</h2>' +
-    '<p>A Vercel API token with Full Account scope, enrolled on the secure setup page, gives ' +
+    '<p>A Vercel API token with Full Account scope, enrolled through the sign-in flow, gives ' +
     'this connection your whole account — every team, team creation, account settings. That ' +
     'is the widest door there is, so it comes with five plain facts:</p>' +
     '<ul>' + points + '</ul>' +
     '<p>How it works: on Vercel you create the token (any name, scope <strong>Full ' +
     'Account</strong>, expiration <strong>your choice — including never</strong>), then paste ' +
-    'it on the setup page. Before anything activates, the server checks what the token can ' +
+    'it into the enrollment step of the sign-in flow. Before anything activates, the server checks what the token can ' +
     'actually reach and shows you the scope it read back.</p>' +
-    '<p><a class="button" href="' + SETUP_PATH + '">Go to the secure setup page</a></p></section>');
+    '<p><a class="button" href="' + ENROLL_PATH + '">Enroll a Vercel token</a></p></section>');
 }
 
 export async function handleConnect(req, res, { env = process.env } = {}) {
