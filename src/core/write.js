@@ -255,7 +255,7 @@ export function defineWrite(spec) {
           summary:'Awaiting independently authenticated owner purchase approval (no provider write)'});
         return {status:'awaiting_owner_approval',confirmed:false,ownerApprovalRequired:true,
           reference:issued.reference,expiresAt:issued.expiresAt,
-          requestKey,reviewAt:'/api/vercel/setup',moneyLine,
+          requestKey,reviewAt:'vercel_apply_owner_approval',moneyLine,
           reason:'Owner must review and approve this exact transaction separately'};
       }
       if(issued.status!=='approved')
@@ -401,7 +401,7 @@ export function defineWrite(spec) {
       { status: 'awaiting_owner_approval', mode, confirmed: false,
         ownerApprovalRequired: true, reference: providerResult.reference,
         expiresAt: providerResult.expiresAt, preview: summary, requestKey,
-        reviewAt: '/api/vercel/setup' } :
+        reviewAt: 'vercel_apply_owner_approval' } :
       { status: 'applied', mode, confirmed, preview: summary, moneyLine, requestKey,
         ...(delegation?{delegation}:{}),
         ...(delivered||{}),...(publicReceipt?{receipt:publicReceipt}:{}) });

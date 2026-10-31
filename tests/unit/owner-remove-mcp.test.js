@@ -79,7 +79,7 @@ describe('AUD-AA guarded account-removal proposal',()=>{
     expect(f.store.size).toBe(0);
     const response=parse(await f.call({account:target,confirm:true}));
     expect(response).toMatchObject({status:'awaiting_owner_approval',confirmed:false,
-      ownerApprovalRequired:true,reviewAt:'/api/vercel/setup'});
+      ownerApprovalRequired:true,reviewAt:'vercel_apply_owner_approval'});
     expect(response.reference).toMatch(/^[0-9a-f-]{36}$/);
     expect(f.store.get(response.reference).ciphertext).not.toContain(target);
     expect(parse(await f.call({account:target,confirm:true})).reference).toBe(response.reference);

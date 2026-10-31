@@ -56,7 +56,7 @@ describe('B-8b default owner-approval MCP door',()=>{
     expect(f.rows.size).toBe(0);
     const result=parse(await f.call({account:target,confirm:true}));
     expect(result).toMatchObject({status:'awaiting_owner_approval',confirmed:false,
-      ownerApprovalRequired:true,reviewAt:'/api/vercel/setup'});
+      ownerApprovalRequired:true,reviewAt:'vercel_apply_owner_approval'});
     expect(result.reference).toMatch(/^[0-9a-f-]{36}$/);
     expect(f.rows.get(result.reference).ciphertext).not.toContain(target);
     expect(parse(await f.call({account:target,confirm:true})).reference).toBe(result.reference);

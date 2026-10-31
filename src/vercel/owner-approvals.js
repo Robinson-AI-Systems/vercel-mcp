@@ -61,7 +61,7 @@ export async function requestOwnerAccountChange({
     // new-connection default. The remedy is one owner act away.
     if(targetRow.is_default && configured.length>1) {
       return denied('That account is the default for new connections while other accounts remain; '+
-        'choose a new default first (vercel_set_default_account or owner setup), then propose the removal');
+        'choose a new default first (vercel_set_default_account, applied with vercel_apply_owner_approval), then propose the removal');
     }
     target=args.targetAccount;
   } else if(action==='spend') {
@@ -141,10 +141,13 @@ export async function consumeOwnerAccountChange({db,env=process.env,account,refe
 
 /**
  * Database-only application of an already independently approved request.
- * This function is NOT an MCP handler or an owner authenticator. Only owner
- * setup invokes it after session, CSRF, fresh passphrase, confirm and one-use
- * reference consumption. Every DB method performs its own atomic audit and
- * independent read-back; never claim success on an ambiguous result.
+ * This function is NOT an MCP handler or an owner authenticator. Its two
+ * callers each complete their own owner proof first: owner setup (session,
+ * CSRF, fresh passphrase, confirm) and vercel_apply_owner_approval (AUD-AS:
+ * the owner's own connector-kind connection, confirm) — both after one-use
+ * reference consumption and an inspect/compare of the exact envelope. Every
+ * DB method performs its own atomic audit and independent read-back; never
+ * claim success on an ambiguous result.
  */
 export async function applyApprovedOwnerAccountChange({db,request}) {
   if(!request || !validateOwnerEnvelope(request,request.issuerAccount))

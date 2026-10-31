@@ -1,4 +1,6 @@
-// Service-owned encrypted proposals. Only owner setup may consume and issue a pass.
+// Service-owned encrypted proposals. Only owner setup or the owner's own
+// connector connection (vercel_apply_owner_approval, AUD-AS) may consume
+// and issue a pass; a delegated pass connection never can.
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {decryptSecret} from '../core/secret-box.js';
 const KIND='rtc_pass_request';

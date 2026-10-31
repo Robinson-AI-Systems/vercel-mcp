@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-31 documentation audit AUD-AN, main `8fb9e83`): 240 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list; `scripts/check-catalog.mjs` verifies 241 catalog tools, 240 registered). The build-out completed 2026-10-30 (batches O-5, P-3, W and X and `vercel_undo_change` all shipped). The one unbuilt row is `vercel_admin_overview`, **closed by owner ruling IN-16 (ratified 2026-10-30) — it will not be built**; its row below records the closure. A Card cell saying `candidate #NNN` is the historical delivery-PR label from that tool's build era, not a build state; built state is the registry's, per the counts above. Do not read a catalog count as an implementation count. (AUD-AQ rider, 2026-10-31: `vercel_set_read_only` shipped after that audit — read the counts above as 241 of 242 implemented, 242 catalog rows, 241 registered.)never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-31 documentation audit AUD-AN, main `8fb9e83`): 240 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list; `scripts/check-catalog.mjs` verifies 241 catalog tools, 240 registered). The build-out completed 2026-10-30 (batches O-5, P-3, W and X and `vercel_undo_change` all shipped). The one unbuilt row is `vercel_admin_overview`, **closed by owner ruling IN-16 (ratified 2026-10-30) — it will not be built**; its row below records the closure. A Card cell saying `candidate #NNN` is the historical delivery-PR label from that tool's build era, not a build state; built state is the registry's, per the counts above. Do not read a catalog count as an implementation count. (AUD-AQ rider, 2026-10-31: `vercel_set_read_only` shipped after that audit — read the counts above as 241 of 242 implemented, 242 catalog rows, 241 registered. AUD-AS rider, 2026-10-31: `vercel_apply_owner_approval` shipped after that — read them as 242 of 243 implemented, 243 catalog rows, 242 registered.)never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 
 are `vercel_dev_<job>` (contract §10).
 
@@ -54,7 +54,7 @@ the setup page.
 `R` read_only · `E` everyday · `F` full (every read tool is in `R`). **App:** `y` = the project-profile guard (Batch P)
 checks this tool against resources a profiled app owns; `—` = not applicable.
 
-## Server about itself (`vercel_*`) — 22
+## Server about itself (`vercel_*`) — 23
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
@@ -67,6 +67,7 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_list_connections` | Claude connections and passes: account, mode, profile, listing, last used, expiry | — | O | R | — | B-8 |
 | `vercel_revoke_connection` | Propose revoking an exact current OAuth connector; independently authenticated owner must approve | C | O | F | — | B-8b built #40 |
 | `vercel_remove_account` | Propose removing an exact enrolled account row — its stored credential, connections, passes and account-scoped settings are removed with it; the default account refuses while other accounts remain; independently authenticated owner must approve | C | O | F | — | AUD-AA |
+| `vercel_apply_owner_approval` | Inspect (dryRun) or apply (confirm) one pending owner approval by its single-use reference — an owner account change, an exact purchase intent, an RTC pass request or a production-enable receipt; the apply step runs only on the owner's own connector connection (a delegated pass can never apply one) and consumes the envelope exactly once through the family's own apply function | C | O | F | — | AUD-AS |
 | `vercel_enable_production` | Enable team production access on the owner's confirmed word; teams whose owner chose passphrase strictness on setup keep the ten-minute passphrase reentry step instead | C | O | F | — | B-2; AUD-B |
 | `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | C | O | F | — | B-2 |
 | `vercel_set_spend_limit` | Propose a tenant-scoped exact-cent daily limit for separate owner approval; no spending or default change | C | O | F | — | B-8b built #39 |
@@ -620,7 +621,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 
 | Section | Tools | Batch |
 |---|---|---|
-| Server about itself | 22 | A, B, C, R, X, O |
+| Server about itself | 23 | A, B, C, R, X, O |
 | Projects, crons and Git | 15 | D |
 | Deployments: reads, logs and checks | 10 | D |
 | Deployments: changes | 5 | D |
@@ -646,12 +647,12 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Owner: administration | 5 | O |
 | Project profiles | 5 | P |
 | Workflows | 12 | W |
-| **Hand-built total** | **238** | |
+| **Hand-built total** | **239** | |
 | Universal tools | 4 | U |
-| **All tools** | **242** | |
+| **All tools** | **243** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
-O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 6 (= 242). By lowest profile, of the 241 **registered** tools (registry truth, AUD-AN 2026-10-31; AUD-AQ adds one full-profile tool): `read_only` 103, `everyday` 41, `full` 97 — cumulative visibility `read_only` 103, `everyday` 144, `full` 241; the 242nd catalog row (`vercel_admin_overview`, `full`) is unbuilt by the IN-16 ruling
+O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 7 (= 243). By lowest profile, of the 242 **registered** tools (registry truth, AUD-AN 2026-10-31; AUD-AQ and AUD-AS each add one full-profile tool): `read_only` 103, `everyday` 41, `full` 98 — cumulative visibility `read_only` 103, `everyday` 144, `full` 242; the 243rd catalog row (`vercel_admin_overview`, `full`) is unbuilt by the IN-16 ruling
 (B-6 prints the exact counts from the registry). In compact mode (`docs/designs/BATCH-C.md`) an agent loads about 20
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.
 
@@ -754,6 +755,8 @@ IN-08 (#110): central guarded-write executor routes charges through separately o
 **AUD-Y audit-entry fitting (2026-10-29, VMCP-011 second layer):** the write executor now fits each audit entry to the audit writer's aggregate 8 KB record cap before writing it — measuring exactly as the writer measures (before-wrap, delegation merge, summary) and replacing the largest fields with stored references until the entry fits. A landed, verified write can no longer be turned into an error envelope by the sum of its own audit paperwork; replaced fields read back through vercel_get_result. The writer's cap stays, the summary headline is never replaced, and storeless contexts keep the original refusal.
 
 **AUD-Z working-box reachability (2026-10-30, VMCP-026 A-8 facet 2):** `vercel_set_working_box` is reachable by the owner connection again. The tool shipped in AUD-I S4 declared localAdmin but was never named in the MCP boundary's owner-tools list, so the profile gate refused it for every profile; it is now on that list, with its designed owner-only posture unchanged (full profile only, invisible to everyday and read_only). A boundary test now drives the production registry through the real listing and dispatch gates, so any future localAdmin tool missing from the list fails CI instead of shipping unreachable. The tool's catalog entry above is unchanged.
+
+**AUD-AS envelope apply on the owner's connection (2026-10-31, sign-in cleanup §2.4):** `vercel_apply_owner_approval` joins the owner family above. Every approval envelope the proposal tools issue — owner account changes, exact purchase intents, RTC pass requests, production-enable receipts — can now be inspected (dryRun, never consuming) and applied (confirm) on the owner's own connection, through the same family apply functions and journaling the setup page uses; the page remains an apply path until AUD-AV deletes the route. The proof change is stated plainly (dossier D2): applying no longer re-proves the administrator passphrase on a page — the gates are the owner's own connector credential (the handler refuses any connection whose kind is not `connector`, so a delegated pass, even a write-capable full-profile one, can never apply an approval), the unguessable single-use reference with its ~10-minute TTL, an inspect/compare of the exact envelope before consumption, and the family's journal. A fixed-price purchase is approved at exactly its quoted total; the one metered shape (Sandbox create) is approved only as an explicit unbounded acknowledgment whose summary states the non-guaranteed variable-charge risk. An issued pass's bearer is delivered exactly as the page delivered it — as a one-time secret reference, never in the tool result. Proposal results' `reviewAt` now names this tool instead of the setup page.
 
 **AUD-AA account-row removal (2026-10-30, owner step 4 tooling gap):** `vercel_remove_account` joins the owner family above. It proposes removing one exact enrolled account row — beside `vercel_revoke_connection`, never conflated with it: revocation kills one connector's standing and keeps the enrollment; removal deletes the enrollment itself (the stored credential, its connections and passes revoked, its pending inputs/secrets/codes and account-scoped protections deleted; audit history and purchase records kept for 400 days under the AUD-AO retention clocks) through the owner's separate approval on setup, or the setup page's own removal form — both execute the same atomic db operation. The default account refuses while other accounts remain (choose a new default first), because the new-connection default is the account list's order and deleting the row would silently promote the next one. Self-removal and last-account removal are disclosed in the plan, not gated: the approving authority (the setup session) is independent of the connection being removed.
 
