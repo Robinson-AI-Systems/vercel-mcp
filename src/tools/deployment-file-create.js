@@ -89,13 +89,39 @@ function manifest(args){
 // presence (the two suspects' discriminators), files shape, then
 // the constant fields. One more live attempt reads the conviction
 // back through vercel_recent_changes.
+// AUD-AL (files-create round 3; dossier:
+// files-create-conviction-dossier-2026-10-31.md): the instrument's
+// first live readout (2026-10-31, promoted build 8fb9e83) —
+// failed=[400:bad_request], projectSettings:absent, target:string,
+// manifest exact — separates only the already-cleared named class
+// (missing_project_settings); the confirmation's code is
+// documented nowhere, so no single field convicts. What convicts
+// is the construction class: this route's non-first construction
+// was the only one diverging from the documented contract on both
+// create-shaping instructions at once — a preview requested with
+// the literal 'preview' the documented vocabulary omits (the
+// documented preview request is omission: "If omitted, the target
+// will be preview"), and the only create whose framework input is
+// solely the uploaded tree, sent without the documented
+// skipAutoDetectionConfirmation suppressor ("Use this to suppress
+// that check in automated pipelines"; no caller in the product
+// sent it). The fix eliminates the class: preview is requested
+// by omission (production, which is documented, is sent
+// verbatim), and this route's create dispatch carries the
+// suppressor in the snapshot's enum form — uniform across the
+// route, whose settings (when sent) are the project's own
+// owner-reviewed record values. The fingerprint's query slot now
+// renders the actual dispatched query key names (the caller's
+// keys plus the transport's teamId, sorted; names only) computed
+// from the write params, so the instrument cannot drift from the
+// dispatch it describes.
 function jsonTypeOf(value){
   if(value===undefined)return 'absent';
   if(value===null)return 'null';
   if(Array.isArray(value))return 'array';
   return typeof value;
 }
-function createRefusalSummary(body,error){
+function createRefusalSummary(body,error,queryKeys=[]){
   const status=Number.isSafeInteger(error?.status)&&
     error.status>=100&&error.status<=599?String(error.status):'absent';
   const code=typeof error?.code==='string'&&
@@ -113,13 +139,13 @@ function createRefusalSummary(body,error){
     ' name:'+jsonTypeOf(body?.name)+
     ' project:'+jsonTypeOf(body?.project)+
     ' meta:'+jsonTypeOf(body?.meta)+
-    ' query:teamId';
+    ' query:'+queryKeys.join(',');
 }
-async function journalCreateRefusal(ctx,before,body,error){
+async function journalCreateRefusal(ctx,before,body,error,queryKeys){
   try{
     await ctx.audit({account:ctx.connection.account,
       mode:ctx.connection.mode,tool:'vercel_deploy_create_from_files',
-      summary:createRefusalSummary(body,error),dryRun:false,
+      summary:createRefusalSummary(body,error,queryKeys),dryRun:false,
       production:before.target==='production'});
   }catch{/* Best-effort, as AUD-M2: the audit trail never changes the outcome. */}
 }
@@ -163,13 +189,27 @@ const create=defineWrite({
     // no longer restated.
     const firstDeployment=row.hasDeployments===false;
     const projectSettings=firstDeployment?deploymentProjectSettings(row):undefined;
+    // AUD-AL: a preview is requested by OMISSION — the documented
+    // request vocabulary for target is not-defined / 'staging' /
+    // 'production' / a custom environment id, with "If omitted,
+    // the target will be preview"; the literal 'preview' is not in
+    // it. 'production' is documented and sent verbatim. The
+    // caller's target still governs preview text, production
+    // classification and verify()'s read-back matching.
+    // The route's create query carries the documented framework
+    // auto-detection suppressor (snapshot enum '1'): this route is
+    // an automated pipeline whose only framework input, when it
+    // sends no settings, is the uploaded tree.
+    const query={skipAutoDetectionConfirmation:'1'};
     const body={name:args.expectedName,project:args.expectedName,
-      files:files.items,target:args.target,
+      files:files.items,
+      ...(args.target==='production'?{target:'production'}:{}),
       ...(projectSettings?{projectSettings}:{})};
-    validateRequest('deployments_create',{query:{teamId:'team_FAKE_validation'},body});
+    validateRequest('deployments_create',
+      {query:{teamId:'team_FAKE_validation',...query},body});
     return {project:args.project,name:args.expectedName,
       target:args.target,files:files.items,total:files.total,
-      projectSettings,teamId:account.team_id};
+      projectSettings,query,teamId:account.team_id};
   },
   async preview(_args,_ctx,before){
     return 'Create a '+before.target+' deployment of '+before.name+
@@ -229,11 +269,13 @@ const create=defineWrite({
         uploaded.uploaded!==true)throw new TypeError('Upload could not be verified');
     }
     const body={name:before.name,project:before.name,
-      files:before.files,target:before.target,
+      files:before.files,
+      ...(before.target==='production'?{target:'production'}:{}),
       ...(before.projectSettings?{projectSettings:before.projectSettings}:{})};
     let created;
     try{
-      created=await provider.write('deployments_create',{body},
+      created=await provider.write('deployments_create',
+        {body,query:before.query},
         {requestKey,tool:'vercel_deploy_create_from_files',shapeResult:row=>{
           const id=row?.id??row?.uid;
           // The documented create response has an in-progress shape with
@@ -252,8 +294,11 @@ const create=defineWrite({
     }catch(error){
       // AUD-AG: journal the refusal's redacted shape fingerprint
       // (best-effort) before the executor shapes the unchanged
-      // outcome_unknown result from the same error.
-      await journalCreateRefusal(ctx,before,body,error);
+      // outcome_unknown result from the same error. AUD-AL: the
+      // query slot names the actual dispatched query keys — the
+      // caller's plus the transport's teamId — sorted, names only.
+      await journalCreateRefusal(ctx,before,body,error,
+        [...Object.keys(before.query??{}),'teamId'].sort());
       throw error;
     }
     return created;
