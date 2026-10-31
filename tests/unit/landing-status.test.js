@@ -20,7 +20,7 @@ describe('public landing cannot claim account setup or connected acceptance',()=
   const info=JSON.parse(r.payload);
   expect(info).toMatchObject({name:FRONT_DOOR_PRODUCT_NAME,status:'service-online',
     tools:registry.tools.length,oauth:'/.well-known/oauth-authorization-server',
-    endpoint:'/api/mcp',deployed_source_sha:null});
+    endpoint:'/api/mcp',health:'/api/health',deployed_source_sha:null});
   expect(info.note).toContain('not provider setup, OAuth consent or RTC acceptance');
   expect(r.payload).not.toMatch(/DATABASE_URL|TOKEN_ENCRYPTION_KEY|ADMIN_PASSPHRASE|vcp_[a-zA-Z0-9_-]{12,}/);
   expect(publicInfo('a'.repeat(40)).deployed_source_sha).toBe('a'.repeat(40));
