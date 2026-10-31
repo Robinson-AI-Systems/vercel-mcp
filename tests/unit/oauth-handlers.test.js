@@ -328,15 +328,15 @@ describe('OAuth registration and authorization endpoints', () => {
     });
   });
 
-  it('derives profile from the door and mode from the account switch (AUD-AZ matrix)', async () => {
+  it('derives a full profile on both doors and mode from the account switch (AUD-AZ matrix, AUD-BD profile)', async () => {
     const integrationProbe = { source: 'integration', declaredBox: 'team', accountKind: 'team' };
     const cases = [
       { name: 'token door, switch off', account: {}, env: {}, profile: 'full', mode: 'preview' },
       { name: 'token door, switch on, production deployment', account: { production_enabled: true }, env: { VERCEL_ENV: 'production' }, profile: 'full', mode: 'production' },
       { name: 'token door, switch on, preview deployment', account: { production_enabled: true }, env: {}, profile: 'full', mode: 'preview' },
-      { name: 'integration door, switch off', account: { token_probe: integrationProbe }, env: { VERCEL_ENV: 'production' }, profile: 'everyday', mode: 'preview' },
-      { name: 'integration door, switch on, production deployment', account: { token_probe: integrationProbe, production_enabled: true }, env: { VERCEL_ENV: 'production' }, profile: 'everyday', mode: 'production' },
-      { name: 'integration door, switch on, preview deployment', account: { token_probe: integrationProbe, production_enabled: true }, env: {}, profile: 'everyday', mode: 'preview' }
+      { name: 'integration door, switch off', account: { token_probe: integrationProbe }, env: { VERCEL_ENV: 'production' }, profile: 'full', mode: 'preview' },
+      { name: 'integration door, switch on, production deployment', account: { token_probe: integrationProbe, production_enabled: true }, env: { VERCEL_ENV: 'production' }, profile: 'full', mode: 'production' },
+      { name: 'integration door, switch on, preview deployment', account: { token_probe: integrationProbe, production_enabled: true }, env: {}, profile: 'full', mode: 'preview' }
     ];
     for (const testCase of cases) {
       const fixture = createFixture({
@@ -377,7 +377,9 @@ describe('OAuth registration and authorization endpoints', () => {
       expect(granted.statusCode).toBe(200);
       return json(granted);
     };
-    // Door 1 (integration) enrollment → everyday at the boundary.
+    // Door 1 (integration) enrollment → full at the boundary (AUD-BD:
+    // the door no longer decides the profile; the fixture's switch is
+    // explicitly off, so the mode still starts in preview — D7).
     const door1 = createFixture({
       accounts: [{
         id: 'team_fixture', label: 'Fixture team', scope: 'team',
@@ -394,10 +396,10 @@ describe('OAuth registration and authorization endpoints', () => {
       vercelAccount: 'team_fixture', mode: 'preview', profile: 'read_only', listing: 'compact'
     });
     const connection1 = await connect(door1, (await exchange(door1, client1)).access_token);
-    expect(connection1).toMatchObject({ profile: 'everyday', listing: 'front_door', mode: 'preview' });
+    expect(connection1).toMatchObject({ profile: 'full', listing: 'front_door', mode: 'preview' });
     const door1Names = listMcpTools(registry, connection1).map((tool) => tool.name);
     expect(door1Names).toContain('vercel_whoami');
-    expect(door1Names).not.toContain('vercel_workflow_project_setup');
+    expect(door1Names).toContain('vercel_workflow_project_setup');
     const legacy = await connect(door1, legacyAccess);
     expect(legacy).toMatchObject({ profile: 'read_only', listing: 'compact', mode: 'preview' });
     expect(await door1.db.getAccessToken(legacyAccess)).toMatchObject({

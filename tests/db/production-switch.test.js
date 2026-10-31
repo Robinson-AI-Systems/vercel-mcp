@@ -5,9 +5,9 @@ let db;
 beforeAll(async()=>{const u=process.env.TEST_DATABASE_URL;if(!u || !['127.0.0.1','localhost','::1','[::1]'].includes(new URL(u).hostname))throw Error('Disposable localhost database required');await openIsolatedSchema(u);db=createDb(neonShapedQuery());await db.initSchema();});
 afterAll(async()=>closeIsolatedSchema());
 describe('B-2 durable production switch and revocation',()=>{
-  it('defaults disabled and permits only a selected account update',async()=>{
+  it('defaults enabled (AUD-BD) and permits only a selected account update',async()=>{
     await rawQuery("INSERT INTO vercel_accounts (id,team_id,team_slug,label,scope,token_enc,token_last4) VALUES ('team_FAKE','team_FAKE','fixture','Fixture','team','fake ciphertext','1234')");
-    expect((await rawQuery("SELECT production_enabled FROM vercel_accounts WHERE id='team_FAKE'"))[0].production_enabled).toBe(false);
+    expect((await rawQuery("SELECT production_enabled FROM vercel_accounts WHERE id='team_FAKE'"))[0].production_enabled).toBe(true);
     expect(await db.setProductionEnabled('team_UNKNOWN',true)).toBe(false);
     expect(await db.setProductionEnabled('team_FAKE',true)).toBe(true);
     expect((await rawQuery("SELECT production_enabled FROM vercel_accounts WHERE id='team_FAKE'"))[0].production_enabled).toBe(true);

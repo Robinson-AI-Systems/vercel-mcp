@@ -10,21 +10,25 @@ import { storeToken } from './tokens.js';
 // (sign-in cleanup dossier §2.3). One derivation serves both the
 // rendered page (caption + note) and code creation (mode + profile),
 // so the two can never drift — the AUD-AE lesson, kept.
-//   profile ← the account's door. Door 1 (an Integrations install;
-//     the probe record's source is 'integration') is the standard
-//     tier: everyday. Door 2 (a pasted token) is the full tier —
-//     god mode = everything ON (IN-16/IN-17). Restraint lives in
-//     the credential's own Vercel-side scope, the account's
-//     production switch and the user's read-only switch, never in
-//     a consent picker (decided default D1).
+//   profile ← full, for every sign-in (AUD-BD, the login fix — the
+//     owner's ruling that a normal end-user login lands with a full
+//     profile; this supersedes the cleanup dossier's door-derived
+//     D1). The doors still differ in the credential itself: an
+//     install token's Vercel-side team/project reach vs a pasted
+//     token's scope box, read back at enrollment, is the ceiling.
+//     Restraint lives in that scope, the account's production
+//     switch and the user's read-only switch, never in a consent
+//     picker or a sign-in profile class.
 //   mode ← the account's production switch: production when the
 //     switch is on AND this server runs its production deployment,
 //     else preview. The deployment conjunct is the pre-AUD-AZ
 //     modesFor rule kept as the derivation's mode authority — a
 //     non-production deployment of this server never mints a
 //     production connection. The switch is the user's standing
-//     choice (IN-09, decided default D7); vercel_set_working_box
-//     flips the mode freely inside the ceiling afterwards.
+//     choice (IN-09, decided default D7) and is born ON at
+//     enrollment (AUD-BD), so the default landing is production;
+//     vercel_set_working_box flips the mode freely inside the
+//     ceiling afterwards.
 const BOX_WORDS = {
   account: 'Account-wide',
   team: 'Team',
@@ -57,7 +61,8 @@ export function createVercelLoginService(db, { fetchImpl } = {}) {
       const report = boxReport(account);
       const mode = account?.production_enabled && env.VERCEL_ENV === 'production' ?
         'production' : 'preview';
-      const profile = report.source === 'integration' ? 'everyday' : 'full';
+      // AUD-BD: full for every sign-in, both doors (see header).
+      const profile = 'full';
       // The option caption: the declared box in plain words plus the
       // posture a connection on this account starts in. Fixed words
       // and the account's own switch state only — labels never enter
