@@ -535,6 +535,17 @@ history), shows the covering profile's `rollback_caution` in the preview, verifi
 read-back, and reports whether errors are still occurring (error rows last seen after the
 rollback moment), with `null` when the summary cannot be read.
 
+W-4 (2026-10-30) adds `vercel_workflow_setup_custom_domain` (full only). It dispatches
+`vercel_domain_attach_to_project` (skipped when the domain is already attached), reads the
+configuration back, and — when misconfigured — creates exactly the records the config read
+recommends (A records at the apex, a CNAME for a subdomain) via `vercel_dns_create_record`
+when Vercel hosts the zone, skipping records already present. When Vercel does not host the
+DNS it stops after attach and returns the exact recommended records as needs-you steps with
+`confirmed: false` (card verdict W4-C2) and no certificate step. The DNS steps' values exist
+only in the post-attach config read, so they are derived in `apply()` from that read-back,
+each through its own guarded pipeline (W4-C1). When the domain verifies and no certificate
+covers it, the final step dispatches `vercel_cert_issue`. Running it twice changes nothing.
+
 ## Everything else in Vercel: the universal tools (`vercel_api_*`) — 4
 
 The hand-built tools are the comfortable, plain-English way to do the common jobs. These four reach **every operation in
