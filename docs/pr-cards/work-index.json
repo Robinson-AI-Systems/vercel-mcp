@@ -1004,6 +1004,24 @@
       }
     },
     {
+      "id": "V-6",
+      "title": "Configurable Sandbox sizing and network (UA-08)",
+      "batch": "V",
+      "design": "docs/designs/BATCH-V.md",
+      "dependencies": [
+        "V-4"
+      ],
+      "card": "docs/pr-cards/V-6.md",
+      "status": "APPROVED",
+      "migration": "none",
+      "budget": 300,
+      "units": [
+        "V-6"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
       "id": "N-1",
       "title": "Team and project domains",
       "batch": "N",

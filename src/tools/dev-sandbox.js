@@ -18,6 +18,10 @@ const base={
 };
 const build=(props,required)=>({type:'object',properties:props,required,additionalProperties:false});
 const createProps={...base,minutes:{type:'integer',minimum:1,maximum:1440},
+  vcpus:{type:'integer',minimum:1,maximum:8},
+  network:{type:'string',enum:['deny-all','allow-all','custom']},
+  allowedDomains:{type:'array',minItems:1,maxItems:20,
+    items:{type:'string',maxLength:253}},
   githubRepo:{type:'string',pattern:REPO.source},gitSha:{type:'string',pattern:SHA.source}};
 delete createProps.session;
 const createSchema=build(createProps,['runId','project','requestKey']);
@@ -70,6 +74,51 @@ export function boundedSandboxMinutes(requested){
     throw new RefusalError('Sandbox session must be one to 1440 minutes (provider Pro maximum)');
   return minutes;
 }
+const DOMAIN=/^(?:\*|(?:\*\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63})$/;
+// V-6 (UA-08): the caller's chosen Sandbox shape, normalized to the pinned
+// provider contract (vendored POST /v4/sandboxes: vcpus is 1 or an even
+// number, memory must equal vcpus * 2048, networkPolicy modes are deny-all /
+// allow-all / custom with allowedDomains). Omitted arguments reproduce the
+// historical V-4 shape exactly; nothing caller-supplied is silently dropped.
+export function sandboxShape(a){
+  const vcpus=a.vcpus??1;
+  if(!Number.isSafeInteger(vcpus)||vcpus<1||vcpus>8||(vcpus!==1&&vcpus%2!==0))
+    throw new RefusalError('Sandbox size must be 1, 2, 4, 6 or 8 vCPUs (memory is 2 GB per vCPU)');
+  const network=a.network??'deny-all';
+  if(!['deny-all','allow-all','custom'].includes(network))
+    throw new RefusalError('Sandbox network must be deny-all, allow-all or custom');
+  let networkPolicy={mode:network};
+  if(a.allowedDomains!==undefined&&network!=='custom')
+    throw new RefusalError('Allowed domains apply only when the Sandbox network is custom');
+  if(network==='custom'){
+    if(!Array.isArray(a.allowedDomains)||a.allowedDomains.length<1||a.allowedDomains.length>20||
+      a.allowedDomains.some(d=>typeof d!=='string'||d.length>253||!DOMAIN.test(d)))
+      throw new RefusalError('A custom Sandbox network needs 1 to 20 allowed domain patterns');
+    networkPolicy={mode:'custom',
+      allowedDomains:[...new Set(a.allowedDomains)].sort()};
+  }
+  return {vcpus,memoryMb:vcpus*2048,network,networkPolicy};
+}
+export function sandboxSizeText(shape){
+  return shape.vcpus===1?'1 vCPU / 2 GB':
+    shape.vcpus+' vCPUs / '+(shape.vcpus*2)+' GB';
+}
+export function sandboxNetworkText(shape){
+  if(shape.network==='allow-all')return 'external network is fully allowed';
+  if(shape.network==='custom')
+    return 'external network is limited to '+shape.networkPolicy.allowedDomains.length+
+      ' allowed domain pattern(s)';
+  return 'external network is denied';
+}
+// The exact provider creation body for a bound Sandbox shape. Pure so tests
+// can prove the default body is byte-identical to the historical V-4 body
+// and that every sized/custom body satisfies the vendored OpenAPI contract.
+export function sandboxCreateBody(b){
+  return {projectId:b.project,name:b.name,persistent:false,timeout:b.minutes*60000,
+    resources:{vcpus:b.vcpus,memory:b.memoryMb},
+    networkPolicy:b.networkPolicy,tags:{rtc_run:b.runId},
+    ...(b.repo?{source:{type:'git',url:b.repo,revision:b.sha,depth:1}}:{})};
+}
 async function boundSession(a,ctx,{allowStopped=false}={}){
   // Caller has already validated its full action schema. Re-validating
   // against stopSchema here would reject legitimate command/files/read fields.
@@ -104,6 +153,7 @@ const creation=defineWrite({
   async before(a,ctx){
     validate(a,createSchema);previewBuilder(ctx);
     const minutes=boundedSandboxMinutes(a.minutes);
+    const shape=sandboxShape(a);
     if(Boolean(a.githubRepo)!==Boolean(a.gitSha)||
       a.githubRepo!==undefined&&(!REPO.test(a.githubRepo)||!SHA.test(a.gitSha)))
       throw new RefusalError('Bounded Sandbox timeout and exact optional public Git SHA required');
@@ -112,15 +162,18 @@ const creation=defineWrite({
       createHash('sha256').update(a.requestKey).digest('hex').slice(0,10);
     return {runId:b.runId,project:b.project,
       account:{team_id:b.account.team_id},
-      name,minutes,day:dayDenver(),sha:a.gitSha,repo:a.githubRepo};
+      name,minutes,day:dayDenver(),sha:a.gitSha,repo:a.githubRepo,...shape};
   },
   async preview(_a,_ctx,b){
-    return 'Create one isolated, ephemeral '+b.minutes+'-minute 1-vCPU/2-GB Sandbox in '+
-      b.project+' for run '+b.runId+'. Compute, storage and egress are metered; an independent, transaction-specific grant is required without any MCP-imposed daily minutes quota.';
+    return 'Create one isolated, ephemeral '+b.minutes+'-minute '+
+      sandboxSizeText(b)+' Sandbox in '+
+      b.project+' for run '+b.runId+'; '+sandboxNetworkText(b)+
+      '. Compute, storage and egress are metered; an independent, transaction-specific grant is required without any MCP-imposed daily minutes quota.';
   },
   async spend(_a,_ctx,b){
     return {cents:null,recurring:true,description:'Vercel Sandbox for '+b.minutes+
-      ' minutes (metered CPU and provisioned memory; external network denied, ephemeral storage, exact runtime timeout; estimated amount varies by region and is NOT a guaranteed dollar limit)'};
+      ' minutes (metered CPU and provisioned memory at '+sandboxSizeText(b)+'; '+
+      sandboxNetworkText(b)+', ephemeral storage, exact runtime timeout; estimated amount varies by region and is NOT a guaranteed dollar limit)'};
   },
   async production(){return {production:false,why:'Ephemeral non-persistent sandbox, no provider production deployment'};},
   async targets(_a,b){return [{kind:'project',id:b.project}];},
@@ -141,10 +194,7 @@ const creation=defineWrite({
     await ctx.db.addDevRunObject({account:ctx.connection.account,id:b.runId,
       type:'intent',objectId:intent,projectId:b.project,
       detail:{kind:'sandbox_create',name:b.name,minutes:b.minutes}});
-    const body={projectId:b.project,name:b.name,persistent:false,timeout:b.minutes*60000,
-      resources:{vcpus:1,memory:2048},
-      networkPolicy:{mode:'deny-all'},tags:{rtc_run:b.runId},
-      ...(b.repo?{source:{type:'git',url:b.repo,revision:b.sha,depth:1}}:{})};
+    const body=sandboxCreateBody(b);
     const created=await provider.write('sandbox_create',{body},{
       tool:'vercel_dev_sandbox_create',requestKey:key,
       shapeResult:row=>{
@@ -156,7 +206,8 @@ const creation=defineWrite({
       }});
     await ctx.db.addDevRunObject({account:ctx.connection.account,id:b.runId,
       type:'sandbox',objectId:created.session,projectId:b.project,
-      detail:{name:b.name,minutes:b.minutes,day:b.day}});
+      detail:{name:b.name,minutes:b.minutes,day:b.day,
+        vcpus:b.vcpus,memoryMb:b.memoryMb,network:b.network}});
     if(!await ctx.db.setDevRunObjectOutcome({account:ctx.connection.account,id:b.runId,
       type:'intent',objectId:intent,status:'cleaned'}))
       throw new TypeError('Sandbox intent still unresolved in durable store');
@@ -360,7 +411,7 @@ function spec(name,schema,profile,readOnly,handler){
     ...(readOnly?{writes:false}:{writes:true,guardedWrite:true,writeContract:handler.writeContract}),
     annotations:{readOnlyHint:readOnly,destructiveHint:name==='vercel_dev_sandbox_stop'},
     description:{
-      vercel_dev_sandbox_create:'Provision one time-bounded, recorded preview Sandbox; metered cost follows the account purchase policy.',
+      vercel_dev_sandbox_create:'Provision a time-bounded preview Sandbox with your choice of vCPUs and network access; metered cost follows the account purchase policy.',
       vercel_dev_sandbox_run:'Start an owned Sandbox command or inspect its exact ID for bounded output and bearer-scoped full result handle.',
       vercel_dev_sandbox_write_files:'Upload up to five bounded, safe relative files into the owned active Sandbox.',
       vercel_dev_sandbox_read_file:'Read one bounded file from the exact owned active preview Sandbox with secret-safe shaping.',
