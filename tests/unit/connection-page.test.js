@@ -20,6 +20,11 @@ describe('O-6 connection page (RAS MCP Standard, Branded front door)',()=>{
   expect(r.payload).toContain('<title>My connection — '+FRONT_DOOR_PRODUCT_NAME+'</title>');
   expect(r.payload).toContain('<h1>My connection</h1>');
   expect(r.payload).toContain('#00B67A');
+  // The fleet's dark look and lockup, shared with the status page.
+  expect(r.payload).toContain('--bg:#0C0C0C');
+  expect(r.payload).toContain('<img src="/brand/icon-256.png"');
+  expect(r.payload).toContain('Practical software. More capable AI.');
+  expect(r.payload).toContain('<code class="addr">https://vercel.robinsonaisystems.com/api/mcp</code>');
  });
  it('gives the connect routes for each client class, branded address only',()=>{
   const {payload}=render();
