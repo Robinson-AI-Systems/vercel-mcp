@@ -12,8 +12,42 @@ function text(payload){return {type:'text',text:JSON.stringify(payload)}}
 // a throw the caller reads as failure: if storage itself is unavailable,
 // the answer is the write executor's outcome_unknown honesty shape, which
 // tells the caller to verify by read-back instead of retrying blindly.
+// AUD-AU (dossier D8): the single deliberate exception to result
+// redaction. vercel_reveal_one_time_secret exists to return a
+// consumed one-time secret's value in its tool result — once, in
+// that result only, with no stored result created. The exemption
+// is keyed on BOTH the tool name and the handler's own 'revealed'
+// payload shape: the value alone is restored after every other
+// field passes the normal redaction, and any other tool — or any
+// other payload from this tool — is shaped exactly as before. The
+// reveal handler's kind gate (owner's connector connection only)
+// means no delegated pass can ever produce this payload.
+function restoreRevealedValue(response,{connection}={}){
+  const part=response.content.length===1?response.content[0]:null;
+  if(part?.type!=='text'||typeof part.text!=='string')return null;
+  let payload=null;
+  try{payload=JSON.parse(part.text);}catch{return null;}
+  if(!payload||payload.status!=='revealed'||typeof payload.value!=='string'||
+    payload.value.length===0||payload.value.length>4096)return null;
+  const{value,...rest}=payload;
+  let shaped;
+  try{shaped=shapeMcpResult({content:[text(rest)]},{connection});}
+  catch{return null;}
+  let outer=null;
+  try{outer=JSON.parse(shaped.content[0].text);}catch{return null;}
+  const target=outer?.result&&typeof outer.result==='object'?outer.result:outer;
+  if(!target||typeof target!=='object')return null;
+  target.value=value;
+  const out=JSON.stringify(outer);
+  if(Buffer.byteLength(out)>8192)return null;
+  return {...response,content:[{type:'text',text:out}]};
+}
 async function shapeStoredWriteResult(response,{connection,db,tool}={}){
   if(!response || !Array.isArray(response.content))throw new TypeError('Invalid tool result');
+  if(tool==='vercel_reveal_one_time_secret'){
+    const restored=restoreRevealedValue(response,{connection});
+    if(restored)return restored;
+  }
   try{
     return shapeMcpResult(response,{connection});
   }catch(error){

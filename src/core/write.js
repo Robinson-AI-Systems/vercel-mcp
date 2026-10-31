@@ -366,14 +366,15 @@ export function defineWrite(spec) {
       return { status: 'outcome_unknown', mode, confirmed: null, requestKey,
         reason: 'The owner approval request could not be verified; do not retry blindly' };
     }
-    // One-time provider secrets are never returned through MCP. Only a UUID
-    // for the independently authenticated owner reveal form may be included.
+    // One-time provider secrets are never returned through MCP at issuance.
+    // Only a UUID for the owner's one-time reveal tool
+    // (vercel_reveal_one_time_secret, dossier D8) may be included.
     const oneTimeRequired=spec.oneTimeDelivery===true&&
       (typeof spec.oneTimeWhen!=='function'||spec.oneTimeWhen(args)===true);
     const delivered=oneTimeRequired?{
       ownerRevealRef:providerResult?.ownerRevealRef,
       expiresAt:providerResult?.expiresAt,
-      revealAt:'/api/vercel/setup'
+      revealAt:'vercel_reveal_one_time_secret'
     }:null;
     if(delivered&&(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(delivered.ownerRevealRef??'')||
       typeof delivered.expiresAt!=='string'||

@@ -135,7 +135,7 @@ describe('AUD-AQ: listing gate (gate 1)', () => {
     const listed = names({ ...FULL_ON, readOnly: false });
     expect(listed).toContain('vercel_set_read_only');
     expect(listed).toContain('vercel_project_create');
-    expect(listed).toHaveLength(250); // AUD-AT: +8 account tools (full only) // AUD-AS: +vercel_apply_owner_approval (full only)
+    expect(listed).toHaveLength(253); // AUD-AU: +3 pass tools (full only) // AUD-AT: +8 account tools (full only) // AUD-AS: +vercel_apply_owner_approval (full only)
   });
 });
 

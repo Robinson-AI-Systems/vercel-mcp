@@ -1,4 +1,7 @@
-// Encrypt at rest, reveal only via an authenticated owner setup route.
+// Encrypt at rest, reveal only via an authenticated owner surface:
+// the owner setup route (until AUD-AV deletes it) or, since AUD-AU,
+// vercel_reveal_one_time_secret on the owner's own connector
+// connection (dossier D8) — never to a delegated pass.
 import { randomUUID } from 'node:crypto';
 import { encryptSecret, decryptSecret } from './secret-box.js';
 

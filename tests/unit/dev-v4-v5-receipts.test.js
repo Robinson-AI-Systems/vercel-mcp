@@ -42,7 +42,7 @@ describe('V-4/V-5 generic guarded write result contracts',()=>{
     const {write,ctx}=fixture({secretAction:true});
     const prepared=await write.run({action:'prepare',confirm:true,requestKey:'prepare_request_key'},ctx);
     expect(prepared).toMatchObject({status:'applied',confirmed:true,
-      revealAt:'/api/vercel/setup'});
+      revealAt:'vercel_reveal_one_time_secret'});
     expect(prepared.ownerRevealRef).toMatch(/^[0-9a-f-]{36}$/i);
     const sent=await write.run({action:'send',confirm:true,requestKey:'send_request_key'},ctx);
     expect(sent).toMatchObject({status:'applied',confirmed:true,

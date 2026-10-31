@@ -154,7 +154,9 @@ export function createDb(query) {
 
   return {
 
-    // RTC 1: only owner setup calls this. A read-only pass never allows
+    // RTC 1: called by owner setup and, since AUD-AU, by
+    // vercel_issue_pass on the owner's own connector connection.
+    // A read-only pass never allows
     // writes, production mode or financial outflow. Store only SHA-256,
     // not bearer. Write-capable passes are issueWriteRtcPass below.
     async issueReadOnlyRtcPass({account,hours=24,areas=['server'],mode='preview',rateLimitPerMinute=120}) {
@@ -189,8 +191,9 @@ export function createDb(query) {
     // R-1W: the write-capable sibling (BATCH-R amendment, 2026-10-30). Same
     // issuance/audit atomicity as a read pass; the scope is a delegated
     // profile with a standing spend ceiling (0 = no spend) and an optional
-    // project restriction (null = unrestricted). Only owner setup calls
-    // this, behind the administrator passphrase like every issuance path.
+    // project restriction (null = unrestricted). Called by owner setup
+    // (behind the administrator passphrase) and, since AUD-AU, by
+    // vercel_issue_pass on the owner's own connector connection.
     async issueWriteRtcPass({account,profile='everyday',mode='preview',hours=24,
       areas,spendLimitCents=0,projectIds=null,rateLimitPerMinute=120}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
@@ -884,6 +887,25 @@ export function createDb(query) {
         FROM one_time_secrets WHERE id=${reference} AND vercel_account=${account}
           AND kind='rtc_pass_request' AND expires_at>now()
           AND viewed_at IS NULL LIMIT 1`;
+      return rows[0]??null;
+    },
+
+    // AUD-AU: scoped, non-consuming METADATA read for the reveal
+    // tool's preview — the reveal-side sibling of the reads above.
+    // Never selects the ciphertext; the consume path
+    // (consumeOneTimeSecret) stays the only way to the value.
+    // account null addresses the server / global scope, matching
+    // the consume predicate exactly (IS NOT DISTINCT FROM).
+    async getOneTimeSecret({id, account = null}) {
+      if(typeof id!=='string'||!/^[0-9a-f-]{36}$/.test(id)||
+        !(account===null||(typeof account==='string'&&
+          /^[a-zA-Z0-9_/-]{3,256}$/.test(account))))
+        throw new TypeError('Invalid one-time secret lookup');
+      const run=getSql();
+      const rows=await run`SELECT id,vercel_account,kind,label,expires_at
+        FROM one_time_secrets WHERE id=${id}
+          AND vercel_account IS NOT DISTINCT FROM ${account}
+          AND expires_at>now() AND viewed_at IS NULL LIMIT 1`;
       return rows[0]??null;
     },
 

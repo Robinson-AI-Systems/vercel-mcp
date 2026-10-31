@@ -14,7 +14,8 @@ const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_productio
   'vercel_set_read_only', 'vercel_export_owner_data', 'vercel_set_purchase_policy',
   'vercel_set_token_no_expiry', 'vercel_set_production_strictness',
   'vercel_add_protected_resource', 'vercel_clear_protected_resources',
-  'vercel_disconnect_blob_store'];
+  'vercel_disconnect_blob_store', 'vercel_issue_pass', 'vercel_revoke_pass',
+  'vercel_reveal_one_time_secret'];
 const COMPACT_TOOLS = ['vercel_whoami','vercel_search_tools','vercel_describe_tool',
   'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'];
 const FRONT_DOOR_SET = new Set(FRONT_DOOR_TOOLS);
