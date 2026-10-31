@@ -745,6 +745,40 @@ export function createDb(query) {
       return { from, to: mode };
     },
 
+    /** AUD-AQ: a connection flips its OWN read-only switch — the
+     * end-user safety dial (IN-09 one layer down), never a sign-in
+     * class. Same discipline as setOwnConnectionMode: keyed by the
+     * public connection id, account-scoped, connector-kind only,
+     * live tokens only, select-then-update with a confirming
+     * read-back. Only the bearer <redacted> the token can name its id,
+     * and the auth layer derives that id from the presented token. */
+    async setOwnConnectionReadOnly({ account, connectionId, readOnly }) {
+      if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
+        typeof connectionId !== 'string' || !/^conn_[a-f0-9]{20}$/.test(connectionId) ||
+        typeof readOnly !== 'boolean') {
+        throw new TypeError('Invalid connection read-only flip');
+      }
+      const run = getSql();
+      const before = await run`SELECT read_only FROM oauth_tokens
+        WHERE vercel_account = ${account} AND kind = 'connector'
+          AND revoked_at IS NULL AND expires_at > now()
+          AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
+      if (before.length !== 1) return null;
+      const from = before[0].read_only === true;
+      if (from !== readOnly) {
+        await run`UPDATE oauth_tokens SET read_only = ${readOnly}
+          WHERE vercel_account = ${account} AND kind = 'connector'
+            AND revoked_at IS NULL AND expires_at > now()
+            AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
+      }
+      const readback = await run`SELECT read_only FROM oauth_tokens
+        WHERE vercel_account = ${account} AND kind = 'connector'
+          AND revoked_at IS NULL AND expires_at > now()
+          AND 'conn_' || LEFT(md5(token_hash), 20) = ${connectionId}`;
+      if (readback.length !== 1 || (readback[0].read_only === true) !== readOnly) return null;
+      return { from, to: readOnly };
+    },
+
     /** Owner setup only; serialized, account-scoped, one-token revocation. */
     async revokeOwnerConnection({account, connectionId}) {
       if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
@@ -1320,6 +1354,7 @@ export function createDb(query) {
       if (typeof accessToken !== 'string' || !accessToken) return null;
       const run = getSql();
       const rows = await run`SELECT client_id, vercel_account, mode, profile, listing, kind,
+        read_only,
         'conn_' || LEFT(md5(token_hash), 20) AS connection_id,
         expires_at, revoked_at FROM oauth_tokens WHERE token_hash = ${hashToken(accessToken)}
         AND expires_at > now() AND revoked_at IS NULL AND kind = 'connector'`;
@@ -1736,6 +1771,12 @@ export function createDb(query) {
       // stored rows keep the listing they were issued with — never rewritten.
       await run`ALTER TABLE oauth_codes ALTER COLUMN listing SET DEFAULT 'front_door'`;
       await run`ALTER TABLE oauth_tokens ALTER COLUMN listing SET DEFAULT 'front_door'`;
+      // AUD-AQ: the read-only end-user switch — a per-connection flag on
+      // oauth_tokens, born off, flipped only by the connection's own user
+      // (vercel_set_read_only). Additive; existing rows read as off and no
+      // stored row is rewritten.
+      await run`ALTER TABLE oauth_tokens ADD COLUMN IF NOT EXISTS read_only
+        BOOLEAN NOT NULL DEFAULT FALSE`;
       await run`CREATE TABLE IF NOT EXISTS rtc_passes (
         pass_id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,
         vercel_account TEXT NOT NULL,profile TEXT NOT NULL DEFAULT 'read_only',

@@ -48,7 +48,9 @@ describe('MCP bearer authentication', () => {
       clientId: 'client_fixture', account: 'team_fixture',
       mode: 'preview', profile: 'everyday', listing: 'catalog',
       // AUD-A2: server-minted classification of the owner's own connection.
-      kind: 'connector'
+      kind: 'connector',
+      // AUD-AQ: the connection's own read-only switch, born off.
+      readOnly: false
     });
   });
 

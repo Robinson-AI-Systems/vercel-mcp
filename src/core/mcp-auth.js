@@ -38,7 +38,12 @@ export async function requireMcpToken(req, res, db, env = process.env) {
     // returns oauth_tokens rows with kind 'connector' — the account owner's
     // own connector/OAuth connection. The purchase policy branch keys off
     // this; delegated RTC passes carry kind 'pass' instead.
-    kind: record.kind
+    kind: record.kind,
+    // AUD-AQ: the read-only end-user switch, read from the token row the
+    // bearer proved. Pass connections are minted by the RTC door without
+    // this field, so the switch gates only ever see it on OAuth
+    // connections — a pass's scope stays the pass row's own business.
+    readOnly: record.read_only === true
   };
   Object.defineProperty(context,'resultOwner',{value:'resown_'+
     createHash('sha256').update('rmcp-result-owner-v1:').update(match[1]).digest('hex')});
