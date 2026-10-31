@@ -89,9 +89,9 @@ describe('check-catalog', () => {
     expect(checkCatalog(text)).toEqual(expect.arrayContaining(['project_set: tool names must start with vercel_ (snake case)',
       'vercel_a_get: listed twice']));
   });
-  it('the real catalog lists 251 tools and is consistent', () => {
+  it('the real catalog lists 254 tools and is consistent', () => {
     const text = readFileSync('docs/TOOL-CATALOG.md', 'utf8');
-    expect(parseCatalog(text).sections.reduce((n, s) => n + s.tools.length, 0)).toBe(251);
+    expect(parseCatalog(text).sections.reduce((n, s) => n + s.tools.length, 0)).toBe(254);
     expect(checkCatalog(text)).toEqual([]);
   });
 });
