@@ -38,7 +38,7 @@ function removalPreview(facts, before) {
     plural(facts.pending_secrets, 'pending one-time secret', 'pending one-time secrets') + ', ' +
     plural(facts.pending_codes, 'unconsumed sign-in code', 'unconsumed sign-in codes') + ' and ' +
     plural(facts.protections, 'account-scoped protection rule', 'account-scoped protection rules') +
-    '. Audit history and purchase records are kept.';
+    '. Audit history and purchase records are kept for 400 days.';
   if (facts.production_enabled) {
     text += ' Production is switched on for this account; it stops with the removal.';
   }
