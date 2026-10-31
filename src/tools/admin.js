@@ -7,7 +7,7 @@ import {readProvider} from '../vercel/provider.js';
 import {credentialLike} from '../core/util.js';
 import {findSettingGuide, listSettingGuides} from '../data/dashboard-map.js';
 import {chargeRecords, moneyOf, displayOf} from './billing.js';
-import {seatPrice} from './members.js';
+import {seatPrice, SECURITY_TOTAL_LABEL} from './members.js';
 
 const PROFILES = ['read_only', 'everyday', 'full'];
 const DAY = 86400000;
@@ -142,8 +142,11 @@ async function costReview(args, ctx) {
     paidSeats: {monthlyCents: seatCents, monthlyDisplay: displayOf(seatCents),
       rosterComplete: r.complete,
       unknownPriceMembers: unknownPriceRoles,
+      // AUD-AJ: a total that excludes an unpriced SECURITY seat is
+      // labelled as known-costs-only, in the field and the note.
+      label: unknownPriceRoles ? SECURITY_TOTAL_LABEL : null,
       note: unknownPriceRoles ?
-        'At least one member holds a role with no published seat price (SECURITY) — its price is the owner\u2019s to confirm (IN-08).' :
+        'Seat total is '+SECURITY_TOTAL_LABEL+': Vercel publishes no seat price for the SECURITY role, so its seat is not in this total. Deploying seats (Owner, Member, Developer) are priced at the stored $20/seat default.' :
         'Deploying seats (Owner, Member, Developer) at the stored $20/seat default.'},
     commitments: {count: commitments.length},
     note: 'Figures are reads and stored defaults only. Spend alerts and controls belong to Vercel Spend Management (IN-12); this review never changes them.'});

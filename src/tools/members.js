@@ -28,6 +28,13 @@ export function seatPrice(role){
   if(role==='SECURITY')return {cents:null,known:false};
   return {cents:0,known:true};
 }
+// AUD-AJ (owner ruling 2026-10-30): the exact SECURITY disclosure.
+// Vercel publishes no seat price for the role — no figure is stored
+// anywhere; this sentence is the whole disclosure, shared by every
+// surface so they cannot drift apart.
+export const SECURITY_SEAT_DISCLOSURE='Security role — seat price not published by Vercel. This role is Enterprise-only; any charge is set by your team\'s Enterprise agreement.';
+export const SECURITY_TOTAL_LABEL='known costs only — excludes the Security seat';
+const ACK_REFUSAL=SECURITY_SEAT_DISCLOSURE+' To proceed, re-run with acknowledgeUnpricedSeat: true to acknowledge this unpriced-seat disclosure.';
 const text=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
 function safe(value,max=200){
   return typeof value==='string'&&value.length>0&&value.length<=max&&
@@ -104,6 +111,7 @@ const inviteProps={
     required:['projectId','role'],properties:{projectId:{type:'string'},
     role:{type:'string',enum:PROJECT_ROLES}}}},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
+  acknowledgeUnpricedSeat:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}};
 function validateInvite(args){
   if(!args||typeof args!=='object'||Array.isArray(args)||
@@ -113,7 +121,7 @@ function validateInvite(args){
     (args.role!==undefined&&!ROLE_ENUM.includes(args.role))||
     (args.projects!==undefined&&(!Array.isArray(args.projects)||args.projects.length>50||
       args.projects.some(p=>!p||!ID.test(p.projectId??'')||!PROJECT_ROLES.includes(p.role))))||
-    ['confirm','dryRun'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
+    ['confirm','dryRun','acknowledgeUnpricedSeat'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
     args.requestKey!==undefined&&(typeof args.requestKey!=='string'||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)))
     throw new RefusalError('Invalid member invite request');
@@ -123,6 +131,11 @@ const invite=defineWrite({
   async before(args,ctx){
     validateInvite(args);
     const role=args.role??'MEMBER';
+    // AUD-AJ: a confirmed SECURITY invite needs the caller's
+    // explicit acknowledgement of the unpriced-seat disclosure.
+    if(role==='SECURITY'&&args.confirm===true&&args.dryRun!==true&&
+      args.acknowledgeUnpricedSeat!==true)
+      throw new RefusalError(ACK_REFUSAL);
     const entry={email:args.email,role};
     if(args.projects?.length)entry.projects=args.projects
       .map(p=>({projectId:p.projectId,role:p.role}));
@@ -136,7 +149,7 @@ const invite=defineWrite({
       description:before.price.known
         ?(before.price.cents? 'Paid team seat at the stored Pro seat price ($20/month per deploying seat)'
           :'Free seat role — no seat charge')
-        :'Seat price unknown for the SECURITY role — Vercel publishes no seat price for it'};
+        :SECURITY_SEAT_DISCLOSURE};
   },
   async access(_args,before){
     return {widens:true,who:before.entry.email,
@@ -144,12 +157,12 @@ const invite=defineWrite({
         ?' and the listed project roles':'')};
   },
   async preview(_args,_ctx,before){
-    const seat=!before.price.known?'Seat price: unknown for SECURITY (kept as a $ operation; ask the owner for the seat price)'
+    const seat=!before.price.known?SECURITY_SEAT_DISCLOSURE
       :before.price.cents?'Seat: $20/month paid deploying seat (stored Pro seat price)'
       :'Seat: free role, no seat charge';
     return 'Invite '+before.entry.email+' to this team as '+before.role+
       '. They receive an invitation email from Vercel. '+seat+
-      '. PRODUCTION owner confirmation required.';
+      (seat.endsWith('.')?'':'.')+' PRODUCTION owner confirmation required.';
   },
   async production(){
     return {production:true,why:'Team membership changes apply to the live owner account'};
@@ -192,6 +205,7 @@ const roleProps={
     required:['projectId'],properties:{projectId:{type:'string'},
     role:{type:['string','null'],enum:[...PROJECT_ROLES,null]}}}},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
+  acknowledgeUnpricedSeat:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}};
 function validateRole(args){
   if(!args||typeof args!=='object'||Array.isArray(args)||
@@ -203,7 +217,7 @@ function validateRole(args){
     (args.projects!==undefined&&(!Array.isArray(args.projects)||args.projects.length>50||
       args.projects.some(p=>!p||!ID.test(p.projectId??'')||
         (p.role!==undefined&&p.role!==null&&!PROJECT_ROLES.includes(p.role)))))||
-    ['confirm','dryRun'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
+    ['confirm','dryRun','acknowledgeUnpricedSeat'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
     args.requestKey!==undefined&&(typeof args.requestKey!=='string'||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)))
     throw new RefusalError('Invalid member role request');
@@ -231,6 +245,11 @@ const updateRole=defineWrite({
     const priceDelta=args.role!==undefined&&seatPrice(args.role).cents>0&&
       !(seatPrice(target.role).cents>0);
     const unknownPrice=args.role==='SECURITY'&&target.role!=='SECURITY';
+    // AUD-AJ: a confirmed move INTO SECURITY needs the caller's
+    // explicit acknowledgement of the unpriced-seat disclosure.
+    if(unknownPrice&&args.confirm===true&&args.dryRun!==true&&
+      args.acknowledgeUnpricedSeat!==true)
+      throw new RefusalError(ACK_REFUSAL);
     return {teamId,target:{uid:target.uid,role:target.role,email:target.email},
       body,priceDelta,unknownPrice,
       widens:args.role==='OWNER'&&target.role!=='OWNER'||
@@ -240,7 +259,7 @@ const updateRole=defineWrite({
   risk:{spend:true,access:true},
   async spend(_args,_ctx,before){
     if(before.unknownPrice)return {cents:null,recurring:true,
-      description:'Seat price unknown for the SECURITY role'};
+      description:SECURITY_SEAT_DISCLOSURE};
     return {cents:before.priceDelta?SEAT_PRICE_CENTS:0,recurring:true,
       description:before.priceDelta
         ?'Change moves the member onto a paid deploying seat ($20/month stored Pro seat price)'
@@ -259,8 +278,9 @@ const updateRole=defineWrite({
     if(before.body.projects)parts.push('project roles updated for '+
       before.body.projects.length+' project(s)');
     if(before.priceDelta)parts.push('this moves them onto a paid seat: $20/month');
-    if(before.unknownPrice)parts.push('seat price unknown for SECURITY');
-    return parts.join('; ')+'. PRODUCTION owner confirmation required.';
+    return parts.join('; ')+'.'+(before.unknownPrice
+      ?' '+SECURITY_SEAT_DISCLOSURE:'')+
+      ' PRODUCTION owner confirmation required.';
   },
   async production(){
     return {production:true,why:'Member roles govern access on the live owner account'};

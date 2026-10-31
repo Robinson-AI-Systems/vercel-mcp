@@ -410,6 +410,8 @@ reaches only the stores Chris connected on the setup page (IN-15); file contents
 |---|---|---|---|---|---|---|
 | `vercel_member_list` | Members, roles, joined, two-step login if Vercel reports it, pending invites | — | O Op | R | — | O-2 |
 | `vercel_member_invite` | Invite someone by email with a role (a message to a person; paid roles add a seat — dollar preview) | A $ | O | F | — | O-2 |
+
+**AUD-AJ note (2026-10-30):** the SECURITY role's seat has no published price (Enterprise-only, per-contract — no figure is stored). `vercel_member_invite` and `vercel_member_update_role` disclose exactly "Security role — seat price not published by Vercel. This role is Enterprise-only; any charge is set by your team's Enterprise agreement." for SECURITY, and a confirmed invite or role change INTO SECURITY requires `acknowledgeUnpricedSeat: true`; other roles' priced flow is unchanged. `vercel_admin_cost_review` labels its seat total "known costs only — excludes the Security seat" whenever the roster includes a SECURITY seat.
 | `vercel_member_update_role` | Change a member's role (widening: `A`; to a paid role: `$`) | C A $ | O | F | — | O-2 |
 | `vercel_member_remove` | Remove a member from the team (refused for the token owner and the last Owner) | D C | O | F | — | O-2 |
 | `vercel_member_revoke_invite` | Cancel a pending invite code | C | O | F | — | O-2 |

@@ -1,6 +1,6 @@
 import {describe,it,expect,vi,beforeEach} from 'vitest';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
-import {memberTools,seatPrice} from '../../src/tools/members.js';
+import {memberTools,seatPrice,SECURITY_SEAT_DISCLOSURE} from '../../src/tools/members.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 vi.mock('../../src/vercel/tokens.js',async m=>({...await m(),loadToken:vi.fn()}));
 const account={id:'acct_1',team_id:'team_ONE',scope:'team'};
@@ -69,13 +69,56 @@ describe('O-2 member tools',()=>{
      .toEqual([{email:'dev@example.com',role:'DEVELOPER'}]);
    g.api.verify();
  });
- it('marks SECURITY invites price-unknown and VIEWER invites free',async()=>{
+ it('marks SECURITY invites with the exact AUD-AJ disclosure and VIEWER invites free',async()=>{
    const f=fixture();f.api.when('GET','/v2/teams/{teamId}').resolves(team);
    const sec=read(await f.call('vercel_member_invite',{email:'sec@example.com',role:'SECURITY'}));
-   expect(sec.preview).toMatch(/price: unknown for SECURITY/i);
+   expect(sec.preview).toContain(SECURITY_SEAT_DISCLOSURE);
+   expect(sec.preview).not.toMatch(/price: unknown/i);
    const g=fixture();g.api.when('GET','/v2/teams/{teamId}').resolves(team);
    const view=read(await g.call('vercel_member_invite',{email:'v@example.com',role:'VIEWER'}));
    expect(view.preview).toMatch(/free role, no seat charge/);
+ });
+ it('gates a confirmed SECURITY invite on the unpriced-seat acknowledgement (AUD-AJ)',async()=>{
+   const f=fixture();f.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   const refused=read(await f.call('vercel_member_invite',
+     {email:'sec@example.com',role:'SECURITY',confirm:true}));
+   expect(refused.status).toBe('refused_by_guard');
+   expect(refused.reason).toContain(SECURITY_SEAT_DISCLOSURE);
+   expect(refused.reason).toContain('acknowledgeUnpricedSeat');
+   expect(f.api.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+   const g=fixture();
+   g.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   g.api.when('POST','/v2/teams/{teamId}/members')
+     .resolves({email:'sec@example.com',role:'SECURITY',uid:'usr_SEC',username:'sec'});
+   g.api.when('GET','/v3/teams/{teamId}/members').resolves(rosterOf(
+     [member('usr_OWNER1','OWNER'),member('usr_SEC','SECURITY','sec@example.com')]));
+   const applied=read(await g.call('vercel_member_invite',
+     {email:'sec@example.com',role:'SECURITY',confirm:true,
+       acknowledgeUnpricedSeat:true,requestKey:'secInviteAck_01'}));
+   expect(applied).toMatchObject({status:'applied',confirmed:true});
+ });
+ it('gates a role change INTO SECURITY on the acknowledgement (AUD-AJ)',async()=>{
+   const before=rosterOf([member('usr_OWNER1','OWNER'),member('usr_DEV','VIEWER')]);
+   const after=rosterOf([member('usr_OWNER1','OWNER'),member('usr_DEV','SECURITY')]);
+   const f=fixture();
+   f.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   f.api.when('GET','/v3/teams/{teamId}/members').resolves(before);
+   f.api.when('GET','/v2/user').resolves({user:{id:'usr_OWNER1'}});
+   const refused=read(await f.call('vercel_member_update_role',
+     {uid:'usr_DEV',role:'SECURITY',confirm:true}));
+   expect(refused.status).toBe('refused_by_guard');
+   expect(refused.reason).toContain('acknowledgeUnpricedSeat');
+   expect(f.api.calls.filter(x=>x.method==='PATCH')).toHaveLength(0);
+   const g=fixture();
+   g.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   g.api.when('GET','/v3/teams/{teamId}/members')
+     .resolves(before).resolves(before).resolves(before).resolves(after);
+   g.api.when('GET','/v2/user').resolves({user:{id:'usr_OWNER1'}});
+   g.api.when('PATCH','/v1/teams/{teamId}/members/{uid}').resolves({id:account.team_id});
+   const applied=read(await g.call('vercel_member_update_role',
+     {uid:'usr_DEV',role:'SECURITY',confirm:true,acknowledgeUnpricedSeat:true}));
+   expect(applied).toMatchObject({status:'applied',confirmed:true});
+   expect(g.api.calls.find(x=>x.method==='PATCH').body).toEqual({role:'SECURITY'});
  });
  it('refuses demoting the last Owner and changing your own role',async()=>{
    const f=fixture();
