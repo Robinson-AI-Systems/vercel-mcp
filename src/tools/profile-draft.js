@@ -93,8 +93,8 @@ export function profileFromFindings(findings) {
     profile.expected_env = {
       production: stringList(findings.envNames, 'envNames')
     };
-    notes.push('Variable names were recorded for production only; split ' +
-      'them per target on the setup page if preview or development differ.');
+    notes.push('Variable names were recorded for production only; if preview ' +
+      'or development differ, record each target\\u2019s names in a separate draft.');
   }
   if (findings.managedEnv !== undefined) {
     profile.managed_env = stringList(findings.managedEnv, 'managedEnv');
@@ -152,8 +152,8 @@ export function appNeedsText(profile, extras = {}) {
   const lines = [];
   lines.push(`# What ${profile.name} needs from Vercel, and which tool handles each`);
   lines.push('');
-  lines.push('Draft profile generated from codebase findings. Review it, then save ' +
-    'the profile on the MCP setup page to activate it; commit this file in the ' +
+  lines.push('Draft profile generated from codebase findings. Review it, then store ' +
+    'it with vercel_workflow_project_setup to activate it; commit this file in the ' +
     "app's own repository.");
   lines.push('');
   lines.push('## What the app manages by itself (the MCP must not duplicate or fight it)');
@@ -255,9 +255,9 @@ export const profileDraftTools = {
         draft: profile, status: 'draft',
         appNeeds: appNeedsText(profile, { scripts, unmapped, notes }),
         unmapped, notes,
-        note: 'Draft only: nothing was stored. Save it on the setup page ' +
-          'to activate the profile, and commit the APP-NEEDS text in the ' +
-          "app's repository."
+        note: 'Draft only: nothing was stored. Store it with ' +
+          'vercel_workflow_project_setup to activate the profile, and commit ' +
+          "the APP-NEEDS text in the app's repository."
       });
     }
   }

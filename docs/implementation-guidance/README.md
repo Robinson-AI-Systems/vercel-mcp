@@ -23,6 +23,18 @@ batch letter (A–X, AUD) has shipped in source. What remains is not building: t
 run, and CAP-5/UA-18 two-tenant live acceptance. The code map below remains the 2026-10-11 snapshot — verify
 current modules and signatures before following its examples.
 
+**Re-based 2026-10-31 at main `d1d54f5` (AUD-AY docs/catalog shadow):** the sign-in cleanup program has
+landed on top of that audit — one sign-in with derived issuance (AUD-AZ), enrollment in the sign-in flow
+(AUD-AR), envelope apply (AUD-AS), eight account tools (AUD-AT), pass/reveal tools (AUD-AU), the setup route
+deleted (AUD-AV), the read-only switch (AUD-AQ), the handoff hardened (AUD-AW) and the front door polished
+(AUD-AX). The registry has **253 of the 254 catalog tools** (`scripts/check-catalog.mjs`: 254 catalog,
+253 registered); the only unbuilt row is still `vercel_admin_overview` (IN-16). The code map below remains
+the 2026-10-11 snapshot — it still cites `api/vercel/setup.js → src/vercel/setup.js` and the setup-page tests,
+all deleted; read it as history and verify current modules and signatures before following its examples.
+What remains is unchanged plus the program's own live evidence: the promotion-night checks (both-address
+404 on the deleted route, authorize render capture, the read-only flip test, journal sampling) and the
+gate report assembly.
+
 **Current security update (#56):** §7 of [RECIPES](RECIPES.md#7-grouped-operations-and-security-first-throughput-d-1-onward) governs cohesive multi-operation PRs; the runtime authenticates the `defineWrite` origin and guarded handler, partitions transport replay per mutation and preserves write classification in MCP metadata. The older baseline map below is historical; verify current modules and signatures before following its examples.
 
 ## Choose the smallest reading route

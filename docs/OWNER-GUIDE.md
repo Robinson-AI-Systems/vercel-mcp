@@ -5,16 +5,16 @@
 
 Examples of intended owner operations by batch, **not** a certification that every operation is deployed, owner-authorized or tested with actual Vercel resources. Several already have source implementations and fake-provider tests; verify the current connection profile, release and [STATUS](STATUS.md) acceptance row before relying on live mutations.
 
-**Built since (2026-10-31):** the batches this note once listed as unimplemented all shipped in the 2026-10-30 build-out — buying a domain (N-3), firewall (F), team members and billing (O-2/O-4), Appliance Desk readiness and project setup (P), ship/rollback workflows (W) and domain attach (N-1) are merged and registered (240 of 241 catalog tools; see `docs/TOOL-CATALOG.md`). The rows below describe shipped behaviour; live acceptance varies per row and `STATUS.md` is its record.
+**Built since (2026-10-31):** the batches this note once listed as unimplemented all shipped in the 2026-10-30 build-out — buying a domain (N-3), firewall (F), team members and billing (O-2/O-4), Appliance Desk readiness and project setup (P), ship/rollback workflows (W) and domain attach (N-1) are merged and registered (253 of 254 catalog tools; see `docs/TOOL-CATALOG.md`). The sign-in cleanup program also completed 2026-10-31 (AUD-AZ…AUD-AY): one sign-in with profile/mode/listing derived at issuance, credential enrollment inside the sign-in flow, the owner setup page deleted, and owner administration on your own connection — the rows below describe that shipped shape. The rows below describe shipped behaviour; live acceptance varies per row and `STATUS.md` is its record.
 
 | Say something like… | What happens | Batch |
 |---|---|---|
 | "Who am I connected to in Vercel?" | Team, PREVIEW or PRODUCTION, the expiry you chose for your key (if any — your choice, IN-04), today's spend limit | A/B |
 | "Make me a preview of the feature-x branch." | Deploys a preview (never the live site), gives you the link, cleans it up later | V |
 | "Why did that build fail?" | The first error in plain words, the likely cause and the exact fix | V/W |
-| "Set up preview settings for this feature." | Adds preview-only settings; secret values come from your setup page, never chat | V |
+| "Set up preview settings for this feature." | Adds preview-only settings; a secret value you choose is set in the Vercel dashboard (or generated on the server), never in chat | V |
 | "Start an isolated 10-minute Sandbox for this test run and run the checks." | Records requested minutes without a server-imposed daily quota, discloses metered exposure and uses the currently implemented account-owner approval flow before charges (user-delegated policy modes still require separate remediation); supports bounded commands/files and run-owned stop | V-4 |
-| "Prepare a synthetic preview webhook key, then send the sample deployment event." | Reveals the per-run test key on the authenticated owner page, never in chat, and sends only to an exact recorded READY preview over pinned public HTTPS | V-5 |
+| "Prepare a synthetic preview webhook key, then send the sample deployment event." | Delivers the per-run test key as a one-time secret on your own connection (`vercel_reveal_one_time_secret`), never in chat, and sends only to an exact recorded READY preview over pinned public HTTPS | V-5 |
 | "Clean up everything from that test run." | Removes exactly what that run made, nothing else | V |
 | "What's live on the rental site?" | Which version is live, what's waiting, whether anything is rolling out | W |
 | "Ship this preview to the live site." | Checks the build, tests and a few pages, asks you, switches over, confirms | W |
@@ -29,10 +29,10 @@ Examples of intended owner operations by batch, **not** a certification that eve
 | "How much is Vercel costing me this month?" | Charges by service and project vs your target, and what would lower it | O/W |
 | "Is Vercel ready for Appliance Desk?" | Every item the app needs: done, fixed with your OK, or exactly what you need to click | P |
 | "Set up Vercel for my new project." | Project, settings, domains and preview rules — previewed first | P |
-| "Propose a different default account, daily spend cap or exact connector revocation." | An authorized full production-mode connector can submit an encrypted one-use request; you must review, confirm and reenter your passphrase on the separate setup page before anything changes. The tools are built and registered (`vercel_set_default_account`, `vercel_set_spend_limit`, `vercel_revoke_connection`); a $0 figure in `vercel_whoami` is the unset-budget default, not a block — the owner's explicit word executes, under, over or with no budget (OP-2). | B |
+| "Propose a different default account, daily spend cap or exact connector revocation." | An authorized full production-mode connector can submit an encrypted one-use request; you inspect it and apply it on your own connection with `vercel_apply_owner_approval` before anything changes — your passphrase is never a tool argument. The tools are built and registered (`vercel_set_default_account`, `vercel_set_spend_limit`, `vercel_revoke_connection`); a $0 figure in `vercel_whoami` is the unset-budget default, not a block — the owner's explicit word executes, under, over or with no budget (OP-2). | B |
 | "What changed in Vercel through Claude this week?" | The change log | B |
 | "Undo that." | Reverses the last change when it has a clean opposite; says plainly when it doesn't | X |
-| "Make a 24-hour read-only pass for Codex." | A pass shown once via owner setup; the agent uses the standalone HTTPS RTC API directly, without requiring the optional Hub | R |
+| "Make a 24-hour read-only pass for Codex." | A pass issued on your own connection (`vercel_issue_pass`), its bearer delivered once as a one-time secret; the agent uses the standalone HTTPS RTC API directly, without requiring the optional Hub | R |
 | Anything else in Vercel | The universal tools find the right Vercel operation and run it with the same safety | U |
 
 For instructions on owner-controlled activation of this server (without sharing keys with an AI), see [DEPLOY.md](DEPLOY.md). If the scripted overnight watch wakes an agent over a failed probe, the recovery steps it follows are DEPLOY.md §9 — nobody wakes the owner for a probe failure. No Vercel team is connected or deployed as part of completing Batch A.

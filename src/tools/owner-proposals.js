@@ -49,7 +49,7 @@ function removalPreview(facts, before) {
   }
   if (before.accountCount === 1) {
     text += ' It is the only connected account: the server will have no connected Vercel ' +
-      'accounts until a token is added on owner setup.';
+      'accounts until a token is enrolled through the sign-in flow.';
   }
   return text;
 }

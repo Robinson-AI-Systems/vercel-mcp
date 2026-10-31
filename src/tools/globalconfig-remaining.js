@@ -96,7 +96,7 @@ const createToken=defineWrite({
       ' ('+b.id+'), '+(b.projects===null?
         'project linkage not reported by the provider and treated as live-connected':
         'connected to '+b.projects.length+' projects')+
-      '; token never enters chat and is revealed ONCE on owner setup';
+      '; token never enters chat and is revealed ONCE through vercel_reveal_one_time_secret';
   },
   production:classification,
   async targets(_a,b){return targets(b);},
@@ -295,7 +295,7 @@ export const globalConfigRemainingTools={
   tools:[
     {name:'vercel_globalconfig_create_token',writes:true,guardedWrite:true,
       profiles:['full'],area:'env',
-      description:'Issue one guarded read token; only an encrypted, one-time owner setup reference appears in chat.',
+      description:'Issue one guarded read token; only an encrypted, one-time secret reference appears in chat.',
       inputSchema:schema(Object.fromEntries(tokenFields.map(k=>[k,PROPS[k]])),
         ['id','expectedSlug','expectedUpdatedAt','label','outsideApp']),
       writeContract:createToken.writeContract,
