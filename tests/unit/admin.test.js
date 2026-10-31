@@ -14,6 +14,7 @@ vi.mock('../../src/vercel/tokens.js', async (importOriginal) => {
 });
 
 import {adminTools} from '../../src/tools/admin.js';
+import {SECURITY_TOTAL_LABEL} from '../../src/tools/members.js';
 import {findSettingGuide, listSettingGuides} from '../../src/data/dashboard-map.js';
 
 const DAY = 86400000, now = Date.now();
@@ -89,7 +90,32 @@ describe('O-5 admin composition', () => {
     expect(out.effectiveTotalCents).toBe(1234);
     expect(out.topServices[0]).toMatchObject({name: 'Bandwidth', effectiveCents: 1234});
     expect(out.paidSeats.monthlyCents).toBe(4000); // OWNER + MEMBER at $20
+    expect(out.paidSeats.label).toBeNull();
     expect(out.commitments.count).toBe(0);
+  });
+
+  it('cost review labels the seat total when a SECURITY seat is excluded (AUD-AJ)', async () => {
+    const ctx = makeCtx();
+    const baseFetch = ctx.fetchImpl;
+    ctx.fetchImpl = async (url) => {
+      if (new URL(url).pathname === '/v3/teams/team_ONE/members') {
+        return new Response(JSON.stringify({members: [
+          ...MEMBERS.members,
+          {uid: 'u3', email: 'sec@example.com', role: 'SECURITY',
+            username: 'sec', confirmed: true, createdAt: 3}],
+          emailInviteCodes: [], pagination: {next: null}}),
+          {status: 200, headers: {'content-type': 'application/json'}});
+      }
+      return baseFetch(url);
+    };
+    const out = parse(await adminTools.handlers.vercel_admin_cost_review(
+      {from: '2026-10-01', to: '2026-10-31'}, ctx));
+    expect(out.paidSeats.monthlyCents).toBe(4000); // SECURITY adds no figure
+    expect(out.paidSeats.unknownPriceMembers).toBe(1);
+    expect(out.paidSeats.label).toBe(SECURITY_TOTAL_LABEL);
+    expect(out.paidSeats.label)
+      .toBe('known costs only — excludes the Security seat');
+    expect(out.paidSeats.note).toContain(SECURITY_TOTAL_LABEL);
   });
 
   it('guided settings: the map lists coverage with steps-only deletions', () => {
