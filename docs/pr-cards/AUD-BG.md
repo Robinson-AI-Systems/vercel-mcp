@@ -178,5 +178,33 @@ policy, the integration record and paperwork.
 
 ## Evidence
 
-(Filled at completion — harness results named check by named check,
-local and CI, recorded here and in the PR's self-review.)
+**Local harness run** (`scripts/rtc-conformance-ci.mjs`; throwaway
+Postgres 16.2 on localhost, hub checkout at the pin, 2026-10-31;
+run twice — on the original base and again on the rebased tree —
+with identical results). Named check by named check, all `ok`,
+none skipped: `manifest` ✓, `manifest.openapi` ✓, `catalog` ✓,
+`meta` ✓, `passes` ✓, `passes.read_only` ✓, `passes.expired` ✓,
+`passes.revoked` ✓, `safety` ✓, `budget` ✓,
+`oauth.refresh_settings` ✓, `limits.two_instance` ✓ — harness
+exit 0. Dispositioned, run for the record: `reads` ✗ (§7 fields
+projection — the probe's stored-`value` semantics), `writes` ✗
+(§6 dryRun state — the probe's fixture write shapes), exactly the
+two legs dispositioned above.
+
+**Local repo gates:** `npm run check` exit 0 read directly, with
+`BASE_SHA` = origin/main at both bases (a104d234 and, after the
+rebase, 62e031c5). Affected unit suites: `rtc-write-passes`,
+`rtc-http`, `rtc-api` 43/43; with `rtc-manifest` and
+`write-contract` added, 67/67. The CI layout guard passes with
+the `conformance` job in the gate's needs (6 jobs).
+
+**CI:** the first cycle (PR #381, run 41251402487) caught a real
+defect — the conformance job's Postgres service failed to
+initialize on a health-check quoting mismatch — fixed in-card
+(the line is byte-identical to the db job's). #381's snapshot-born
+branch then produced no run for the fixed head (the fleet's known
+App-push pattern) and was closed unmerged with the reason on its
+record; this PR (#387) is the replacement on a true-history
+branch pushed once from the Workshop under the owner's ratified
+CI-firing exception (head and tree verified both sides). Exact-head
+CI run IDs and conclusions are recorded in the PR's self-review.

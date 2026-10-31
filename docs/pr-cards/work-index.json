@@ -1853,14 +1853,17 @@
         "R-2"
       ],
       "card": "docs/pr-cards/R-3.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "none",
       "budget": 100,
       "units": [
         "R-3"
       ],
-      "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "readiness": "MERGED",
+      "ownerInputs": [],
+      "pr": [
+        387
+      ]
     },
     {
       "id": "X-1",
