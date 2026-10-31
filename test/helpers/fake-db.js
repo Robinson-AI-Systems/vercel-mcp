@@ -29,7 +29,11 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         token_last4: account.token_last4 ?? null,
         token_expires_at: account.token_expires_at ?? null,
         token_no_expiry: Boolean(account.token_no_expiry),
-        token_version: account.token_version ?? null
+        token_version: account.token_version ?? null,
+        // The real listVercelAccounts SELECT carries token_probe
+        // (src/db.js); AUD-AZ's door derivation reads its source,
+        // so the fake's projection must carry it too.
+        token_probe: account.token_probe ?? null
       }));
     },
 
