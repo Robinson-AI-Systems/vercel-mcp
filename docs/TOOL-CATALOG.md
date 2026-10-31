@@ -535,6 +535,22 @@ history), shows the covering profile's `rollback_caution` in the preview, verifi
 read-back, and reports whether errors are still occurring (error rows last seen after the
 rollback moment), with `null` when the summary cannot be read.
 
+W-5 (2026-10-30) adds `vercel_workflow_env_sync` (everyday+full) and
+`vercel_workflow_rotate_secret` (full only). Sync plans from `vercel_env_list` on both sides —
+values are never read by the workflow — and dispatches one `vercel_env_copy` step per name the
+destination lacks on the destination target, carrying the source row's exact identity the copy
+tool's contract demands. Secret-kind sources are listed in the preview and the report, never
+stepped; Config rows the copy contract cannot move (their targets include production) are
+reported not-syncable with the reason; a capped inventory refuses rather than planning from
+partial data (card verdicts W5-C1/C2). Rotate refuses Config variables, `VERCEL_*` names and
+profile `managed_env` keys itself (W5-C3), then dispatches `vercel_env_set` in update mode
+with a server-side `generate` block — the fresh value exists only inside that step's pipeline
+and appears in no argument the workflow builds, no result and no journal — and, when the
+variable targets production and a live deployment exists, `vercel_deploy_redeploy` of that
+deployment with its read-back expectations. Its receipt says which other systems must learn
+the new value in the honest general form (W5-C4): no profile field names secret consumers
+today, and the generated value is never shown, by design.
+
 W-4 (2026-10-30) adds `vercel_workflow_setup_custom_domain` (full only). It dispatches
 `vercel_domain_attach_to_project` (skipped when the domain is already attached), reads the
 configuration back, and — when misconfigured — creates exactly the records the config read
