@@ -429,9 +429,12 @@ export function createDb(query) {
     },
 
     /**
-     * Independently authenticated owner setup only. Atomic account-scoped
-     * purchase-policy update and audit, with the same read-back verification
-     * pattern as setOwnerSpendLimit. Every successful set is journaled.
+     * Owner-proofed callers only: the independently authenticated owner
+     * setup page, or an owner-applied approval envelope (AUD-AT — the
+     * envelope is the owner's act; a proposal tool never calls this).
+     * Atomic account-scoped purchase-policy update and audit, with the
+     * same read-back verification pattern as setOwnerSpendLimit. Every
+     * successful set is journaled.
      */
     async setPurchasePolicy(id, policy) {
       const { budgetCents, grantRequired } = policy ?? {};
@@ -475,7 +478,10 @@ export function createDb(query) {
 
     /**
      * AUD-E (design D-E, ruling IN-04): the owner's no-expiry attestation
-     * for the enrolled token. A null token_expires_at establishes nothing —
+     * for the enrolled token. (AUD-AT: the attestation may also arrive
+     * as an owner-applied approval envelope bound to the same token
+     * version — an agent's proposal is never the attestation until the
+     * owner applies it, so the AUD-E property is preserved.) A null token_expires_at establishes nothing —
      * storeToken writes it unconditionally — so "no expiry — owner's
      * choice" may be shown only when this flag is positively set. Returns
      * null when the account does not exist.
@@ -492,8 +498,9 @@ export function createDb(query) {
     },
 
     /**
-     * Independently authenticated owner setup only — no MCP tool may call
-     * this. Atomic account-scoped attestation update and audit, with the
+     * Owner-proofed callers only — the setup page, or an owner-applied
+     * approval envelope (AUD-AT); no tool may call this directly.
+     * Atomic account-scoped attestation update and audit, with the
      * same read-back verification pattern as setPurchasePolicy. Every
      * successful set or clear writes a change_log row.
      */
@@ -845,6 +852,24 @@ export function createDb(query) {
       const rows=await run`SELECT id,vercel_account,kind,ciphertext,expires_at
         FROM one_time_secrets WHERE id=${reference} AND vercel_account=${account}
           AND kind='production_enable' AND expires_at>now()
+          AND viewed_at IS NULL LIMIT 1`;
+      return rows[0]??null;
+    },
+
+    // AUD-AT: the account-setting sibling of the two reads above —
+    // scoped, non-consuming inspection of a pending account-setting
+    // approval envelope (purchase policy, no-expiry attestation,
+    // production strictness, protected-resource clearing) so
+    // vercel_apply_owner_approval can preview it before the family's
+    // consume step runs.
+    async getAccountSettingRequest({account,reference}) {
+      if(typeof account!=='string'||!/^[a-zA-Z0-9_/-]{3,256}$/.test(account)||
+        typeof reference!=='string'||!/^[0-9a-f-]{36}$/.test(reference))
+        throw new TypeError('Invalid pending account setting lookup');
+      const run=getSql();
+      const rows=await run`SELECT id,vercel_account,kind,ciphertext,expires_at
+        FROM one_time_secrets WHERE id=${reference} AND vercel_account=${account}
+          AND kind='owner_account_setting' AND expires_at>now()
           AND viewed_at IS NULL LIMIT 1`;
       return rows[0]??null;
     },
@@ -1222,8 +1247,9 @@ export function createDb(query) {
     },
 
     /**
-     * Independently authenticated owner setup only — strictness is never
-     * settable through a tool. Atomic account-scoped update and audit,
+     * Owner-proofed callers only — the setup page, or an owner-applied
+     * approval envelope (AUD-AT); never settable by a tool's own call
+     * (AUD-B's intent, preserved by the envelope). Atomic account-scoped update and audit,
      * with the same read-back verification pattern as setPurchasePolicy.
      * The change_log row is recorded under vercel_enable_production and
      * its summary names the new strictness (packet AUD-B build contract).
