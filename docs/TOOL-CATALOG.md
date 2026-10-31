@@ -1,12 +1,12 @@
 # Tool catalog
 
-**2026-10-19 R-2 transport and pass settings (merged in PR #219, 2026-10-21; PRs #220–#222 also merged):** The independently operated service display name is **Vercel by Robinson AI Systems**; stable `vercel_*` tool IDs do not change. `vercel_create_pass` proposals now accept optional `rateLimitPerMinute` (integer 1–600, default 120); independently authenticated owner setup reviews and issues this scope. Existing issued RTC passes retain the legacy 60/min on additive migration; new pass limits are atomically enforced across serverless instances. The proposal is **read-only**, not a grant to write, spend, or change production. See `docs/PRODUCT-AUTHORITY-AUDIT.md` for the unfinished customer authority work. Exact-head CI and deployed/live client proof remain pending.
+**2026-10-19 R-2 transport and pass settings (merged in PR #219, 2026-10-21; PRs #220–#222 also merged):** The independently operated service display name is **Vercel by Robinson AI Systems**; stable `vercel_*` tool IDs do not change. `vercel_create_pass` proposals now accept optional `rateLimitPerMinute` (integer 1–600, default 120); independently authenticated owner setup reviews and issues this scope. Existing issued RTC passes retain the legacy 60/min on additive migration; new pass limits are atomically enforced across serverless instances. The original proposal shape was **read-only**; since R-1W (2026-10-30) a proposal may also request write scope (`allowWrites`), issued and dispatched under the same owner review — see the R-1W amendment in `docs/designs/BATCH-R.md`. The customer-authority verdicts are recorded in `docs/PRODUCT-AUTHORITY-AUDIT.md` (2026-10-30 verdict pass); live acceptance status lives in `docs/STATUS.md`, not here (updated 2026-10-31, AUD-AN).
 
 
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-30 docs-accuracy audit, HEAD `8978607b`; M-1, M-2, M-3, M-4, F-1, F-2, F-3, U-1's write side, O-1R, N-2, O-2, N-3, O-3, P-1, O-4, P-2 and O-5 added 2026-10-30): 225 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list). The other 20 are planned scope for approved batches O-5, P-3, W, X, plus `vercel_undo_change`. A Card cell saying `candidate` means planned, not built; a few merged tools still say `candidate` because their Card cell was never updated. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-31 documentation audit AUD-AN, main `8fb9e83`): 240 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list; `scripts/check-catalog.mjs` verifies 241 catalog tools, 240 registered). The build-out completed 2026-10-30 (batches O-5, P-3, W and X and `vercel_undo_change` all shipped). The one unbuilt row is `vercel_admin_overview`, **closed by owner ruling IN-16 (ratified 2026-10-30) — it will not be built**; its row below records the closure. A Card cell saying `candidate #NNN` is the historical delivery-PR label from that tool's build era, not a build state; built state is the registry's, per the counts above. Do not read a catalog count as an implementation count.never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 
 are `vercel_dev_<job>` (contract §10).
 
@@ -650,7 +650,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | **All tools** | **241** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
-O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 5 (= 241). By lowest profile: `read_only` 103, `everyday` 160 (103 + 57), `full` all 241
+O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 5 (= 241). By lowest profile, of the 240 **registered** tools (registry truth, AUD-AN 2026-10-31): `read_only` 103, `everyday` 41, `full` 96 — cumulative visibility `read_only` 103, `everyday` 144, `full` 240; the 241st catalog row (`vercel_admin_overview`, `full`) is unbuilt by the IN-16 ruling
 (B-6 prints the exact counts from the registry). In compact mode (`docs/designs/BATCH-C.md`) an agent loads about 20
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.
 
