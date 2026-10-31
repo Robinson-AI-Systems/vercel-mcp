@@ -98,9 +98,19 @@ describe('A-4 Vercel HTTP client', () => {
       throw Object.assign(new Error('timeout'), { name: 'TimeoutError' });
     };
     const client = makeVercelClient({ token, account, fetchImpl });
-    await expect(client.request('user_get')).rejects.toMatchObject({ code: 'outcome_unknown', confirmed: null });
+    // AUD-BN: a read that times out keeps the computed failure class on the
+    // thrown error, so the surface can classify it instead of unknown_error.
+    await expect(client.request('user_get')).rejects.toMatchObject({ code: 'outcome_unknown', confirmed: null, failureClass: 'timeout' });
     expect(seen).toHaveLength(1);
     expect(seen[0].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('carries the network failure class on a read whose fetch never answers (AUD-BN)', async () => {
+    let calls = 0;
+    const fetchImpl = async () => { calls++; throw new Error('fetch failed'); };
+    const client = makeVercelClient({ token, account, fetchImpl });
+    await expect(client.request('user_get')).rejects.toMatchObject({ code: 'outcome_unknown', confirmed: null, failureClass: 'network' });
+    expect(calls).toBe(2); // the one bounded GET retry, unchanged
   });
 
   it('caps pagination and rejects repeated cursor loops', async () => {

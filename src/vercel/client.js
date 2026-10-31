@@ -197,10 +197,16 @@ export function makeVercelClient({
       } catch (cause) {
         if (attempt === 0 && RETRYABLE.has(method) && cause?.name !== 'TimeoutError' &&
             cause?.name !== 'AbortError') continue;
+        // AUD-BN: the failure class computed here is the only truthful
+        // classification a surface can offer when the provider never
+        // answered — attach it for reads too, not only for writes, so the
+        // error renderer can say timeout vs network instead of collapsing
+        // to unknown_error. The write shape (leg + failureClass) is unchanged.
         throw error('outcome_unknown', 'Vercel request outcome needs read-back verification',
-          { confirmed: null, ...(isWrite ? { leg: id, failureClass:
+          { confirmed: null, failureClass:
             (cause?.name === 'TimeoutError' || cause?.name === 'AbortError') ?
-              'timeout' : 'network' } : {}) });
+              'timeout' : 'network',
+            ...(isWrite ? { leg: id } : {}) });
       }
       if(response.ok && options.streamLogs===true){
         // An empty HTTP success is not a readable stream. It also cannot

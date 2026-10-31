@@ -264,9 +264,13 @@ export const deploymentReadTools={
         !/^\/[A-Za-z0-9/_-]{0,149}$/.test(args.path)||credentialLike(args.path)))
         throw new TypeError('Invalid runtime path filter');
       const {client,project}=await scopedDeployment(args,ctx,{timeoutMs:4000});
+      // AUD-BN: the bound must cover the provider's time-to-first-byte on a
+      // log query — at D-2m's 2.5 s the fetch aborted before the bounded
+      // reader could run on real deployments. The reader's 32 KiB / 50-row
+      // caps and its abort-driven partial sample still bound the read.
       const received=await client.request('runtime_logs_get',{
         path:{projectId:project,deploymentId:args.deployment}
-      },{streamLogs:true,timeoutMs:2500});
+      },{streamLogs:true,timeoutMs:10000});
       let matched=0,inWindow=0;
       const levels={error:0,warning:0,info:0,fatal:0,debug:0,other:0};
       const statuses={};
