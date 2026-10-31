@@ -128,3 +128,38 @@ in-memory counter, per-pass 1–600 with the IN-10 default of 120) is unchanged 
 model until a fresh amendment adopts the `rtc_passes` model for writes — defining allow-writes, spend
 (under the OP-2 delegation shape, BATCH-B amendment D-A) and revocation semantics there — or records an
 explicit migration decision to the §2 model.
+
+**2026-10-30 — the `rtc_passes` model is adopted for writes (owner ratification, card R-1W).** Chris
+ratified doc-follows-code for pass storage on 2026-10-30 (passes live in `rtc_passes`; no `rate_limits`
+table), and B-8's §5 resolution is ratified with it. This amendment is the fresh amendment the 2026-10-27
+entry requires; it adopts the `rtc_passes` model for write-capable passes with these semantics:
+
+- **Storage.** Additive columns on `rtc_passes`: `allow_writes BOOLEAN NOT NULL DEFAULT FALSE`,
+  `spend_limit_cents INTEGER NOT NULL DEFAULT 0`, `project_ids JSONB` (NULL = no project restriction).
+  Every existing row keeps exactly its current behavior: `allow_writes` false is today's read-only pass,
+  and the read-only predicates in inspect/authorize are preserved verbatim for read passes.
+- **Shape of a write pass.** `allow_writes = true`, `profile` ∈ {everyday, full} (the delegated
+  connection profile the registry's visibility rule already understands), `mode` ∈ {preview, production}.
+  TEST mode never writes. Every issuance path (owner-reviewed proposal and the direct setup form) sits
+  behind the setup page's administrator passphrase, which satisfies R-1's rule that production + writes
+  also needs the setup-page passphrase.
+- **Dispatch.** The RTC door lists, describes and invokes a write tool for a write pass only when the
+  tool's registered profiles include the pass profile, the tool's area is in the pass's areas, and the
+  tool is a guarded write. Invocation runs the shared registry dispatcher, so the tool's exact
+  `defineWrite` lifecycle (preflight, guards, durable replay, audit, independent read-back) is the pass's
+  write path — there is no second executor. The batch route stays read-only.
+- **Spend (OP-2 / BATCH-B D-A delegation shape).** The pass's `spend_limit_cents` is its standing
+  delegation ceiling, chosen by the owner at issuance. Zero means spend-classified writes refuse on the
+  pass. A fixed, known price at or under the ceiling executes under the pass delegation and is journaled
+  as a pass delegation (never as the owner's own word). Recurring or unquantified spend always refuses on
+  a pass: no provider-enforceable ceiling exists, the same rule the purchase-grant path applies.
+  Enforcement lives in the write preflight's purchase branch, keyed on the server-minted pass fields of
+  the frozen connection object, so caller arguments can never widen it and every door inherits it.
+- **Project restriction.** When `project_ids` is set, the write executor refuses unless every declared
+  target resolves to a project in the list (the id from `target.projectId`, or `target.id` when
+  `kind === 'project'`, or `target.project`); a write whose targets resolve to no project refuses,
+  because its scope cannot be proven. Enforced in the executor after targets are computed and before any
+  dispatch — one seam, all doors.
+- **Revocation and rate limiting.** `revokeRtcPass` already applies to any pass row; the door's per-call
+  authorization re-checks revocation and expiry atomically, unchanged. The per-pass atomic rate window
+  applies to write calls identically (one call, one unit).

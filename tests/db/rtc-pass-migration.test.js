@@ -35,4 +35,18 @@ describe('RTC grant migration never widens existing authority',()=>{
     const repeated=await rawQuery("SELECT rate_limit_per_minute FROM rtc_passes WHERE token_hash='legacy-hash'");
     expect(repeated).toEqual([{rate_limit_per_minute:60}]);
   });
+  it('adds the R-1W write columns with read-only defaults on legacy rows',async()=>{
+    const legacy=await rawQuery("SELECT allow_writes,spend_limit_cents,project_ids FROM rtc_passes WHERE token_hash='legacy-hash'");
+    expect(legacy).toEqual([{allow_writes:false,spend_limit_cents:0,project_ids:null}]);
+    const cols=await rawQuery(`SELECT column_name,column_default,is_nullable FROM information_schema.columns
+      WHERE table_schema=current_schema() AND table_name='rtc_passes'
+      AND column_name IN ('allow_writes','spend_limit_cents','project_ids') ORDER BY column_name`);
+    expect(cols).toEqual([
+      {column_name:'allow_writes',column_default:'false',is_nullable:'NO'},
+      {column_name:'project_ids',column_default:null,is_nullable:'YES'},
+      {column_name:'spend_limit_cents',column_default:'0',is_nullable:'NO'}]);
+    await db.initSchema();
+    const repeated=await rawQuery("SELECT allow_writes,spend_limit_cents,project_ids FROM rtc_passes WHERE token_hash='legacy-hash'");
+    expect(repeated).toEqual([{allow_writes:false,spend_limit_cents:0,project_ids:null}]);
+  });
 });
