@@ -45,14 +45,15 @@ describe('AUD-I S2: the two-doors page', () => {
     expect(html).not.toContain('integrations/');
   });
 
-  it('keeps Door 2 fully visible with the Five Points and the setup route', () => {
+  it('keeps Door 2 fully visible with the Five Points and the enrollment branch (AUD-AR)', () => {
     const html = renderConnectPage({});
     expect(html).toContain('Want account-wide control?');
     expect(html).toContain('freely reversible');
     expect(html).toContain('Your key is the only lock');
     expect(html).toContain('Full Account');
     expect(html).toContain('including never');
-    expect(html).toContain('href="/api/vercel/setup"');
+    expect(html).toContain('href="/api/oauth/enroll"');
+    expect(html).not.toContain('href="/api/vercel/setup"');
     // The page itself never asks for a token.
     expect(html).not.toContain('type="password"');
     expect(html).not.toContain('<form');

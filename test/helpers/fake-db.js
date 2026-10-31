@@ -1,9 +1,11 @@
 // Copied from Robinson-AI-Systems/stripe-mcp test/helpers/fake-db.js @ 6cb3f64 (extended for Vercel MCP A-2/A-3a).
+import { randomUUID } from 'node:crypto';
 import { SCHEMA_TABLES, connectionSettings } from '../../src/db.js';
 import { hashToken } from '../../src/core/oauth.js';
 
 export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
   const rows = new Map();
+  const blobRows = new Map();
   const accountRows = new Map(accounts.map((account) => [account.id, structuredClone(account)]));
   const tables = new Set();
   const clients = new Map();
@@ -35,6 +37,67 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         // so the fake's projection must carry it too.
         token_probe: account.token_probe ?? null
       }));
+    },
+
+    // Mirrors the real upsertVercelAccount (src/db.js): the same
+    // validation, and the AUD-E semantics — every enrollment resets
+    // token_no_expiry and mints a fresh token_version, so a rotated
+    // token never inherits the previous key's attestation.
+    async upsertVercelAccount({ id, teamId, teamSlug, label, scope, projectId = null,
+      projectName = null, tokenEnc, tokenLast4, expiresAt = null, probe }) {
+      if (!id || !teamId || !teamSlug || !label ||
+        !['team', 'project', 'full'].includes(scope) || !tokenEnc ||
+        !/^[a-zA-Z0-9]{4}$/.test(tokenLast4) ||
+        (scope === 'project' && !projectId)) throw new TypeError('Invalid Vercel account');
+      const existing = accountRows.get(id);
+      accountRows.set(id, {
+        ...(existing || { production_enabled: false, is_default: false,
+          spend_limit_cents: 0, purchase_budget_cents: null, purchase_grant_required: false,
+          production_enable_strictness: 'word' }),
+        id, team_id: teamId, team_slug: teamSlug, label, scope,
+        project_id: projectId, project_name: projectName,
+        token_enc: tokenEnc, token_last4: tokenLast4,
+        token_expires_at: expiresAt, token_no_expiry: false,
+        token_version: randomUUID(), token_probe: probe
+      });
+    },
+    async getAccountCredential(id) {
+      if (typeof id !== 'string' || !id) return null;
+      const account = accountRows.get(id);
+      if (!account) return null;
+      return { id: account.id, team_id: account.team_id, scope: account.scope,
+        project_id: account.project_id, token_enc: account.token_enc,
+        token_expires_at: account.token_expires_at, token_probe: account.token_probe };
+    },
+
+    // Mirrors the real Blob store connection methods (src/db.js):
+    // the list projection never carries the ciphertext.
+    async insertBlobStoreConnection({ account, storeId, label, access = 'public',
+      ciphertext, tokenLast4 }) {
+      if (!account || !storeId || !label || !ciphertext ||
+        !['public', 'private'].includes(access) ||
+        !/^[a-zA-Z0-9]{4}$/.test(tokenLast4 || '')) {
+        throw new TypeError('Invalid Blob store connection');
+      }
+      const key = account + '\n' + storeId;
+      const existing = blobRows.get(key);
+      blobRows.set(key, { account, storeId, label, access, ciphertext, tokenLast4,
+        createdAt: existing?.createdAt ?? new Date(clock()), updatedAt: new Date(clock()) });
+    },
+    async listBlobStoreConnections(account = null) {
+      return [...blobRows.values()]
+        .filter((row) => account === null || row.account === account)
+        .map((row) => ({ account: row.account, storeId: row.storeId, label: row.label,
+          access: row.access, tokenLast4: row.tokenLast4,
+          createdAt: row.createdAt, updatedAt: row.updatedAt }));
+    },
+    async getBlobStoreConnectionCiphertext({ account, storeId }) {
+      if (!account || !storeId) return null;
+      return blobRows.get(account + '\n' + storeId)?.ciphertext ?? null;
+    },
+    async deleteBlobStoreConnection({ account, storeId }) {
+      if (!account || !storeId) return false;
+      return blobRows.delete(account + '\n' + storeId);
     },
 
     async getTokenNoExpiry(id) {
