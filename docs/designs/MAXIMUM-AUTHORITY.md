@@ -148,3 +148,64 @@ References checked 2026-10-21:
 ## Sol 5.6 implementation entry — owner 2026-10-21
 
 The [concrete implementation handoff](../UNIVERSAL-IDENTITY-HANDOFF.md) maps these existing units to current files, migration boundaries, negative/positive fixtures and exact verification families. Use it with the original cards; no units, approval states or acceptance results change. Independent user/tenant/role/grant implementation is eligible engineering, not a live-provider prerequisite. Reconcile original unfinished work before dependent expansion.
+
+## Reconciliation — 2026-10-30 (authority tail, after the catalog build-out)
+
+A fresh pass over CAP-1..CAP-5 against current source, as the build-out that
+these units planned has since landed. Recorded facts first: the five CAP units
+exist as work-index entries and as the design sections above; JIT card files
+(`docs/pr-cards/CAP-*.md`) were never written, so this section is the units'
+record. Verdicts use the audit vocabulary: a source verdict is not live
+acceptance.
+
+- **CAP-1 (operation inventory) — SUPERSEDED in purpose.** The inventory
+  existed to find and disposition every operation gap. The catalog build-out
+  did that work empirically, family by family against the vendored snapshot:
+  the registry stands at 240 of 241 catalog tools, the 241st
+  (`vercel_admin_overview`) closed by the owner's IN-16 ruling rather than
+  built. The operation surface's living record is `src/vercel/operations.js`,
+  `docs/TOOL-CATALOG.md`, the vendored OpenAPI snapshot and the per-batch
+  dossiers — not one generated ledger. That ledger artifact was never
+  generated; producing it now is a reporting exercise, not engineering, and
+  it is recorded here as the program's one unbuilt artifact, for an explicit
+  future commission or waiver rather than a silent drop.
+- **CAP-2 (maximize ordinary authorization) — SATISFIED in source.** The
+  denial classification this unit ordered is `docs/PRODUCT-AUTHORITY-AUDIT.md`
+  itself (UA-01..UA-19, with the 2026-10-30 verdict pass). The fullest-ordinary
+  outcome shipped under the owner's later doctrine: IN-17 (the door choice is
+  the safety model), AUD-A/B/D/E owner-word authority and delegation, Door 2
+  full-account enrollment (live two-scope proof recorded in the audit
+  pipeline's A-14 acceptance), and effective-access explanation on
+  `vercel_whoami` / token recheck. Per-door positive/negative live acceptance
+  remains CAP-5's track, as this unit's own acceptance separates.
+- **CAP-3 (guided additional authority lifecycle) — SATISFIED in source for
+  the credential kinds that exist; its resolver language SUPERSEDED by
+  IN-17.** Shipped: OAuth authorization_code + refresh_token grants with
+  rotation, PKCE/state and one-use consumption (`src/core/oauth-handlers.js`);
+  setup-page token enrollment including the broader-account choice;
+  purchase grants and the D-A delegation policy; the RTC pass lifecycle
+  (issue/inspect/authorize/revoke, per-call re-check, R-1 + R-1W);
+  interrupted-flow recovery via pending inputs and owner proposals; and
+  two-principal isolation tests (account controls, connection revocation,
+  result-store scoping). CAP-3's "deterministic operation-aware resolver"
+  predates IN-17 (2026-10-28), which dropped the fine-grained switchboard:
+  credentials are selected by door and scope, never guessed per operation,
+  never borrowed across tenants and never silently widened — the resolver's
+  safety intent is satisfied by construction rather than by a resolver layer.
+- **CAP-4 (advanced workflow gaps) — SATISFIED in source except R-2's leg,
+  which stays on R-2's card.** The families this unit named (team/admin/
+  security, deployment lifecycle, registrar/DNS, storage, Marketplace,
+  Sandbox, Gateway) were closed by Batches O/F/M/N/U/V/W, AUD-AJ and V-6;
+  R-1's unfinished writes were closed by R-1W, per this unit's rule that
+  existing work stays on its original ID. R-2 (HTTPS tool API write
+  contract) remains IN_PROGRESS on its own card and is the program's only
+  unfinished engineering leg.
+- **CAP-5 (independent acceptance) — OPEN, by design.** This unit is an
+  acceptance program over the exact READY revision, not engineering: its
+  scenarios (ordinary Full and additional-authority workflows, wrong
+  principal/tenant/resource denials, refresh/revocation, interrupted setup,
+  ambiguous-effect replay) run live, and its two-independent-tenant
+  scenarios require a second real user — an external prerequisite its own
+  acceptance names. The audit pipeline's staged post-promotion probe
+  sequence is its current execution vehicle. Nothing in this unit is
+  buildable in source, and no part of it is recorded as satisfied.
