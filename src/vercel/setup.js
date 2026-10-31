@@ -341,7 +341,7 @@ function panel(accounts, csrf, message = '', connections = [], blobStores = []) 
     '<p>Removing an account deletes its stored credential on this server and everything scoped ' +
     'to the enrollment: its connections and passes are revoked, and its pending secret inputs, ' +
     'pending one-time secrets, unconsumed sign-in codes and account-scoped protection rules are ' +
-    'deleted. Audit history and purchase records are kept. The default account cannot be removed ' +
+    'deleted. Audit history and purchase records are kept for 400 days. The default account cannot be removed ' +
     'while other accounts remain — choose a new default first. This changes the server database, ' +
     'not any real Vercel resource. Disabled on preview deployments.</p>' +
     '<form method="post">' + csrfInput(csrf) +
@@ -886,7 +886,7 @@ export async function handleSetup(req, res, {
       if (outcome !== 'removed') {
         return html(res, 409, 'Not verified', '<p>The removal was not verified. Inspect current account state before trying again.</p>');
       }
-      message = 'The enrolled account was removed and independently verified: its stored credential and account-scoped state are gone. Audit history and purchase records remain.';
+      message = 'The enrolled account was removed and independently verified: its stored credential and account-scoped state are gone. Audit history and purchase records remain for 400 days.';
     } else if (params.action === 'review_purchase') {
       if(env.VERCEL_ENV!=='production')
         return html(res,403,'Unavailable','<p>Purchase approval requires the production server.</p>');
