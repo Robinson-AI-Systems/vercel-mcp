@@ -9,6 +9,27 @@ remain binding. This document is not implementation or live verification.
 
 # Decisions (dated)
 
+**2026-10-31 — One sign-in; the sign-in cleanup program (AUD-AZ…AUD-AY).** The owner
+ruled that owner-setup is removed, not relocated, and the program shipped the same
+day: there is exactly one sign-in. The consent form asks for the account and the
+administrator passphrase only; profile is derived from the enrollment door
+(integration install → everyday, token → full), mode from the account's own
+production switch, and the listing is always the front door (AUD-AZ). Credentials
+enroll as a branch of the sign-in flow (`/api/oauth/enroll`, AUD-AR) with probe
+and scope read-back before storage. Owner administration lives on the owner's own
+connection: approval envelopes are inspected/applied with
+`vercel_apply_owner_approval` (AUD-AS — the apply proof is possession of the
+owner's connector connection behind the kind gate, not a passphrase re-entry;
+dossier D2), the eight form-only account actions are tools (AUD-AT), and passes
+are issued/revoked and one-time secrets revealed there (AUD-AU, D8). The setup
+route is deleted (AUD-AV) and the `pending_inputs` supply channel with it (D9):
+a chosen secret value is set in the Vercel dashboard or generated server-side.
+Read-only is the end user's own switch on their connection (`vercel_set_read_only`,
+AUD-AQ) — never a sign-in class or grant type; stored rows are never rewritten, so
+grandfathered connections keep working unchanged (D6). The full decision set
+(D1–D9) is recorded in the sign-in cleanup dossier of 2026-10-31; this entry is
+its decisions-log home.
+
 **2026-10-31 — Retention clocks (Production Gate decision, AUD-AO).** The fleet
 retention clocks apply to this server: the change journal (`change_log`) and the
 purchase ledger (`purchase_intents`) are retained 400 days, then sweep-purged;

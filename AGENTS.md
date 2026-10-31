@@ -398,7 +398,7 @@ what the current card needs. Build what doesn't depend on a missing answer; keep
 
 **Configurable by default.** Limits, thresholds and defaults (daily spend limit, sandbox minutes, pass lifetime, rate
 limit, result size cap, seat price, cost target, protected resources, profile contents) are stored settings with a
-sensible starting value, explained in plain words in the tool description or setup page. Money is shown in dollars and
+sensible starting value, explained in plain words in the tool description or on the connection page. Money is shown in dollars and
 cents; stored in integer cents. Times stored UTC, shown America/Denver.
 
 ## How work is organized
@@ -472,8 +472,10 @@ cents; stored in integer cents. Times stored UTC, shown America/Denver.
   (`docs/designs/BATCH-M.md` M6). Both the package and that file exist — cite them as current code.
 - **Every tool name starts with `vercel_`** (`docs/TOOL-CATALOG.md` "Naming").
 - **No secret ever returned:** environment variable values of any type, tokens, bypass secrets, webhook secrets, Global
-  Config tokens, transfer codes, passes. Created secrets go to the one-time-secret page; secret inputs come from the
-  setup page (`pending_inputs`) or are generated on the server.
+  Config tokens, transfer codes, passes. Created secrets are delivered as one-time secrets, revealed once through
+  `vercel_reveal_one_time_secret`; secret inputs never travel in chat or tool arguments — a chosen secret value is set
+  in the Vercel dashboard, or the value is generated on the server. (The `pending_inputs` supply channel was removed in
+  AUD-AV, decided default D9; the table remains for the retention sweep only.)
 - **Production is explicit:** a preview connection never changes production; production writes need a production
   connection and `confirm` (`docs/designs/BATCH-B.md` B2).
 - **Small results:** every read tool takes `fields` and `detail`; nothing over 8 KB returned without a handle; listing

@@ -379,7 +379,7 @@ const setup = defineWrite({
         tool: s.tool, requestKey: s.requestKey,
         undo: "vercel_undo_change over that step's own change-log row" })),
       draftProfile: before.appId,
-      note: 'Remove the draft profile row on the setup page if the setup is abandoned.' };
+      note: 'The stored profile row stays as an inert draft (status draft activates nothing) if the setup is abandoned.' };
   },
   async publicReceipt(_args, before, applied) {
     return { project: before.name, projectId: applied?.projectId ?? null,

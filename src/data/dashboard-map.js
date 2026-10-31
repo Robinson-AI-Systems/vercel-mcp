@@ -115,7 +115,7 @@ const GUIDES = [
     stepsOnly: true,
     steps: steps(
       S('Move or delete every project, domain and stored resource the team still owns.', 'Team resources'),
-      S('Remove the team\u2019s seated accounts from this server first if this server manages it (vercel_remove_account).', 'This server\u2019s setup page'),
+      S('Remove the team\u2019s seated accounts from this server first if this server manages it (vercel_remove_account).', 'This server: the owner\u2019s connection'),
       S('Open team Settings, General, and use the Delete Team control at the bottom.', 'Team → Settings → General'),
       S('Type the confirmation exactly as the dashboard asks. This cannot be undone.', 'Delete confirmation')),
     expected: 'The team no longer appears in vercel_account_teams.',

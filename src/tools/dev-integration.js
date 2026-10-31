@@ -164,7 +164,7 @@ export const devIntegrationTools={
         const actual=typeof b.raw.ssoProtection==='string'?b.raw.ssoProtection:null;
         result.push(row('protection',s.protection,compare(s.protection,actual),
           actual===null?'Provider protection state is not fully attested':'Observed protection setting',
-          'Use owner setup to review access and authentication; no implicit protection changes'));
+          'Review access and authentication with vercel_protection_get; no implicit protection changes'));
       }
       if(s.needsBypass===true){
         const objs=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:s.runId});
@@ -173,7 +173,7 @@ export const devIntegrationTools={
         const providerProof=b.raw.protectionBypass&&typeof b.raw.protectionBypass==='object';
         result.push(row('automation-bypass','owner-managed',recorded&&providerProof?'ok':'unverified',
           'Bypass presence is checked by metadata only; the private credential is never returned',
-          'Request a scoped one-time bypass through the authenticated owner setup path'));
+          'Request a scoped one-time bypass with vercel_protection_create_bypass on the owner\\u2019s connection'));
       }
       for(const name of s.integrations??[]){
         result.push(row('integration',safeText(name,100),'unverified',

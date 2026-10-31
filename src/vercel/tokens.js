@@ -162,11 +162,11 @@ async function visibleRows(client, operation, field, leg = field) {
     if (next == null) return rows;
     if (!Number.isSafeInteger(next) || next < 0 || !items.length ||
         (until !== undefined && next >= until)) {
-      throw probeFail(leg, 'Token visibility is incomplete; review the connection in owner setup');
+      throw probeFail(leg, 'Token visibility is incomplete; review the connection in the sign-in flow');
     }
     until = next;
   }
-  throw probeFail(leg, 'Token visibility is incomplete; review the connection in owner setup');
+  throw probeFail(leg, 'Token visibility is incomplete; review the connection in the sign-in flow');
 }
 
 // A Vercel API read can prove access to a team/project, not the token's
@@ -416,7 +416,7 @@ export async function probeInstallationToken({ token, teamId, installationId,
   if (!safeId(teamId) || !safeId(installationId) ||
     typeof integrationId !== 'string' || !integrationId) {
     throw probeFail('input',
-      'A valid installation identity is required; review the connection in owner setup');
+      'A valid installation identity is required; review the connection in the sign-in flow');
   }
   const client = makeVercelClient({
     token, account: { id: 'probe_only', team_id: teamId },
@@ -728,7 +728,7 @@ export async function recheckStoredToken({ db, accountId, env = process.env, fet
     storedScope = ['team', 'project', 'full'].includes(account?.scope) ?
       account.scope : null;
     if (account.id !== accountId || !storedScope) {
-      throw new Error('Stored connection scope must be reviewed in owner setup');
+      throw new Error('Stored connection scope must be reviewed in the sign-in flow');
     }
     phase = 'probe';
     // AUD-I S5: recheck routes by account kind — a personal seat is

@@ -92,7 +92,7 @@ export function accountLayerText(report) {
 export function flipReport(report) {
   const step = report.source === 'integration' ?
     'Widening this install\'s projects is a step: Vercel dashboard → Integrations → Manage Access. Changes inside the granted set are instant.' :
-    'Widening beyond this seat means enrolling a broader credential on the setup page.';
+    'Widening beyond this seat means enrolling a broader credential through the sign-in flow\\u2019s enrollment branch.';
   return {
     withinCeiling: 'instant — a setting flip on this connection, journaled, credential untouched',
     beyondCeiling: step,

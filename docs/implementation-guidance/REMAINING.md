@@ -26,7 +26,17 @@ W-1…W-6, X-1 (`vercel_undo_change`) and R-1W (write-capable RTC passes) are al
 The one unbuilt catalog row, `vercel_admin_overview`, is closed by owner ruling IN-16 and will not be built.
 Genuinely remaining: the live acceptance program (`docs/STATUS.md`), R-2's separate HTTP write-contract leg,
 R-3 conformance, the X-2 scratch run, and CAP-5/UA-18 two-tenant live acceptance. Where a row below contradicts
-this paragraph, this paragraph wins. Tests/operations
+this paragraph, this paragraph wins.
+
+**Re-based 2026-10-31 at main `d1d54f5` (AUD-AY docs/catalog shadow):** the sign-in cleanup program
+(AUD-AZ/AQ/AR/AS/AT/AU/AV/AW/AX) has landed; the registry is **253 of 254 catalog tools**
+(`scripts/check-catalog.mjs`), the only unbuilt row still `vercel_admin_overview` (IN-16). The B-8b, O-1,
+P-1, U-1 and R rows below still name the setup page and pending inputs as the owner surface — that surface
+was deleted outright (AUD-AV, D9): enrollment is the sign-in flow's branch, apply is
+`vercel_apply_owner_approval`, passes are issued/revealed on the owner's connection, and read-only is a
+connection switch. Where a row below contradicts this paragraph, this paragraph wins. Genuinely remaining
+is unchanged, plus the program's promotion-night evidence (both-address 404 on the deleted route,
+authorize render capture, the read-only flip test, journal sampling) and the gate report assembly. Tests/operations
 are selected JIT from the actual predecessor, catalog and snapshot; this map does not pin unverified future API versions
 or add scope. All paths marked **proposed** below were absent at the inspected baseline (2026-10-11); check the current
 tree before treating any of them as still absent.

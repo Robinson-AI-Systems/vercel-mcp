@@ -109,7 +109,7 @@ export const APPLIANCE_DESK_PROFILE = Object.freeze({
   notes: [
     'TWILIO_PHONE_NUMBER is deliberately unset today (APP-NEEDS), so it is not an expected_env entry.',
     'COLORADO_GIS_API_KEY is planned, not expected yet.',
-    'The private photo Blob store and the preview-only private Blob store join owned_stores when the owner names them on the setup page; only appliance-desk-photos is named in the app docs.',
+    'The private photo Blob store and the preview-only private Blob store join owned_stores when the owner connects them through Blob enrollment in the sign-in flow; only appliance-desk-photos is named in the app docs.',
     'vercel.json git.deploymentEnabled now default-denies the app\u2019s own git deployments except live and testing; no_preview_branches above is the explicit never-preview list this server\u2019s preview tools enforce.'
   ]
 });

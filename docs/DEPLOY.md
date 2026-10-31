@@ -5,7 +5,7 @@
 
 **Already completed, do not provision again:** 2026-10-13 initial hosting and owner credential setup verified. Sections 1–5 below describe the original first-time setup or authorized recovery, not remaining required provisioning. The dedicated Vercel project is READY on the checked `live` revision, dedicated Neon schema initialized and an encrypted, team-scoped Robinson AI Systems credential stored. Public OAuth and RTC metadata respond over HTTPS; authenticated custom MCP, live provider reads/writes and provider revocation were exercised in the 2026-10-30 acceptance pass (verdicts in `docs/STATUS.md`); the formal per-client acceptance matrix remains open; Hub routing/relay/Sandbox testing is Hub-owned. Existing approved setup is not permission for additional provisioning, production writes or spending.
 
-This server has its own Vercel project and Neon database. It must never be installed into Appliance Desk or another existing business project. Start with a restricted Vercel team token and a preview/read-only connection; production writes require a separate approval and additional safety implementation.
+This server has its own Vercel project and Neon database. It must never be installed into Appliance Desk or another existing business project. Start with a restricted Vercel team token; a fresh account starts in preview mode (its production switch is off), and read-only is a switch on the connection, not a connection kind; production writes require a separate approval and additional safety implementation.
 
 ## 1. Before starting
 
@@ -20,7 +20,7 @@ This server has its own Vercel project and Neon database. It must never be insta
 1. In the [Neon Console](https://console.neon.tech/), create a new project dedicated to `vercel-mcp`. Select a sensible nearby region and a free plan if available and sufficient.
 2. In the project's connection details, select the **pooled** connection string (often labeled `-pooler`) for serverless use, with SSL required.
 3. Copy the secret PostgreSQL URL directly into the Vercel environment variable `DATABASE_URL`; do not place it in chat or commit it.
-4. No manual schema editing or shared database is necessary. Once the deployed server receives an authenticated setup/OAuth request, `src/db.js` runs its additive schema initialization. The automated tests use only disposable Postgres, never the real database.
+4. No manual schema editing or shared database is necessary. Once the deployed server receives an authenticated OAuth request, `src/db.js` runs its additive schema initialization. The automated tests use only disposable Postgres, never the real database.
 5. Verify that the database is dedicated to this server, not a business app; keep credentials private and rotate them immediately if accidentally disclosed.
 
 Reference: [Neon deployment and pooled connection example](https://neon.com/blog/authenticating-users-in-astro-using-neon-postgres-and-lucia-auth).
@@ -42,8 +42,8 @@ In the dedicated Vercel project, open **Settings → Environment Variables**. Se
 | Key | Purpose / owner action |
 |---|---|
 | `DATABASE_URL` | Neon pooled PostgreSQL URL with SSL; a secret. |
-| `ADMIN_PASSPHRASE` | Unique, long owner passphrase used for setup and OAuth authorization. Never use a real provider password. |
-| `TOKEN_ENCRYPTION_KEY` | Random 32-byte key represented as exactly **64 hexadecimal characters** (or 43 base64url characters), used for AES-256-GCM credentials and owner sessions. |
+| `ADMIN_PASSPHRASE` | Unique, long owner passphrase used for OAuth authorization and the sign-in flow's enrollment branch. Never use a real provider password. |
+| `TOKEN_ENCRYPTION_KEY` | Random 32-byte key represented as exactly **64 hexadecimal characters** (or 43 base64url characters), used for AES-256-GCM encryption of stored credentials and one-time secrets. |
 | `PUBLIC_BASE_URL` | This server's exact public **HTTPS origin** only; no path, trailing slash, query, username or password (e.g. `https://example.invalid` is a placeholder, not a working URL). |
 
 Generate the encryption key **on your own trusted device** or in your password manager. For a local Node.js terminal, the following prints one newly generated 32-byte value for you to capture securely. Do not run it in CI, screenshots, an AI chat, or a recorded/shared terminal:
@@ -62,20 +62,20 @@ Reference: [Vercel environment variables](https://vercel.com/docs/environment-va
 
 ## 5. Owner sign-in and first restricted token
 
-1. Open `https://<your-mcp-host>/api/vercel/setup` in your normal private browser after deployment. Do not paste your real host or passphrase into a public PR.
-2. Sign in with `ADMIN_PASSPHRASE`. The form uses database-counted lockout; after repeated errors, stop and check the passphrase rather than trying many times.
+1. Open `https://<your-mcp-host>/connection` in your normal private browser after deployment and follow the token door (Door 2) to the enrollment branch of the sign-in flow (`/api/oauth/enroll`). Do not paste your real host or passphrase into a public PR.
+2. The enrollment branch proves `ADMIN_PASSPHRASE` on every request — there is no owner session to sign in to. The form uses the database-counted lockout shared with sign-in; after repeated errors, stop and check the passphrase rather than trying many times.
 3. Create a **team-scoped** Vercel API token in the Vercel account's own token settings; choose the intended team, the smallest available scope and **the expiry you want — including no expiry: the choice is the key owner's and the server respects it (IN-04, ruled 2026-10-27). For a key that does expire, the server's job is to warn ahead of the date (14 days before).** Do **not** use a full-account token by default. Project-scoped tokens may be added for narrower access.
-4. Enter the token into the setup page only. Provide the chosen Vercel team ID, and optionally the project ID for a project-scoped credential. The server performs read-only probes of the specified team/project and encrypts the token in Neon; the page returns only a receipt, never the full token.
-5. If the provider appears to expose multiple teams or a broader account, the setup form requires an explicit owner checkbox. A successful visibility probe **does not prove the full privilege scope of the token**; production/write rules still need the Batch B safety guards and separate authorization.
-6. Once connected, confirm the account label and scope. Start with the read-only checks `vercel_whoami` and `vercel_list_accounts`. The server now has 240 registered tools (projects, deployments, releases, environment variables, Global Config, teams, domains/DNS/registrar, firewall, billing, developer tools — see `docs/TOOL-CATALOG.md`; the catalog build-out completed 2026-10-30). Deployment, environment and release writes are guarded by profile, production mode, `confirm` and the spend rules: spend runs on the connection owner's word with the cost disclosed first (IN-08 as ruled 2026-10-27; an optional self-set budget is available under OP-2), while delegated connections park spend at `awaiting_owner_approval` for the owner to apply. Token creation/removal (`vercel_token_*`, O-3) is built. The server warns ahead of a recorded credential expiry (14 days before, IN-04); an enrolled token's expiry may not be recorded — when it is not, `vercel_whoami` says so plainly (the VMCP-003 remainder) — so record the date in your password manager whenever you enroll a token whose expiry the setup does not capture.
+4. Paste the token into the enrollment form only. Provide the chosen Vercel team ID, and optionally the project ID for a project-scoped credential. Before anything is stored, the server probes the token read-only against the specified team/project and reads back its granted scope: the receipt states the declared box and the probed box in plain words, and they can differ (a full-account token reads back as a full box). The token is then encrypted in Neon; the form returns only a receipt, never the full token.
+5. If the probe shows the token sees multiple teams or a broader account than the one named, enrollment requires an explicit broader-than-intended acknowledgment before storing. A successful visibility probe **does not prove the full privilege scope of the token**; production/write rules still need the Batch B safety guards and separate authorization.
+6. Once enrolled, confirm the account label and scope. Start with the read-only checks `vercel_whoami` and `vercel_list_accounts`. The server now has 253 registered tools (projects, deployments, releases, environment variables, Global Config, teams, domains/DNS/registrar, firewall, billing, developer tools — see `docs/TOOL-CATALOG.md`; the catalog build-out completed 2026-10-30). Deployment, environment and release writes are guarded by profile, production mode, `confirm` and the spend rules: spend runs on the connection owner's word with the cost disclosed first (IN-08 as ruled 2026-10-27; an optional self-set budget is available under OP-2), while delegated connections park spend at `awaiting_owner_approval` for the owner to apply. Token creation/removal (`vercel_token_*`, O-3) is built. The server warns ahead of a recorded credential expiry (14 days before, IN-04); an enrolled token's expiry may not be recorded — when it is not, `vercel_whoami` says so plainly (the VMCP-003 remainder) — so record the date in your password manager whenever you enroll a token whose expiry enrollment does not capture.
 
-The same authenticated setup page supports **one-use pending inputs** (a tool's secret value is entered here, not supplied through an AI message) and authorized **one-time secret reveal**. Once a value has been revealed, that record cannot be opened again.
+There is no setup page and no pending-input channel (both removed in the 2026-10-31 sign-in cleanup, AUD-AV). A secret value a tool needs is never typed into chat or a tool argument: set a chosen Secret value in the Vercel dashboard, or let the tool generate it on the server. Secrets the server creates are delivered as one-time secrets and revealed exactly once on the owner's own connection with `vercel_reveal_one_time_secret`; once a value has been revealed, that record cannot be opened again.
 
 ## 6. Connect Claude to the hosted MCP
 
 1. In Claude's settings, navigate to **Customize → Connectors → Add custom connector** (wording may vary by plan).
 2. Name the client connection `Vercel by Robinson AI Systems` (the independently developed, unofficial service), and use exactly `https://<your-mcp-host>/api/mcp` as the remote MCP endpoint.
-3. Choose the OAuth sign-in/authentication option rather than a static bearer token in a chat. During authorization, select the connected team, **PREVIEW** mode, and **read_only** profile. The server's login page asks for the admin passphrase; Claude does not receive it.
+3. Choose the OAuth sign-in/authentication option rather than a static bearer token in a chat. During authorization, select the enrolled account and enter the admin passphrase; Claude does not receive it. Nothing else is asked: the profile is derived from the enrollment door (a token enrollment yields the full profile), the mode from the account's own production switch (a fresh account starts in preview), and the listing is always the front door. To make the connection read-only, flip its own switch afterwards with `vercel_set_read_only`.
 4. Enable the connector for a conversation and test `vercel_whoami`, then `vercel_list_accounts`. The result must identify the expected team and contain no token values.
 5. Domain/DNS/registrar tools (Batch N) and production operations are built; they stay gated by profile, production mode, `confirm` and the spend rules in §5 — a domain purchase charges real money on confirm, so treat it exactly like buying in the Vercel dashboard. Deployment, environment and release changes are available only under those same guards, never by default.
 
@@ -85,12 +85,12 @@ Reference: [Claude's remote MCP custom connector guide](https://support.claude.c
 
 | Symptom | What to check without sharing secrets |
 |---|---|
-| Setup unavailable / HTTP 503 | Confirm the four required env keys exist in the correct Vercel environment and redeploy. Check Neon reachability without copying credentials into logs. |
+| Sign-in or enrollment unavailable / HTTP 503 | Confirm the four required env keys exist in the correct Vercel environment and redeploy. Check Neon reachability without copying credentials into logs. |
 | Login rejected / locked | Check the passphrase directly in your password vault; repeated failures trigger the 15-minute lockout. |
 | OAuth origin/resource rejected | `PUBLIC_BASE_URL` must exactly match the externally reachable HTTPS origin. |
 | Team verification fails | Confirm team ID, intended key scope and whether the team is visible to the supplied token. Do not bypass the safe probe. |
 | Token decrypt fails | The original `TOKEN_ENCRYPTION_KEY` was changed, is invalid, or the ciphertext was tampered with. Stop; do not print encrypted/unencrypted keys. |
-| No tools displayed | Confirm OAuth connection mode/profile, selected account and scope; verify the published `live` revision separately from tested `main`. A public tool count is not proof of an authenticated session. |
+| No tools displayed | Confirm the OAuth connection, the derived mode/profile `vercel_whoami` reports, the account's read-only switch, and the selected account and scope; verify the published `live` revision separately from tested `main`. A public tool count is not proof of an authenticated session. |
 | Unexpected production capabilities | Disconnect and verify production mode remains disabled. Do not run commands that change a real resource. |
 
 The repository's CI (`npm run check`, unit tests, disposable database tests, and local Vercel emulator) is the normal offline validation. Read-only smoke testing and the first live acceptance legs are recorded in `docs/STATUS.md` (2026-10-30 filings); a real-team write test stays restricted to the separately approved scratch project (IN-06, Batch X-2).
@@ -109,13 +109,12 @@ is **not** part of normal CI and never provisions or mutates Vercel resources.
    bounded file ID using owner-authenticated read-only tools; avoid
    Appliance Desk production, secrets and confidential files. Only use
    a project the selected credential is allowed to inspect.
-2. In the authenticated
-   [Vercel MCP owner setup](https://vercel-mcp-liard.vercel.app/api/vercel/setup)
-   page, issue **two separate short-lived service passes** privately:
-   one `mode=test`, `areas=['server']` identity-only pass; one
-   `mode=preview` read-only `deployments` pass under the approved
-   selected account. Obtain them using the page's one-time reveal, never in
-   an AI transcript. If no authorized disposable deployment exists, run
+2. On the owner's own connection, issue **two separate short-lived service
+   passes** privately with `vercel_issue_pass`: one `mode=test`,
+   `areas=['server']` identity-only pass; one `mode=preview` read-only
+   `deployments` pass under the approved selected account. Obtain each
+   bearer through `vercel_reveal_one_time_secret`, never in an AI
+   transcript. If no authorized disposable deployment exists, run
    public/TEST acceptance only; do not improvise a provider write or paid
    deployment to manufacture evidence.
 3. In a trusted, private Node 24 checkout at the **exact verified
@@ -134,7 +133,8 @@ is **not** part of normal CI and never provisions or mutates Vercel resources.
    acceptance is **partial**, not a success claim. Record timestamp,
    exact **source and deployed commit**, approved nonproduction context,
    exit code and safe evidence flags; do not include raw service replies.
-5. **Revoke both temporary passes in authenticated owner setup**. With the
+5. **Revoke both temporary passes with `vercel_revoke_pass` on the owner's
+   own connection**. With the
    same protected pass values still available privately, set
    `RTC_ACCEPTANCE_PHASE=after-revocation` and run the script again:
    the previously valid passes must now be rejected with HTTP 401 **and** the explicit `pass_revoked` error code. Expiry or invalid credentials do not establish actual revocation.
