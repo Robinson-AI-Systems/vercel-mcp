@@ -100,9 +100,48 @@ jobs:
       - run: npm ci
       - run: node scripts/ci-phase.mjs --budget-seconds 180 -- npm run test:emulate
 
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: Robinson-AI-Systems/robinsons-toolkit-hub
+          ref: e76b1f8bc76e4658f404263ee47a9edbcbeda625
+          path: rtc-hub
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # AUD-BG / R-3: the frozen RTC 1 conformance suite at the pin,
+      # run against this server's real door + throwaway Postgres +
+      # fake Vercel (emulate). The named subset is asserted;
+      # reads/writes are dispositioned (docs/RTC-HUB-INTEGRATION.md).
+      - run: node scripts/rtc-conformance-ci.mjs
+        env:
+          RTC_CONFORMANCE_DATABASE_URL: postgresql://postgres:ci-only-not-a-secret@127.0.0.1:5432/postgres
+
   ci:
     if: always()
-    needs: [check, unit, db, emulate]
+    needs: [check, unit, db, emulate, conformance]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -112,9 +151,11 @@ jobs:
           UNIT: ${{ needs.unit.result }}
           DB: ${{ needs.db.result }}
           EMULATE: ${{ needs.emulate.result }}
+          CONFORMANCE: ${{ needs.conformance.result }}
         run: |
-          echo "check=$CHECK unit=$UNIT db=$DB emulate=$EMULATE"
+          echo "check=$CHECK unit=$UNIT db=$DB emulate=$EMULATE conformance=$CONFORMANCE"
           test "$CHECK" = success
           test "$UNIT" = success
           test "$DB" = success
           test "$EMULATE" = success
+          test "$CONFORMANCE" = success
