@@ -44,6 +44,15 @@ function fixture(limit=0){
   return {db,fake,audit,state,approval,call};
 }
 const parse=r=>JSON.parse(r.content[0].text);
+// Search and namespace fakes follow the pinned snapshot's documented
+// row shapes (AUD-AM): the repository row carries the bare name in
+// `name`/`slug` inside the namespace — there is no fullName field —
+// and the namespace row carries id/ownerType/provider/slug.
+const gitNamespaceRow=(over={})=>({id:'org_123',provider:'github',name:'Acme',
+  slug:'acme',ownerType:'team',...over});
+const gitRepoRow=(over={})=>({id:4242424242,name:'site',slug:'site',namespace:'acme',
+  owner:{id:'own_FAKE',name:'acme'},ownerType:'team',private:true,provider:'github',
+  defaultBranch:'main',updatedAt:1793000000000,url:'https://github.com/acme/site',...over});
 describe('D-1f guarded project creation',()=>{
   beforeEach(()=>loadToken.mockResolvedValue(token));
   it('advertises only to write-capable profiles and denies direct read-only/owner spoofing',async()=>{
@@ -202,10 +211,10 @@ describe('D-1f guarded project creation',()=>{
     const f=fixture(20000);
     const linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github',name:'Acme'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
-        repos:[{id:42,fullName:'acme/site',private:true}]});
+        repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const result=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'gitCreationFAKE01'},
@@ -223,9 +232,9 @@ describe('D-1f guarded project creation',()=>{
     for(const scenario of ['zeroBudget','preview','everyday']){
       const f=fixture(scenario==='zeroBudget'?0:20000);
       f.fake.when('GET','/v1/integrations/git-namespaces').resolves([
-        {id:'org_123',provider:'github'}]);
+        gitNamespaceRow()]);
       f.fake.when('GET','/v1/integrations/search-repo')
-        .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+        .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow()]});
       f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
       const c={...connection,profile:scenario==='everyday'?'everyday':'full',
         mode:scenario==='preview'?'preview':'production'};
@@ -240,10 +249,10 @@ describe('D-1f guarded project creation',()=>{
       const f=fixture(20000);
       f.fake.when('GET','/v1/integrations/git-namespaces')
         .resolves(issue==='missingNamespace'?[]:
-          [{id:'org_123',provider:'github',isAccessRestricted:issue==='restricted'}]);
+          [gitNamespaceRow({isAccessRestricted:issue==='restricted'})]);
       if(issue==='wrongRepo'){
         f.fake.when('GET','/v1/integrations/search-repo')
-          .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'unrelated/site'}]});
+          .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow({name:'unrelated',slug:'unrelated',url:'https://github.com/acme/unrelated'})]});
       }
       const res=parse(await f.call({name:'demo-site',
         gitRepository:{type:'github',repo:'acme/site',namespaceId:'org_123'},
@@ -267,12 +276,12 @@ describe('D-1f guarded project creation',()=>{
   it('refuses ambiguous or foreign-namespace repositories before any paid import POST',async()=>{
     const linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
     const scenarios=[
-      {namespaces:[{id:'org_123',provider:'github'},{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site'}]},
-      {namespaces:[{id:'org_123',provider:'github',requireReauth:'true'}],repos:[{fullName:'acme/site'}]},
-      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site'},{slug:'acme/site'}]},
-      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site',provider:'gitlab'}]},
-      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site',namespaceId:'org_OTHER'}]},
-      {namespaces:[{id:'org_123',provider:'github'}],repos:[{fullName:'acme/site',isAccessRestricted:true}]}
+      {namespaces:[gitNamespaceRow(),gitNamespaceRow()],repos:[gitRepoRow()]},
+      {namespaces:[gitNamespaceRow({requireReauth:'true'})],repos:[gitRepoRow()]},
+      {namespaces:[gitNamespaceRow()],repos:[gitRepoRow(),gitRepoRow()]},
+      {namespaces:[gitNamespaceRow()],repos:[gitRepoRow({provider:'gitlab'})]},
+      {namespaces:[gitNamespaceRow()],repos:[gitRepoRow({namespaceId:'org_OTHER'})]},
+      {namespaces:[gitNamespaceRow()],repos:[gitRepoRow({isAccessRestricted:true})]}
     ];
     for(const item of scenarios){
       const f=fixture(20000);
@@ -289,9 +298,9 @@ describe('D-1f guarded project creation',()=>{
     const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.db.consumePurchaseIntent=async()=>false;
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'budgetRaceFAKE01'}, {...connection,mode:'production',profile:'full'}));
@@ -304,9 +313,9 @@ describe('D-1f guarded project creation',()=>{
       ceiling_cents:Number.MAX_SAFE_INTEGER,approved_at:new Date(),
       expires_at:new Date(Date.now()+600000),consumed_at:new Date()});
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,confirm:true,
       requestKey:'lateBudgetRaceFAKE01'}, {...connection,mode:'production',profile:'full'}));
@@ -318,9 +327,9 @@ describe('D-1f guarded project creation',()=>{
     const f=fixture(0),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.db.getVercelAccountSafe=async id=>({id,spend_limit_cents:999999999});
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const pending=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
       requestKey:'positiveBudgetNoOwner'}, {...connection,mode:'production',profile:'full'}));
@@ -331,10 +340,10 @@ describe('D-1f guarded project creation',()=>{
   it('does not advance to an execution-time credential without bounded cost evidence',async()=>{
     const f=fixture(20000),gitRepository={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
-        repos:[{fullName:'acme/site'}]});
+        repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const result=parse(await f.call({name:'demo-site',gitRepository,
       confirm:true,requestKey:'bindOnceGitFAKE01'},
@@ -358,10 +367,10 @@ describe('D-1f guarded project creation',()=>{
     const f=fixture(20000),gitRepository={
       type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
-        repos:[{fullName:'acme/site'}]});
+        repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}')
       .rejects(404).resolves({id:'prj_OTHER',name:'demo-site'});
     const res=parse(await f.call({name:'demo-site',gitRepository,confirm:true,
@@ -383,9 +392,9 @@ describe('D-1f guarded project creation',()=>{
     ]){
       const f=fixture(20000);
       f.fake.when('GET','/v1/integrations/git-namespaces')
-        .resolves([{id:'org_123',provider:'github'}]);
+        .resolves([gitNamespaceRow()]);
       f.fake.when('GET','/v1/integrations/search-repo')
-        .resolves({gitAccount,repos:[{fullName:'acme/site'}]});
+        .resolves({gitAccount,repos:[gitRepoRow()]});
       const res=parse(await f.call({name:'demo-site',gitRepository:linked,
         confirm:true},{...connection,mode:'production',profile:'full'}));
       expect(res.status).toBe('refused_by_guard');
@@ -396,12 +405,12 @@ describe('D-1f guarded project creation',()=>{
   it('refuses a changed root account at the bound-credential execution check',async()=>{
     const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
-        repos:[{fullName:'acme/site'}]})
+        repos:[gitRepoRow()]})
       .resolves({gitAccount:{provider:'gitlab',namespaceId:'org_123'},
-        repos:[{fullName:'acme/site'}]});
+        repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'rootIdentityRace01'},
@@ -413,10 +422,10 @@ describe('D-1f guarded project creation',()=>{
   it('refuses Git import when repository access is revoked after preflight',async()=>{
     const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]})
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site',requireReauth:true}]});
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow()]})
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow({requireReauth:true})]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'gitRaceFAKE01'},
@@ -429,10 +438,10 @@ describe('D-1f guarded project creation',()=>{
   it('refuses Git import if its namespace becomes restricted before execution',async()=>{
     const f=fixture(20000),linked={type:'github',repo:'acme/site',namespaceId:'org_123'};
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}])
-      .resolves([{id:'org_123',provider:'github',isAccessRestricted:true}]);
+      .resolves([gitNamespaceRow()])
+      .resolves([gitNamespaceRow({isAccessRestricted:true})]);
     f.fake.when('GET','/v1/integrations/search-repo')
-      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[{fullName:'acme/site'}]});
+      .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const res=parse(await f.call({name:'demo-site',gitRepository:linked,
       confirm:true,requestKey:'namespaceRaceFAKE01'},
@@ -444,10 +453,10 @@ describe('D-1f guarded project creation',()=>{
   it('does not describe an unbounded Git import as completed provider work',async()=>{
     const f=fixture(20000);
     f.fake.when('GET','/v1/integrations/git-namespaces')
-      .resolves([{id:'org_123',provider:'github'}]);
+      .resolves([gitNamespaceRow()]);
     f.fake.when('GET','/v1/integrations/search-repo')
       .resolves({gitAccount:{provider:'github',namespaceId:'org_123'},
-        repos:[{fullName:'acme/site'}]});
+        repos:[gitRepoRow()]});
     f.fake.when('GET','/v9/projects/{idOrName}').rejects(404);
     const res=parse(await f.call({name:'demo-site',gitRepository:{
       type:'github',repo:'acme/site',namespaceId:'org_123'},confirm:true},
