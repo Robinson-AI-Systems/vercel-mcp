@@ -92,9 +92,9 @@ export const serverTools = {
       const expiry = row.token_expires_at && new Date(row.token_expires_at).getTime();
       const daysLeft = Number.isFinite(expiry) ? Math.ceil((expiry - Date.now()) / 86400000) : null;
       const tokenWarning = daysLeft === null ? null : daysLeft <= 0 ?
-        'Vercel token expired; rotate it using the authenticated owner setup page.' :
+        'Vercel token expired; rotate it through the enrollment step of the sign-in flow.' :
         daysLeft <= 14 ? 'Vercel token expires within ' + daysLeft +
-          ' days; verify renewal through owner setup.' : null;
+          ' days; verify renewal through the enrollment step of the sign-in flow.' : null;
       // AUD-E (D-E/VMCP-003/IN-04): the explicit four-state posture beside
       // the unchanged warning. A null date with no attestation is 'unknown'
       // ("expiry not recorded for this token") — never owner's choice.
@@ -124,8 +124,8 @@ export const serverTools = {
             'off — this connection writes as its profile allows; flip it on with vercel_set_read_only to make this connection read-only, effective the next call' } });
     },
     async vercel_list_accounts(args, { connection, db }) {
-      // A connector is bound to one Vercel account. The owner setup page,
-      // not an arbitrary OAuth connection, can enumerate every configured team.
+      // A connector is bound to one Vercel account. Only the owner's own
+      // connection can enumerate every configured team.
       if (!args || typeof args !== 'object' || Array.isArray(args) ||
           Object.keys(args).length !== 0) {
         return { isError: true, content: [{ type: 'text', text: 'This tool takes no arguments' }] };

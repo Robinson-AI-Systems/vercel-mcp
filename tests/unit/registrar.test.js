@@ -3,7 +3,6 @@ import {registry} from '../../src/tools/index.js';
 import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
 import {makeFakeVercel,vercelError} from '../../test/helpers/fake-vercel.js';
 import {loadToken} from '../../src/vercel/tokens.js';
-import {pendingInputs} from '../../src/core/pending-inputs.js';
 
 vi.mock('../../src/vercel/tokens.js',async importOriginal=>{
   const actual=await importOriginal();
@@ -13,19 +12,11 @@ const ENV={TOKEN_ENCRYPTION_KEY:'00'.repeat(32)};
 const production={account:'acct_FAKE',mode:'production',profile:'full',
   listing:'catalog',kind:'connector'};
 const preview={...production,mode:'preview'};
-const delegated={...production,kind:'pass'};
 const account={id:'acct_FAKE',team_id:'team_FAKE',scope:'team',project_id:null};
 const domain='example.com';
-const CONTACT={firstName:'FAKE',lastName:'Person',email:'fake@example.com',
-  phone:'+13035550123',address1:'1 Fake Street',city:'Greeley',state:'CO',
-  zip:'80631',country:'US'};
 const CONTACT_ID='123e4567-e89b-12d3-a456-426614174001';
 const price=(over={})=>({years:1,purchasePrice:11.25,renewalPrice:11.25,
   transferPrice:11.25,...over});
-const searchHit={results:[{domain,available:true,years:1,price:11.25,
-  renewalPrice:11.25,premium:false}]};
-const schemaReply={type:'object',properties:{firstName:{},lastName:{},
-  email:{},phone:{},address1:{},city:{},state:{},zip:{},country:{}}};
 const order=(over={})=>({orderId:'ord_FAKE1',status:'completed',
   domains:[{domainName:domain,purchaseType:'purchase',autoRenew:true,
     years:1,status:'completed',price:11.25}],...over});
@@ -34,21 +25,13 @@ const domainReply=(over={})=>({domain:{name:domain,teamId:'team_FAKE',
   expiresAt:1798761600000,verified:true,serviceType:'external',...over}});
 function fixture({withIntents=true}={}){
   const fake=makeFakeVercel(),audits=[],replay=new Map(),
-    pending=new Map(),oneTime=new Map(),intents=new Map();
+    oneTime=new Map(),intents=new Map();
   const db={
     getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
     recordChange:async entry=>{audits.push(entry);},
     getPurchasePolicy:async()=>({grantRequired:false,budgetCents:null}),
     getTodaySpendCents:async()=>0,
     getVercelAccountSafe:async()=>({id:'acct_FAKE',spend_limit_cents:100000}),
-    insertPendingInput:async row=>{pending.set(row.id,row);},
-    consumePendingInput:async({id,account:acct,kind})=>{
-      const row=pending.get(id);
-      if(!row||row.account!==acct||row.kind!==kind)return null;
-      pending.delete(id);
-      return {ciphertext:row.ciphertext,vercel_account:row.account,
-        kind:row.kind,id:row.id};
-    },
     insertOneTimeSecret:async row=>{oneTime.set(row.id,row);},
     consumeOneTimeSecret:async({id})=>{
       const row=oneTime.get(id);if(!row)return null;oneTime.delete(id);
@@ -83,23 +66,9 @@ function fixture({withIntents=true}={}){
   const call=(name,args,connection=production)=>
     dispatchReadOnlyTool({registry,name,args,connection,db,
       fetchImpl:fake.fetch,env:ENV});
-  // The ciphertext is bound to the id submit mints — always use that id.
-  const seedContact=async(value=JSON.stringify(CONTACT))=>{
-    const {id}=await pendingInputs({db,env:ENV}).submit({account:'acct_FAKE',
-      kind:'registrar_contact',label:'registrant',value});
-    return id;
-  };
-  return {fake,audits,replay,intents,call,seedContact,db};
+  return {fake,audits,replay,intents,call,db};
 }
 const value=result=>JSON.parse(result.content[0].text);
-function queueBuy(f,priceReply=price()){
-  f.fake.when('POST','/v1/registrar/domains/search')
-    .resolves(searchHit).resolves(searchHit);
-  f.fake.when('GET','/v1/registrar/domains/{domain}/price')
-    .resolves(priceReply).resolves(priceReply);
-  f.fake.when('GET','/v1/registrar/domains/{domain}/contact-info/schema')
-    .resolves(schemaReply).resolves(schemaReply);
-}
 beforeEach(()=>{loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
 
 describe('N-3 registrar',()=>{
@@ -150,75 +119,55 @@ describe('N-3 registrar',()=>{
     expect(bulk.results[0]).toMatchObject({domain,purchase:1125});
     f.fake.verify();
   });
-  it('previews a buy with the dollar line from the 1125-cent quote',async()=>{
-    const f=fixture();queueBuy(f);
+  it('refuses a buy outright: the registrant-contact path was removed (AUD-AV, D9)',async()=>{
+    const f=fixture();
     const result=value(await f.call('vercel_registrar_buy',
       {domain,autoRenew:true,contactInputId:CONTACT_ID,outsideApp:true,
-        dryRun:true},production));
-    expect(result.status).toBe('preview');
-    expect(result.preview).toContain('$11.25');
-    expect(result.preview).toContain('firstName');
-    expect(result.preview).not.toContain('FAKE-AUTH');
-    expect(f.fake.calls.filter(x=>x.path.includes('/buy'))).toHaveLength(0);
-    f.fake.verify();
-  });
-  it('buys at the quote: expectedPrice byte-exact, contact from the vault, order read back',async()=>{
-    const f=fixture();const contactId=await f.seedContact();queueBuy(f);
-    f.fake.when('POST','/v1/registrar/domains/{domain}/buy')
-      .resolves({orderId:'ord_FAKE1',_links:{}});
-    f.fake.when('GET','/v1/registrar/orders/{orderId}').resolves(order());
-    const result=value(await f.call('vercel_registrar_buy',
-      {domain,autoRenew:true,contactInputId:contactId,outsideApp:true,
-        confirm:true,requestKey:'reg-buy-test-0001'},production));
-    expect(result).toMatchObject({status:'applied',confirmed:true,
-      receipt:{domain,orderId:'ord_FAKE1',totalCents:1125}});
-    const post=f.fake.calls.find(x=>x.path.includes('/buy'));
-    expect(post.body).toEqual({years:1,expectedPrice:11.25,autoRenew:true,
-      contactInformation:CONTACT});
-    expect(JSON.stringify(f.audits)).not.toContain('1 Fake Street');
-    f.fake.verify();
-  });
-  it('refuses a buy when the quote drifts between preview and dispatch',async()=>{
-    const f=fixture();await f.seedContact();
-    f.fake.when('POST','/v1/registrar/domains/search')
-      .resolves(searchHit).resolves(searchHit);
-    f.fake.when('GET','/v1/registrar/domains/{domain}/price')
-      .resolves(price()).resolves(price({purchasePrice:12.00,
-        renewalPrice:12.00,transferPrice:12.00}));
-    f.fake.when('GET','/v1/registrar/domains/{domain}/contact-info/schema')
-      .resolves(schemaReply).resolves(schemaReply);
-    const result=value(await f.call('vercel_registrar_buy',
-      {domain,autoRenew:true,contactInputId:CONTACT_ID,outsideApp:true,
-        confirm:true,requestKey:'reg-buy-drift-001'},production));
+        confirm:true,requestKey:'reg-buy-removed-01'},production));
     expect(result.status).toBe('refused_by_guard');
-    expect(f.fake.calls.filter(x=>x.path.includes('/buy'))).toHaveLength(0);
+    expect(result.reason).toMatch(/can no longer be completed here/);
+    expect(result.reason).toMatch(/Vercel dashboard/);
+    expect(f.fake.calls).toHaveLength(0);
     f.fake.verify();
   });
-  it('a definitive provider price rejection surfaces its code in the failure detail',async()=>{
-    const f=fixture();const contactId=await f.seedContact();queueBuy(f);
-    f.fake.when('POST','/v1/registrar/domains/{domain}/buy')
+  it('refuses a transfer-in outright: the contact and auth-code paths were removed (AUD-AV, D9)',async()=>{
+    const f=fixture();
+    const result=value(await f.call('vercel_registrar_transfer_in',
+      {domain,autoRenew:true,contactInputId:CONTACT_ID,
+        authCodeInputId:CONTACT_ID,outsideApp:true,confirm:true,
+        requestKey:'reg-xfer-removed1'},production));
+    expect(result.status).toBe('refused_by_guard');
+    expect(result.reason).toMatch(/Vercel dashboard/);
+    expect(f.fake.calls).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('a definitive provider price rejection on renew surfaces its code in the failure detail',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves(domainReply());
+    f.fake.when('GET','/v1/registrar/domains/{domain}/price')
+      .resolves(price()).resolves(price());
+    f.fake.when('POST','/v1/registrar/domains/{domain}/renew')
       .rejects(400,vercelError(400,'expected_price_mismatch'));
-    const result=value(await f.call('vercel_registrar_buy',
-      {domain,autoRenew:false,contactInputId:contactId,outsideApp:true,
-        confirm:true,requestKey:'reg-buy-mismatch1'},production));
+    const result=value(await f.call('vercel_registrar_renew',
+      {domain,outsideApp:true,confirm:true,requestKey:'reg-renew-mismatch'},
+      production));
     // The provider answered and refused (no order exists), but the
     // guarded executor reports every post-claim apply failure as
     // outcome_unknown (AUD-H); the failure detail names the provider
-    // code and leg. The common drift case is refused pre-dispatch by
-    // the apply-time re-quote (previous test).
+    // code and leg.
     expect(result.status).toBe('outcome_unknown');
     expect(result.failure).toMatchObject({code:'expected_price_mismatch',
-      status:400,leg:'registrar_buy'});
+      status:400,leg:'registrar_renew'});
     f.fake.verify();
   });
-  it('a delegated connection without a quote-bound purchase intent parks for owner approval',async()=>{
-    const f=fixture();await f.seedContact();queueBuy(f);
-    const result=value(await f.call('vercel_registrar_buy',
-      {domain,autoRenew:true,contactInputId:CONTACT_ID,outsideApp:true,
-        confirm:true,requestKey:'reg-buy-deleg-001'},delegated));
-    expect(result.status).toBe('awaiting_owner_approval');
-    expect(f.intents.size).toBe(1);
-    expect(f.fake.calls.filter(x=>x.path.includes('/buy'))).toHaveLength(0);
+  it('refuses a renew carrying a contactInputId, naming the removed path',async()=>{
+    const f=fixture();
+    const result=value(await f.call('vercel_registrar_renew',
+      {domain,contactInputId:CONTACT_ID,outsideApp:true,confirm:true,
+        requestKey:'reg-renew-contact01'},production));
+    expect(result.status).toBe('refused_by_guard');
+    expect(result.reason).toMatch(/no longer be supplied/);
+    expect(f.fake.calls).toHaveLength(0);
     f.fake.verify();
   });
   it('renews at the renewal quote without contact, and reads the order back',async()=>{
@@ -226,8 +175,6 @@ describe('N-3 registrar',()=>{
     f.fake.when('GET','/v5/domains/{domain}').resolves(domainReply());
     f.fake.when('GET','/v1/registrar/domains/{domain}/price')
       .resolves(price()).resolves(price());
-    f.fake.when('GET','/v1/registrar/domains/{domain}/contact-info/schema')
-      .resolves(schemaReply).resolves(schemaReply);
     f.fake.when('POST','/v1/registrar/domains/{domain}/renew')
       .resolves({orderId:'ord_FAKE2',_links:{}});
     f.fake.when('GET','/v1/registrar/orders/{orderId}')
@@ -310,10 +257,12 @@ describe('N-3 registrar',()=>{
     f.fake.verify();
   });
   it('refuses every write on a preview connection and below full profile',async()=>{
-    const f=fixture();queueBuy(f);
-    const onPreview=value(await f.call('vercel_registrar_buy',
-      {domain,autoRenew:true,contactInputId:CONTACT_ID,outsideApp:true,
-        confirm:true,requestKey:'reg-buy-preview-1'},preview));
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves(domainReply());
+    f.fake.when('GET','/v1/registrar/domains/{domain}/price')
+      .resolves(price()).resolves(price());
+    const onPreview=value(await f.call('vercel_registrar_renew',
+      {domain,outsideApp:true,confirm:true,requestKey:'reg-renew-preview1'},preview));
     expect(onPreview.status).toBe('refused_by_guard');
     expect(onPreview.reason).toMatch(/preview connection/i);
     const below=await f.call('vercel_registrar_buy',

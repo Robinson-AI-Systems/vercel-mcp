@@ -3,9 +3,7 @@ import {describe,it,expect,vi} from 'vitest';
 import {randomBytes} from 'node:crypto';
 import {registry} from '../../src/tools/index.js';
 import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
-import {encryptSecret} from '../../src/core/secret-box.js';
-import {handleSetup} from '../../src/vercel/setup.js';
-const account='team_ALPHA',csrf='a'.repeat(43);
+const account='team_ALPHA';
 function fixture(){
  const rows=new Map(),replays=new Map(),passes=new Map();
  const env={VERCEL_ENV:'production',ADMIN_PASSPHRASE:'fixture-passphrase',TOKEN_ENCRYPTION_KEY:randomBytes(32).toString('hex')};
@@ -32,15 +30,11 @@ function fixture(){
   }),inspectRtcPass:vi.fn(async token=>passes.get(token)),revokeRtcPass:vi.fn(async()=>true),
   countRecentFailedLogins:async()=>0,recordLoginAttempt:async()=>1,markLoginAttemptSucceeded:async()=>{}
  };
- const connection={account,profile:'full',mode:'production',listing:'catalog'};
+ const connection={account,kind:'connector',profile:'full',mode:'production',listing:'catalog'};
  const call=(args,c=connection,e=env)=>dispatchReadOnlyTool({registry,name:'vercel_create_pass',args,connection:c,db,env:e});
- const cookie='rmcp_owner='+encryptSecret(JSON.stringify({csrf,exp:Date.now()+600000}),'setup:session',env);
- const send=async(body,c=cookie,e=env)=>{
-   const res={statusCode:0,body:'',headers:{},setHeader(k,v){this.headers[k]=v;return this;},
-     status(n){this.statusCode=n;return this;},send(v){this.body=v;return this;},end(){return this;}};
-   await handleSetup({method:'POST',headers:{cookie:c,'x-real-ip':'127.0.0.1'},body},res,{db,env:e});return res;
- };
- return {db,env,rows,connection,call,send,passes};
+ const apply=(args,c=connection,e=env)=>dispatchReadOnlyTool({registry,
+   name:'vercel_apply_owner_approval',args,connection:c,db,env:e});
+ return {db,env,rows,connection,call,apply,passes};
 }
 const parse=x=>JSON.parse(x.content[0].text);
 const writeArgs={writes:true,profile:'full',mode:'production',hours:48,
@@ -76,26 +70,24 @@ describe('R-1W write-capable pass proposals',()=>{
    expect(f.db.issueWriteRtcPass).not.toHaveBeenCalled();
    expect(f.rows.size).toBe(0);
  });
- it('owner review states the write scope; approval issues exactly that scope',async()=>{
+ it('owner inspection states the write scope; application issues exactly that scope',async()=>{
    const f=fixture();
    const r=parse(await f.call({...writeArgs,confirm:true}));
-   const review=await f.send({action:'review_rtc_pass_request',account,reference:r.reference,csrf});
-   expect(review.statusCode).toBe(200);
-   expect(review.body).toMatch(/Write-capable production pass \(full profile\)/);
-   expect(review.body).toMatch(/Spend ceiling \$25\.00/);
-   expect(review.body).toMatch(/prj_FAKEONE/);
-   const approved=await f.send({action:'approve_rtc_pass_request',account,reference:r.reference,
-     csrf,confirm:'yes',passphrase:f.env.ADMIN_PASSPHRASE});
-   expect(approved.statusCode).toBe(200);
-   expect(approved.body).toMatch(/Owner-approved write-capable production pass issued/);
+   const review=parse(await f.apply({reference:r.reference,dryRun:true}));
+   expect(review.status).toBe('preview');
+   expect(review.family).toBe('rtc_pass_request');
+   expect(review.summary).toMatch(/Write-capable production pass \(full profile\)/);
+   expect(review.summary).toMatch(/Spend ceiling \$25\.00/);
+   expect(review.summary).toMatch(/prj_FAKEONE/);
+   const approved=await f.apply({reference:r.reference,confirm:true});
+   expect(parse(approved).status).toBe('applied');
    expect(f.db.issueWriteRtcPass).toHaveBeenCalledExactlyOnceWith({
      account,profile:'full',mode:'production',hours:48,areas:['deployments','server'],
      spendLimitCents:2500,projectIds:['prj_FAKEONE'],rateLimitPerMinute:120});
-   expect(approved.body).not.toMatch(/rtc_pass_[A-Za-z0-9_-]{20,}/);
-   // The request is consumed: a second approval cannot reissue.
-   const again=await f.send({action:'approve_rtc_pass_request',account,reference:r.reference,
-     csrf,confirm:'yes',passphrase:f.env.ADMIN_PASSPHRASE});
-   expect(again.statusCode).toBe(409);
+   expect(approved.content[0].text).not.toMatch(/rtc_pass_[A-Za-z0-9_-]{20,}/);
+   // The request is consumed: a second application cannot reissue.
+   const again=parse(await f.apply({reference:r.reference,confirm:true}));
+   expect(again.status).toBe('refused_by_guard');
    expect(f.db.issueWriteRtcPass).toHaveBeenCalledTimes(1);
  });
  it('defaults a minimal write proposal to everyday/preview with a zero ceiling',async()=>{

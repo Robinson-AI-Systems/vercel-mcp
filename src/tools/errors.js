@@ -107,18 +107,18 @@ export function explainVercelError(raw, context = {}) {
     else if (status === 429) why='Vercel rate-limited that check (HTTP 429).';
     else if (status !== null && status >= 500) why='Vercel itself failed that check (HTTP ' + status + ').';
     else why='The check itself refused: the token reach or the answer shape did not match what the recheck can verify.';
-    next='A redacted fingerprint of the refusal was journaled — read it with vercel_recent_changes, or review the connection in owner setup.';
+    next='A redacted fingerprint of the refusal was journaled — read it with vercel_recent_changes, or review the connection with vercel_whoami.';
   } else
   if (['unauthorized','invalid_token','token_expired','expired_token'].includes(code) || status === 401) {
     what='The Vercel account token is no longer accepted.';
     why='The token may be expired, revoked or incorrectly scoped.';
-    next='Open the administrator setup page and reverify or rotate the team token.';
+    next='Reverify or rotate the team token through the enrollment step of the sign-in flow.';
   } else if (code==='forbidden' || status === 403) {
     what='Vercel refused the requested permission.';
     why=context.projectScoped ? 'The credential is limited to project ' + cleanLabel(context.project) +
       ' and may not have access to this team resource.' :
       'The token owner may not hold the required Owner or project role.';
-    next='Verify the intended account, project scope and owner role on the setup page.';
+    next='Verify the intended account, project scope and owner role with vercel_whoami.';
   } else if (code==='not_found' || status===404) {
     what='The selected Vercel resource was not found.';
     why='It may be missing or outside team ' + cleanLabel(context.team) + '.';

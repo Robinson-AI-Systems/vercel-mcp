@@ -201,14 +201,15 @@ const setup = defineWrite({
             generate: { bytes: 32, encoding: 'hex' }, outsideApp: true },
           pendingProject: !projectId });
       } else {
-        // C-2: value-less names are reported, never dispatched — tools
-        // consume pending inputs, they do not create them.
+        // C-2: value-less names are reported, never dispatched — the
+        // workflow never invents or carries a value. AUD-AV: the
+        // pending-input follow-up is gone with the setup page; the
+        // owner sets the value in the dashboard or generates one.
         valuesNeeded.push({ key: entry.key, targets: entry.targets,
           followUp: { tool: 'vercel_env_set',
             args: { project: a.name, key: entry.key, mode: 'create',
-              targets: entry.targets, kind: entry.kind ?? 'Secret',
-              pendingInputId: '<id from the setup page>' },
-            note: 'Paste the value on the setup page as a pending input, then run this call.' } });
+              targets: entry.targets, kind: entry.kind ?? 'Secret' },
+            note: 'Set the value in the Vercel dashboard (Project Settings → Environment Variables), or run vercel_env_set with generate for a generated secret.' } });
       }
     }
     const attached = new Set((domainRows?.domains ?? []).map((d) => d.name));

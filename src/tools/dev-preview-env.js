@@ -1,18 +1,21 @@
-// V-2: preview-only environment values, private inputs and per-object recovery.
+// V-2: preview-only environment values and per-object recovery.
 import {randomBytes} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
-import {pendingInputs} from '../core/pending-inputs.js';
 import {credentialLike} from '../core/util.js';
 import {common,exact,owned,safeBranch,context,respond,
   startRun,preIntent,record,markIntent,selectedWrite} from './dev-preview-common.js';
 import {previewBranchRefusal} from './app-guard.js';
 const ENV=/^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
-const PENDING=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// AUD-AV (dossier D9): the pending-input source is removed with the
+// setup page; an item carrying it refuses by name with the remedy.
+const PENDING_REMOVED='pendingInputId is no longer accepted: the protected ' +
+  'pending-input path was removed with the owner setup page. To wire a ' +
+  'preview value you choose, set it in the Vercel dashboard (Project ' +
+  'Settings → Environment Variables); or pass generate to have one generated here.';
 const envSource={type:'object',properties:{
   key:{type:'string',pattern:ENV.source},value:{type:'string',minLength:1,maxLength:512},
-  pendingInputId:{type:'string',pattern:PENDING.source},
   generate:{type:'boolean',const:true}
 },required:['key'],additionalProperties:false};
 const props={...common,gitBranch:{type:'string',minLength:1,maxLength:128},
@@ -27,18 +30,20 @@ function valid(a){
     throw new RefusalError('One to five environment variables required');
   const seen=new Set();
   for(const item of a.vars){
+    if(item&&typeof item==='object'&&!Array.isArray(item)&&
+       item.pendingInputId!==undefined)
+      throw new RefusalError(PENDING_REMOVED);
     if(!item||typeof item!=='object'||Array.isArray(item)||
        Object.keys(item).some(k=>!Object.hasOwn(envSource.properties,k))||
        !ENV.test(item.key??'')||seen.has(item.key)||
        ['VERCEL_ENV','VERCEL_URL','VERCEL_REGION'].includes(item.key))
       throw new RefusalError('Unsafe, duplicate or reserved environment key');
     seen.add(item.key);
-    const sources=['value','pendingInputId','generate'].filter(k=>item[k]!==undefined);
+    const sources=['value','generate'].filter(k=>item[k]!==undefined);
     if(sources.length!==1||
        item.value!==undefined&&
          (typeof item.value!=='string'||!item.value||item.value.length>512||
           credentialLike(item.value))||
-       item.pendingInputId!==undefined&&!PENDING.test(item.pendingInputId)||
        item.generate!==undefined&&item.generate!==true)
       throw new RefusalError('Exactly one approved value source required per key');
   }
@@ -85,7 +90,7 @@ const wire=defineWrite({
   async preview(_a,_ctx,b){
     return 'Create '+b.planned.length+' named encrypted preview-only environment variables in '+
       b.project+(b.branch?' on branch '+b.branch:' on all preview branches')+
-      '. Private pending values and generated values never appear in chat or audit; recorded for exact cleanup.';
+      '. Supplied values and generated values never appear in chat or audit; recorded for exact cleanup.';
   },
   async production(){return {production:false,why:'Preview-only environment target'};},
   async targets(_a,b){return [{kind:'project',id:b.project,name:b.name}];},
@@ -103,10 +108,7 @@ const wire=defineWrite({
     for(const v of b.planned){
       const source=a.vars.find(x=>x.key===v.key);
       let value=source.value;
-      if(source.pendingInputId){
-        value=await pendingInputs({db:ctx.db,env:ctx.env}).consume({
-          id:source.pendingInputId,account:ctx.connection.account,kind:'env_value'});
-      }else if(source.generate)value=randomBytes(32).toString('hex');
+      if(source.generate)value=randomBytes(32).toString('hex');
       if(typeof value!=='string'||value.length<1||value.length>65536)
         throw new TypeError('Approved value was unavailable, not consumed or too large');
       await requirePreDispatch(async()=>{
@@ -151,7 +153,7 @@ const wire=defineWrite({
 export const devPreviewEnvTools={
   tools:[{name:'vercel_dev_wire_preview_env',area:'developer',writes:true,guardedWrite:true,
     profiles:['full'],inputSchema:schema,writeContract:wire.writeContract,
-    description:'Write bounded preview-only environment variables from private or generated value sources.',
+    description:'Write bounded preview-only environment variables from supplied or generated value sources.',
     annotations:{readOnlyHint:false,destructiveHint:false}}],
   handlers:{vercel_dev_wire_preview_env:bindGuardedWrite(wire,context,respond)}
 };

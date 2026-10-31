@@ -88,7 +88,7 @@ export async function requestAccountSetting({
     return denied('Current account is not configured');
   }
   // Each action carries exactly its own fields, validated with the
-  // setup form's own rules (src/vercel/setup.js): the purchase
+  // setup form's own rules (carried from the page AUD-AV deleted): the purchase
   // budget is blank-for-none or an exact amount inside the db's
   // integer-cents range; the attestation binds a UUID token version;
   // strictness is one of the two words; clearing carries nothing but

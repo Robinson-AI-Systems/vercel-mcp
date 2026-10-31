@@ -50,7 +50,7 @@ describe('A-5 account read tools', () => {
     expect(parsed.expiresAtLocal).toBeTruthy();
     expect(parsed.account.tokenExpiresAt).toBe(expiring[0].token_expires_at);
     expect(parsed.tokenWarning).toBe(
-      'Vercel token expires within 10 days; verify renewal through owner setup.');
+      'Vercel token expires within 10 days; verify renewal through the enrollment step of the sign-in flow.');
   });
   it('whoami reports a token expiring in 30 days with posture fields but no warning (AUD-E)', async () => {
     const later = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
@@ -79,7 +79,7 @@ describe('A-5 account read tools', () => {
     expect(parsed.expiryPosture).toBe('expired');
     expect(parsed.daysLeft).toBeLessThanOrEqual(0);
     expect(parsed.tokenWarning).toBe(
-      'Vercel token expired; rotate it using the authenticated owner setup page.');
+      'Vercel token expired; rotate it through the enrollment step of the sign-in flow.');
   });
   it('whoami reports an attested never-expiring token as no_expiry — owner choice, no warning (AUD-E)', async () => {
     const attested = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',

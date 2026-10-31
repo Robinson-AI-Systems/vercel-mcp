@@ -47,8 +47,8 @@ function dollars(cents) {
   return '$' + Math.floor(cents / 100) + '.' + String(cents % 100).padStart(2, '0');
 }
 
-// The page's ownerRequestSummary wording (src/vercel/setup.js),
-// carried so the tool states the change in the same plain words.
+// The deleted page's ownerRequestSummary wording, carried so the
+// tool states the change in the same plain words.
 function ownerChangeSummary(request) {
   if (request.action === 'default') return 'Select ' + request.targetAccount + ' as the new default Vercel account';
   if (request.action === 'spend') return 'Set ' + request.issuerAccount + ' daily spend limit to ' + dollars(request.limitCents);

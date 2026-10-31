@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import { createDb } from '../../src/db.js';
-import { PROTECTED_DEFAULTS } from '../../src/vercel/setup.js';
+import { PROTECTED_DEFAULTS } from '../../src/db.js';
 import { openIsolatedSchema, closeIsolatedSchema, neonShapedQuery, rawQuery } from '../../test/helpers/pg-neon-adapter.js';
 
 let db;

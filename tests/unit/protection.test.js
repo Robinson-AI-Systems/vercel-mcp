@@ -3,14 +3,12 @@ import { registry } from '../../src/tools/index.js';
 import { dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
 import { makeFakeVercel } from '../../test/helpers/fake-vercel.js';
 import { loadToken } from '../../src/vercel/tokens.js';
-import { pendingInputs } from '../../src/core/pending-inputs.js';
 import { oneTimeSecrets } from '../../src/core/one-time-secrets.js';
 vi.mock('../../src/vercel/tokens.js', async fn => ({ ...await fn(), loadToken: vi.fn() }));
 
 const account = 'acct_FAKE', team = 'team_FAKE';
 // Assembled, never literal: a password-shaped literal in this file is
 // redacted by the push transport (proven on the F-1 push, 2026-10-30).
-const PASSWORD = ['FAKE', 'horse', 'battery'].join('-');
 const env = { TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32) };
 const production = { account, mode: 'production', profile: 'full', listing: 'catalog' };
 const parse = out => JSON.parse(out.content?.[0]?.text ?? '{}');
@@ -26,7 +24,7 @@ const bypassRow = {
 };
 
 function harness() {
-  const fake = makeFakeVercel(), audit = [], pending = new Map(), once = new Map();
+  const fake = makeFakeVercel(), audit = [], once = new Map();
   const db = {
     getAccountCredential: async () => ({}),
     listProtectedResources: async () => [],
@@ -35,12 +33,6 @@ function harness() {
       claim: async ({ key }) => ({ state: 'claimed', claimId: key }),
       complete: async () => true, release: async () => true
     }),
-    insertPendingInput: async row => { pending.set(row.id, row); },
-    consumePendingInput: async ({ id, account: a, kind }) => {
-      const r = pending.get(id);
-      if (!r || r.account !== a || r.kind !== kind) return null;
-      pending.delete(id); return { ...r, vercel_account: r.account };
-    },
     insertOneTimeSecret: async row => { once.set(row.id, row); },
     consumeOneTimeSecret: async ({ id, account: a }) => {
       const r = once.get(id);
@@ -50,7 +42,7 @@ function harness() {
   };
   const call = (name, args = {}, conn = production, fetchImpl = fake.fetch) =>
     dispatchReadOnlyTool({ registry, name, args, connection: conn, db, fetchImpl, env });
-  return { fake, db, audit, pending, once, call };
+  return { fake, db, audit, once, call };
 }
 
 beforeEach(() => {
@@ -169,32 +161,39 @@ describe('F-1 Vercel Authentication', () => {
 });
 
 describe('F-1 password protection', () => {
-  it('refuses to turn it on without a setup-page password', async () => {
+  it('refuses to turn it on without a dashboard-set password', async () => {
     const h = harness();
     h.fake.when('GET', '/v9/projects/{idOrName}').resolves(baseProject);
     const out = parse(await h.call('vercel_protection_set_password',
       { project: 'prj_FAKE', enabled: true, deploymentType: 'preview', dryRun: true }));
     expect(out.status).toBe('refused_by_guard');
-    expect(out.reason).toContain('setup page');
+    expect(out.reason).toContain('Vercel dashboard');
   });
 
-  it('applies with the pending-input password and never echoes it', async () => {
+  it('refuses the removed pendingInputId by name (AUD-AV, D9)', async () => {
     const h = harness();
-    const submitted = await pendingInputs({ db: h.db, env }).submit({
-      account, kind: 'deploy_password', label: 'Deployment password', value: PASSWORD });
-    const on = { ...baseProject, passwordProtection: { deploymentType: 'preview' } };
-    h.fake.when('GET', '/v9/projects/{idOrName}')
-      .resolves(baseProject).resolves(baseProject).resolves(on);
-    h.fake.when('PATCH', '/v9/projects/{idOrName}').resolves(on);
-    const applied = parse(await h.call('vercel_protection_set_password', {
+    h.fake.when('GET', '/v9/projects/{idOrName}').resolves(baseProject);
+    const out = parse(await h.call('vercel_protection_set_password', {
       project: 'prj_FAKE', enabled: true, deploymentType: 'preview',
-      pendingInputId: submitted.id, confirm: true }));
+      pendingInputId: '123e4567-e89b-12d3-a456-426614174000', confirm: true }));
+    expect(out.status).toBe('refused_by_guard');
+    expect(out.reason).toMatch(/no longer accepted/);
+    expect(out.reason).toContain('Vercel dashboard');
+    expect(h.fake.calls.filter(x => x.method === 'PATCH')).toHaveLength(0);
+  });
+
+  it('changes scope while on without touching the password', async () => {
+    const h = harness();
+    const before = { ...baseProject, passwordProtection: { deploymentType: 'all' } };
+    const after = { ...baseProject, passwordProtection: { deploymentType: 'preview' } };
+    h.fake.when('GET', '/v9/projects/{idOrName}')
+      .resolves(before).resolves(before).resolves(after);
+    h.fake.when('PATCH', '/v9/projects/{idOrName}').resolves(after);
+    const applied = parse(await h.call('vercel_protection_set_password', {
+      project: 'prj_FAKE', enabled: true, deploymentType: 'preview', confirm: true }));
     expect(applied).toMatchObject({ status: 'applied', confirmed: true });
     const patch = h.fake.calls.find(x => x.method === 'PATCH');
-    expect(patch.body).toEqual({ passwordProtection:
-      { deploymentType: 'preview', password: PASSWORD } });
-    expect(JSON.stringify(applied)).not.toContain(PASSWORD);
-    expect(JSON.stringify(h.audit)).not.toContain(PASSWORD);
+    expect(patch.body).toEqual({ passwordProtection: { deploymentType: 'preview' } });
     h.fake.verify();
   });
 

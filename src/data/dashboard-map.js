@@ -143,7 +143,7 @@ const GUIDES = [
     name: 'Project environment variables', area: 'Project → Settings → Environment Variables',
     steps: steps(
       S('Choose the project and open Settings, Environment Variables.', 'Project → Settings → Environment Variables'),
-      S('Prefer the env tools for reads and guarded writes; values are entered on the setup page, never in chat.', 'Env var list')),
+      S('Prefer the env tools for reads and guarded writes; secret values are generated or entered in the Vercel dashboard, never in chat.', 'Env var list')),
     expected: 'The variable names and targets match the intended configuration (values are never shown by this server).',
     readBack: 'Use vercel_env_list to read variable names and targets back.',
     changesProduction: true },

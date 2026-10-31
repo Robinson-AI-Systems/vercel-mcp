@@ -3,7 +3,6 @@
 import {randomBytes} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
-import {pendingInputs} from '../core/pending-inputs.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
@@ -12,8 +11,13 @@ const PROJECT=/^prj_[A-Za-z0-9_-]{3,124}$/;
 const ENV=/^env_[A-Za-z0-9_-]{3,124}$/;
 const KEY=/^[A-Za-z_][A-Za-z0-9_]{0,255}$/;
 const TARGETS=new Set(['preview','development','production']);
-const PENDING=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REQUEST=/^[A-Za-z0-9_-]{8,128}$/;
+// AUD-AV (dossier D9): the pending-input source is removed with the
+// setup page; passing it refuses by name with the guided remedy.
+const PENDING_REMOVED='pendingInputId is no longer accepted: the protected ' +
+  'pending-input path was removed with the owner setup page. To set a Secret ' +
+  'to a value you choose, set it in the Vercel dashboard (Team Settings ' +
+  '→ Shared Environment Variables); or pass generate to have one generated here.';
 const props={
   project:{type:'string',pattern:PROJECT.source},
   mode:{type:'string',enum:['create','update','unlink','delete']},
@@ -24,7 +28,6 @@ const props={
   kind:{type:'string',enum:['Secret','Config']},
   expectedKind:{type:'string',enum:['Secret','Config']},
   value:{type:'string',minLength:1,maxLength:65536},
-  pendingInputId:{type:'string',pattern:PENDING.source},
   generate:{type:'object',properties:{
     bytes:{type:'integer',const:32},
     encoding:{type:'string',enum:['hex','base64url']}
@@ -34,7 +37,7 @@ const props={
   requestKey:{type:'string',pattern:REQUEST.source}
 };
 const setKeys=['mode','project','key','id','expectedUpdatedAt','kind',
-  'value','pendingInputId','generate','outsideApp','confirm','dryRun','requestKey'];
+  'value','generate','outsideApp','confirm','dryRun','requestKey'];
 const removeKeys=['mode','project','id','expectedKey','expectedKind',
   'expectedUpdatedAt','outsideApp','confirm','dryRun','requestKey'];
 const only=(a,keys)=>a&&typeof a==='object'&&!Array.isArray(a)&&
@@ -44,19 +47,19 @@ function validControl(a){
 }
 function validKind(k){return ['Secret','Config'].includes(k);}
 function goodSource(a,kind){
-  const sources=['value','pendingInputId','generate'].filter(k=>a[k]!==undefined);
+  const sources=['value','generate'].filter(k=>a[k]!==undefined);
   if(sources.length!==1)return false;
   if(kind==='Config'){
     return sources[0]==='value'&&typeof a.value==='string'&&
       a.value.length>0&&a.value.length<=65536&&!credentialLike(a.value);
   }
   if(sources[0]==='value')return false;
-  if(sources[0]==='pendingInputId')return PENDING.test(a.pendingInputId??'');
   return a.generate&&typeof a.generate==='object'&&!Array.isArray(a.generate)&&
     Object.keys(a.generate).sort().join(',')==='bytes,encoding'&&
     a.generate.bytes===32&&['hex','base64url'].includes(a.generate.encoding);
 }
 function validSet(a){
+  if(a.pendingInputId!==undefined) throw new RefusalError(PENDING_REMOVED);
   if(!only(a,setKeys)||!['create','update'].includes(a.mode)||
     !PROJECT.test(a.project??'')||!KEY.test(a.key??'')||
     credentialLike(a.key)||!validKind(a.kind)||!goodSource(a,a.kind)||
@@ -178,16 +181,9 @@ async function providerFor(ctx,a,b,inspect){
   });
   return provider;
 }
-async function valueFor(a,ctx){
+async function valueFor(a){
   if(a.value!==undefined)return a.value;
-  if(a.generate)return randomBytes(32).toString(a.generate.encoding);
-  if(typeof ctx.db?.consumePendingInput!=='function')
-    throw new TypeError('Owner pending input service unavailable');
-  const value=await pendingInputs({db:ctx.db,env:ctx.env}).consume({
-    id:a.pendingInputId,account:ctx.connection.account,kind:'env_value'});
-  if(typeof value!=='string'||value.length<1||value.length>65536)
-    throw new TypeError('Owner private value unavailable');
-  return value;
+  return randomBytes(32).toString(a.generate.encoding);
 }
 function context({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,

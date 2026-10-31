@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
-import { encryptSecret } from '../../src/core/secret-box.js';
 import { checkProductionWrite, requestProductionEnable, approveProductionEnable, disableProduction } from '../../src/tools/production-guard.js';
 import { productionTools } from '../../src/tools/production.js';
-import { handleSetup } from '../../src/vercel/setup.js';
 import { registry } from '../../src/tools/index.js';
 import { dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
 
@@ -17,6 +15,13 @@ function fixture(strictness = 'word') {
     listVercelAccounts: async () => [{ id: 'team_FAKE', label: 'Fixture', production_enabled: enabled,
       production_enable_strictness: strictness }],
     async insertOneTimeSecret(row) { secrets.set(row.id, { ...row, vercel_account: row.account }); },
+    async getProductionEnableRequest({ account, reference }) {
+      const row = secrets.get(reference);
+      if (!row || row.kind !== 'production_enable' || row.vercel_account !== account ||
+        row.expiresAt.getTime() <= Date.now()) return null;
+      return row;
+    },
+    async getRtcPassRequest() { return null; },
     async consumeOneTimeSecret({ id, account }) {
       const row = secrets.get(id);
       if (!row || row.account !== account || row.expiresAt.getTime() <= Date.now()) return null;
@@ -31,11 +36,6 @@ function fixture(strictness = 'word') {
   };
   const opts = { db, env, connection: conn, confirm: true };
   return { db, opts, audits, revoked, secrets, isEnabled: () => enabled };
-}
-function mockRes() {
-  return { headers: {}, statusCode: null, body: '', setHeader(k,v){this.headers[k.toLowerCase()]=v;return this;},
-    status(code){this.statusCode=code;return this;},send(x){this.body=x;return this;},
-    json(x){this.body=JSON.stringify(x);return this;},end(){return this;} };
 }
 describe('B-2 production permission (AUD-B: word default, passphrase strictness)', () => {
   it('blocks unsafe live changes and requires confirm in production mode', () => {
@@ -89,53 +89,43 @@ describe('B-2 production permission (AUD-B: word default, passphrase strictness)
     expect(refused.isError).toBe(true);
     const payload = JSON.parse(refused.content[0].text);
     expect(payload.status).toBe('refused_by_guard');
-    expect(payload.reason).toContain('setup page');
+    expect(payload.reason).toContain('vercel_set_production_strictness');
     expect(f.isEnabled()).toBe(false);
     const viaTool = await productionTools.handlers.vercel_enable_production(
       { confirm: true }, { connection: conn, db: f.db, env });
     expect(JSON.parse(viaTool.content[0].text).status).toBe('enabled');
     expect(f.isEnabled()).toBe(true);
   });
-  it('AUD-B: setup approve_production reports a word team as word-enabled, consuming no receipt', async () => {
-    const f = fixture('word');
-    const csrf = 'q'.repeat(43);
-    const cookie = 'rmcp_owner=' + encryptSecret(JSON.stringify({ csrf, exp: Date.now()+600000 }), 'setup:session', env);
-    const res = mockRes();
-    await handleSetup({ method: 'POST', headers: { cookie, 'x-real-ip': '127.0.0.1' },
-      body: { action: 'approve_production', csrf, id: 'no-receipt-needed',
-        account: 'team_FAKE', passphrase: env.ADMIN_PASSPHRASE } }, res, { db: f.db, env });
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toContain('word strictness');
-    expect(res.body).toContain('no setup receipt is needed');
-    expect(f.isEnabled()).toBe(false);
-    expect(f.secrets.size).toBe(0);
-  });
-  it('passphrase strictness: requests approval but cannot enable until the owner reenters password on setup', async () => {
+  it('passphrase strictness: requests approval but cannot enable until the owner applies it (AUD-AS apply tool)', async () => {
     const f = fixture('passphrase');
     expect((await requestProductionEnable({ ...f.opts, confirm: false })).status).toBe('needs_confirmation');
     expect((await requestProductionEnable({ ...f.opts, dryRun: true })).status).toBe('preview');
     const request = await requestProductionEnable(f.opts);
     expect(request.status).toBe('awaiting_owner_passphrase');
     expect(f.isEnabled()).toBe(false);
-    const csrf = 'q'.repeat(43);
-    const cookie = 'rmcp_owner=' + encryptSecret(JSON.stringify({ csrf, exp: Date.now()+600000 }), 'setup:session', env);
-    const req = body => ({ method: 'POST', headers: { cookie, 'x-real-ip': '127.0.0.1' }, body });
-    const noCsrf = mockRes();
-    await handleSetup(req({ action: 'approve_production', id: request.reference,
-      account: 'team_FAKE', passphrase: env.ADMIN_PASSPHRASE }), noCsrf, { db:f.db, env });
-    expect(noCsrf.statusCode).toBe(403);
-    const wrong = mockRes();
-    await handleSetup(req({ action: 'approve_production',csrf,id:request.reference,
-      account:'team_FAKE', passphrase:'wrong' }), wrong, { db:f.db, env });
-    expect(wrong.statusCode).toBe(401);
+    // The request alone enables nothing; only applying the receipt
+    // through the owner's connection (AUD-AS) does.
     expect(f.isEnabled()).toBe(false);
-    const good = mockRes();
-    await handleSetup(req({ action:'approve_production',csrf,id:request.reference,
-      account:'team_FAKE',passphrase:env.ADMIN_PASSPHRASE }),good,{db:f.db,env});
-    expect(good.statusCode).toBe(200);
+    const apply = (args, connection) => dispatchReadOnlyTool({ registry,
+      name: 'vercel_apply_owner_approval', args,
+      connection: connection ?? { ...conn, kind: 'connector', mode: 'production' },
+      db: f.db, env });
+    const inspected = JSON.parse((await apply({ reference: request.reference,
+      dryRun: true })).content[0].text);
+    expect(inspected.status).toBe('preview');
+    expect(inspected.family).toBe('production_enable');
+    expect(f.isEnabled()).toBe(false);
+    const applied = JSON.parse((await apply({ reference: request.reference,
+      confirm: true })).content[0].text);
+    expect(applied.status).toBe('applied');
+    expect(applied.family).toBe('production_enable');
     expect(f.isEnabled()).toBe(true);
-    expect(f.audits.some(x=>x.production===true)).toBe(true);
-    expect((await approveProductionEnable({db:f.db,env,account:'team_FAKE',reference:request.reference})).status).toBe('refused_by_guard');
+    expect(f.audits.some(x => x.production === true)).toBe(true);
+    // The receipt is consumed: neither path can apply it twice.
+    expect(JSON.parse((await apply({ reference: request.reference,
+      confirm: true })).content[0].text).status).toBe('refused_by_guard');
+    expect((await approveProductionEnable({ db: f.db, env, account: 'team_FAKE',
+      reference: request.reference })).status).toBe('refused_by_guard');
   });
   it('rejects preview deployments, expired and wrong-account references', async () => {
     const f=fixture('passphrase');

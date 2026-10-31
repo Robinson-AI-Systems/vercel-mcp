@@ -2,10 +2,12 @@
 // N4): the preview prices from a fresh quote, the executor re-quotes
 // before dispatch and refuses drift, and apply sends expectedPrice in
 // dollars so the provider independently refuses a changed price.
-// Registrant contact and transfer auth codes arrive ONLY through the
-// setup-page pending-input vault, consumed inside apply (design N5;
-// dossier §4.2); the transfer-out auth code leaves ONLY through the
-// one-time-secret page. Contract dossier:
+// Registrant contact and transfer auth codes arrived ONLY through
+// the setup-page pending-input vault (design N5) until AUD-AV
+// removed that path under the sign-in cleanup dossier's D9: buy and
+// transfer-in now refuse with the Vercel-dashboard remedy, and
+// renew sends no contact. The transfer-out auth code leaves ONLY
+// through the one-time-secret reveal tool. Contract dossier:
 // batch-n3-dossier-2026-10-30.md (audit goal workspace).
 import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch,RefusalError} from '../core/write.js';
@@ -13,7 +15,6 @@ import {compact} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {accountSpendGuard,usd} from '../vercel/spend.js';
-import {pendingInputs} from '../core/pending-inputs.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
@@ -34,7 +35,13 @@ function providerRejection(error,leg){
 const READ_PROFILES=['read_only','everyday','full'];
 const FULL=['full'];
 const REQUEST=/^[A-Za-z0-9_-]{8,128}$/;
-const INPUT_ID=/^[A-Za-z0-9-]{36}$/;
+// AUD-AV (dossier D9): the pending-input vault is removed with the
+// setup page. Buy and transfer-in cannot be supplied their required
+// protected inputs any more, so they refuse with the console remedy;
+// a renewal carrying a contact input refuses the same way.
+const CONTACT_REMOVED='the registrant contact was supplied through the ' +
+  'protected pending-input vault, which was removed with the owner setup ' +
+  'page (AUD-AV)';
 const ORDER_ID=/^[A-Za-z0-9_-]{3,128}$/;
 const TRANSFER_STATUSES=['canceled','canceled_pending_refund','completed',
   'created','failed','pending','pending_insert','pending_new_auth_code',
@@ -137,55 +144,6 @@ function safeYears(value){
 }
 
 /* ------------------------------ contact ------------------------------- */
-const CONTACT_REQUIRED=['firstName','lastName','email','phone','address1',
-  'city','state','zip','country'];
-const CONTACT_OPTIONAL=['address2','companyName','fax'];
-const E164=/^\+[1-9]\d{6,14}$/;
-function parseContact(text){
-  if(typeof text!=='string'||text.length>8192)
-    throw new RefusalError('The stored registrant contact is missing or unreadable');
-  let contact;
-  try{contact=JSON.parse(text);}
-  catch{throw new RefusalError('The stored registrant contact is not valid JSON');}
-  if(!contact||typeof contact!=='object'||Array.isArray(contact))
-    throw new RefusalError('The stored registrant contact is not an object');
-  const allowed=[...CONTACT_REQUIRED,...CONTACT_OPTIONAL,'additional'];
-  if(Object.keys(contact).some(key=>!allowed.includes(key)))
-    throw new RefusalError('The stored registrant contact carries fields the provider does not accept');
-  for(const field of CONTACT_REQUIRED){
-    const value=contact[field];
-    if(typeof value!=='string'||value.trim().length===0||value.length>256||
-      /[\x00-\x1f\x7f]/.test(value))
-      throw new RefusalError('The stored registrant contact is missing a valid '+field);
-  }
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email))
-    throw new RefusalError('The stored registrant contact email is not valid');
-  if(!E164.test(contact.phone))
-    throw new RefusalError('The stored registrant contact phone must be in international (+country) format');
-  if(!/^[A-Z]{2}$/.test(contact.country))
-    throw new RefusalError('The stored registrant contact country must be a two-letter country code');
-  for(const field of CONTACT_OPTIONAL){
-    if(contact[field]!==undefined&&
-      (typeof contact[field]!=='string'||contact[field].length>256||
-        /[\x00-\x1f\x7f]/.test(contact[field])))
-      throw new RefusalError('The stored registrant contact field '+field+' is not valid');
-  }
-  if(contact.fax!==undefined&&contact.fax!==''&&!E164.test(contact.fax))
-    throw new RefusalError('The stored registrant contact fax must be in international (+country) format');
-  if(contact.additional!==undefined&&
-    (!contact.additional||typeof contact.additional!=='object'||
-      Array.isArray(contact.additional)))
-    throw new RefusalError('The stored registrant contact additional data is not an object');
-  return contact;
-}
-async function contactFieldNames(client,domain){
-  const reply=await client.request('registrar_contact_schema',{path:{domain}});
-  if(!reply||typeof reply!=='object'||Array.isArray(reply))
-    throw new RefusalError('Invalid contact schema response');
-  const properties=reply.properties&&typeof reply.properties==='object'&&
-    !Array.isArray(reply.properties)?Object.keys(reply.properties):[];
-  return properties.filter(name=>/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(name)).sort();
-}
 async function availabilityFor(client,domain){
   const reply=await client.request('registrar_search',{body:{domains:[domain]}});
   if(!reply||!Array.isArray(reply.results)||reply.results.length!==1)
@@ -343,15 +301,25 @@ function purchaseBefore(kind){
       ['domain','years','autoRenew','contactInputId','authCodeInputId',
         'outsideApp','confirm','dryRun','requestKey']);
     assertControl(args);assertOutsideApp(args);assertFull(ctx);
-    if(kind!=='renew'&&
-      (typeof args.contactInputId!=='string'||!INPUT_ID.test(args.contactInputId)))
-      throw new RefusalError('A registrant contact input id from the setup page is required');
-    if(kind==='renew'&&args.contactInputId!==undefined&&
-      (typeof args.contactInputId!=='string'||!INPUT_ID.test(args.contactInputId)))
-      throw new RefusalError('Invalid registrant contact input id');
-    if(kind==='transfer'&&
-      (typeof args.authCodeInputId!=='string'||!INPUT_ID.test(args.authCodeInputId)))
-      throw new RefusalError('A transfer auth code input id from the setup page is required');
+    // AUD-AV (D9): buy and transfer-in can no longer execute — their
+    // required protected inputs have no supply path. Refuse before
+    // any provider call, with the console remedy.
+    if(kind==='buy')
+      throw new RefusalError('Domain purchases can no longer be completed ' +
+        'here: ' + CONTACT_REMOVED + '. Complete the purchase in the ' +
+        'Vercel dashboard (Domains → Buy a Domain) instead.');
+    if(kind==='transfer')
+      throw new RefusalError('Domain transfers-in can no longer be ' +
+        'completed here: the registrant contact and transfer auth ' +
+        'code were supplied through the protected pending-input ' +
+        'vault, removed with the owner setup page (AUD-AV). ' +
+        'Complete the transfer in the Vercel dashboard ' +
+        '(Domains → Transfer) instead.');
+    if(kind==='renew'&&args.contactInputId!==undefined)
+      throw new RefusalError('A registrant contact can no longer be ' +
+        'supplied here: ' + CONTACT_REMOVED + '. Renew without a ' +
+        'contactInputId, or update the contact in the Vercel dashboard ' +
+        '(Domains) instead.');
     const domain=safeDomain(args.domain);
     if(!domain)throw new RefusalError('Invalid domain');
     const years=safeYears(args.years);
@@ -365,9 +333,8 @@ function purchaseBefore(kind){
       catch{throw new RefusalError('That domain is not registered on this team');}
     }
     const quote=await quoteFor(client,domain,years);
-    const contactFields=await contactFieldNames(client,domain);
     return {domain,teamId:account.team_id,years,
-      autoRenew:kind==='renew'?null:args.autoRenew,quote,contactFields};
+      autoRenew:kind==='renew'?null:args.autoRenew,quote};
   };
 }
 const QUOTE_LEG={buy:'purchase',renew:'renewal',transfer:'transfer'};
@@ -396,11 +363,11 @@ function purchaseWrite(kind){
         (before.autoRenew===null?'':' Auto-renew '+
           (before.autoRenew?'ON — it will renew at the renewal price.':
             'OFF — it will expire at the end of the term.'))+
-        ' The registrant contact is taken once from the setup-page vault'+
-        ' (fields the provider will receive: '+
-        (before.contactFields.join(', ')||'per the provider schema')+
-        '); its values are never shown here. A completed order cannot '+
-        'be undone here.';
+        (kind==='renew'?
+          ' No registrant contact is sent with a renewal.':
+          ' The registrant contact is supplied in the Vercel dashboard;'+
+          ' its values are never shown here.')+
+        ' A completed order cannot be undone here.';
     },
     async production(){return {production:true,
       why:'A registrar order charges the account and changes domain ownership state (B2)'};},
@@ -408,11 +375,12 @@ function purchaseWrite(kind){
     async apply(args,ctx,before,requestKey){
       const provider=await writeProvider(ctx);
       const leg=QUOTE_LEG[kind];
-      let contact=null,authCode=null;
       // Everything before the provider call is a pre-dispatch check: the
       // team/mode recheck, a FRESH re-quote (price drift refuses here,
-      // before any charge), the one-time input consumption and the body
-      // validation. A refusal from this block dispatched nothing.
+      // before any charge) and the body validation. A refusal from this
+      // block dispatched nothing. AUD-AV: only renew reaches apply —
+      // buy and transfer-in refuse in before() (D9), and renew sends
+      // no registrant contact.
       await requirePreDispatch(async()=>{
         if(provider.account.team_id!==before.teamId||
           ctx.connection?.mode!=='production')
@@ -421,25 +389,10 @@ function purchaseWrite(kind){
           before.domain,before.years);
         if(fresh[leg]!==before.quote[leg])
           throw new RefusalError('The price changed since the quote, so nothing was charged. Run the quote again and confirm the new price.');
-        if(kind!=='renew'||args.contactInputId!==undefined){
-          contact=parseContact(await pendingInputs({db:ctx.db,env:ctx.env})
-            .consume({id:args.contactInputId,account:ctx.connection.account,
-              kind:'registrar_contact'}));
-        }
-        if(kind==='transfer'){
-          authCode=await pendingInputs({db:ctx.db,env:ctx.env})
-            .consume({id:args.authCodeInputId,account:ctx.connection.account,
-              kind:'transfer_auth_code'});
-          if(typeof authCode!=='string'||authCode.length===0||
-            authCode.length>256||/[\x00-\x1f\x7f]/.test(authCode))
-            throw new RefusalError('The stored transfer auth code is missing or already used. Paste it again on the setup page.');
-        }
       });
       const body={years:before.years,
         expectedPrice:centsToDollars(before.quote[leg]),
-        ...(kind!=='renew'?{autoRenew:before.autoRenew}:{}),
-        ...(kind==='transfer'?{authCode}:{}),
-        ...(contact?{contactInformation:contact}:{})};
+        ...(kind!=='renew'?{autoRenew:before.autoRenew}:{})};
       validateRequest(op,{path:{domain:before.domain},
         query:{teamId:'team_FAKE_validation'},body});
       try{
@@ -642,7 +595,8 @@ const authCodeWrite=defineWrite({
   },
   async preview(_args,_ctx,before){
     return 'Read the transfer auth code for '+before.domain+
-      '. The code itself is delivered once, on the owner one-time page — '+
+      '. The code itself is delivered once, through '+
+      'vercel_reveal_one_time_secret — '+
       'it never appears in this result, the journal or a replay.';
   },
   async production(){return {production:true,
@@ -679,7 +633,7 @@ const authCodeWrite=defineWrite({
     }catch{return {confirmed:null};}
   },
   async publicReceipt(_args,before){
-    return {domain:before.domain,delivery:'one-time page'};
+    return {domain:before.domain,delivery:'one-time reveal tool'};
   }
 });
 
@@ -710,10 +664,10 @@ export const registrarTools={
         fields:{type:'array'},detail:{type:'string'}})},
     {name:'vercel_registrar_buy',writes:true,guardedWrite:true,
       profiles:FULL,area:'registrar',writeContract:buyWrite.writeContract,
-      description:'Buy a domain at the quoted price; contact comes from the setup-page vault',
+      description:'Domain purchases complete in the Vercel dashboard: the registrant-contact input path was removed (AUD-AV), so this tool refuses with that remedy',
       inputSchema:schema({domain:{type:'string'},years:{type:'integer'},
         autoRenew:{type:'boolean'},contactInputId:{type:'string'},
-        ...writeFlags},['domain','autoRenew','contactInputId','outsideApp']),
+        ...writeFlags},['domain','autoRenew','outsideApp']),
       annotations:{destructiveHint:false}},
     {name:'vercel_registrar_renew',writes:true,guardedWrite:true,
       profiles:FULL,area:'registrar',writeContract:renewWrite.writeContract,
@@ -733,16 +687,16 @@ export const registrarTools={
     {name:'vercel_registrar_transfer_in',writes:true,guardedWrite:true,
       profiles:FULL,area:'registrar',
       writeContract:transferWrite.writeContract,
-      description:'Transfer a domain in at the quoted transfer price; auth code from the vault',
+      description:'Domain transfers-in complete in the Vercel dashboard: the contact and auth-code inputs were removed (AUD-AV); this tool refuses with the remedy',
       inputSchema:schema({domain:{type:'string'},years:{type:'integer'},
         autoRenew:{type:'boolean'},contactInputId:{type:'string'},
         authCodeInputId:{type:'string'},...writeFlags},
-        ['domain','autoRenew','contactInputId','authCodeInputId','outsideApp']),
+        ['domain','autoRenew','outsideApp']),
       annotations:{destructiveHint:false}},
     {name:'vercel_registrar_get_auth_code',writes:true,guardedWrite:true,
       profiles:FULL,area:'registrar',
       writeContract:authCodeWrite.writeContract,
-      description:'Read the transfer auth code; delivered once on the owner one-time page',
+      description:'Read the transfer auth code; delivered once through vercel_reveal_one_time_secret',
       inputSchema:schema({domain:{type:'string'},...writeFlags},
         ['domain','outsideApp']),
       annotations:{destructiveHint:false}},

@@ -54,7 +54,7 @@ const transfer=defineWrite({
   async preview(_args,_ctx,before){
     return 'Issue a 24-hour claim code for project '+before.name+' ('+before.id+
       '); this may enable another team to claim ownership. '+
-      'The code is delivered only through the authenticated owner setup page. '+
+      'The code is delivered only through vercel_reveal_one_time_secret. '+
       'No transfer is completed by issuing this request.';
   },
   async production(){

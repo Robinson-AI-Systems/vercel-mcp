@@ -8,9 +8,12 @@ function result(payload) {
   return { isError: payload.status === 'refused_by_guard',
     content: [{ type: 'text', text: JSON.stringify(payload) }] };
 }
-// AUD-B: strictness is setup-only by design. A tool call carrying any
+// AUD-B: strictness is owner-only by design. A tool call carrying any
 // argument beyond confirm/dryRun — above all one trying to set the
-// strictness — is refused, never silently ignored.
+// strictness — is refused, never silently ignored. Since AUD-AT the
+// owner's path is the envelope pair: propose with
+// vercel_set_production_strictness, apply with
+// vercel_apply_owner_approval.
 function extraArgs(args) {
   if (!args || typeof args !== 'object' || Array.isArray(args)) return null;
   const extra = Object.keys(args).filter(k => !['confirm', 'dryRun'].includes(k));
@@ -19,13 +22,13 @@ function extraArgs(args) {
 function refusedExtra(extra) {
   return result({ status: 'refused_by_guard', confirmed: false,
     reason: extra.some(k => /strictness/i.test(k)) ?
-      'Production enable strictness can only be changed by the owner on the setup page' :
+      'Production enable strictness is changed only by the owner: propose it with vercel_set_production_strictness and apply it with vercel_apply_owner_approval' :
       'This tool accepts only confirm and dryRun' });
 }
 export const productionTools = {
   tools: [
     { name: 'vercel_enable_production', writes: true, profiles: ['full'], localAdmin: true,
-      description: 'Enable production mode for your team on your confirmed word, unless the team is set to passphrase strictness on setup.',
+      description: 'Enable production mode for your team on your confirmed word, unless the team is set to passphrase strictness by its owner.',
       inputSchema: opts,
       annotations: { readOnlyHint: false, destructiveHint: false },
       writeContract: { production: true, targets: true }

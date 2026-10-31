@@ -13,8 +13,9 @@ import { resolveBlobStore, blobOps, BlobOpError } from '../vercel/blob.js';
 
 const READ = ['read_only', 'everyday', 'full'];
 const MAX_PUT_BYTES = 4 * 1024 * 1024;
-const SETUP_STEPS = 'Connect it on the setup page: open /api/vercel/setup, ' +
-  'sign in as the owner, and use the Blob stores section — you need the ' +
+const SETUP_STEPS = 'Connect it through the enrollment step of the ' +
+  'sign-in flow: open /api/oauth/enroll, sign in as the owner, and use ' +
+  'the Blob store form — you need the ' +
   'store ID and its read-write token from the Vercel dashboard (Storage ' +
   '→ the store → Settings). The token is stored encrypted and never ' +
   'shown again. Stores reachable only through a project OIDC token ' +
@@ -24,7 +25,7 @@ const output = value => ({ content: [{ type: 'text',
   text: JSON.stringify(compact(value, 1048576)) }] });
 const storeArg = {
   store: { type: 'string', minLength: 1, maxLength: 200,
-    description: 'Connected Blob store ID (see the setup page list).' } };
+    description: 'Connected Blob store ID (connected through the enrollment step of the sign-in flow).' } };
 
 function requireStoreId(args) {
   if (typeof args.store !== 'string' || !args.store.trim()) {

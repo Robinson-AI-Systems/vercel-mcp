@@ -1,6 +1,7 @@
-// O-5b (VMCP-021): the owner's data export. Setup-page surface only —
-// this module composes the export object; src/vercel/setup.js owns the
-// authenticated download.
+// O-5b (VMCP-021): the owner's data export. This module composes the
+// export object; the AUD-AT tool vercel_export_owner_data owns the
+// journaled delivery (the setup page that used to own the download
+// was deleted by AUD-AV).
 //
 // The export is built exclusively from the db layer's safe metadata reads,
 // and every section passes through an explicit allowlist projection:
