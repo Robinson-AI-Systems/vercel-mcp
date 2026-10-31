@@ -202,3 +202,51 @@ exception is the daily-live workflow's documented recovery dispatch
 scheduled promotion was missed. Do not run writes against real Vercel
 teams while diagnosing a posture failure — diagnosis is reads only
 until the cause is known.
+
+**Rolling back a bad promotion.** The mechanism has no backward move
+and no target-commit input: the promotion script
+(`.github/release/promote-live.mjs`) only ever fast-forwards `live`
+to `main`'s current head, after the required checks (`ci` +
+`release-policy`) pass at that head and `live` proves an ancestor of
+`main`; the recovery dispatch promotes that same head. Neither can
+select an older commit. There are exactly two ways back, in order of
+preference.
+
+1. **Fix forward — the supported rollback.** Land the correction — a
+   fix, or a revert of the bad change — on `main` through the normal
+   PR gates, then move `live` to it through the checked path: that
+   Denver day's scheduled promotion if it has not yet run. If the
+   day's promotion already ran, the day's marker tag
+   (`live-promotion/<YYYY-MM-DD>`) makes every later run that day a
+   checked no-op — including the recovery dispatch — so the owner
+   first deletes that day's marker tag, then runs the recovery
+   dispatch (`recover_missed_daily`, gated to the owner's own actor).
+   The script then re-runs the full check gate against `main`'s new
+   head before moving `live`, and writes a fresh marker. Nothing in
+   this path skips a check.
+2. **Emergency ref move — manual, outside the checked path.** When
+   production cannot wait for a fix to clear the gates, an operator
+   with write access can point `live` directly at the last
+   known-good commit: `git push origin <good-sha>:refs/heads/live`.
+   Find that commit in the promotion tags — each
+   `live-promotion/<YYYY-MM-DD>` tag names the exact `main` commit
+   that went live that day, so the most recent tag from before the
+   bad promotion names the previous live head. This is safe for the
+   mechanism only because every promoted commit is an ancestor of
+   `main`, so `live` remains an ancestor and the next checked
+   promotion still fast-forwards; never point `live` at a commit
+   outside `main`'s history — every later promotion then refuses
+   with "live has diverged; refusing to rewrite history". Two limits,
+   stated plainly: the move bypasses the check gate (the target was
+   check-green when it was promoted; the move itself is unchecked),
+   and it consumes no day marker, so the next scheduled promotion
+   fast-forwards `live` back to `main`'s head. Land the step-1 fix on
+   `main` immediately, or the rollback undoes itself at the next
+   train. It is a bridge, not a destination.
+
+**Verify the rollback.** Vercel builds only `live`, so the project's
+production deployment list must show a READY production deployment
+built from the target commit, and `GET /api/health` must report
+`deployed_source_sha` equal to that commit with `status: "ok"`. Then
+re-run the watch's three legs above. A rollback that has not passed
+this verification is a hope, not a recovery.
