@@ -306,20 +306,28 @@ describe('AUD-H real provider shapes through the guarded tool (VMCP-023)',()=>{
   });
 });
 
-describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
+describe('AUD-AD/AUD-AL provider behavior (dev-preview construction)',()=>{
   beforeEach(()=>{vi.clearAllMocks();
     loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
   const deploymentId='dpl_FAKEDEPLOY01';
   const ownerConn={...connection,kind:'connector'};
   // A provider-behavior wrapper around the shared fake, encoding the
-  // documented createDeployment settings rules (dossier:
-  // dev-preview-dossier-2026-10-30.md): a first deployment without
-  // projectSettings is refused 400 missing_project_settings; a create
-  // for an already-deployed project that RESENDS a settings payload is
-  // refused 400 (the behavior the 2026-10-30 live staging hit twice —
-  // the fake encodes the convicted behavior class and HTTP status, not
-  // a specific provider code, which the live envelope screened);
-  // a non-first create without settings inherits and is created.
+  // documented createDeployment rules (dossiers:
+  // dev-preview-dossier-2026-10-30.md and
+  // files-create-conviction-dossier-2026-10-31.md): a first deployment
+  // without projectSettings is refused 400 missing_project_settings;
+  // a create for an already-deployed project that RESENDS a settings
+  // payload is refused 400 (the behavior the 2026-10-30 live staging
+  // hit twice — the fake encodes the convicted behavior class and HTTP
+  // status, not a specific provider code, which the live envelope
+  // screened); a non-first create carrying the AUD-AL refused
+  // construction — the explicit target:'preview' literal in the body
+  // AND no skipAutoDetectionConfirmation=1 in the query — is refused
+  // 400 bad_request (the combination the 2026-10-31 live probe
+  // dispatched on promoted build 8fb9e83 and the provider refused,
+  // journaled as SHAPE-FP change_log id 90; the fake encodes the
+  // combination as observed and claims nothing about either marker
+  // alone); any other non-first create inherits and is created.
   function behaviorFixture(projectRow,deploymentRow){
     const f=fixture(projectRow);
     f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
@@ -343,6 +351,12 @@ describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
           return new Response(JSON.stringify({error:{
             code:'bad_request',message:'fake provider settings refusal'}}),
             {status:400,headers:{'content-type':'application/json'}});
+        if(!first&&body.target==='preview'&&
+          url.searchParams.get('skipAutoDetectionConfirmation')!=='1')
+          return new Response(JSON.stringify({error:{
+            code:'bad_request',
+            message:'fake provider construction refusal'}}),
+            {status:400,headers:{'content-type':'application/json'}});
       }
       return f.fake.fetch(input,init);
     };
@@ -363,8 +377,13 @@ describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
       c.path==='/v13/deployments');
     expect(create).toBeDefined();
     expect(create.body).not.toHaveProperty('projectSettings');
-    expect(create.body).toMatchObject({name:'my-app',project:'my-app',
-      target:'preview'});
+    expect(create.body).toMatchObject({name:'my-app',project:'my-app'});
+    // AUD-AL: a preview is requested by omission — the documented
+    // vocabulary has no 'preview' literal; omission produces it.
+    expect(create.body).not.toHaveProperty('target');
+    // AUD-AL: the route's create query carries the documented
+    // auto-detection suppressor, in the snapshot's enum form.
+    expect(create.query).toMatchObject({skipAutoDetectionConfirmation:'1'});
     f.fake.verify();
   });
   it('creates a production deployment on a deployed project without resending settings',async()=>{
@@ -376,7 +395,9 @@ describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
     const create=f.fake.calls.find(c=>c.method==='POST'&&
       c.path==='/v13/deployments');
     expect(create.body).not.toHaveProperty('projectSettings');
+    // 'production' IS in the documented vocabulary: sent verbatim.
     expect(create.body.target).toBe('production');
+    expect(create.query).toMatchObject({skipAutoDetectionConfirmation:'1'});
     f.fake.verify();
   });
   it('still sends the echoed settings when the create IS the first deployment',async()=>{
@@ -394,6 +415,10 @@ describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
     expect(create.body.projectSettings).toEqual({
       buildCommand:'next build',devCommand:null,framework:'nextjs',
       installCommand:null,outputDirectory:null,rootDirectory:null});
+    // AUD-AL: the suppressor rides every create on this route,
+    // first deployments included (uniform route posture).
+    expect(create.query).toMatchObject({skipAutoDetectionConfirmation:'1'});
+    expect(create.body).not.toHaveProperty('target');
     f.fake.verify();
   });
   it('treats a record without the hasDeployments flag as deployed (no resend)',async()=>{
@@ -407,7 +432,7 @@ describe('AUD-AD provider settings behavior (dev-preview construction)',()=>{
   });
 });
 
-describe('AUD-AG create-refusal shape fingerprint (files-create round 2)',()=>{
+describe('AUD-AG create-refusal shape fingerprint (files-create round 2; query slot extended by AUD-AL)',()=>{
   beforeEach(()=>{vi.clearAllMocks();
     loadToken.mockResolvedValue({token:'vcp_FAKE',account});});
   const deploymentId='dpl_FAKEDEPLOY01';
@@ -440,10 +465,14 @@ describe('AUD-AG create-refusal shape fingerprint (files-create round 2)',()=>{
     expect(summary).toContain(
       'SHAPE-FP deployments_create failed=[400:bad_request]');
     expect(summary).toContain('projectSettings:absent');
-    expect(summary).toContain('target:string');
+    // AUD-AL: a preview dispatch carries no target field (requested
+    // by omission), and the query slot names the actual dispatched
+    // query keys — the route's suppressor plus the transport's
+    // teamId, sorted, names only.
+    expect(summary).toContain('target:absent');
     expect(summary).toContain('files:array#2');
     expect(summary).toContain('files[]:file:string,sha:string,size:number');
-    expect(summary).toContain('query:teamId');
+    expect(summary).toContain('query:skipAutoDetectionConfirmation,teamId');
     // Never values: no project name, no file path beyond the shape
     // words, no digest, no content, no provider message.
     expect(summary).not.toContain('my-app');
@@ -478,6 +507,11 @@ describe('AUD-AG create-refusal shape fingerprint (files-create round 2)',()=>{
     const rows=shapeRows(f);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({mode:'production',production:true});
+    // AUD-AL asymmetry: 'production' is documented, so it is still
+    // dispatched as a string — only the preview literal is omitted.
+    expect(rows[0].summary).toContain('target:string');
+    expect(rows[0].summary).toContain(
+      'query:skipAutoDetectionConfirmation,teamId');
     f.fake.verify();
   });
   it('journals no create fingerprint when the upload leg fails first',async()=>{
