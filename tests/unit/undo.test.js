@@ -103,7 +103,8 @@ describe('vercel_undo_change (X-1)', () => {
       d.args.confirm === true);
     expect(step.args.project).toBe('prj_1');
     // The undo's own journaled inverse points at the step's row (X1-C3).
-    const undoRow = world.journal.find((j) => j.tool === 'vercel_undo_change');
+    const undoRow = world.journal.find((j) => j.tool === 'vercel_undo_change' &&
+      j.dry_run === false);
     expect(undoRow.inverse).toEqual({ tool: 'vercel_undo_change',
       change_id: done.receipt.stepChangeId });
   });
@@ -208,7 +209,8 @@ describe('vercel_undo_change (X-1)', () => {
     const undone = await call(world, { description: { change_id: 50 },
       confirm: true, requestKey: KEY });
     expect(undone.status).toBe('applied');
-    const undoRow = world.journal.find((j) => j.tool === 'vercel_undo_change');
+    const undoRow = world.journal.find((j) => j.tool === 'vercel_undo_change' &&
+      j.dry_run === false);
     // Give the step row (the unpause) the inverse a real unpause
     // journals: pause again.
     const stepRow = world.journal.find((j) => j.id === undone.receipt.stepChangeId);
@@ -239,7 +241,7 @@ describe('vercel_undo_change (X-1)', () => {
     const r = await call(world, { description: { change_id: 51 },
       confirm: true, requestKey: KEY });
     expect(r.status).toBe('refused_by_guard');
-    expect(r.reason.toLowerCase()).toContain('production');
+    expect(r.reason.toLowerCase()).toContain('preview connection');
     expect(world.dispatched.some((d) => d.args.confirm === true)).toBe(false);
   });
 });
