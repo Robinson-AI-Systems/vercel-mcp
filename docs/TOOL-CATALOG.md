@@ -522,6 +522,19 @@ the exact `vercel_deploy_wait` continuation, never a suggestion to re-run the wo
 catalog Safety mark is Cp with no $: the workflow declares no spend of its own (card verdict
 W2-C1); the metered build spend is the create step's.
 
+W-3 (2026-10-30) adds `vercel_workflow_ship_to_production` and
+`vercel_workflow_emergency_rollback`. Both are guarded writes whose single step dispatches the
+owning release tool (`vercel_deploy_promote` / `vercel_deploy_rollback`) through its own
+pipeline. Ship proves the design's W4 gates in `before()` — candidate READY, every reported
+check concluded success (literal per card verdict W3-C4; zero reported checks is disclosed in
+the receipt, never dressed as a pass), and a smoke fetch of the candidate's own URL (from
+provider read-back, never a caller-supplied host) over the given paths returning 2xx/3xx — and
+records the previous live deployment for rollback. Rollback picks the last good deployment by
+proposing candidates to the rollback tool's own dry-run (the read tools expose no served
+history), shows the covering profile's `rollback_caution` in the preview, verifies by alias
+read-back, and reports whether errors are still occurring (error rows last seen after the
+rollback moment), with `null` when the summary cannot be read.
+
 ## Everything else in Vercel: the universal tools (`vercel_api_*`) — 4
 
 The hand-built tools are the comfortable, plain-English way to do the common jobs. These four reach **every operation in

@@ -5,7 +5,7 @@ import { FRONT_DOOR } from '../src/data/front-door.js';
 
 export const DESCRIPTION_MAX = 160;
 export const COMPACT_TOKENS_MAX = 5000; // strictly below
-export const LISTING_TOKENS_MAX = 24500; // strictly below; C6 catalog sanity bound (engineering line).
+export const LISTING_TOKENS_MAX = 25000; // strictly below; C6 catalog sanity bound (engineering line).
 // Raised 20000 -> 21000 in M-4 (2026-10-30): registry growth to 181 tools put the
 // everyday catalog at ~20,221. Raised again 21000 -> 21500 in N-2 (2026-10-30):
 // the combined M-4 + N-2 registry (190 tools) measures ~21,077. Raised again
@@ -15,7 +15,9 @@ export const LISTING_TOKENS_MAX = 24500; // strictly below; C6 catalog sanity bo
 // O-4 (2026-10-30): the combined registry measures ~22,561 at 218 tools.
 // Raised again 23000 -> 24000 in O-5 (2026-10-30): the 225-tool registry
 // measures ~23,495. Raised again 24000 -> 24500 in W-1 (2026-10-30): the
-// 230-tool registry (Batch W reads) measures ~24,104. Per
+// 230-tool registry (Batch W reads) measures ~24,104. Raised again
+// 24500 -> 25000 in W-3 (2026-10-30): the 234-tool registry measures
+// ~24,642. Per
 
 // BATCH-C/DECISIONS this bound is an engineering sanity line, NOT owner policy
 // (the OP-1 policy is the 5,000-token front door, unchanged); revisit when the
