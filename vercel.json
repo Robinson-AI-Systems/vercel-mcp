@@ -23,6 +23,14 @@
     {
       "source": "/connection",
       "destination": "/api/connection"
+    },
+    {
+      "source": "/brand/icon-256.png",
+      "destination": "/api/index?brand_icon=256"
+    },
+    {
+      "source": "/brand/icon-64.png",
+      "destination": "/api/index?brand_icon=64"
     }
   ],
   "git": {
