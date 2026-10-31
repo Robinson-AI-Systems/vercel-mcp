@@ -11,7 +11,10 @@ import { FRONT_DOOR_TOOLS } from '../data/front-door.js';
 const LOCAL_OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection', 'vercel_create_pass',
   'vercel_set_working_box', 'vercel_remove_account', 'vercel_apply_owner_approval',
-  'vercel_set_read_only'];
+  'vercel_set_read_only', 'vercel_export_owner_data', 'vercel_set_purchase_policy',
+  'vercel_set_token_no_expiry', 'vercel_set_production_strictness',
+  'vercel_add_protected_resource', 'vercel_clear_protected_resources',
+  'vercel_disconnect_blob_store'];
 const COMPACT_TOOLS = ['vercel_whoami','vercel_search_tools','vercel_describe_tool',
   'vercel_get_result','vercel_call','vercel_batch','vercel_api_search'];
 const FRONT_DOOR_SET = new Set(FRONT_DOOR_TOOLS);

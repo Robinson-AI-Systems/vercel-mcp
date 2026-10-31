@@ -25,6 +25,10 @@ import {
 } from './owner-approvals.js';
 import { inspectPassRequest, consumePassRequest } from './pass-requests.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
+import {
+  inspectAccountSetting, accountSettingSummary,
+  consumeAccountSetting, applyApprovedAccountSetting
+} from './account-settings.js';
 
 const REF = /^[0-9a-f-]{36}$/;
 const PRODUCTION_KIND = 'production_enable';
@@ -102,7 +106,7 @@ export async function inspectProductionEnableRequest({ db, env = process.env, ac
 }
 
 /**
- * Resolve a reference against the four envelope stores without
+ * Resolve a reference against the envelope stores without
  * consuming anything. Returns {family, summary, request|intent} or
  * null when the reference is unknown, expired, already used or
  * belongs to another account.
@@ -115,6 +119,11 @@ export async function inspectOwnerApproval({
   if (change) return { family: 'owner_account_change', request: change, summary: ownerChangeSummary(change) };
   const pass = await inspectPassRequest({ db, env, account, reference, knownAreas, knownWriteAreas, now });
   if (pass) return { family: 'rtc_pass_request', request: pass, summary: passSummary(pass) };
+  const setting = await inspectAccountSetting({ db, env, account, reference }).catch(() => null);
+  if (setting) {
+    return { family: 'owner_account_setting', request: setting,
+      summary: accountSettingSummary(setting) };
+  }
   const production = await inspectProductionEnableRequest({ db, env, account, reference });
   if (production) {
     return { family: 'production_enable', request: production,
@@ -235,6 +244,20 @@ export async function applyOwnerApproval({
   }
   if (inspected.family === 'rtc_pass_request') {
     return applyPassRequest({ db, env, account, reference, inspected, knownAreas, knownWriteAreas, now });
+  }
+  if (inspected.family === 'owner_account_setting') {
+    const approved = await consumeAccountSetting({ db, env, account, reference, now });
+    if (!approved || JSON.stringify(approved) !== JSON.stringify(inspected.request)) {
+      return refused('Owner request was used, changed, or expired');
+    }
+    const outcome = await applyApprovedAccountSetting({ db, request: approved });
+    if (outcome?.status !== 'applied' || outcome.confirmed !== true) {
+      return { status: 'unverified', confirmed: false, family: inspected.family,
+        reason: 'The change was not verified. Inspect current account state before making another request.' };
+    }
+    return { status: 'applied', confirmed: true, family: inspected.family,
+      action: approved.action, summary: inspected.summary,
+      note: 'The approval reference cannot be reused.' };
   }
   if (inspected.family === 'production_enable') {
     const result = await approveProductionEnable({ db, env, account, reference, now });
