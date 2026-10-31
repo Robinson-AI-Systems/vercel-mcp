@@ -633,6 +633,57 @@ export async function storeInstallationToken({ db, token, teamId, installationId
     expiry: null, last4: token.slice(-4) };
 }
 
+// AUD-BI (VMCP-003): the enrollment expiry leg — the one documented
+// read the probe's proof legs do not make. The AuthToken record
+// (pinned snapshot) carries an OPTIONAL expiresAt (ms epoch): the
+// bare GET /v6/user/tokens list (the tokens_list operation, no
+// documented parameters) returns the current user's token records,
+// and the enrolling token finds its own row by the pinned matching
+// rule — a row is a candidate iff it has a string id, a string
+// suffix of length >= 4 that the token ends with, no revokedAt, and
+// team-consistent scopes (every scope entry naming a teamId names
+// the enrollment team; a user-scope entry names none and fits any).
+// EXACTLY ONE candidate is the token's record; zero or several
+// record nothing. The leg is evidence-only, never load-bearing (the
+// installationLabel precedent): any refusal, bad shape or ambiguity
+// yields 'unrecorded' and enrollment proceeds exactly as before —
+// the stored date is simply absent, as it always was, and the
+// posture stays honestly 'unknown'. A matched row WITH a finite
+// expiresAt records the date; a matched row WITHOUT one records
+// 'none_reported' — Vercel affirmatively reports no expiry for this
+// token, a recorded fact distinct from the owner's attestation
+// (AUD-E keeps the two apart in token-expiry.js).
+function ownTokenRow(row, token, teamId) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
+  if (typeof row.id !== 'string' || !row.id) return false;
+  if (typeof row.suffix !== 'string' || row.suffix.length < 4) return false;
+  if (!token.endsWith(row.suffix)) return false;
+  if (typeof row.revokedAt === 'number') return false;
+  if (!Array.isArray(row.scopes)) return false;
+  return row.scopes.every(scope => scope && typeof scope === 'object' &&
+    (scope.teamId === undefined || scope.teamId === teamId));
+}
+async function readOwnTokenExpiry(client, { token, teamId }) {
+  try {
+    const result = await client.request('tokens_list', {}, { timeoutMs: 5000 });
+    if (!Array.isArray(result?.tokens)) return { state: 'unrecorded' };
+    const candidates = result.tokens.filter(row => ownTokenRow(row, token, teamId));
+    if (candidates.length !== 1) return { state: 'unrecorded' };
+    const row = candidates[0];
+    if (typeof row.expiresAt === 'number' && Number.isFinite(row.expiresAt) &&
+      row.expiresAt > 0) {
+      return { state: 'recorded', providerTokenId: row.id,
+        expiresAt: new Date(row.expiresAt).toISOString() };
+    }
+    if (row.expiresAt === undefined || row.expiresAt === null) {
+      return { state: 'none_reported', providerTokenId: row.id };
+    }
+    return { state: 'unrecorded' };
+  } catch {
+    return { state: 'unrecorded' };
+  }
+}
+
 export async function storeToken({ db, token, teamId, projectId = null,
   allowFull = false, env = process.env, fetchImpl, baseUrl, probeExtra = {},
   expiresAt = null }) {
@@ -640,11 +691,24 @@ export async function storeToken({ db, token, teamId, projectId = null,
   const result = await probeToken({ token, teamId, projectId, allowFull, fetchImpl, baseUrl });
   const id = result.projectId ? result.teamId + '/' + result.projectId : result.teamId;
   const tokenEnc = encryptSecret(token, 'token:' + id, env);
+  // AUD-BI: a caller-supplied expiry (the tool-create route knows the
+  // value it set) always wins and skips the leg; otherwise the leg
+  // reads the token's own provider record and records what it finds.
+  let recordedExpiry = expiresAt, tokenExpiry = null;
+  if (expiresAt == null) {
+    const client = makeVercelClient({
+      token, account: { id: 'probe_only', team_id: teamId },
+      ...(fetchImpl ? { fetchImpl } : {}),
+      ...(baseUrl ? { baseUrl } : {})
+    });
+    tokenExpiry = await readOwnTokenExpiry(client, { token, teamId });
+    if (tokenExpiry.state === 'recorded') recordedExpiry = tokenExpiry.expiresAt;
+  }
   try {
     await db.upsertVercelAccount({
       id, teamId: result.teamId, teamSlug: result.teamSlug, label: result.teamName,
       scope: result.scope, projectId: result.projectId, projectName: result.projectName,
-      tokenEnc, tokenLast4: token.slice(-4), expiresAt,
+      tokenEnc, tokenLast4: token.slice(-4), expiresAt: recordedExpiry,
       probe: {
         checkedAt: result.checkedAt,
         visibleTeamCount: result.visibleTeamCount,
@@ -653,7 +717,14 @@ export async function storeToken({ db, token, teamId, projectId = null,
         // Additive caller-supplied provenance (AUD-I: integration installs
         // record their installation identity + declared box). Default {}
         // keeps every existing enrollment's stored shape unchanged.
-        ...probeExtra
+        ...probeExtra,
+        // AUD-BI: the expiry leg's evidence rides last — server-derived
+        // evidence is never overridden by caller-supplied provenance.
+        ...(tokenExpiry ? { tokenExpiry: {
+          state: tokenExpiry.state,
+          ...(tokenExpiry.providerTokenId ?
+            { providerTokenId: tokenExpiry.providerTokenId } : {})
+        } } : {})
       }
     });
   } catch {
@@ -662,7 +733,7 @@ export async function storeToken({ db, token, teamId, projectId = null,
       'The verified token could not be saved; check the server storage configuration');
   }
   return { id, team: result.teamSlug, scope: result.scope, project: result.projectName,
-    expiry: expiresAt, last4: token.slice(-4) };
+    expiry: recordedExpiry, last4: token.slice(-4) };
 }
 
 export async function loadToken({ db, accountId, env = process.env }) {

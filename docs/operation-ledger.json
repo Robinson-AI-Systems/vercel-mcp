@@ -13836,7 +13836,8 @@
         "dedicatedTransport": null,
         "dispatchFiles": [
           "src/tools/admin.js",
-          "src/tools/tokens.js"
+          "src/tools/tokens.js",
+          "src/vercel/tokens.js"
         ]
       },
       "tests": {
