@@ -15,6 +15,14 @@ tools registered), and the AUD account layer is built (AUD-AA `vercel_remove_acc
 `vercel_account_teams`, `vercel_team_create`, `vercel_team_delete`). The code map below remains the 2026-10-11
 snapshot — verify current modules and signatures before following its examples.
 
+**Re-based 2026-10-31 at main `8fb9e83` (documentation audit AUD-AN):** the catalog build-out is complete —
+the registry has **240 of the 241 catalog tools** (`scripts/check-catalog.mjs`: 241 catalog, 240 registered);
+the only unbuilt row, `vercel_admin_overview`, is closed by owner ruling IN-16 and will not be built. Every
+batch letter (A–X, AUD) has shipped in source. What remains is not building: the live acceptance program
+(`docs/STATUS.md`, `docs/PLAN.md`), R-2's separate HTTP write-contract leg, R-3 conformance, the X-2 scratch
+run, and CAP-5/UA-18 two-tenant live acceptance. The code map below remains the 2026-10-11 snapshot — verify
+current modules and signatures before following its examples.
+
 **Current security update (#56):** §7 of [RECIPES](RECIPES.md#7-grouped-operations-and-security-first-throughput-d-1-onward) governs cohesive multi-operation PRs; the runtime authenticates the `defineWrite` origin and guarded handler, partitions transport replay per mutation and preserves write classification in MCP metadata. The older baseline map below is historical; verify current modules and signatures before following its examples.
 
 ## Choose the smallest reading route
