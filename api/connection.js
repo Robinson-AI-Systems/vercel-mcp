@@ -25,7 +25,9 @@ export default function handler(req, res) {
     '<code class="addr">' + BRANDED_ORIGIN +
     '/.well-known/muse-client.json</code>' +
     '<p>Then you land on this server\'s own sign-in page. Pick your ' +
-    'account and choose how much the connection may do.</p></section>' +
+    'account and enter the administrator passphrase — what the ' +
+    'connection can do follows the account you pick; none of it is ' +
+    'chosen on the sign-in page.</p></section>' +
 
     '<section><h2>Signing in claims your existing identity</h2>' +
     '<p>Connecting never creates a Vercel account and never gives a ' +
@@ -43,12 +45,20 @@ export default function handler(req, res) {
     '<section><h2>Your secrets stay yours</h2>' +
     '<p>Administrator passphrases, tokens and passwords are typed only on ' +
     'this server\'s own pages or into your client\'s protected credential ' +
-    'setup — never in chat, and never on any other page.</p></section>' +
+    'store — never in chat, and never on any other page.</p></section>' +
 
     '<section><h2>What a connection can do</h2>' +
-    '<p>That depends on the choices you made when you connected: the ' +
-    'profile (read-only, everyday or full) and the mode (preview or ' +
-    'production). Changes are previewed first and ask for confirmation; ' +
+    '<p>That follows the door you connected through. A team install ' +
+    'starts with the everyday tool set; a connection made with your ' +
+    'own Vercel token starts with the full set. It also follows your ' +
+    'account\'s production switch: a connection starts in preview or ' +
+    'production as that switch stands, and the owner can flip a live ' +
+    'connection either way at any time ' +
+    '(<code>vercel_set_working_box</code>). Read-only is a switch on ' +
+    'your own connection, not a kind of sign-in: turn it on ' +
+    '(<code>vercel_set_read_only</code>) and the connection can look ' +
+    'but not change anything, for as long as you leave it on. ' +
+    'Changes are previewed first and ask for confirmation; ' +
     'spending follows the purchase policy you set; and everything a ' +
     'connection does is written to a journal you can inspect.</p></section>' +
 

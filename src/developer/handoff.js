@@ -3,7 +3,11 @@
 // AUD-AW: the handoff requests the standard connection only. It carries no
 // profile or listing choice of its own — consent derives those values exactly
 // as it does for any other sign-in — and no public page links this route.
+// AUD-AX: the result pages render on the shared fleet shell (frontDoorPage)
+// like every other surviving page; the JSON responses keep this handler's
+// stricter CSP, and only the page responses take the shell's.
 import {createHash,createPublicKey,publicEncrypt,constants,randomBytes} from 'node:crypto';
+import {FRONT_DOOR_CSP,frontDoorPage} from '../front-door.js';
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const random=()=>randomBytes(32).toString('base64url');
 const token=/^[A-Za-z0-9_-]{43}$/;
@@ -30,7 +34,8 @@ export function createHandoff({store,origin,getClient,clientIp=req=>req.socket?.
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Content-Security-Policy',"default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
     const json=(status,value)=>res.status(status).json(value);
-    const page=(status,text)=>res.status(status).send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Developer connection</title></head><body><h1>Developer connection</h1><p>'+text+'</p></body></html>');
+    const page=(status,text)=>{res.setHeader('Content-Security-Policy',FRONT_DOOR_CSP);
+      return res.status(status).send(frontDoorPage({title:'Developer connection',heading:'Developer connection',body:'<p>'+text+'</p>'}));};
     try{
       if(req.method==='POST'){
         let p;try{p=validateStart(req.body);}catch{return json(400,{error:'invalid_request'});}

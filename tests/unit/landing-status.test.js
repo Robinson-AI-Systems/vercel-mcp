@@ -49,7 +49,10 @@ describe('public landing cannot claim account setup or connected acceptance',()=
   expect(r.payload).toContain('<code class="addr" id="address">https://vercel.robinsonaisystems.com/api/mcp</code>');
   expect(r.payload).toContain('href="/connection"');
   expect(r.payload).toContain('does not certify live provider or RTC acceptance');
-  expect(r.payload).toContain('<small>Not affiliated with or endorsed by Vercel.</small>');
+  // AUD-AX: the short in-body affiliation line duplicated the AUD-AK
+  // footer block below; it is deleted, and the footer block (pinned
+  // verbatim next) is the page's one affiliation statement.
+  expect(r.payload).not.toContain('<small>Not affiliated with or endorsed by Vercel.</small>');
   // AUD-AK: the shared footer carries the fleet standard disclaimer block
   // verbatim (protection pass 2026-10-30 §7(b)) — non-affiliation,
   // availability/change and provider-terms elements.

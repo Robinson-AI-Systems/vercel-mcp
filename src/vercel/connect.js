@@ -8,7 +8,9 @@
 // where the guided token enrollment itself lives with nothing else
 // added. This page holds no secrets and asks for none; both doors
 // end at surfaces that verify before anything activates.
-import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
+// AUD-AX: the page renders on the shared fleet shell (frontDoorPage)
+// like every other surviving public page.
+import { FRONT_DOOR_CSP, FRONT_DOOR_PRODUCT_NAME, frontDoorPage } from '../front-door.js';
 import { escapeHtml, send } from '../core/http.js';
 
 const CONTENT_TYPE = 'text/html; charset=utf-8';
@@ -33,14 +35,11 @@ export function integrationInstallUrl(env = process.env) {
 }
 
 function page(content) {
-  return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
-    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>Connect your Vercel account — ' + escapeHtml(SERVICE_DISPLAY_NAME) + '</title>' +
-    '<style>body{font:16px system-ui;max-width:650px;margin:4vh auto;padding:20px}' +
-    'section{margin:22px 0;padding:16px;border:1px solid #ccc}' +
-    'a.button{display:inline-block;font:inherit;padding:10px 14px;border:1px solid #333;' +
-    'text-decoration:none;color:inherit}li{margin:6px 0}</style></head><body><main>' +
-    '<h1>Connect your Vercel account</h1>' + content + '</main></body></html>';
+  return frontDoorPage({
+    title: 'Connect your Vercel account — ' + FRONT_DOOR_PRODUCT_NAME,
+    heading: 'Connect your Vercel account',
+    body: content
+  });
 }
 
 const FIVE_POINTS = [
@@ -60,7 +59,7 @@ export function renderConnectPage(env = process.env) {
     'connection from your Vercel dashboard at any time.</p>' :
     '<p><strong>Team connect is not switched on for this server yet.</strong> The operator ' +
     'still has to finish creating the Vercel integration. The account-wide door below works ' +
-    'today — or ask the operator to complete the team setup.</p>';
+    'today — or ask the operator to finish creating the Vercel integration.</p>';
   const points = FIVE_POINTS.map(([head, tail]) =>
     '<li><strong>' + escapeHtml(head) + '</strong> ' + escapeHtml(tail) + '</li>').join('');
   return page(
@@ -81,6 +80,8 @@ export async function handleConnect(req, res, { env = process.env } = {}) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', FRONT_DOOR_CSP);
+  res.setHeader('X-Frame-Options', 'DENY');
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return send(res, 405, 'Method not allowed', 'text/plain; charset=utf-8');
