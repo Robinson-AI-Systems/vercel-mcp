@@ -1765,16 +1765,18 @@
       "readiness": "READY",
       "ownerInputs": [],
       "pr": [
-        151
+        151,
+        333,
+        369
       ],
       "revisit": {
         "trigger": "next-implementation-slice",
-        "owner": "next Vercel MCP implementer",
-        "reason": "Encrypted owner-reviewed pass lifecycle is implemented; dedicated service hosted and team credential connected, but live issuance, actual RTC service identity/denial/revocation remain unverified.",
-        "nextAction": "Using owner-private service-issued short-lived TEST/preview passes, test the independently deployed provider's direct RTC identity, bounded discovery, scoped authorized read, expiration, revocation and 401 denials; Hub discovery/relay/Sandbox is separately owned by the Hub.",
-        "checkpoint": "At first secure TEST/preview pass issuance and every PR/session boundary",
-        "evidenceNeeded": "A genuine service-issued TEST identity pass and, where authorized, direct preview read-only pass; exact checked deployed RTC manifest, independently authenticated direct MCP/HTTPS read, genuine scope/refusal/revocation and renewal behavior if offered. No Hub end-to-end call required.",
-        "eligibilityCondition": "Read-only proposal code independently eligible on C-2; genuine hosted proof needs actual authorized setup. Wider modes require safety contract.",
+        "owner": "next R-1 implementer/acceptance agent",
+        "reason": "Encrypted owner-reviewed pass lifecycle is implemented, and the write-capable grant the wider-modes caveat waited on is built: R-1W (PR #333, merged 2026-10-30) added write passes on the rtc_passes model the 2026-10-30 BATCH-R amendment adopted (allow_writes, spend ceiling, project restriction, per-pass 1-600/min quota), and AUD-AU (PR #369) re-homed direct issuance onto vercel_issue_pass when the setup page was deleted; UA-06 is CLOSED in source on that evidence. Live state: the read-pass door was exercised live in A-14 (2026-10-30); no write pass has ever been issued on the production server, so the write leg's identity/denial/revocation proof remains unverified live. Refresh 2026-10-31 (AUD-BM2).",
+        "nextAction": "AUD-BM3 (post-promotion battery): from the owner's connector connection, issue a real write pass (vercel_issue_pass; preview mode, project-restricted to the IN-06 rtc-scratch fixture, spend ceiling 0), reveal the bearer once, then through the HTTPS door prove whoami attestation, one guarded write applied with independent read-back, the zero-ceiling spend refusal, and revocation via a final pass_revoked call; sample vercel_recent_changes for the pass delegation basis. Read-pass legs continue per the original action where A-14 did not discharge them; Hub discovery/relay/Sandbox is separately owned by the Hub.",
+        "checkpoint": "At the AUD-BM3 battery run and every PR/session boundary",
+        "evidenceNeeded": "The AUD-BM3 run record filed on the R-1 card and the audit register (issue, door whoami, applied write + read-back, ceiling refusal, revoke, pass_revoked), with journal sampling showing the delegation basis as pass, never owner word.",
+        "eligibilityCondition": "Source complete (R-1W + AUD-AU); the live leg needs the promotion carrying AUD-AU's tools (2026-11-01 train) and the IN-06 scratch fixture. The 365-day hub lifetime is unbuilt by recorded decision (BATCH-R amendment, 2026-10-31) and is not an eligibility gap.",
         "dependencies": [
           "C-2"
         ]
@@ -1829,11 +1831,11 @@
           "IN-09"
         ],
         "owner": "next Vercel MCP implementer",
-        "reason": "Read-only HTTPS RTC door, manifest and per-pass rate policy are implemented and source-tested; merged in PR #219. Full R-2 write-contract HTTPS access and original R-1 write-capable-pass prerequisite remain incomplete, plus independently authenticated client/provider acceptance.",
-        "nextAction": "Implement correctly delegated R-1 write-capable RTC pass grant with all scope/resource/spend/replay checks, then R-2 HTTP write-contract and original rate/window/source conformance; independently verify client/provider positive+denied operations and revocation. Production behavior follows the owner 2026-10-27 IN-09 ruling: production stays on and the enable/disable switch is owned by the end user, flippable by their agent with their approval; the passphrase enable ceremony is not the product gate. Audit finding VMCP-002 (2026-10-27): the production enable leg is still ceremony-bound in code (vercel_enable_production returns awaiting_owner_passphrase and enables nothing); implement the D-B design (BATCH-B amendment, 2026-10-27) so enable completes on confirm for owner full connections, with the passphrase step retained only as an owner-chosen per-team strictness setting.",
-        "checkpoint": "At merged PR #219 and each subsequent original R-1/R-2 engineering session; no full completion before original criteria pass",
-        "evidenceNeeded": "R-1 authorized pass issuance and write refusal/positive proofs; original R-2 HTTP write-contract tests, exact-head safety/CI/DB concurrency including cleanup, and separately recorded actual serving source and independent desktop/mobile/provider acceptance; Hub integration not required.",
-        "eligibilityCondition": "Read-only door, owner per-pass limits, public OAuth and source test completion checked; full HTTP write delegation needs completed R-1 authorization boundary and service-owned verification, not distribution eligibility.",
+        "reason": "Read-only HTTPS RTC door, manifest and per-pass rate policy are implemented and source-tested; merged in PR #219. The write-capable-pass prerequisite recorded here as incomplete is delivered: R-1W (PR #333, merged 2026-10-30) built the correctly delegated grant and AUD-AU (PR #369) re-homed its issuance; UA-06 is CLOSED in source. The bundled VMCP-002 production-enable leg is separately resolved (owner enable/strictness tools in AUD-AT under the 2026-10-27 IN-09 ruling; sign-in derivation fixed by AUD-BD, PR #376). What remains is acceptance, not engineering. Refresh 2026-10-31 (AUD-BM2).",
+        "nextAction": "AUD-BM1: execute BATCH-B section 3's write-contract checks through the HTTPS door as a named suite against the fake provider, plus the pass-specific negatives (read pass invoking a write, write inside _batch, revoked-mid-sequence, ceiling boundary, project restriction). AUD-BM3: the live write-pass leg against the IN-06 fixture in the post-promotion battery. Independently authenticated client/provider acceptance remains as recorded; Hub integration not required.",
+        "checkpoint": "At AUD-BM1's suite landing and the AUD-BM3 battery run; no full completion before original criteria pass",
+        "evidenceNeeded": "AUD-BM1's suite green in CI at its exact head with the frozen line (write-contract helper through HTTPS, door #3) checked item-by-item on the R-2 card; the AUD-BM3 live run record; separately recorded actual serving source and independent desktop/mobile/provider acceptance.",
+        "eligibilityCondition": "Read-only door, owner per-pass limits, public OAuth and the write grant are source-complete; AUD-BM1 is local/CI work with no fixture dependency, AUD-BM3 needs the 2026-11-01 promotion and the IN-06 fixture.",
         "dependencies": [
           "R-1"
         ]
