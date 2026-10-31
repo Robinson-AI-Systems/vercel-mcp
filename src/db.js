@@ -491,9 +491,11 @@ export function createDb(query) {
      * for the enrolled token. (AUD-AT: the attestation may also arrive
      * as an owner-applied approval envelope bound to the same token
      * version — an agent's proposal is never the attestation until the
-     * owner applies it, so the AUD-E property is preserved.) A null token_expires_at establishes nothing —
-     * storeToken writes it unconditionally — so "no expiry — owner's
-     * choice" may be shown only when this flag is positively set. Returns
+     * owner applies it, so the AUD-E property is preserved.) A null token_expires_at establishes nothing
+     * about the owner's choice — AUD-BI's enrollment recording keeps a
+     * provider-reported no-expiry as its own probe-record state, never
+     * as this flag — so "no expiry — owner's choice" may be shown only
+     * when this flag is positively set. Returns
      * null when the account does not exist.
      */
     async getTokenNoExpiry(id) {

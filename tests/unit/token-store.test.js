@@ -13,6 +13,10 @@ function fixture({ multipleTeams = false, projectCount = 1 } = {}) {
     { id: 'prj_FAKE', name: 'fixture' },
     ...(projectCount > 1 ? [{ id: 'prj_EXTRA', name: 'another project' }] : [])
   ], pagination: { next: null } });
+  // AUD-BI: the enrollment expiry leg's one documented read; the
+  // base fixture's list is empty, so it records nothing.
+  api.when('GET', '/v6/user/tokens').resolves({ tokens: [],
+    pagination: { count: 0, next: null, prev: null } });
   return api;
 }
 function fakeDb() {
@@ -43,8 +47,14 @@ describe('A-5 Vercel token probes and encrypted persistence', () => {
     const loaded = await loadToken({ db, accountId: 'team_FAKE', env });
     expect(loaded.token).toBe(token);
     expect(loaded.account.team_id).toBe('team_FAKE');
-    expect(api.calls).toHaveLength(3);
-    for (const call of api.calls) expect(call.query.teamId).toBe('team_FAKE');
+    // AUD-BI: the probe's three proof legs carry the teamId; the one
+    // additional documented read (the token list) is unscoped.
+    expect(api.calls).toHaveLength(4);
+    for (const call of api.calls.slice(0, 3)) expect(call.query.teamId).toBe('team_FAKE');
+    expect(api.calls[3].path).toBe('/v6/user/tokens');
+    expect(api.calls[3].query.teamId).toBeUndefined();
+    // The fixture's empty token list records nothing — honestly.
+    expect(db.rows.get('team_FAKE').probe.tokenExpiry).toEqual({ state: 'unrecorded' });
   });
   it('refuses invisible teams or project IDs without persisting credentials', async () => {
     const db = fakeDb();
@@ -70,5 +80,89 @@ describe('A-5 Vercel token probes and encrypted persistence', () => {
     await expect(storeToken({ db: fakeDb(), token: 'vcp_FAKEtest_1234',
       teamId: 'team_FAKE', env: {}, fetchImpl: fixture().fetch })).rejects.toThrow(/KEY/);
     await expect(loadToken({ db: fakeDb(), accountId: 'missing', env })).rejects.toThrow(/missing/);
+  });
+});
+
+describe('AUD-BI enrollment expiry recording (VMCP-003)', () => {
+  const token = 'vcp_FAKEteamToken_12345678';
+  const EXPIRY_MS = 1798761600000; // 2027-01-01T00:00:00.000Z
+  const ownRow = (overrides = {}) => ({
+    id: 'tokid_FAKE1', name: 'fixture token', type: 'oauth2-token',
+    prefix: 'vcp_', suffix: '345678',
+    createdAt: 1700000000000, activeAt: 1700000000000,
+    scopes: [{ type: 'team', teamId: 'team_FAKE', createdAt: 1700000000000 }],
+    ...overrides
+  });
+  const withTokens = (rows) => {
+    const api = fixture();
+    api.when('GET', '/v6/user/tokens').resolves({ tokens: rows,
+      pagination: { count: rows.length, next: null, prev: null } });
+    return api;
+  };
+
+  it('records the matched token record\'s real expiry on enrollment', async () => {
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
+      env, fetchImpl: withTokens([ownRow({ expiresAt: EXPIRY_MS })]).fetch });
+    expect(receipt.expiry).toBe('2027-01-01T00:00:00.000Z');
+    const row = db.rows.get('team_FAKE');
+    expect(row.token_expires_at).toBe('2027-01-01T00:00:00.000Z');
+    expect(row.probe.tokenExpiry).toEqual({ state: 'recorded', providerTokenId: 'tokid_FAKE1' });
+    // The recorded date is a real stored expiry: loadToken serves the
+    // credential while it is in the future.
+    expect((await loadToken({ db, accountId: 'team_FAKE', env })).token).toBe(token);
+  });
+
+  it('records a provider-reported no-expiry as its own probe state, never as attestation', async () => {
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
+      env, fetchImpl: withTokens([ownRow()]).fetch });
+    expect(receipt.expiry).toBeNull();
+    const row = db.rows.get('team_FAKE');
+    expect(row.token_expires_at).toBeNull();
+    expect(row.probe.tokenExpiry).toEqual({ state: 'none_reported', providerTokenId: 'tokid_FAKE1' });
+  });
+
+  it('records nothing when two rows match the suffix (ambiguous)', async () => {
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
+      env, fetchImpl: withTokens([
+        ownRow({ expiresAt: EXPIRY_MS }),
+        ownRow({ id: 'tokid_FAKE2', suffix: '45678', expiresAt: EXPIRY_MS })
+      ]).fetch });
+    expect(receipt.expiry).toBeNull();
+    expect(db.rows.get('team_FAKE').probe.tokenExpiry).toEqual({ state: 'unrecorded' });
+  });
+
+  it('excludes a suffix-matching row whose scopes name a different team', async () => {
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
+      env, fetchImpl: withTokens([ownRow({
+        scopes: [{ type: 'team', teamId: 'team_OTHER', createdAt: 1700000000000 }],
+        expiresAt: EXPIRY_MS
+      })]).fetch });
+    expect(receipt.expiry).toBeNull();
+    expect(db.rows.get('team_FAKE').probe.tokenExpiry).toEqual({ state: 'unrecorded' });
+  });
+
+  it('enrollment is unaffected when the token-list read refuses', async () => {
+    const api = fixture();
+    api.when('GET', '/v6/user/tokens').rejects(403);
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
+      env, fetchImpl: api.fetch });
+    expect(receipt.scope).toBe('team');
+    expect(receipt.expiry).toBeNull();
+    expect(db.rows.get('team_FAKE').probe.tokenExpiry).toEqual({ state: 'unrecorded' });
+  });
+
+  it('a caller-supplied expiry wins and the leg does not run', async () => {
+    const api = withTokens([ownRow({ expiresAt: EXPIRY_MS })]);
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
+      env, fetchImpl: api.fetch, expiresAt: 1893456000000 });
+    expect(receipt.expiry).toBe(1893456000000);
+    expect(api.calls.filter(call => call.path === '/v6/user/tokens')).toHaveLength(0);
+    expect(db.rows.get('team_FAKE').probe.tokenExpiry).toBeUndefined();
   });
 });
