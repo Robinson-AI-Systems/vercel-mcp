@@ -737,6 +737,24 @@ export function createDb(query) {
           AND (${includePreviews} OR dry_run = FALSE)
         ORDER BY at DESC, id DESC LIMIT ${limit}`;
     },
+    // O-5b (VMCP-021): the owner export's change-log read — the same safe
+    // projection as listRecentChanges (summaries are pre-truncated to the
+    // 160-char display bound), with an exact total so the export can state
+    // honestly when its cap truncates the journal.
+    async exportChanges({ account, limit = 500 }) {
+      if (typeof account !== 'string' || !account ||
+        !Number.isInteger(limit) || limit < 1 || limit > 1000) {
+        throw new TypeError('Invalid account export filter');
+      }
+      const run = getSql();
+      const totals = await run`SELECT COUNT(*)::int AS total FROM change_log
+        WHERE vercel_account = ${account}`;
+      const rows = await run`SELECT id, at, tool, project_id, mode,
+        LEFT(summary, 160) AS summary, dry_run, production, spend_cents
+        FROM change_log WHERE vercel_account = ${account}
+        ORDER BY at DESC, id DESC LIMIT ${limit}`;
+      return { total: totals[0]?.total ?? 0, rows };
+    },
     // X-1: the one account-scoped read vercel_undo_change needs — the
     // row itself (with its stored inverse) plus whether a confirmed
     // undo already points at it. Never returns another account's row.
