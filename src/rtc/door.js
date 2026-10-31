@@ -289,8 +289,19 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
         if(!def){
           const name=req.query?.name;
           if(typeof name==='string'&&NAME.test(name)&&
-            registry.tools.some(t=>t.name===name))
+            registry.tools.some(t=>t.name===name)){
+            // AUD-BG (2026-10-31): a pass that cannot write invoking an
+            // existing write tool is refused by the guard — the frozen
+            // RTC 1 conformance suite's passes.read_only expectation,
+            // identical at the pin and at hub HEAD. outside_scope stays
+            // the visibility answer for describe and for passes that
+            // may write; nothing is dispatched in either case.
+            if(route==='invoke'&&pass.allowWrites!==true&&
+              rtcCatalog(registry,{profile:'full',mode:'production',
+                listing:'catalog'}).find(t=>t.name===name)?.writes===true)
+              return fail(res,'refused_by_guard');
             return fail(res,'outside_scope');
+          }
           return fail(res,'not_found');
         }
         if(route==='describe'){

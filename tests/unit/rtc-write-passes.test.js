@@ -88,8 +88,12 @@ describe('R-1W write-capable passes at the RTC door',()=>{
     expect(readTools.result.tools.map(t=>t.name)).not.toContain('vercel_fixture_write');
     expect((await call(readDoor,'describe','GET',{name:'vercel_fixture_write'})).error?.code)
       .toBe('outside_scope');
+    // AUD-BG (2026-10-31): invoke of an existing write tool by a pass
+    // that cannot write is refused_by_guard (the frozen RTC 1
+    // conformance suite's passes.read_only expectation); describe
+    // above keeps outside_scope, and nothing is applied either way.
     expect((await invoke(readDoor,'vercel_fixture_write',{confirm:true})).error?.code)
-      .toBe('outside_scope');
+      .toBe('refused_by_guard');
     expect(applied).toEqual([]);
   });
   it('runs a write through the shared executor: preview, confirmation, apply',async()=>{

@@ -29,9 +29,16 @@ export function rtcMetadata(tool,registered){
   const money=Boolean(registered?.writeContract?.spend);
   const destructive=Boolean(registered?.annotations?.destructiveHint);
   const area=!hasArea?'server':scoped?registered.area:'unclassified';
+  // CONTRACT §3: a money tool's listing text leads with 'MOVES MONEY:'.
+  // Applied at this derivation — the single funnel for every RTC
+  // catalog row (AUD-BG, 2026-10-31; no tool definition carries the
+  // prefix, and the MCP listing surface is separately governed).
+  const baseDescription=safeDescription(tool.description);
+  const description=money&&!baseDescription.startsWith('MOVES MONEY:')
+    ?('MOVES MONEY: '+baseDescription).slice(0,160):baseDescription;
   return {
     name:tool.name,
-    description:safeDescription(tool.description),
+    description,
     inputSchema:tool.inputSchema?.type==='object'?tool.inputSchema:
       {type:'object',properties:{}},
     area,profiles:registered?.profiles||['read_only'],
