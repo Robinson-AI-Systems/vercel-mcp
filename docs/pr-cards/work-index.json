@@ -1940,14 +1940,27 @@
       "design": "docs/designs/MAXIMUM-AUTHORITY.md",
       "dependencies": [],
       "card": "docs/pr-cards/CAP-1.md",
-      "status": "APPROVED",
+      "status": "MERGED",
       "migration": "JIT contract before implementation",
       "budget": 650,
       "units": [
         "CAP-1"
       ],
       "readiness": "WRITE_CARD_AT_START",
-      "ownerInputs": []
+      "ownerInputs": [],
+      "pr": [
+        375
+      ],
+      "revisit": {
+        "trigger": "external-acceptance",
+        "owner": "next Vercel MCP implementation/acceptance agent",
+        "reason": "CAP-1's one unbuilt artifact — the generated operation ledger — was built by AUD-BE (PR #375, commissioned by the owner 2026-10-31): scripts/operation-ledger.mjs generates docs/operation-ledger.json (455 rows) and docs/OPERATION-LEDGER.md from the pinned snapshot and the living records, check-enforced in npm run check. The #337 verdict stands (SUPERSEDED in purpose); per-operation live proof was never CAP-1's own half — it is CAP-5's track and remains unproven.",
+        "nextAction": "Nothing for CAP-1 itself. Carry per-operation live proof through CAP-5's acceptance program; a future sourced entitlement table can fill the ledger's recorded-unknown permissions field.",
+        "checkpoint": "main f95d79f baseline; AUD-BE PR #375, first head 066b43d75e9ee956668d2e4f617bdda5b56652ea",
+        "evidenceNeeded": "Per-operation live proof under CAP-5 (a second real user for its two-tenant scenarios); none for the ledger artifact itself — its evidence is the check-enforced generation.",
+        "eligibilityCondition": "Source merged via AUD-BE; live proof stays with CAP-5's program and its external prerequisites.",
+        "dependencies": []
+      }
     },
     {
       "id": "CAP-2",
