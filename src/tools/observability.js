@@ -7,7 +7,7 @@ const limitArg = { type: 'integer', minimum: 1, maximum: 20 };
 export const observabilityTools = {
   tools: [
     { name: 'vercel_list_connections', writes: false, profiles: READ_PROFILES,
-      description: 'List scoped connector/pass metadata and expiration without showing tokens or hashes.',
+      description: 'List scoped connector (OAuth) connection metadata and expiration without showing tokens or hashes.',
       inputSchema: opts({ includeRevoked: { type:'boolean' }, limit: limitArg }),
       annotations: { readOnlyHint: true } },
     { name: 'vercel_recent_changes', writes: false, profiles: READ_PROFILES,
