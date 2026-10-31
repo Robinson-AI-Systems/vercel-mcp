@@ -95,9 +95,13 @@ export const serverTools = {
         'Vercel token expired; rotate it through the enrollment step of the sign-in flow.' :
         daysLeft <= 14 ? 'Vercel token expires within ' + daysLeft +
           ' days; verify renewal through the enrollment step of the sign-in flow.' : null;
-      // AUD-E (D-E/VMCP-003/IN-04): the explicit four-state posture beside
-      // the unchanged warning. A null date with no attestation is 'unknown'
-      // ("expiry not recorded for this token") — never owner's choice.
+      // AUD-E (D-E/VMCP-003/IN-04): the explicit posture beside the
+      // unchanged warning. A null date with no attestation and no
+      // provider-reported none is 'unknown' ("expiry not recorded for
+      // this token") — never owner's choice. AUD-BI: enrollment now
+      // records real dates, and the posture names its source so a
+      // provider-reported no-expiry stays distinct from the owner's
+      // attestation.
       const posture = tokenExpiryPosture(row);
       // AUD-I S3: the declared box beside the probed one, the
       // account-layer consequence (A-12) and the flip picture (A-10),
@@ -115,7 +119,7 @@ export const serverTools = {
         purchaseGrantRequired: Boolean(row.purchase_grant_required),
         expiresAt: posture.expiresAt, expiresAtLocal: posture.expiresAtLocal,
         daysLeft: posture.daysLeft, expiryPosture: posture.posture,
-        expiryPostureText: posture.label,
+        expiryPostureText: posture.label, expirySource: posture.source,
         tokenWarning, box,
         accountLayer: accountLayerText(box),
         workingBoxChanges: { ...flipReport(box),

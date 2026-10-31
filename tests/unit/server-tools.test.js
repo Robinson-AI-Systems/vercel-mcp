@@ -92,19 +92,41 @@ describe('A-5 account read tools', () => {
       registry, name: 'vercel_whoami', connection: conn, db: attDb })).content[0].text);
     expect(parsed.expiryPosture).toBe('no_expiry');
     expect(parsed.expiryPostureText).toBe("no expiry — owner's choice");
+    expect(parsed.expirySource).toBe('attestation');
     expect(parsed.expiresAt).toBeNull();
     expect(parsed.daysLeft).toBeNull();
     expect(parsed.tokenWarning).toBeNull();
     expect(parsed.account.tokenNoExpiry).toBe(true);
   });
+  it('whoami reports a provider-reported no-expiry as no_expiry with the provider source, never owner choice (AUD-BI)', async () => {
+    const reported = [{ id: 'team_FAKE', team_slug: 'fixture', label: 'Fixture Team', scope: 'team',
+      production_enabled: false, token_last4: '1234', token_expires_at: null,
+      token_no_expiry: false, spend_limit_cents: 0,
+      token_probe: { tokenExpiry: { state: 'none_reported', providerTokenId: 'tokid_FAKE1' } } }];
+    const repDb = { listVercelAccounts: async () => reported,
+      getTodaySpendCents: async () => 0,
+      getVercelAccountSafe: async id => reported.find(row => row.id === id) || null };
+    const parsed = JSON.parse((await dispatchReadOnlyTool({
+      registry, name: 'vercel_whoami', connection: conn, db: repDb })).content[0].text);
+    expect(parsed.expiryPosture).toBe('no_expiry');
+    expect(parsed.expiryPostureText).toBe('no expiry — Vercel reports none for this token');
+    expect(parsed.expiryPostureText).not.toContain("owner's choice");
+    expect(parsed.expirySource).toBe('provider');
+    expect(parsed.expiresAt).toBeNull();
+    expect(parsed.daysLeft).toBeNull();
+    expect(parsed.tokenWarning).toBeNull();
+    expect(parsed.account.tokenNoExpiry).toBe(false);
+  });
   it('whoami reports an unattested null-expiry token as unknown, never owner choice (AUD-E regression)', async () => {
-    // The default fixture row is exactly today's enrollment shape:
-    // token_expires_at null (storeToken writes null unconditionally) and
-    // no attestation recorded.
+    // The default fixture row is the unrecorded enrollment shape:
+    // token_expires_at null, no attestation, and no provider-reported
+    // no-expiry on the probe record (AUD-BI records one only when the
+    // provider's own token record affirmatively carries no expiry).
     const parsed = JSON.parse((await call('vercel_whoami')).content[0].text);
     expect(parsed.expiryPosture).toBe('unknown');
     expect(parsed.expiryPostureText).toBe('expiry not recorded for this token');
     expect(parsed.expiryPostureText).not.toContain("owner's choice");
+    expect(parsed.expirySource).toBeNull();
     expect(parsed.expiresAt).toBeNull();
     expect(parsed.daysLeft).toBeNull();
     expect(parsed.tokenWarning).toBeNull();
