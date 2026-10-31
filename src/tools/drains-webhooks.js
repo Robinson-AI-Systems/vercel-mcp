@@ -573,7 +573,7 @@ const webhookCreate=defineWrite({
     return 'Create a webhook delivering '+before.events.length+
       ' event kind(s) to https://'+before.host+
       '; account webhooks require a Pro or Enterprise plan — if Vercel refuses on plan, that verdict is reported with the remedy'+
-      '; the signing secret is shown once on the setup page and never in this result';
+      '; the signing secret is shown once through vercel_reveal_one_time_secret and never in this result';
   },
   async production(){
     return {production:false,
@@ -695,7 +695,7 @@ export const drainsWebhooksWriteTools={
       annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:true}},
     {name:'vercel_webhook_create',writes:true,guardedWrite:true,
       area:'webhooks',profiles:['full'],
-      description:'Create an account webhook (Pro/Enterprise); its signing secret is delivered once via the setup page, never in the result.',
+      description:'Create an account webhook (Pro/Enterprise); its signing secret is delivered once via vercel_reveal_one_time_secret, never in the result.',
       inputSchema:{type:'object',properties:webhookCreateProps,required:['url','events'],additionalProperties:false},
       writeContract:webhookCreate.writeContract,
       annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:true}},

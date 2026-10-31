@@ -3,8 +3,9 @@
 // ONLY (never full account — storeToken enforces it again on the server
 // delivery route with allowFull:false), the creator chooses the expiry
 // including none (IN-04 supersedes the design's original <=1-year bound),
-// and the value leaves exactly once: either as a one-time owner reveal on
-// the setup page, or stored directly as another account of this server.
+// and the value leaves exactly once: either as a one-time owner reveal
+// through vercel_reveal_one_time_secret, or stored directly as another
+// account of this server.
 // Deletion refuses the credential this connection runs on.
 import {compact, credentialLike} from '../core/util.js';
 import {checkProtected} from './self-guard.js';
@@ -132,7 +133,7 @@ const tokenCreate = defineWrite({
       `It expires ${new Date(b.expiresMs).toISOString()}.` : 'It has NO expiry — your choice (IN-04); revoke it here when it is no longer needed.';
     const deliveryLine = b.delivery === 'server' ?
       'The value is stored directly as another account of this server and is never shown.' :
-      'The value is shown ONCE on the authenticated setup page and never travels in chat or tool results.';
+      'The value is shown ONCE through vercel_reveal_one_time_secret and never travels in chat or tool results.';
     return `Create an API token named "${b.name}", ${scopeLine}. ${expiryLine} ${deliveryLine}`;
   },
   async production() {
@@ -229,7 +230,7 @@ const tokenDelete = defineWrite({
     let probe = mine?.token_probe ?? null;
     if (typeof probe === 'string') { try { probe = JSON.parse(probe); } catch { probe = null; } }
     if (probe?.providerTokenId === a.tokenId)
-      throw new RefusalError('That token is the credential this server itself runs on — revoking it would cut this connection off. It is refused here; rotate it from the setup page instead.');
+      throw new RefusalError('That token is the credential this server itself runs on — revoking it would cut this connection off. It is refused here; rotate it through the enrollment step of the sign-in flow instead.');
     if (mine?.token_last4 && row.suffix && mine.token_last4 === row.suffix)
       throw new RefusalError('That token ends with the same four characters as the credential this connection runs on, so it is treated as the server\u2019s own token and refused here. If it is a different token that happens to share those characters, revoke it from the Vercel dashboard.');
     return {account, tokenId: a.tokenId, name: row.name, suffix: row.suffix,

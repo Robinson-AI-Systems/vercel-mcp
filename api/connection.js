@@ -11,7 +11,6 @@ export default function handler(req, res) {
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  const setup = BRANDED_ORIGIN + '/api/vercel/setup';
   const body =
     '<p>This page explains, in plain words, how your assistants connect to ' +
     FRONT_DOOR_PRODUCT_NAME + ', what a connection can do, and how to ' +
@@ -35,10 +34,11 @@ export default function handler(req, res) {
     'already has.</p></section>' +
 
     '<section><h2>Passes for agents</h2>' +
-    '<p>An owner can also issue a scoped pass on the ' +
-    '<a href="' + setup + '">setup page</a> for an agent that should not ' +
-    'sign in as you. A pass has its own profile, expiry and revocation, ' +
-    'and the same pass works at either of this service\'s addresses.</p></section>' +
+    '<p>An owner can also issue a scoped pass through their own ' +
+    'connection (the <code>vercel_issue_pass</code> tool) for an agent ' +
+    'that should not sign in as you. A pass has its own profile, expiry ' +
+    'and revocation, and the same pass works at either of this ' +
+    'service\'s addresses.</p></section>' +
 
     '<section><h2>Your secrets stay yours</h2>' +
     '<p>Administrator passphrases, tokens and passwords are typed only on ' +
@@ -70,9 +70,10 @@ export default function handler(req, res) {
 
     '<section><h2>Disconnect</h2>' +
     '<p>Remove the connector in your client whenever you like. To cut ' +
-    'access immediately, revoke the connection or pass on the ' +
-    '<a href="' + setup + '">setup page</a> — revocation takes effect at ' +
-    'once, on both addresses.</p></section>';
+    'access immediately, the owner revokes the connection ' +
+    '(<code>vercel_revoke_connection</code>) or the pass ' +
+    '(<code>vercel_revoke_pass</code>) through their own connection — ' +
+    'revocation takes effect at once, on both addresses.</p></section>';
   return res.status(200).send(frontDoorPage({
     title: 'My connection — ' + FRONT_DOOR_PRODUCT_NAME,
     heading: 'My connection',

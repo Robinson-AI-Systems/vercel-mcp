@@ -1,5 +1,6 @@
-// MCP owner writes only PROPOSE an encrypted approval. The separate owner
-// setup page authenticates Chris and performs any account mutation.
+// MCP owner writes only PROPOSE an encrypted approval. The owner's own
+// connection applies it through vercel_apply_owner_approval (AUD-AS);
+// the setup page that used to perform the mutation was deleted by AUD-AV.
 import { defineWrite, RefusalError } from '../core/write.js';
 import { compact } from '../core/util.js';
 import { checkProtected } from './self-guard.js';

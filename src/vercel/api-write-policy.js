@@ -57,12 +57,13 @@ function screenQueryValue(value, depth = 0) {
 }
 // B5: a credential-shaped value anywhere in the body refuses the write,
 // and a credential-named field may not carry a string value at all —
-// secret inputs belong to hand-built tools with pending inputs.
+// secret inputs belong to hand-built tools (AUD-AV: the pending-input
+// vault is gone; hand-built tools generate secrets or refuse).
 function screenBody(value, depth = 0) {
   if (depth > 8) throw new RefusalError('Request body is too deeply nested');
   if (typeof value === 'string') {
     if (credentialLike(value))
-      throw new RefusalError('Request body carries a credential-shaped value; use a hand-built tool with a pending input');
+      throw new RefusalError('Request body carries a credential-shaped value; use a hand-built tool that generates the secret, or set it in the Vercel dashboard');
     return;
   }
   if (Array.isArray(value)) { value.forEach(v => screenBody(v, depth + 1)); return; }
@@ -70,7 +71,7 @@ function screenBody(value, depth = 0) {
     for (const [key, child] of Object.entries(value)) {
       if (CREDENTIAL_KEY.test(key) && typeof child === 'string' && child.length > 0)
         throw new RefusalError('Request body field "' + key.slice(0, 40) +
-          '" cannot carry a credential value through the universal tool; use a hand-built tool with a pending input');
+          '" cannot carry a credential value through the universal tool; use a hand-built tool that generates the secret, or set it in the Vercel dashboard');
       screenBody(child, depth + 1);
     }
   }

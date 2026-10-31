@@ -146,7 +146,7 @@ async function projectRows(ctx, profile, projectName, account) {
           label: `${key} (${target}) for ${profile.name}`,
           note: 'Readiness never invents values; supply the value and set it with vercel_env_set.' })) } : {}),
         ...(managedMissing.length ? { steps: [
-          `${managedMissing.join(', ')} are managed by an integration or store — connect it (setup page / vercel_integration_connect_resource); never set them by hand.`] } : {}) });
+          `${managedMissing.join(', ')} are managed by an integration or store — connect it (vercel_integration_connect_resource); never set them by hand.`] } : {}) });
     }
     // Preview database isolation (names + compare verdicts, never values).
     // A key absent from preview cannot reach the production database; a
@@ -286,7 +286,7 @@ async function projectRows(ctx, profile, projectName, account) {
       push({ id: 'stores', label: 'Owned stores connected',
         status: 'needs_you',
         detail: `Not connected: ${missing.join(', ')}. Blob files in a store are reachable only once the owner connects it (a connection state, not a rule).`,
-        steps: ['Connect the store on the setup page so its label matches the profile.'] });
+        steps: ['Connect the store through the enrollment step of the sign-in flow so its label matches the profile.'] });
     }
   }
 

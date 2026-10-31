@@ -28,28 +28,26 @@ export function shapeMcpResult(response, { connection } = {}) {
   return compact({ ...response, content: shaped });
 }
 
-/** Never allow credential-shaped plain arguments. Secrets must use owner setup or server generation. */
+/** Never allow credential-shaped plain arguments. Secrets must use server generation.
+ * AUD-AV (dossier D9): the pendingInputId source is removed with the
+ * setup page — the one-use owner-input vault no longer exists. */
 export async function resolveVercelInput(args, {
-  secret = false, account, kind, pending, random = randomBytes
+  secret = false, random = randomBytes
 } = {}) {
   if (!args || typeof args !== 'object') throw new TypeError('An input source is required');
-  const sources = [Object.hasOwn(args, 'value'), Object.hasOwn(args, 'pendingInputId'),
+  if (Object.hasOwn(args, 'pendingInputId')) {
+    throw new TypeError('pendingInputId is no longer accepted: the protected ' +
+      'pending-input path was removed with the owner setup page. Supply the ' +
+      'value in the Vercel dashboard, or use generation.');
+  }
+  const sources = [Object.hasOwn(args, 'value'),
     Object.hasOwn(args, 'generate')].filter(Boolean).length;
   if (sources !== 1) throw new TypeError('Choose exactly one input source');
   if (Object.hasOwn(args, 'value')) {
     if (secret || typeof args.value !== 'string' || credentialLike(args.value)) {
-      throw new TypeError('Secret-like values must be supplied through owner setup or generation');
+      throw new TypeError('Secret-like values must be supplied through generation');
     }
     return { value: args.value, source: 'plain' };
-  }
-  if (Object.hasOwn(args, 'pendingInputId')) {
-    if (!pending || typeof pending.consume !== 'function' || !account || !kind ||
-      typeof args.pendingInputId !== 'string' || !args.pendingInputId) {
-      throw new TypeError('Verified one-use owner input is required');
-    }
-    const value = await pending.consume({ id: args.pendingInputId, account, kind });
-    if (typeof value !== 'string') throw new TypeError('One-use owner input expired or unavailable');
-    return { value, source: 'owner_setup' };
   }
   const gen = args.generate;
   if (!gen || !Number.isInteger(gen.bytes) || gen.bytes < 16 || gen.bytes > 64 ||

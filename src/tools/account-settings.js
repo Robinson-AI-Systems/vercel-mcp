@@ -8,8 +8,8 @@
 // from the owner's own connector connection here, hard-gated to it
 // like vercel_apply_owner_approval: a delegated pass can never
 // perform them. Each tool carries its form's validations verbatim
-// (src/vercel/setup.js); handleSetup itself is untouched — AUD-AV
-// deletes the route later and the forms stay until then.
+// (carried from the setup page's forms); AUD-AV has since deleted
+// the route and the forms — these tools are the only surface now.
 import { defineWrite, RefusalError } from '../core/write.js';
 import { buildOwnerExport } from '../vercel/owner-export.js';
 import { recheckStoredToken } from '../vercel/tokens.js';

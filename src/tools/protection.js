@@ -2,7 +2,8 @@
 // /v9/projects fields; bypass secrets live in a project-record map KEYED BY
 // THE SECRET ITSELF, so keys are used inside these handlers only — state is
 // carried between preview and apply as SHA-256 fingerprints, and created
-// secrets reach the owner only through the one-time-secret page.
+// secrets reach the owner only through the one-time-secret reveal
+// tool (vercel_reveal_one_time_secret, AUD-AU).
 import { createHash } from 'node:crypto';
 import { defineWrite, bindGuardedWrite, requirePreDispatch, RefusalError } from '../core/write.js';
 import { compact, credentialLike } from '../core/util.js';
@@ -10,11 +11,14 @@ import { readProvider, writeProvider } from '../vercel/provider.js';
 import { checkProtected } from './self-guard.js';
 import { checkApp } from './app-guard.js';
 import { validateRequest } from '../vercel/openapi-validation.js';
-import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
-const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+// AUD-AV (dossier D9): the protected password input is removed with
+// the setup page; the password itself now lives only in the console.
+const PASSWORD_CONSOLE = 'the protected password input was removed with ' +
+  'the owner setup page. Set or change the password in the Vercel ' +
+  'dashboard (Project Settings → Deployment Protection).';
 const ALIAS = /^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$/;
 const READ_PROFILES = ['read_only', 'everyday', 'full'];
 const FULL = ['full'];
@@ -134,7 +138,7 @@ function protectionView(row) {
 }
 // Shared guarded PATCH of one projects_update field with drift protection.
 // bodyFor (optional) assembles the dispatch body inside apply, after the
-// drift re-check — set_password uses it to consume the setup-page input.
+// drift re-check.
 function settingsWrite({ name, field, validate, plan, previewText, accessFor, verifyField, description, secretIn = false, bodyFor = null, inverseFor = null }) {
   const inputSchema = { type: 'object', additionalProperties: false,
     properties: {
@@ -235,13 +239,13 @@ const setVercelAuth = settingsWrite({
 
 const setPassword = settingsWrite({
   name: 'vercel_protection_set_password', field: 'passwordProtection', secretIn: true,
-  description: 'Turn password protection on or off for a project; the password is typed on the setup page and never passes through chat.',
+  description: 'Change password protection scope or turn it off; turning it on needs a password set in the Vercel dashboard — it never passes through chat.',
   validate(args) {
     projectArg(args);
+    if (args.pendingInputId !== undefined)
+      throw new RefusalError('pendingInputId is no longer accepted: ' + PASSWORD_CONSOLE);
     if (typeof args.enabled !== 'boolean' ||
       (args.deploymentType !== undefined && !AUTH_TYPES.includes(args.deploymentType)) ||
-      (args.pendingInputId !== undefined &&
-        (typeof args.pendingInputId !== 'string' || !UUID.test(args.pendingInputId))) ||
       (args.confirm !== undefined && typeof args.confirm !== 'boolean') ||
       (args.dryRun !== undefined && typeof args.dryRun !== 'boolean'))
       throw new RefusalError('Invalid password protection change');
@@ -251,28 +255,24 @@ const setPassword = settingsWrite({
     const currentType = row ? scopeOrNull(row.passwordProtection?.deploymentType, AUTH_TYPES) : null;
     if (row && !args.enabled && !currentPresent)
       throw new RefusalError('Password protection is already off for this project');
-    if (row && args.enabled && !currentPresent && !args.pendingInputId)
-      throw new RefusalError('Turning password protection on needs a password typed on the setup page: pass its pendingInputId');
-    if (row && args.enabled && !currentPresent && !args.deploymentType)
-      throw new RefusalError('Turning password protection on needs a deployment scope');
+    if (row && args.enabled && !currentPresent)
+      throw new RefusalError('Turning password protection on needs a password, and ' + PASSWORD_CONSOLE);
     const newType = args.enabled ? (args.deploymentType ?? currentType) : null;
-    if (row && args.enabled && currentPresent && newType === currentType && !args.pendingInputId)
-      throw new RefusalError('No password protection change requested');
+    if (row && args.enabled && currentPresent && newType === currentType)
+      throw new RefusalError('No password protection scope change requested; to change the password itself, ' + PASSWORD_CONSOLE);
     const loosening = loosens(currentPresent ? currentType : null, newType);
     return { body: { passwordProtection: args.enabled
-        ? { deploymentType: newType, ...(args.pendingInputId ? { password: 'FAKE_PASSWORD' } : {}) }
+        ? { deploymentType: newType }
         : null },
-      before: { newType, currentType, loosening,
-        hasPendingInput: Boolean(args.pendingInputId) } };
+      before: { newType, currentType, loosening } };
   }, { props: {
     enabled: { type: 'boolean' },
-    deploymentType: { type: 'string', enum: AUTH_TYPES },
-    pendingInputId: { type: 'string', description: 'Setup-page pending input of kind deploy_password' }
+    deploymentType: { type: 'string', enum: AUTH_TYPES }
   }, required: ['enabled'] }),
   previewText: b => b.newType
-    ? 'Turn password protection ON for project ' + b.name + ': visitors to ' +
-      SCOPE_WORDS[b.newType] + ' need the project password.' +
-      (b.hasPendingInput ? ' The new password was typed on the setup page; it is never shown here.' : '')
+    ? 'Keep password protection ON for project ' + b.name + ' with scope ' +
+      SCOPE_WORDS[b.newType] + ': visitors need the project password ' +
+      '(unchanged — a scope change never touches the password itself).'
     : 'Turn password protection OFF for project ' + b.name +
       ': visitors no longer need a password. This LOOSENS access.',
   accessFor: b => b.loosening
@@ -283,23 +283,16 @@ const setPassword = settingsWrite({
     (b.newType == null || row.passwordProtection == null ||
       scopeOrNull(row.passwordProtection?.deploymentType, AUTH_TYPES) === b.newType ||
       scopeOrNull(row.passwordProtection?.deploymentType, AUTH_TYPES) === null),
-  // The password is consumed from the setup page inside apply, after the
-  // drift re-check, and reaches only the provider request body.
-  bodyFor: async (a, ctx, before) => {
+  // The dispatch body carries only the scope from the confirmed
+  // before-state — no password key, so Vercel keeps the existing
+  // password untouched (AUD-AV: the password input path is gone).
+  bodyFor: async (a, _ctx, before) => {
     if (!a.enabled) return { passwordProtection: null };
-    let password;
-    if (a.pendingInputId) {
-      password = await pendingInputs({ db: ctx.db, env: ctx.env }).consume({
-        id: a.pendingInputId, account: ctx.connection.account, kind: 'deploy_password' });
-      if (typeof password !== 'string' || !password)
-        throw new TypeError('Setup-page password input is no longer available');
-    }
-    return { passwordProtection: { deploymentType: before.newType,
-      ...(password ? { password } : {}) } };
+    return { passwordProtection: { deploymentType: before.newType } };
   },
   // X-1: descriptive only — the previous password is a secret this
   // server never stores, so it cannot be restored (BATCH-X §X1).
-  inverseFor: () => ({ undo: 'Set a new password from the setup page: the previous password was a secret this server never stores, so it cannot be restored' })
+  inverseFor: () => ({ undo: 'Set a new password in the Vercel dashboard (Project Settings → Deployment Protection): the previous password was a secret this server never stores, so it cannot be restored' })
 });
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?:\/(\d{1,2}))?$/;
 function validIp(value) {
@@ -399,7 +392,7 @@ const createBypass = defineWrite({
     return 'Create a protection-bypass secret for project ' + b.name +
       (b.note ? ' (note: ' + b.note + ')' : '') +
       '. Anyone holding the secret can bypass deployment protection for this project. ' +
-      'The secret is shown once on the setup page, never here.';
+      'The secret is shown once through vercel_reveal_one_time_secret, never here.';
   },
   async production() {
     return { production: true, why: 'A bypass secret opens this project\u2019s live deployment URLs' };
@@ -581,7 +574,7 @@ const shareableLink = defineWrite({
       ? 'Create a shareable link for ' + b.aliasName +
         ': anyone with the link can view this deployment without signing in.' +
         (args.ttlSeconds ? ' It expires after ' + args.ttlSeconds + ' seconds.' : ' It does not expire.') +
-        ' The link is shown once on the setup page, never here.'
+        ' The link is shown once through vercel_reveal_one_time_secret, never here.'
       : 'Revoke the shareable link for ' + b.aliasName +
         ': anyone using that link loses access to this deployment.';
   },
@@ -658,7 +651,7 @@ const trustedTool = guarded(setTrustedIps, FULL);
 const createBypassTool = {
   tool: { name: 'vercel_protection_create_bypass', writes: true, guardedWrite: true,
     profiles: FULL, area: 'protection',
-    description: 'Create a protection-bypass secret for a project; it is shown once on the setup page, never in a result.',
+    description: 'Create a protection-bypass secret for a project; it is shown once through vercel_reveal_one_time_secret, never in a result.',
     inputSchema: { type: 'object', additionalProperties: false,
       properties: {
         project: { type: 'string', minLength: 1, maxLength: 128 },
@@ -689,7 +682,7 @@ const revokeBypassTool = {
 const shareableTool = {
   tool: { name: 'vercel_alias_set_shareable_link', writes: true, guardedWrite: true,
     profiles: ['everyday', 'full'], area: 'protection',
-    description: 'Create or revoke a shareable link for one protected deployment URL; a created link is shown once on the setup page.',
+    description: 'Create or revoke a shareable link for one protected deployment URL; a created link is shown once through vercel_reveal_one_time_secret.',
     inputSchema: { type: 'object', additionalProperties: false,
       properties: {
         alias: { type: 'string', minLength: 1, maxLength: 253 },

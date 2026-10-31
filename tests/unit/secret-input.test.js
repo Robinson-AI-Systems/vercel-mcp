@@ -9,19 +9,10 @@ describe('B-5 one-use secret input and output rules', () => {
     await expect(resolveVercelInput({ value: 'one', generate: { bytes: 32, encoding: 'hex' } }))
       .rejects.toThrow(/exactly one/);
   });
-  it('consumes one-use owner input for exactly the selected account and kind', async () => {
-    const pending = { consume: vi.fn(async () => 'opaque-secret') };
-    const output = await resolveVercelInput({ pendingInputId: 'fixture' }, {
-      secret: true, account: 'team_fixture', kind: 'env_value', pending
-    });
-    expect(output.source).toBe('owner_setup');
-    expect(pending.consume).toHaveBeenCalledWith({
-      id: 'fixture', account: 'team_fixture', kind: 'env_value'
-    });
+  it('refuses the removed pending-input source by name (AUD-AV, D9)', async () => {
     await expect(resolveVercelInput({ pendingInputId: 'fixture' }, {
-      account: 'team_fixture', kind: 'env_value',
-      pending: { consume: async () => null }
-    })).rejects.toThrow(/expired/);
+      secret: true
+    })).rejects.toThrow(/no longer accepted/);
   });
   it('generates random secrets only with bounded size and approved encoding', async () => {
     const random = vi.fn(bytes => Buffer.alloc(bytes, 7));

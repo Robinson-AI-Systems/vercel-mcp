@@ -76,8 +76,7 @@ export const brandFooter = () =>
   'through — this page describes things as they stand today, not a promise about ' +
   'tomorrow. Vercel Unleashed works through your own Vercel account, and ' +
   'Vercel\'s own terms govern that account. ' +
-  '<a href="/">Status</a> · <a href="/connection">My connection</a> · ' +
-  '<a href="/api/vercel/setup">Owner setup</a></footer>';
+  '<a href="/">Status</a> · <a href="/connection">My connection</a></footer>';
 
 export function frontDoorPage({ title, heading, body }) {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +

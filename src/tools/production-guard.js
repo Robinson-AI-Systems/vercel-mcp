@@ -1,6 +1,8 @@
 // Production enable (AUD-B, design D-B, ruling IN-09): on the owner's word
-// by default. A team whose owner chose 'passphrase' strictness on the setup
-// page keeps the two-step flow (tool request + owner passphrase reentry);
+// by default. A team whose owner chose 'passphrase' strictness keeps the
+// two-step flow (tool request + owner application of the receipt through
+// vercel_apply_owner_approval, AUD-AS; the setup page that used to take
+// the passphrase reentry was deleted by AUD-AV);
 // 'word' teams complete in the tool call itself on confirm. The passphrase
 // machinery is unchanged — it is the 'passphrase' mode, not a gate on all
 // teams. Disable is unchanged: confirm completes it and revokes tokens.

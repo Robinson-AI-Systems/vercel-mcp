@@ -64,8 +64,8 @@ export default function handler(req, res) {
       '<p>Service version: ' + SERVICE_VERSION + '</p>' +
       '<p>MCP endpoint: <code>/api/mcp</code></p>' +
       '<p>OAuth issuer: <code>/.well-known/oauth-authorization-server</code></p>' +
-      '<p>Account connection and permissions are private; sign in through the ' +
-      'authenticated setup page to inspect them. This public page does not ' +
+      '<p>Account connection and permissions are private; sign in to ' +
+      'inspect them. This public page does not ' +
       'certify live provider or RTC acceptance.</p></section>';
     return res.status(200).send(frontDoorPage({
       title: FRONT_DOOR_PRODUCT_NAME,

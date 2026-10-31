@@ -189,7 +189,7 @@ const envSync = defineWrite({
       lines.push(`Already consistent (skipped): ${before.consistent.join(', ')}.`);
     }
     if (before.secretSources.length) {
-      lines.push(`Secret-kind sources are never copied by this workflow (set them at the destination through the setup page): ${before.secretSources.join(', ')}.`);
+      lines.push(`Secret-kind sources are never copied by this workflow (set them at the destination with vercel_env_set using a generated value, or in the Vercel dashboard): ${before.secretSources.join(', ')}.`);
     }
     for (const x of before.notSyncable) {
       lines.push(`Not syncable: ${x.key} — ${x.reason}.`);
@@ -396,7 +396,7 @@ const rotateSecret = defineWrite({
       key: before.key };
   },
   async inverse(_args, before) {
-    return { note: `The previous value of ${before.key} is unrecoverable by design (it was never shown); to change it again, vercel_env_set with a fresh generated value or a setup-page pending input.` };
+    return { note: `The previous value of ${before.key} is unrecoverable by design (it was never shown); to change it again, vercel_env_set with a fresh generated value or the Vercel dashboard.` };
   },
   async publicReceipt(_args, before, applied) {
     return { project: before.projectName, key: before.key,

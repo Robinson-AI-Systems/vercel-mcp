@@ -128,7 +128,7 @@ const send=defineWrite({
   },
   async preview(_a,_ctx,b){
     return b.action==='prepare'?
-      'Create one run-owned synthetic signing key for '+b.host+'; reveal only once on the authenticated owner setup page.':
+      'Create one run-owned synthetic signing key for '+b.host+'; reveal only once through vercel_reveal_one_time_secret.':
       'Send ONE synthetic '+b.event+' notification to '+b.url+
       '. This is NOT a genuine Vercel delivery and may trigger the receiver. No redirect/retry is permitted.';
   },

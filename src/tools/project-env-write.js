@@ -4,7 +4,6 @@ import {randomBytes} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
-import {pendingInputs} from '../core/pending-inputs.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
 
@@ -12,7 +11,12 @@ const PROJECT=/^prj_[A-Za-z0-9_-]{3,124}$/;
 const ID=/^[A-Za-z0-9_-]{6,128}$/;
 const KEY=/^[A-Za-z_][A-Za-z0-9_]{0,255}$/;
 const TARGETS=new Set(['preview','development','production']);
-const PENDING=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// AUD-AV (dossier D9): the pending-input source is removed with the
+// setup page; passing it refuses by name with the guided remedy.
+const PENDING_REMOVED='pendingInputId is no longer accepted: the protected ' +
+  'pending-input path was removed with the owner setup page. To set a Secret ' +
+  'to a value you choose, set it in the Vercel dashboard (Project Settings ' +
+  '→ Environment Variables); or pass generate to have one generated here.';
 const props={
   project:{type:'string',pattern:PROJECT.source},key:{type:'string',pattern:KEY.source},
   mode:{type:'string',enum:['create','update']},
@@ -21,7 +25,6 @@ const props={
     items:{type:'string',enum:['preview','development','production']}},
   kind:{type:'string',enum:['Config','Secret']},
   value:{type:'string',minLength:1,maxLength:65536},
-  pendingInputId:{type:'string',pattern:PENDING.source},
   generate:{type:'object',properties:{
     bytes:{type:'integer',const:32},
     encoding:{type:'string',enum:['hex','base64url']}
@@ -44,6 +47,7 @@ const exact=(v,p)=>plain(v)&&Object.keys(v).every(k=>Object.hasOwn(p,k));
 const eq=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);
 const ordered=(t)=>[...t].sort();
 function validateSet(a){
+  if(a.pendingInputId!==undefined) throw new RefusalError(PENDING_REMOVED);
   if(!exact(a,props)||!PROJECT.test(a.project??'')||!KEY.test(a.key??'')||
     !['create','update'].includes(a.mode)||
     !Array.isArray(a.targets)||a.targets.length<1||a.targets.length>3||
@@ -57,14 +61,13 @@ function validateSet(a){
     (a.dryRun!==undefined&&typeof a.dryRun!=='boolean'))
     throw new RefusalError('Invalid exact environment value request');
   const kind=a.kind??'Secret';
-  const sources=['value','pendingInputId','generate'].filter(k=>a[k]!==undefined);
+  const sources=['value','generate'].filter(k=>a[k]!==undefined);
   if(sources.length!==1||
     (kind==='Config'&&sources[0]!=='value')||
     (kind==='Secret'&&sources[0]==='value')||
     (kind==='Secret'&&a.targets.includes('development'))||
     (sources[0]==='value'&&(typeof a.value!=='string'||a.value.length<1||
       a.value.length>65536||credentialLike(a.value)))||
-    (sources[0]==='pendingInputId'&&!PENDING.test(a.pendingInputId))||
     (sources[0]==='generate'&&(!exact(a.generate,{bytes:1,encoding:1})||
       a.generate.bytes!==32||!['hex','base64url'].includes(a.generate.encoding))))
     throw new RefusalError('Choose one permitted private environment value source');
@@ -167,15 +170,7 @@ const set=defineWrite({
     });
     let value;
     if(a.value!==undefined)value=a.value;
-    else if(a.generate)value=randomBytes(32).toString(a.generate.encoding);
-    else{
-      if(typeof ctx.db?.consumePendingInput!=='function')
-        throw new TypeError('Owner pending-input service unavailable');
-      value=await pendingInputs({db:ctx.db,env:ctx.env}).consume({
-        id:a.pendingInputId,account:ctx.connection.account,kind:'env_value'});
-      if(typeof value!=='string'||value.length<1||value.length>65536)
-        throw new TypeError('Owner pending input unavailable or invalid');
-    }
+    else value=randomBytes(32).toString(a.generate.encoding);
     const body={value,type:b.kind==='Secret'?'sensitive':'plain',target:b.targets};
     const operation=b.mode==='create'?'project_env_create':'project_env_update';
     const path={idOrName:b.project,...(b.mode==='update'?{id:b.id}:{})};
@@ -219,7 +214,7 @@ const set=defineWrite({
   // stores values.
   async inverse(a,b,applied,ctx){
     if(b.mode==='update')
-      return {undo:'Set '+b.key+' again from the setup page: a changed value cannot be restored (Vercel keeps no value history and this server never stores values). Its previous targets were '+(b.oldTargets??[]).join(', ')};
+      return {undo:'Set '+b.key+' again with vercel_env_set (a generated value) or in the Vercel dashboard: a changed value cannot be restored (Vercel keeps no value history and this server never stores values). Its previous targets were '+(b.oldTargets??[]).join(', ')};
     if(Number.isSafeInteger(applied?.createdUpdatedAt))
       return {tool:'vercel_env_delete',project:b.project,id:applied.id,
         expectedKey:b.key,expectedUpdatedAt:applied.createdUpdatedAt,

@@ -1,10 +1,8 @@
 import {describe,it,expect,vi,beforeEach} from 'vitest';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
-import {createFakeDb} from '../../test/helpers/fake-db.js';
 import {blobReadTools,blobWriteTools} from '../../src/tools/blob.js';
 import {encryptSecret} from '../../src/core/secret-box.js';
 import {BLOB_CONTEXT} from '../../src/vercel/blob.js';
-import {handleSetup} from '../../src/vercel/setup.js';
 import {loadToken} from '../../src/vercel/tokens.js';
 import {list as sdkList,head as sdkHead,put as sdkPut,del as sdkDel}
   from '@vercel/blob';
@@ -81,7 +79,7 @@ describe('M-4 blob tools',()=>{
    const f=fixture();
    const r=read(await f.list({store:STORE}));
    expect(r.connected).toBe(false);
-   expect(r.message).toMatch(/setup page/);
+   expect(r.message).toMatch(/enrollment step of the sign-in flow/);
    expect(sdkList).not.toHaveBeenCalled();
  });
  it('lists folded by default, follows the cursor, and states truncation at the limit',async()=>{
@@ -179,77 +177,5 @@ describe('M-4 blob tools',()=>{
      receipt:{deleted:['a.txt'],alreadyAbsent:['gone.txt']}});
    expect(sdkDel.mock.calls[0][0]).toEqual(['a.txt','gone.txt']);
    expect(sdkDel.mock.calls[0][1]).toEqual({token:TOKEN});
- });
-});
-
-describe('M-4 setup page Blob stores',()=>{
- const senv={ADMIN_PASSPHRASE:'fixture-owner-passphrase',
-   TOKEN_ENCRYPTION_KEY:'00'.repeat(32)};
- function response(){
-   const headers={};
-   return {headers,statusCode:200,body:'',
-     setHeader(k,v){headers[k.toLowerCase()]=v;return this;},
-     status(c){this.statusCode=c;return this;},
-     send(v){this.body=v;return this;},
-     json(v){this.body=JSON.stringify(v);return this;},
-     end(){return this;}};
- }
- function harness(){
-   const db=createFakeDb({accounts:[{id:'acct_1',team_id:'team_SEAT',
-     team_slug:'fixture',label:'Fixture',scope:'team'}]});
-   const connections=new Map();
-   db.insertBlobStoreConnection=async({account:a,storeId,label,access,
-     ciphertext,tokenLast4})=>{
-     connections.set(a+':'+storeId,{account:a,storeId,label,access,
-       tokenLast4,ciphertext});};
-   db.listBlobStoreConnections=async()=>[...connections.values()]
-     .map(({ciphertext:_c,...safe})=>safe);
-   db.deleteBlobStoreConnection=async({account:a,storeId})=>
-     connections.delete(a+':'+storeId);
-   const call=async(method,body,cookie)=>{
-     const res=response();
-     await handleSetup({method,body,query:{},headers:{
-       'x-real-ip':'127.0.0.1',...(cookie?{cookie}:{})}},res,
-       {db,env:senv,storeTokenFn:vi.fn()});
-     return res;
-   };
-   return {db,call,connections};
- }
- async function signIn(h){
-   const logged=await h.call('POST',{action:'login',
-     passphrase:senv.ADMIN_PASSPHRASE});
-   const cookie=logged.headers['set-cookie'].split(';')[0];
-   const page=await h.call('GET',null,cookie);
-   const csrf=page.body.match(/name="csrf" value="([A-Za-z0-9_-]+)"/)?.[1];
-   return {cookie,csrf,page};
- }
- it('connects a store with the token encrypted and never rendered; disconnect deletes it',async()=>{
-   const h=harness(); const {cookie,csrf,page}=await signIn(h);
-   expect(page.body).toContain('Blob stores');
-   expect(page.body).toContain('No Blob stores connected yet.');
-   const saved=await h.call('POST',{action:'connect_blob_store',csrf,
-     account:'acct_1',storeId:STORE,label:'Uploads',access:'public',
-     token:TOKEN},cookie);
-   expect(saved.statusCode).toBe(200);
-   expect(saved.body).toContain('connected as Uploads');
-   expect(saved.body).not.toContain('plantedTokenValue9876');
-   const row=h.connections.get('acct_1:'+STORE);
-   expect(row.tokenLast4).toBe('9876');
-   expect(row.ciphertext).not.toContain('plantedTokenValue9876');
-   const page2=await h.call('GET',null,cookie);
-   expect(page2.body).toContain('Uploads');
-   expect(page2.body).not.toContain('plantedTokenValue9876');
-   const csrf2=page2.body.match(/name="csrf" value="([A-Za-z0-9_-]+)"/)?.[1];
-   const gone=await h.call('POST',{action:'disconnect_blob_store',
-     csrf:csrf2,account:'acct_1',storeId:STORE,confirm:'yes'},cookie);
-   expect(gone.body).toContain('disconnected');
-   expect(h.connections.size).toBe(0);
- });
- it('rejects a non-Blob token on connect',async()=>{
-   const h=harness(); const {cookie,csrf}=await signIn(h);
-   const bad=await h.call('POST',{action:'connect_blob_store',csrf,
-     account:'acct_1',storeId:STORE,label:'X',token:'vcp_FAKEtoken'},cookie);
-   expect(bad.statusCode).toBe(400);
-   expect(h.connections.size).toBe(0);
  });
 });

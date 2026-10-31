@@ -2,7 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {explainVercelError,vercelErrorResult} from '../../src/tools/errors.js';
 describe('B-4 plain-language Vercel provider errors',()=>{
  const cases=[
-  ['invalid_token','token','setup'],
+  ['invalid_token','token','enrollment'],
   ['forbidden','permission','role'],
   ['not_found','not found','List'],
   ['rate_limited','limited','Wait'],

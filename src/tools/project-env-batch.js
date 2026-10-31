@@ -3,7 +3,6 @@ import {randomBytes} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
-import {pendingInputs} from '../core/pending-inputs.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
 import {envMeta,scoped} from './project-env-write.js';
@@ -11,8 +10,13 @@ import {envMeta,scoped} from './project-env-write.js';
 const PROJECT=/^prj_[A-Za-z0-9_-]{3,124}$/;
 const ID=/^[A-Za-z0-9_-]{6,128}$/;
 const KEY=/^[A-Za-z_][A-Za-z0-9_]{0,255}$/;
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TARGETS=new Set(['production','preview','development']);
+// AUD-AV (dossier D9): the pending-input source is removed with the
+// setup page; an item carrying it refuses by name with the remedy.
+const PENDING_REMOVED='pendingInputId is no longer accepted: the protected ' +
+  'pending-input path was removed with the owner setup page. To set a Secret ' +
+  'to a value you choose, set it in the Vercel dashboard (Project Settings ' +
+  '→ Environment Variables); or pass generate to have one generated here.';
 const common={
  project:{type:'string',pattern:PROJECT.source},
  confirm:{type:'boolean'},dryRun:{type:'boolean'},
@@ -24,7 +28,6 @@ const createItem={type:'object',properties:{
    items:{type:'string',enum:['production','preview','development']}},
  kind:{type:'string',enum:['Config','Secret']},
  value:{type:'string',minLength:1,maxLength:65536},
- pendingInputId:{type:'string',pattern:UUID.source},
  generate:{type:'object',properties:{bytes:{type:'integer',const:32},
    encoding:{type:'string',enum:['hex','base64url']}},
    required:['bytes','encoding'],additionalProperties:false}
@@ -58,9 +61,12 @@ function checkCreate(a){
  base(a,['project','items','confirm','dryRun','requestKey','outsideApp']);
  if(a.outsideApp!==undefined&&typeof a.outsideApp!=='boolean')
    throw new RefusalError('Invalid bounded project environment batch');
- const keys=new Set(),inputs=new Set();let bytes=0;
+ for(const item of a.items)
+   if(item&&typeof item==='object'&&item.pendingInputId!==undefined)
+     throw new RefusalError(PENDING_REMOVED);
+ const keys=new Set();let bytes=0;
  for(const item of a.items){
-   if(!only(item,['key','targets','kind','value','pendingInputId','generate'])||
+   if(!only(item,['key','targets','kind','value','generate'])||
      !KEY.test(item.key??'')||keys.has(item.key)||
      !Array.isArray(item.targets)||item.targets.length<1||item.targets.length>3||
      item.targets.some(t=>!TARGETS.has(t))||
@@ -69,7 +75,7 @@ function checkCreate(a){
      throw new RefusalError('Duplicate or invalid environment key/target');
    keys.add(item.key);
    const kind=item.kind??'Secret';
-   const from=['value','pendingInputId','generate'].filter(k=>item[k]!==undefined);
+   const from=['value','generate'].filter(k=>item[k]!==undefined);
    if(from.length!==1||(kind==='Config'&&from[0]!=='value')||
      (kind==='Secret'&&(from[0]==='value'||item.targets.includes('development'))))
      throw new RefusalError('Invalid private value source');
@@ -78,10 +84,6 @@ function checkCreate(a){
        item.value.length>65536||credentialLike(item.value))
        throw new RefusalError('Invalid Config value');
      bytes+=Buffer.byteLength(item.value);
-   }else if(from[0]==='pendingInputId'){
-     if(!UUID.test(item.pendingInputId)||inputs.has(item.pendingInputId))
-       throw new RefusalError('Duplicate/invalid owner pending input');
-     inputs.add(item.pendingInputId);bytes+=64;
    }else{
      if(!only(item.generate,['bytes','encoding'])||
        item.generate.bytes!==32||!['hex','base64url'].includes(item.generate.encoding))
@@ -159,15 +161,7 @@ const create=defineWrite({
        const item=a.items[i],meta=b.items[i];
        let value;
        if(item.value!==undefined)value=item.value;
-       else if(item.generate)value=randomBytes(32).toString(item.generate.encoding);
-       else{
-         if(typeof ctx.db?.consumePendingInput!=='function')
-           throw new TypeError('Owner pending input unavailable');
-         value=await pendingInputs({db:ctx.db,env:ctx.env}).consume({
-           id:item.pendingInputId,account:ctx.connection.account,kind:'env_value'});
-         if(typeof value!=='string'||!value||value.length>65536)
-           throw new TypeError('Owner pending input invalid');
-       }
+       else value=randomBytes(32).toString(item.generate.encoding);
        body.push({key:meta.key,value,
          type:meta.kind==='Secret'?'sensitive':'plain',target:meta.targets});
      }

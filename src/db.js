@@ -35,7 +35,7 @@ let lastRetentionSweepAt = 0;
 // with an upsert that refreshes the row only while its source stays
 // 'default', so the APP-NEEDS rule "this file and the seed change in the
 // same PR" actually deploys, and owner edits are never overwritten. No
-// Vercel IDs are recorded here; IDs are setup-page data.
+// Vercel IDs are recorded here; IDs are enrollment data.
 export const APPLIANCE_DESK_PROFILE = Object.freeze({
   id: 'appliance-desk',
   name: 'Appliance Desk',
@@ -116,6 +116,13 @@ export const APPLIANCE_DESK_PROFILE = Object.freeze({
 export const KNOWN_APP_SEED = Object.freeze([APPLIANCE_DESK_PROFILE]);
 
 export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profile', 'listing']);
+
+// IN-07 (AUD-AV re-home): the seeded protected-project defaults
+// are empty by the owner's ruling — existing seeded records
+// persist, but no new defaults are seeded. This constant lived in
+// src/vercel/setup.js until AUD-AV deleted that module; its home
+// is now beside seedProtectedProjects, which consumes such lists.
+export const PROTECTED_DEFAULTS = Object.freeze([]);
 // TEST probes this service only, never Vercel provider/account resources.
 const rtcModeSafe=(mode,areas)=>mode==='preview'||(mode==='test'&&
   Array.isArray(areas)&&areas.length===1&&areas[0]==='server');
@@ -432,8 +439,8 @@ export function createDb(query) {
     },
 
     /**
-     * Owner-proofed callers only: the independently authenticated owner
-     * setup page, or an owner-applied approval envelope (AUD-AT — the
+     * Owner-proofed callers only: an owner-applied approval envelope
+     * (AUD-AT — the
      * envelope is the owner's act; a proposal tool never calls this).
      * Atomic account-scoped purchase-policy update and audit, with the
      * same read-back verification pattern as setOwnerSpendLimit. Every
@@ -501,8 +508,8 @@ export function createDb(query) {
     },
 
     /**
-     * Owner-proofed callers only — the setup page, or an owner-applied
-     * approval envelope (AUD-AT); no tool may call this directly.
+     * Owner-proofed callers only — an owner-applied approval envelope
+     * (AUD-AT); no tool may call this directly.
      * Atomic account-scoped attestation update and audit, with the
      * same read-back verification pattern as setPurchasePolicy. Every
      * successful set or clear writes a change_log row.
@@ -789,7 +796,7 @@ export function createDb(query) {
       return { from, to: readOnly };
     },
 
-    /** Owner setup only; serialized, account-scoped, one-token revocation. */
+    /** Owner connection only; serialized, account-scoped, one-token revocation. */
     async revokeOwnerConnection({account, connectionId}) {
       if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
         typeof connectionId !== 'string' || !/^conn_[a-f0-9]{20}$/.test(connectionId)) {
@@ -990,27 +997,14 @@ export function createDb(query) {
         RETURNING id, vercel_account, kind, label, ciphertext`;
       return rows[0] ?? null;
     },
-    async insertPendingInput({ id, account, kind, label, ciphertext, expiresAt }) {
-      if (!id || !account || !kind || !label || !ciphertext || !(expiresAt instanceof Date)) {
-        throw new TypeError('Invalid pending secret input');
-      }
-      const run = getSql();
-      await run`INSERT INTO pending_inputs
-        (id, vercel_account, kind, label, ciphertext, expires_at)
-        VALUES (${id}, ${account}, ${kind}, ${label}, ${ciphertext}, ${expiresAt})`;
-    },
-    async consumePendingInput({ id, account, kind }) {
-      if (!id || !account || !kind) return null;
-      const run = getSql();
-      const rows = await run`DELETE FROM pending_inputs WHERE id = ${id}
-        AND vercel_account = ${account} AND kind = ${kind}
-        AND expires_at > now()
-        RETURNING id, vercel_account, kind, label, ciphertext`;
-      return rows[0] ?? null;
-    },
+    // AUD-AV: the pending-input writer/reader methods are deleted
+    // with the setup page (dossier D9). The pending_inputs TABLE
+    // stays (additive-only schema rule): pre-deletion rows expire
+    // unconsumed under AUD-AO's 180-day sweep, and the AUD-AA
+    // removal cascade plus the owner-proposal counts still read it.
     // M-4: Blob store connections. The list method never selects the
-    // ciphertext; only resolveBlobStore (the Blob wrapper) and the owner
-    // setup routes may call the ciphertext method.
+    // ciphertext; only resolveBlobStore (the Blob wrapper) and the
+    // AUD-AR enrollment path may call the ciphertext method.
     async insertBlobStoreConnection({ account, storeId, label, access = 'public',
       ciphertext, tokenLast4 }) {
       if (!account || !storeId || !label || !ciphertext ||
@@ -1269,8 +1263,8 @@ export function createDb(query) {
     },
 
     /**
-     * Owner-proofed callers only — the setup page, or an owner-applied
-     * approval envelope (AUD-AT); never settable by a tool's own call
+     * Owner-proofed callers only — an owner-applied approval envelope
+     * (AUD-AT); never settable by a tool's own call
      * (AUD-B's intent, preserved by the envelope). Atomic account-scoped update and audit,
      * with the same read-back verification pattern as setPurchasePolicy.
      * The change_log row is recorded under vercel_enable_production and
@@ -1976,7 +1970,7 @@ export function createDb(query) {
         ciphertext TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         expires_at TIMESTAMPTZ NOT NULL, used_at TIMESTAMPTZ)`;
       // M-4 (IN-15): Blob store connections are connection STATE, entered
-      // by the owner on the setup page and held encrypted like every
+      // by the owner through the sign-in flow's enrollment step and held encrypted like every
       // other credential. One row per (account, store); reconnecting a
       // store replaces its token.
       await run`CREATE TABLE IF NOT EXISTS blob_store_connections (

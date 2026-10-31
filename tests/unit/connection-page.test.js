@@ -47,7 +47,7 @@ describe('O-6 connection page (RAS MCP Standard, Branded front door)',()=>{
   expect(payload).toContain('not affiliated with or endorsed by Vercel');
   expect(payload).toContain('does not certify live provider or RTC acceptance');
   expect(payload).toContain('no public sign-up');
-  expect(payload).toContain('revoke the connection or pass');
+  expect(payload).toContain('revokes the connection');
   expect(payload).toContain('takes effect at once');
   expect(payload).not.toMatch(/DATABASE_URL|TOKEN_ENCRYPTION_KEY|ADMIN_PASSPHRASE|vcp_[a-zA-Z0-9_-]{12,}/);
  });
