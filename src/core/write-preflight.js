@@ -39,6 +39,15 @@ export function refusalReason(error, generic) {
 export function isOwnerConnection(conn) {
   return conn?.kind === 'connector';
 }
+// R-1W (BATCH-R amendment, 2026-10-30): a write-capable RTC pass connection.
+// The door mints these fields from the authorized pass row onto the frozen
+// connection; caller arguments can never set them. A read-only pass has
+// profile 'read_only' and is refused before the purchase branch is reached.
+export function isWritePassConnection(conn) {
+  return conn?.kind === 'pass' && conn?.passAllowWrites === true &&
+    Number.isSafeInteger(conn?.passSpendLimitCents) &&
+    conn.passSpendLimitCents >= 0 && conn.passSpendLimitCents <= 2147483647;
+}
 // The budget-framed dollar line for an owner connection whose policy does
 // not require a per-purchase grant. The budget frames disclosure only: it
 // never refuses the owner. quotedCents is the provider-quoted price, or null
@@ -242,6 +251,30 @@ export async function writePreflight(spec, args, ctx) {
         moneyLine=check.explanation;
         if(!check.allowed&&check.code!=='needs_confirmation')
           return {refused:refusal(check.explanation||'Spending was refused',check.code)};
+      }else if(conn?.kind==='pass'&&conn?.passAllowWrites===true){
+        // R-1W pass delegation (BATCH-R amendment, 2026-10-30): a genuine
+        // write pass — identified by the authority fields the RTC door
+        // minted onto its frozen connection at authorization — is a
+        // delegated credential, never the owner's word and never a grant
+        // consumer. Its standing ceiling is the whole authority: a fixed
+        // known price at or under the ceiling proceeds journaled as a pass
+        // delegation; anything recurring or unquantified refuses, exactly
+        // as on the grant path, because no provider-enforceable ceiling
+        // exists. A pass-shaped connection WITHOUT the minted claim is not
+        // a write pass and keeps the AUD-A2 grant path below, unchanged.
+        if(!isWritePassConnection(conn))
+          return {refused:refusal('Pass spend authority cannot be verified')};
+        if(spend.recurring||spend.cents===null)
+          return {refused:refusal('Recurring or unquantified spend cannot be delegated to a pass; it needs the account owner directly')};
+        if(spend.cents>conn.passSpendLimitCents)
+          return {refused:refusal('This purchase exceeds the spend ceiling on this pass')};
+        purchase={cents:spend.cents,recurring:false,
+          description:spend.description.trim(),
+          delegation:{basis:'pass',ceilingCents:conn.passSpendLimitCents,
+            quotedCents:spend.cents}};
+        moneyLine=spend.description.trim()+': $'+(spend.cents/100).toFixed(2)+
+          ' USD, within this pass spend ceiling of $'+
+          (conn.passSpendLimitCents/100).toFixed(2)+' (delegated pass spend).';
       }else{
         // AUD-A2 policy branch (design D-A, OP-2): on the account owner's own
         // connection, AUD-A1's standing policy decides. With

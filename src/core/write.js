@@ -118,11 +118,24 @@ export function purchaseFingerprint(name,args,connection,spend) {
 // exact operation and request key, and it exists only when preflight
 // evaluated the account policy on an owner connection. A caller can never
 // inject it: execution contexts are built here, never from tool arguments.
+// R-1W adds the second basis: a write pass's standing delegation, minted by
+// preflight from the frozen connection's server-set pass fields under the
+// same binding (exact operation and request key). A pass delegation is a
+// delegated credential's authority, never the owner's word.
 export function purchaseDelegationFor(ctx, operation, requestKey) {
   const delegation = ctx?.purchaseDelegation;
-  return delegation && delegation.basis === 'owner_word' &&
+  return delegation && (delegation.basis === 'owner_word' ||
+    delegation.basis === 'pass') &&
     delegation.operation === operation && delegation.requestKey === requestKey ?
     delegation : null;
+}
+// R-1W: the project id a write target resolves to, or null when the target
+// carries no project identity in any of the shapes tools declare.
+function targetProjectId(target) {
+  if (typeof target?.projectId === 'string' && target.projectId) return target.projectId;
+  if (target?.kind === 'project' && typeof target?.id === 'string' && target.id) return target.id;
+  if (typeof target?.project === 'string' && target.project) return target.project;
+  return null;
 }
 export function defineWrite(spec) {
   if (typeof spec?.name !== 'string' || !spec.name) throw new TypeError('Write name required');
@@ -147,6 +160,21 @@ export function defineWrite(spec) {
     const checked = await writePreflight(spec, args, ctx);
     if (checked.refused) return checked.refused;
     const { before, production, targets, summary, moneyLine, spendCents, mode, purchase, spendDeclaration } = checked;
+    // R-1W project restriction (BATCH-R amendment, 2026-10-30): when the
+    // connection is a pass carrying a project list — a field only the RTC
+    // door mints, from the authorized pass row, onto the frozen connection —
+    // every declared target must resolve to a listed project. A target with
+    // no project identity, or an empty target set, leaves the write's scope
+    // unprovable and refuses. Checked here, after targets are computed and
+    // before any audit, claim or dispatch: one seam, every door.
+    if (Array.isArray(ctx.connection?.passProjectIds)) {
+      const allowed = ctx.connection.passProjectIds;
+      const inScope = targets.length > 0 && targets.every((target) => {
+        const projectId = targetProjectId(target);
+        return projectId !== null && allowed.includes(projectId);
+      });
+      if (!inScope) return refusal('This pass is restricted to specific projects and this change is outside them');
+    }
     const requestKey = writeRequestKey(spec.name, args, ctx.connection,
       typeof ctx.now === 'function' ? ctx.now() : Date.now());
     // AUD-A2: the delegation block preflight evaluated for an owner-word
@@ -183,10 +211,13 @@ export function defineWrite(spec) {
     // own connection with purchase_grant_required = false, preflight has
     // already evaluated the standing policy: the owner's confirmed word is
     // the authority, no purchase intent is created or consumed, and the
-    // delegation block is journaled. On delegated/builder connections — and
-    // for owners who opted into purchase_grant_required — an agent may only
-    // PROPOSE a purchase: the single-use purchase grant comes exclusively
-    // from separately authenticated owner setup (not MCP confirm).
+    // delegation block is journaled. On a write-capable RTC pass (R-1W),
+    // preflight has likewise already enforced the pass's standing ceiling
+    // and minted a pass delegation; recurring or unquantified spend never
+    // reaches this block on a pass. On other delegated/builder connections —
+    // and for owners who opted into purchase_grant_required — an agent may
+    // only PROPOSE a purchase: the single-use purchase grant comes
+    // exclusively from separately authenticated owner setup (not MCP confirm).
     let charge=null;
     if(purchase&&!delegation){
       // A recurring fixed per-period fee can also exceed a one-time grant.
@@ -291,13 +322,20 @@ export function defineWrite(spec) {
           reference:charge.reference,requestKey,operation:spec.name})};
       }
       if(delegation){
-        // Owner-word path: nothing is consumed. Apply-side authority checks
+        // Delegated path: nothing is consumed. Apply-side authority checks
         // receive the delegation the executor minted, bound to this exact
-        // operation and request key (purchaseDelegationFor).
-        executionContext={...ctx,purchaseDelegation:Object.freeze({
-          basis:'owner_word',operation:spec.name,requestKey,
-          budgetCents:delegation.budgetCents,quotedCents:delegation.quotedCents,
-          overBudget:delegation.overBudget})};
+        // operation and request key (purchaseDelegationFor). The basis is
+        // the one preflight minted: the owner's own word on an owner
+        // connection, or a write pass's standing ceiling on a pass.
+        executionContext={...ctx,purchaseDelegation:Object.freeze(
+          delegation.basis==='pass'?
+            {basis:'pass',operation:spec.name,requestKey,
+              ceilingCents:delegation.ceilingCents,
+              quotedCents:delegation.quotedCents}:
+            {basis:'owner_word',operation:spec.name,requestKey,
+              budgetCents:delegation.budgetCents,
+              quotedCents:delegation.quotedCents,
+              overBudget:delegation.overBudget})};
       }
       providerResult = await spec.apply(args, executionContext, before, requestKey);
     } catch (error) {

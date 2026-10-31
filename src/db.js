@@ -101,6 +101,20 @@ export const CONNECTION_FIELDS = Object.freeze(['vercel_account', 'mode', 'profi
 // TEST probes this service only, never Vercel provider/account resources.
 const rtcModeSafe=(mode,areas)=>mode==='preview'||(mode==='test'&&
   Array.isArray(areas)&&areas.length===1&&areas[0]==='server');
+// R-1W (BATCH-R amendment, 2026-10-30): a write pass is an rtc_passes row with
+// allow_writes set, a delegated profile (everyday/full) and a preview or
+// production mode; TEST never writes. The read-only predicates are preserved
+// verbatim for read passes; this shape is the second disjunct wherever a pass
+// is inspected or authorized, so a malformed write row can never authorize.
+const rtcProjectIdList=(value)=>value===null||(Array.isArray(value)&&
+  value.length>=1&&value.length<=50&&new Set(value).size===value.length&&
+  value.every(x=>typeof x==='string'&&/^[a-zA-Z0-9_-]{3,128}$/.test(x)));
+const rtcWritePassShape=(row)=>row.allow_writes===true&&
+  ['everyday','full'].includes(row.profile)&&
+  ['preview','production'].includes(row.mode)&&
+  Array.isArray(row.areas)&&row.areas.length>=1&&
+  Number.isSafeInteger(row.spend_limit_cents)&&row.spend_limit_cents>=0&&
+  rtcProjectIdList(row.project_ids??null);
 
 export function connectionSettings(row) {
   if (!row || typeof row !== 'object') throw new TypeError('A connection row is required');
@@ -122,8 +136,9 @@ export function createDb(query) {
 
   return {
 
-    // RTC 1: only owner setup calls this. A pass never allows writes,
-    // production mode or financial outflow. Store only SHA-256, not bearer.
+    // RTC 1: only owner setup calls this. A read-only pass never allows
+    // writes, production mode or financial outflow. Store only SHA-256,
+    // not bearer. Write-capable passes are issueWriteRtcPass below.
     async issueReadOnlyRtcPass({account,hours=24,areas=['server'],mode='preview',rateLimitPerMinute=120}) {
       if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
         !Number.isInteger(hours)||hours<1||hours>720||
@@ -153,6 +168,46 @@ export function createDb(query) {
       if(rows.length!==1) return null;
       return {token,id,expiresAt:rows[0].expires_at};
     },
+    // R-1W: the write-capable sibling (BATCH-R amendment, 2026-10-30). Same
+    // issuance/audit atomicity as a read pass; the scope is a delegated
+    // profile with a standing spend ceiling (0 = no spend) and an optional
+    // project restriction (null = unrestricted). Only owner setup calls
+    // this, behind the administrator passphrase like every issuance path.
+    async issueWriteRtcPass({account,profile='everyday',mode='preview',hours=24,
+      areas,spendLimitCents=0,projectIds=null,rateLimitPerMinute=120}) {
+      if(!/^[a-zA-Z0-9_/-]{3,256}$/.test(account||'') ||
+        !['everyday','full'].includes(profile)||
+        !['preview','production'].includes(mode)||
+        !Number.isInteger(hours)||hours<1||hours>720||
+        !Array.isArray(areas)||areas.length<1||areas.length>12||
+        new Set(areas).size!==areas.length||
+        areas.some(x=>typeof x!=='string'||!/^[a-z][a-z0-9_]{0,47}$/.test(x))||
+        !Number.isSafeInteger(spendLimitCents)||spendLimitCents<0||
+        spendLimitCents>2147483647||
+        !rtcProjectIdList(projectIds)||
+        !Number.isInteger(rateLimitPerMinute)||
+        rateLimitPerMinute<1||rateLimitPerMinute>600)
+        throw new TypeError('Invalid RTC write pass scope');
+      const token='rtc_pass_'+randomBytes(32).toString('base64url');
+      const digest=hashToken(token),id='pass_'+digest.slice(0,20);
+      const run=getSql();
+      const rows=await run`WITH issued AS (
+        INSERT INTO rtc_passes (pass_id,token_hash,vercel_account,profile,mode,areas,rate_limit_per_minute,expires_at,allow_writes,spend_limit_cents,project_ids)
+        SELECT ${id},${digest},id,${profile},${mode},${JSON.stringify(areas)}::jsonb,
+          ${rateLimitPerMinute},now()+${hours} * interval '1 hour',TRUE,
+          ${spendLimitCents},${projectIds===null?null:JSON.stringify(projectIds)}::jsonb
+        FROM vercel_accounts WHERE id=${account}
+        RETURNING pass_id,expires_at,vercel_account,mode
+      ), audited AS (
+        INSERT INTO change_log(vercel_account,mode,tool,summary,dry_run,production)
+        SELECT vercel_account,mode,'vercel_owner_issue_write_pass',
+          'Owner issued scoped write-capable RTC pass',FALSE,${mode==='production'}
+        FROM issued
+        RETURNING id
+      ) SELECT pass_id,expires_at FROM issued`;
+      if(rows.length!==1) return null;
+      return {token,id,expiresAt:rows[0].expires_at};
+    },
     // Single atomic DB update enforces a shared per-pass rolling minute limit.
     // Return only normalized scope and neutral status; never the bearer/hash.
     // Unmetered, non-executable pass inspection. A final atomic
@@ -162,17 +217,28 @@ export function createDb(query) {
         return {status:'permission'};
       const run=getSql(),digest=hashToken(token);
       const rows=await run`SELECT pass_id,vercel_account,profile,mode,listing,
-          areas,rate_limit_per_minute,expires_at,revoked_at FROM rtc_passes WHERE token_hash=${digest}`;
+          areas,rate_limit_per_minute,expires_at,revoked_at,allow_writes,
+          spend_limit_cents,project_ids FROM rtc_passes WHERE token_hash=${digest}`;
       if(rows.length!==1)return {status:'permission'};
       const row=rows[0];
       if(row.revoked_at)return {status:'pass_revoked'};
       if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
-      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only'||
-        !Number.isInteger(row.rate_limit_per_minute)||row.rate_limit_per_minute<1||
+      if(!Number.isInteger(row.rate_limit_per_minute)||row.rate_limit_per_minute<1||
         row.rate_limit_per_minute>600)return {status:'permission'};
+      if(row.profile==='read_only'){
+        // The read-only predicate, preserved verbatim: a read row that
+        // somehow carries allow_writes is corrupt and never authorizes.
+        if(!rtcModeSafe(row.mode,row.areas)||row.allow_writes===true)
+          return {status:'permission'};
+        return {status:'ok',id:row.pass_id,account:row.vercel_account,
+          profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas,
+          rateLimitPerMinute:row.rate_limit_per_minute};
+      }
+      if(!rtcWritePassShape(row))return {status:'permission'};
       return {status:'ok',id:row.pass_id,account:row.vercel_account,
         profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas,
-        rateLimitPerMinute:row.rate_limit_per_minute};
+        rateLimitPerMinute:row.rate_limit_per_minute,allowWrites:true,
+        spendLimitCents:row.spend_limit_cents,projectIds:row.project_ids??null};
     },
     async authorizeRtcPass(token,units=1) {
       // Each batch tool consumes one unit. Validate before touching SQL.
@@ -187,29 +253,44 @@ export function createDb(query) {
         window_started=CASE WHEN window_started<=now()-interval '1 minute'
           THEN now() ELSE window_started END
         WHERE token_hash=${digest} AND revoked_at IS NULL
-          AND expires_at>now() AND profile='read_only'
-          AND (mode='preview' OR (mode='test' AND areas='["server"]'::jsonb))
+          AND expires_at>now()
+          AND ((profile='read_only'
+            AND (mode='preview' OR (mode='test' AND areas='["server"]'::jsonb)))
+           OR (allow_writes AND profile IN ('everyday','full')
+            AND mode IN ('preview','production')))
           AND rate_limit_per_minute BETWEEN 1 AND 600
           AND (window_started<=now()-interval '1 minute' OR window_count+${units}<=rate_limit_per_minute)
-        RETURNING pass_id,vercel_account,profile,mode,listing,areas,rate_limit_per_minute`;
+        RETURNING pass_id,vercel_account,profile,mode,listing,areas,rate_limit_per_minute,allow_writes,spend_limit_cents,project_ids`;
       if(rows.length===1){
         const row=rows[0];
         if(!Array.isArray(row.areas)||row.areas.length<1||
-          !rtcModeSafe(row.mode,row.areas)||!Number.isInteger(row.rate_limit_per_minute)||
+          !Number.isInteger(row.rate_limit_per_minute)||
           row.rate_limit_per_minute<1||row.rate_limit_per_minute>600)return {status:'permission'};
+        if(row.profile==='read_only'){
+          if(!rtcModeSafe(row.mode,row.areas)||row.allow_writes===true)
+            return {status:'permission'};
+          return {status:'ok',id:row.pass_id,account:row.vercel_account,
+            profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas,
+            rateLimitPerMinute:row.rate_limit_per_minute};
+        }
+        if(!rtcWritePassShape(row))return {status:'permission'};
         return {status:'ok',id:row.pass_id,account:row.vercel_account,
           profile:row.profile,mode:row.mode,listing:row.listing,areas:row.areas,
-          rateLimitPerMinute:row.rate_limit_per_minute};
+          rateLimitPerMinute:row.rate_limit_per_minute,allowWrites:true,
+          spendLimitCents:row.spend_limit_cents,projectIds:row.project_ids??null};
       }
-      const reason=await run`SELECT expires_at,revoked_at,mode,profile,areas,rate_limit_per_minute,window_count,window_started
+      const reason=await run`SELECT expires_at,revoked_at,mode,profile,areas,rate_limit_per_minute,window_count,window_started,allow_writes,spend_limit_cents,project_ids
         FROM rtc_passes WHERE token_hash=${digest}`;
       if(reason.length!==1)return {status:'permission'};
       const row=reason[0];
       if(row.revoked_at)return {status:'pass_revoked'};
       if(new Date(row.expires_at).getTime()<=Date.now())return {status:'pass_expired'};
-      if(!rtcModeSafe(row.mode,row.areas)||row.profile!=='read_only'||
-        !Number.isInteger(row.rate_limit_per_minute)||row.rate_limit_per_minute<1||
+      if(!Number.isInteger(row.rate_limit_per_minute)||row.rate_limit_per_minute<1||
         row.rate_limit_per_minute>600)return {status:'permission'};
+      if(row.profile==='read_only'){
+        if(!rtcModeSafe(row.mode,row.areas)||row.allow_writes===true)
+          return {status:'permission'};
+      }else if(!rtcWritePassShape(row))return {status:'permission'};
       return {status:'rate_limited'};
     },
     async listRtcPasses(account) {
@@ -1565,6 +1646,14 @@ export function createDb(query) {
       await run`ALTER TABLE rtc_passes ALTER COLUMN rate_limit_per_minute SET NOT NULL`;
       await run`CREATE INDEX IF NOT EXISTS rtc_passes_owner
         ON rtc_passes(vercel_account,created_at DESC)`;
+      // R-1W (BATCH-R amendment, 2026-10-30): write-capable passes live in the
+      // same table. The defaults keep every existing row exactly today's
+      // read-only pass: no writes, no spend delegation, no project restriction.
+      await run`ALTER TABLE rtc_passes ADD COLUMN IF NOT EXISTS allow_writes
+        BOOLEAN NOT NULL DEFAULT FALSE`;
+      await run`ALTER TABLE rtc_passes ADD COLUMN IF NOT EXISTS spend_limit_cents
+        INTEGER NOT NULL DEFAULT 0`;
+      await run`ALTER TABLE rtc_passes ADD COLUMN IF NOT EXISTS project_ids JSONB`;
       await run`CREATE TABLE IF NOT EXISTS login_attempts (
         id BIGSERIAL PRIMARY KEY, ip TEXT NOT NULL, attempted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         success BOOLEAN NOT NULL)`;

@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {send} from '../core/http.js';
 import {rtcCatalog} from '../core/rtc-contract.js';
 import {dispatchReadOnlyTool} from '../core/mcp-server.js';
+import {isGuardedWrite} from '../core/write.js';
 import {shapeStoredMcpResult} from '../vercel/result-delivery.js';
 import {vercelErrorResult} from '../tools/errors.js';
 import {prepareResult} from '../core/result-rules.js';
@@ -23,7 +24,7 @@ const MESSAGES={
  pass_expired:'The RTC pass has expired',
  pass_revoked:'The RTC pass has been revoked',
  rate_limited:'RTC pass rate limit exceeded',
- refused_by_guard:'This read-only pass cannot execute the requested operation',
+ refused_by_guard:'This pass cannot execute the requested operation',
  outside_scope:'This tool is outside the pass scope',
  not_found:'The requested tool or result is unavailable',
  invalid_args:'Invalid RTC API request',
@@ -105,9 +106,7 @@ function listing(req,pass,registry){
   if(q.length>120||String(requested.area??'').length>48||
     String(requested.audience??'').length>48)
     throw new TypeError('Invalid search selector');
-  const safe=catalog.filter(t=>t.writes===false&&!BLOCKED.has(t.name)&&
-    pass.areas.includes(t.area)&&
-    (pass.mode!=='test'||TEST_TOOLS.has(t.name)));
+  const safe=catalog.filter(t=>passToolVisible(t,pass,registry));
   const matching=safe.filter(t=>(!q||(t.name+' '+t.description).toLowerCase().includes(q))&&
     (!requested.area||t.area===requested.area)&&
     (!requested.audience||t.audience.includes(requested.audience)));
@@ -128,14 +127,26 @@ function listing(req,pass,registry){
   return {tools,count:matching.length,
     next:cursor+tools.length<matching.length?cursor+tools.length:null};
 }
+// A catalog row is visible to a pass when its area is in the pass areas and
+// it is either a read, or — for a write-capable pass only (R-1W) — a guarded
+// write whose registered profiles include the pass profile. The registry's
+// guarded-write identity is the authority; a merely write-shaped row never
+// becomes visible. The dispatcher re-checks profile visibility at invoke.
+function passToolVisible(tool,pass,registry){
+  if(BLOCKED.has(tool.name)||!pass.areas.includes(tool.area)||
+    (pass.mode==='test'&&!TEST_TOOLS.has(tool.name)))return false;
+  if(tool.writes===false)return true;
+  if(pass.allowWrites!==true||!tool.profiles?.includes(pass.profile))return false;
+  const row=registry?.tools?.find(t=>t.name===tool.name);
+  return isGuardedWrite(row,registry?.handlers?.[tool.name]);
+}
 function named(req,registry,pass){
   const name=req.query?.name;
   if(typeof name!=='string'||!NAME.test(name))return null;
   // A direct lookup must not depend on fitting some earlier unrelated
   // catalog page into the discovery envelope.
   return rtcCatalog(registry,{...pass,listing:'catalog'}).find(t=>
-    t.name===name&&!t.writes&&!BLOCKED.has(t.name)&&pass.areas.includes(t.area)&&
-    (pass.mode!=='test'||TEST_TOOLS.has(t.name)))||null;
+    t.name===name&&passToolVisible(t,pass,registry))||null;
 }
 async function invoke(name,args,ctx){
   const response=await dispatchReadOnlyTool({registry:ctx.registry,name,args,
@@ -149,23 +160,43 @@ async function invoke(name,args,ctx){
   // is a valid safe RTC read payload, not an unfiltered error string.
   catch{return response.content[0].text;}
 }
+const PROJECT_ID=/^[a-zA-Z0-9_-]{3,128}$/;
 function validPassRecord(record){
-  return Boolean(record&&ACCOUNT.test(record.account||'')&&PASS_ID.test(record.id||'')&&
-    ['preview','test'].includes(record.mode)&&record.profile==='read_only'&&
-    Array.isArray(record.areas)&&record.areas.length>0&&record.areas.length<=12&&
-    new Set(record.areas).size===record.areas.length&&
-    record.areas.every(area=>typeof area==='string'&&AREA.test(area))&&
-    (record.mode!=='test'||record.areas.length===1&&record.areas[0]==='server')&&
-    ['compact','catalog'].includes(record.listing)&&
-    Number.isInteger(record.rateLimitPerMinute)&&record.rateLimitPerMinute>=1&&
-    record.rateLimitPerMinute<=600);
+  if(!record||!ACCOUNT.test(record.account||'')||!PASS_ID.test(record.id||'')||
+    !Array.isArray(record.areas)||record.areas.length<1||record.areas.length>12||
+    new Set(record.areas).size!==record.areas.length||
+    !record.areas.every(area=>typeof area==='string'&&AREA.test(area))||
+    !['compact','catalog'].includes(record.listing)||
+    !Number.isInteger(record.rateLimitPerMinute)||record.rateLimitPerMinute<1||
+    record.rateLimitPerMinute>600)return false;
+  if(record.profile==='read_only'){
+    return ['preview','test'].includes(record.mode)&&
+      (record.mode!=='test'||record.areas.length===1&&record.areas[0]==='server');
+  }
+  // R-1W write pass shape (BATCH-R amendment, 2026-10-30): a delegated
+  // profile, a preview/production mode (TEST never writes), a standing
+  // spend ceiling and an optional project restriction.
+  return record.allowWrites===true&&
+    ['everyday','full'].includes(record.profile)&&
+    ['preview','production'].includes(record.mode)&&
+    Number.isSafeInteger(record.spendLimitCents)&&record.spendLimitCents>=0&&
+    record.spendLimitCents<=2147483647&&
+    (record.projectIds===null||(Array.isArray(record.projectIds)&&
+      record.projectIds.length>=1&&record.projectIds.length<=50&&
+      new Set(record.projectIds).size===record.projectIds.length&&
+      record.projectIds.every(id=>typeof id==='string'&&PROJECT_ID.test(id))));
 }
 function samePassScope(before,after){
   return validPassRecord(after)&&before.id===after.id&&
     before.account===after.account&&before.profile===after.profile&&
     before.mode===after.mode&&before.listing===after.listing&&
     before.rateLimitPerMinute===after.rateLimitPerMinute&&
-    JSON.stringify(before.areas)===JSON.stringify(after.areas);
+    JSON.stringify(before.areas)===JSON.stringify(after.areas)&&
+    (before.allowWrites===true)===(after.allowWrites===true)&&
+    (before.allowWrites!==true||
+      (before.spendLimitCents===after.spendLimitCents&&
+       JSON.stringify(before.projectIds??null)===
+        JSON.stringify(after.projectIds??null)));
 }
 async function requirePass(req,db,res,route,registry){
   const header=req.headers?.authorization;
@@ -195,7 +226,10 @@ async function requirePass(req,db,res,route,registry){
         Object.keys(call).some(k=>!['name','args'].includes(k))||
         typeof call.name!=='string'){fail(res,'invalid_args');return null;}
       const tool=named({query:{name:call.name}},registry,peek);
-      if(!tool){fail(res,'refused_by_guard');return null;}
+      // The batch route stays read-only even for a write-capable pass
+      // (BATCH-R amendment, 2026-10-30): writes run one at a time through
+      // the invoke route, under their own preview and confirmation.
+      if(!tool||tool.writes!==false){fail(res,'refused_by_guard');return null;}
       try{approvedCalls.push({name:tool.name,args:argumentsFor(call.args??{})});}
       catch{fail(res,'invalid_args');return null;}
     }
@@ -208,8 +242,17 @@ async function requirePass(req,db,res,route,registry){
   if(!validPassRecord(record)||(peek&&!samePassScope(peek,record))){
     fail(res,'permission');return null;
   }
-  const connection={account:record.account,profile:'read_only',mode:record.mode,
+  const connection={account:record.account,profile:record.profile,mode:record.mode,
     listing:record.listing,clientId:record.id,kind:'pass'};
+  if(record.allowWrites===true){
+    // Server-minted pass authority (R-1W): minted here from the authorized
+    // pass row and frozen with the connection below. The write preflight's
+    // purchase branch and the executor's project-scope check key on these
+    // fields; caller input can never set them.
+    connection.passAllowWrites=true;
+    connection.passSpendLimitCents=record.spendLimitCents;
+    connection.passProjectIds=record.projectIds??null;
+  }
   Object.defineProperty(connection,'resultOwner',{value:'resown_'+
     createHash('sha256').update('rmcp-result-owner-v1:').update(m[1]).digest('hex')});
   // The bearer stays inside the door closure, never in handler context/output.
@@ -226,8 +269,11 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
       if(route==='whoami'){
         if(req.method!=='GET')return fail(res,'invalid_args');
         return send(res,200,{ok:true,result:{
-          profile:'read_only',mode:pass.mode,listing:pass.listing,areas:pass.areas,
-           rateLimitPerMinute:pass.rateLimitPerMinute}});
+          profile:pass.profile,mode:pass.mode,listing:pass.listing,areas:pass.areas,
+           rateLimitPerMinute:pass.rateLimitPerMinute,
+           ...(pass.allowWrites===true?{writes:true,
+             spendLimitCents:pass.spendLimitCents,
+             projectIds:pass.projectIds??null}:{})}});
       }
       if(route==='list'){
         if(req.method!=='GET')return fail(res,'invalid_args');

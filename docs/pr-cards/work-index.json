@@ -1658,6 +1658,25 @@
       }
     },
     {
+      "id": "R-1W",
+      "title": "Write-capable RTC passes (R-1 remainder, rtc_passes model)",
+      "batch": "R",
+      "design": "docs/designs/BATCH-R.md",
+      "dependencies": [
+        "R-1",
+        "B-8"
+      ],
+      "card": "docs/pr-cards/R-1W.md",
+      "status": "APPROVED",
+      "migration": "rtc_passes write columns (additive)",
+      "budget": 500,
+      "units": [
+        "R-1W"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
       "id": "R-2",
       "title": "HTTPS tool API, manifest, OpenAPI, shared rate limit",
       "batch": "R",

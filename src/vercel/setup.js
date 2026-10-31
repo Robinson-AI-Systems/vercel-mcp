@@ -240,7 +240,7 @@ function panel(accounts, csrf, message = '', connections = [], blobStores = []) 
       '<button type="submit">Save token expiry attestation</button></form>').join('') :
       '<p>No Vercel accounts connected yet.</p>') + '</section>' +
     '<section><h2>Review an agent pass request</h2>' +
-    '<p>Review the exact read-only scope before issuing a pass. Agents cannot approve their own requests.</p>' +
+    '<p>Review the exact requested scope before issuing a pass. Agents cannot approve their own requests.</p>' +
     '<form method="post">' + csrfInput(csrf) +
     '<input type="hidden" name="action" value="review_rtc_pass_request">' +
     '<label>Account<select name="account" required>' + options + '</select></label>' +
@@ -270,6 +270,32 @@ function panel(accounts, csrf, message = '', connections = [], blobStores = []) 
     '<label><input type="checkbox" name="confirm" value="yes" required>Revoke the selected pass</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
     '<button type="submit">Revoke read-only pass</button></form></section>' +
+    '<section><h2>Write-capable RTC passes</h2>' +
+    '<p>A write-capable pass lets a delegated agent make changes through the ' +
+    'same guarded write tools, under the profile you choose. Its spending ' +
+    'ceiling is absolute: a fixed price at or under the ceiling may proceed; ' +
+    'recurring or unpriced spend is always refused. A project restriction ' +
+    'limits every change to the listed projects. Write passes are ' +
+    'owner-revocable (use the revoke form above) and expire within 720 hours ' +
+    '(24 by default). Preview never changes production; production passes ' +
+    'still require per-change confirmation.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="issue_rtc_write_pass">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label>Pass profile<select name="profile" required>' +
+    '<option value="everyday">Everyday — ordinary delegated work</option>' +
+    '<option value="full">Full — including owner-level tools</option></select></label>' +
+    '<label>Pass mode<select name="mode" required>' +
+    '<option value="preview">Preview — never changes production</option>' +
+    '<option value="production">Production — confirmed production changes allowed</option></select></label>' +
+    '<label>Allowed areas, comma-separated<input name="areas" required></label>' +
+    '<label>Lifetime in hours (1–720)<input name="hours" value="24" required></label>' +
+    '<label>Calls per minute (1–600; 120 default)<input name="rateLimitPerMinute" type="number" min="1" max="600" value="120" required></label>' +
+    '<label>Spend ceiling in dollars (0 = no spending)<input name="spendDollars" value="0" required></label>' +
+    '<label>Restrict to project IDs, comma-separated (optional)<input name="projectIds"></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Issue one scoped write-capable pass</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
+    '<button type="submit">Issue write-capable pass</button></form></section>' +
     '<section><h2>Export your data</h2>' +
     '<p>Download everything this server holds for one enrolled account: ' +
     'account metadata (never token values), connections, passes, protected ' +
@@ -474,9 +500,29 @@ export async function handleSetup(req, res, {
       if(env.VERCEL_ENV!=='production'||!accounts.some(x=>x.id===params.account))
         return html(res,403,'Permission denied','<p>Owner production setup session required.</p>');
       const knownAreas=['server',...new Set(registry.tools.filter(t=>t.writes===false).map(t=>t.area).filter(Boolean))];
-      const request=await inspectPassRequest({db,env,account:params.account,reference:params.reference,knownAreas,now});
+      const knownWriteAreas=['server',...new Set(registry.tools.map(t=>t.area).filter(Boolean))];
+      const request=await inspectPassRequest({db,env,account:params.account,reference:params.reference,knownAreas,knownWriteAreas,now});
       if(!request)return html(res,409,'Unavailable','<p>Request expired, missing, or belongs to another account.</p>');
-      if(params.action==='review_rtc_pass_request')
+      if(params.action==='review_rtc_pass_request'){
+        // R-1W: a write-capable request states its whole scope in plain
+        // words before approval — profile, mode, spend ceiling and any
+        // project restriction — never as a bare reference.
+        if(request.writes===true)
+          return html(res,200,'Review write-capable pass',
+            '<p>No pass has been issued. Write-capable '+escapeHtml(request.mode)+' pass ('+
+            escapeHtml(request.profile)+' profile); '+request.hours+
+            ' hours; areas: '+escapeHtml(request.areas.join(', '))+'; '+request.rateLimitPerMinute+
+            ' calls/minute. Spend ceiling '+(request.spendLimitCents===0?'$0.00 — spending refused':
+              '$'+(request.spendLimitCents/100).toFixed(2))+'; projects: '+
+            (request.projectIds?escapeHtml(request.projectIds.join(', ')):'no restriction')+
+            '. Production changes still need per-change confirmation.</p>'+
+            '<form method="post">'+csrfInput(session.csrf)+
+            '<input type="hidden" name="action" value="approve_rtc_pass_request">'+
+            '<input type="hidden" name="account" value="'+escapeHtml(params.account)+'">'+
+            '<input type="hidden" name="reference" value="'+escapeHtml(params.reference)+'">'+
+            '<label><input type="checkbox" name="confirm" value="yes" required>Issue this exact write-capable pass</label>'+
+            '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>'+
+            '<button type="submit">Approve and issue pass</button></form>');
         return html(res,200,'Review read-only pass',
           '<p>No pass has been issued. Read-only '+escapeHtml(request.mode)+'; '+request.hours+
           ' hours; areas: '+escapeHtml(request.areas.join(', '))+'; '+request.rateLimitPerMinute+' calls/minute. No spending or writes. TEST is service identity only.</p>'+
@@ -487,6 +533,7 @@ export async function handleSetup(req, res, {
           '<label><input type="checkbox" name="confirm" value="yes" required>Issue this exact read-only pass</label>'+
           '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>'+
           '<button type="submit">Approve and issue pass</button></form>');
+      }
       if(params.confirm!=='yes')return html(res,403,'Permission denied','<p>Explicit confirmation required.</p>');
       const proof=await evaluateLogin({ip:clientIp(req),supplied:String(params.passphrase||''),
         expected:env.ADMIN_PASSPHRASE,store:db});
@@ -494,30 +541,45 @@ export async function handleSetup(req, res, {
         res.setHeader('Retry-After','900');return html(res,429,'Permission denied','<p>Too many attempts.</p>');
       }
       if(proof.status!=='ok')return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
-      const approved=await consumePassRequest({db,env,account:params.account,reference:params.reference,knownAreas,now});
+      const approved=await consumePassRequest({db,env,account:params.account,reference:params.reference,knownAreas,knownWriteAreas,now});
       if(!approved||JSON.stringify(approved)!==JSON.stringify(request))
         return html(res,409,'Unavailable','<p>Request changed, expired, or was already consumed.</p>');
-      const issued=await db.issueReadOnlyRtcPass({account:approved.account,
-        mode:approved.mode,hours:approved.hours,areas:approved.areas,
-        rateLimitPerMinute:approved.rateLimitPerMinute});
+      const writeApproved=approved.writes===true;
+      const issued=writeApproved
+        ?await db.issueWriteRtcPass({account:approved.account,profile:approved.profile,
+          mode:approved.mode,hours:approved.hours,areas:approved.areas,
+          spendLimitCents:approved.spendLimitCents,projectIds:approved.projectIds,
+          rateLimitPerMinute:approved.rateLimitPerMinute})
+        :await db.issueReadOnlyRtcPass({account:approved.account,
+          mode:approved.mode,hours:approved.hours,areas:approved.areas,
+          rateLimitPerMinute:approved.rateLimitPerMinute});
       if(!issued)return html(res,409,'Unavailable','<p>Pass was not issued; request is consumed.</p>');
       let once;
       try{
         const verifiedPass=await db.inspectRtcPass(issued.token);
         if(verifiedPass?.status!=='ok'||verifiedPass.id!==issued.id||verifiedPass.account!==approved.account||
-          verifiedPass.profile!=='read_only'||verifiedPass.mode!==approved.mode||
+          verifiedPass.profile!==(writeApproved?approved.profile:'read_only')||verifiedPass.mode!==approved.mode||
           JSON.stringify(verifiedPass.areas)!==JSON.stringify(approved.areas)||
-          verifiedPass.rateLimitPerMinute!==approved.rateLimitPerMinute)
+          verifiedPass.rateLimitPerMinute!==approved.rateLimitPerMinute||
+          (writeApproved&&(verifiedPass.allowWrites!==true||
+            verifiedPass.spendLimitCents!==approved.spendLimitCents||
+            JSON.stringify(verifiedPass.projectIds??null)!==JSON.stringify(approved.projectIds))))
           throw new TypeError('Pass scope was not independently verified');
         once=await oneTimeSecrets({db,env,now}).issue({account:approved.account,
-          kind:'rtc_pass',label:'Owner-approved read-only pass',value:issued.token,ttlMs:600000});
+          kind:'rtc_pass',label:writeApproved?'Owner-approved write-capable pass':'Owner-approved read-only pass',
+          value:issued.token,ttlMs:600000});
       }catch{
         // No bearer reaches output when scope readback or delivery is uncertain.
         await db.revokeRtcPass({account:approved.account,id:issued.id});
         return html(res,409,'Unavailable','<p>Pass verification or one-time delivery failed; inspect revocation before retrying.</p>');
       }
-      message='Owner-approved read-only '+approved.mode+' pass issued. Reference '+issued.id+
-        '. Reveal it once with secret reference '+once.id+'. This request cannot be reused.';
+      message=writeApproved
+        ?'Owner-approved write-capable '+approved.mode+' pass issued ('+approved.profile+
+          ' profile, spend ceiling '+(approved.spendLimitCents===0?'$0.00':
+            '$'+(approved.spendLimitCents/100).toFixed(2))+'). Reference '+issued.id+
+          '. Reveal it once with secret reference '+once.id+'. This request cannot be reused.'
+        :'Owner-approved read-only '+approved.mode+' pass issued. Reference '+issued.id+
+          '. Reveal it once with secret reference '+once.id+'. This request cannot be reused.';
     } else if (params.action === 'issue_rtc_pass' || params.action === 'revoke_rtc_pass') {
       if(env.VERCEL_ENV!=='production'||params.confirm!=='yes'||
         !accounts.some(x=>x.id===params.account))
@@ -558,6 +620,54 @@ export async function handleSetup(req, res, {
           return html(res,409,'Unavailable','<p>Pass missing, already revoked or belongs to another account.</p>');
         message='The selected RTC pass was revoked.';
       }
+    } else if (params.action === 'issue_rtc_write_pass') {
+      // R-1W direct issuance: the same proof tier as read-only issuance,
+      // with the write scope validated in full before anything is issued.
+      if(env.VERCEL_ENV!=='production'||params.confirm!=='yes'||
+        !accounts.some(x=>x.id===params.account))
+        return html(res,403,'Permission denied','<p>Owner production setup session and confirmation required.</p>');
+      const proof=await evaluateLogin({ip:clientIp(req),
+        supplied:String(params.passphrase||''),expected:env.ADMIN_PASSPHRASE,store:db});
+      if(proof.status==='locked'){
+        res.setHeader('Retry-After','900');
+        return html(res,429,'Permission denied','<p>Too many attempts.</p>');
+      }
+      if(proof.status!=='ok')
+        return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
+      const hours=Number(params.hours);
+      const rateLimitPerMinute=Number(params.rateLimitPerMinute??120);
+      const mode=params.mode??'preview';
+      const profile=params.profile??'everyday';
+      const areas=typeof params.areas==='string'?params.areas.split(',').map(x=>x.trim()):[];
+      const validAreas=new Set(['server',...registry.tools.map(x=>x.area).filter(Boolean)]);
+      const spendMatch=typeof params.spendDollars==='string'
+        ?/^(\d{1,7})(?:\.(\d{1,2}))?$/.exec(params.spendDollars.trim()):null;
+      const spendLimitCents=spendMatch
+        ?Number(spendMatch[1])*100+Number((spendMatch[2]??'').padEnd(2,'0')||'0'):null;
+      const projectIds=typeof params.projectIds==='string'&&params.projectIds.trim()
+        ?params.projectIds.split(',').map(x=>x.trim()):null;
+      if(!Number.isInteger(hours)||hours<1||hours>720||
+        !Number.isInteger(rateLimitPerMinute)||rateLimitPerMinute<1||rateLimitPerMinute>600||
+        !areas.length||areas.length>12||new Set(areas).size!==areas.length||
+        areas.some(x=>!validAreas.has(x))||
+        !['preview','production'].includes(mode)||
+        !['everyday','full'].includes(profile)||
+        spendLimitCents===null||spendLimitCents>2147483647||
+        (projectIds!==null&&(projectIds.length>50||
+          new Set(projectIds).size!==projectIds.length||
+          projectIds.some(x=>!/^[a-zA-Z0-9_-]{3,128}$/.test(x)))))
+        return html(res,400,'Invalid pass','<p>Choose known areas, a valid profile and mode, a short lifetime, a spend ceiling in dollars, and valid project IDs.</p>');
+      const issued=await db.issueWriteRtcPass({account:params.account,profile,hours,
+        areas,mode,spendLimitCents,projectIds,rateLimitPerMinute});
+      if(!issued)return html(res,409,'Unavailable','<p>Pass was not issued.</p>');
+      const once=await oneTimeSecrets({db,env,now}).issue({
+        account:params.account,kind:'rtc_pass',label:'Write-capable RTC pass',
+        value:issued.token,ttlMs:600000
+      });
+      message='Write-capable '+mode+' pass issued ('+profile+' profile, spend ceiling '+
+        (spendLimitCents===0?'$0.00':'$'+(spendLimitCents/100).toFixed(2))+'). Reference '+issued.id+
+        '. Reveal the secret once using reference '+once.id+
+        ' with the selected account; it is not shown in any tool result.';
     } else if (params.action === 'export_owner_data') {
       // O-5b (VMCP-021): the owner export downloads everything the server
       // holds for one account — metadata only, never token values. Same
