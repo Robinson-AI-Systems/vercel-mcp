@@ -22,6 +22,26 @@ const OAUTH_LISTING = 'front_door';
 // registration for every other client is untouched.
 const MUSE_CLIENT_PATH = '/.well-known/muse-client.json';
 const MUSE_REDIRECT_URI = 'https://agent.meta.ai/api/hatch/oauth/callback';
+// The authorization-server metadata document, built from the one public
+// origin. Exported so the public health check (src/health.js) verifies the
+// exact document this server serves — issuer and every endpoint derived
+// from the same origin — instead of a second, drifting copy.
+export function oauthServerMetadata(origin) {
+  return {
+    issuer: origin,
+    authorization_endpoint: origin + '/api/oauth/authorize',
+    token_endpoint: origin + '/api/oauth/token',
+    registration_endpoint: origin + '/api/oauth/register',
+    client_id_metadata_document_supported: true,
+    revocation_endpoint: origin + '/api/oauth/revoke',
+    revocation_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    code_challenge_methods_supported: ['S256'],
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'none']
+  };
+}
+
 const tokenResponse = (access, refresh) => ({
   access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh
 });
@@ -441,19 +461,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
   function metadata(req, res) {
     if (!only(res, req, ['GET'])) return;
     const { origin } = urls();
-    return send(res, 200, {
-      issuer: origin,
-      authorization_endpoint: origin + '/api/oauth/authorize',
-      token_endpoint: origin + '/api/oauth/token',
-      registration_endpoint: origin + '/api/oauth/register',
-      client_id_metadata_document_supported: true,
-      revocation_endpoint:origin+'/api/oauth/revoke',
-      revocation_endpoint_auth_methods_supported:['client_secret_post','none'],
-      response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code', 'refresh_token'],
-      code_challenge_methods_supported: ['S256'],
-      token_endpoint_auth_methods_supported: ['client_secret_post', 'none']
-    });
+    return send(res, 200, oauthServerMetadata(origin));
   }
 
   function resourceMetadata(req, res) {

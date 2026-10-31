@@ -16,7 +16,7 @@ export function publicInfo(buildSha = process.env.VERCEL_GIT_COMMIT_SHA) {
     version: SERVICE_VERSION, deployed_source_sha: sourceSha,
     tools: registry.tools.length,
     tools_by_profile: { read_only: counts.read_only, everyday: counts.everyday, full: counts.full },
-    oauth: '/.well-known/oauth-authorization-server', endpoint: '/api/mcp',
+    oauth: '/.well-known/oauth-authorization-server', endpoint: '/api/mcp', health: '/api/health',
     note: 'HTTP reachability is not provider setup, OAuth consent or RTC acceptance. ' +
       'Use authenticated owner diagnostics and direct custom MCP calls to verify those separately.'
   };

@@ -1633,6 +1633,16 @@ export function createDb(query) {
         AND expires_at>now() LIMIT 1`;
       return rows[0]||null;
     },
+    // The public health check's only store question: can the server's
+    // store answer at all? One constant read — no schema setup, no table
+    // dependency, no row data leaves this method, only the boolean.
+    async storeReachable() {
+      try {
+        const run = getSql();
+        const rows = await run`SELECT 1 AS one`;
+        return Array.isArray(rows) && rows.length > 0;
+      } catch { return false; }
+    },
     // AUD-AO: the retention sweep. One bounded batch per store per run,
     // in the result store's CTE shape. The 400-day clocks purge the
     // journal and the purchase ledger by age; the 180-day clock purges
