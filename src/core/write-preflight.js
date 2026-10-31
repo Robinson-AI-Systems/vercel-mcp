@@ -196,6 +196,13 @@ export async function writePreflight(spec, args, ctx) {
   if (conn.profile === 'read_only') {
     return { refused: refusal('Read-only connections cannot change resources') };
   }
+  // AUD-AQ gate 3 (preflight): the connection's own read-only switch,
+  // refused in the same position — before the purchase branch — with the
+  // remedy named. Only OAuth connections carry the flag; pass
+  // connections are minted without it and never reach this refusal.
+  if (conn.readOnly === true) {
+    return { refused: refusal('This connection\'s read-only switch is on, so it cannot change resources. The switch is yours: flip it off with vercel_set_read_only when you want this connection to write again') };
+  }
   if (['audit','shape','guardProtected','guardApp'].some(k => typeof ctx[k] !== 'function')) {
     return { refused: refusal('The mandatory write-safety services are unavailable') };
   }

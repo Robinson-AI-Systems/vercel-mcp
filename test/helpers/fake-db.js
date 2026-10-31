@@ -1,6 +1,12 @@
 // Copied from Robinson-AI-Systems/stripe-mcp test/helpers/fake-db.js @ 6cb3f64 (extended for Vercel MCP A-2/A-3a).
+import { createHash } from 'node:crypto';
 import { SCHEMA_TABLES, connectionSettings } from '../../src/db.js';
 import { hashToken } from '../../src/core/oauth.js';
+
+// The public connection id, derived exactly as the real db derives it
+// in SQL: 'conn_' || LEFT(md5(token_hash), 20).
+const connectionIdOf = (row) =>
+  'conn_' + createHash('md5').update(row.token_hash).digest('hex').slice(0, 20);
 
 export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
   const rows = new Map();
@@ -149,6 +155,7 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         profile,
         listing,
         kind: 'connector',
+        read_only: false,
         expires_at: clock() + ttlSeconds * 1000,
         revoked_at: null,
         last_used_at: null
@@ -162,9 +169,25 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         client_id: row.client_id,
         ...connectionSettings(row),
         kind: row.kind,
+        read_only: row.read_only === true,
+        connection_id: connectionIdOf(row),
         expires_at: new Date(row.expires_at),
         revoked_at: null
       };
+    },
+    async setOwnConnectionReadOnly({ account, connectionId, readOnly }) {
+      if (typeof account !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(account) ||
+        typeof connectionId !== 'string' || !/^conn_[a-f0-9]{20}$/.test(connectionId) ||
+        typeof readOnly !== 'boolean') {
+        throw new TypeError('Invalid connection read-only flip');
+      }
+      const row = [...tokens.values()].find((item) => item.vercel_account === account &&
+        item.kind === 'connector' && !item.revoked_at && item.expires_at > clock() &&
+        connectionIdOf(item) === connectionId);
+      if (!row) return null;
+      const from = row.read_only === true;
+      row.read_only = readOnly;
+      return { from, to: readOnly };
     },
     async getTokenByRefreshToken(refreshToken) {
       if (typeof refreshToken !== 'string' || !refreshToken) return null;
