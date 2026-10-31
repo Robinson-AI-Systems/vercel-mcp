@@ -1374,6 +1374,24 @@
       }
     },
     {
+      "id": "O-5b",
+      "title": "Owner data export (VMCP-021) — setup-page download, metadata only",
+      "batch": "O",
+      "design": "docs/designs/BATCH-O.md",
+      "dependencies": [
+        "O-5"
+      ],
+      "card": "docs/pr-cards/O-5b.md",
+      "status": "APPROVED",
+      "migration": "none",
+      "budget": 500,
+      "units": [
+        "O-5b"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": []
+    },
+    {
       "id": "P-1",
       "title": "known_apps, Appliance Desk seed, profile guard, profile reads",
       "batch": "P",

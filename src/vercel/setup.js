@@ -12,6 +12,7 @@ import { pendingInputs } from '../core/pending-inputs.js';
 import { oneTimeSecrets } from '../core/one-time-secrets.js';
 import { approveProductionEnable } from '../tools/production-guard.js';
 import {inspectPassRequest,consumePassRequest} from './pass-requests.js';
+import {buildOwnerExport} from './owner-export.js';
 import {BLOB_CONTEXT} from './blob.js';
 import {registry} from '../tools/index.js';
 import { inspectOwnerAccountChange, consumeOwnerAccountChange,
@@ -269,6 +270,18 @@ function panel(accounts, csrf, message = '', connections = [], blobStores = []) 
     '<label><input type="checkbox" name="confirm" value="yes" required>Revoke the selected pass</label>' +
     '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
     '<button type="submit">Revoke read-only pass</button></form></section>' +
+    '<section><h2>Export your data</h2>' +
+    '<p>Download everything this server holds for one enrolled account: ' +
+    'account metadata (never token values), connections, passes, protected ' +
+    'resources, settings, project profiles, Blob store connections and the ' +
+    'change log (most recent 500 entries). The export is recorded in the ' +
+    'change log.</p>' +
+    '<form method="post">' + csrfInput(csrf) +
+    '<input type="hidden" name="action" value="export_owner_data">' +
+    '<label>Account<select name="account" required>' + options + '</select></label>' +
+    '<label><input type="checkbox" name="confirm" value="yes" required>Download the owner export for this account</label>' +
+    '<label>Reenter administrator passphrase<input name="passphrase" type="password" required></label>' +
+    '<button type="submit">Download owner export</button></form></section>' +
     '<section><h2>Revoke one OAuth connector (owner only)</h2>' +
     '<p>Current account-scoped references (may change on refresh). The last active connector ' +
     'and server credential cannot be revoked. A stale reference is refused.</p>' +
@@ -545,6 +558,37 @@ export async function handleSetup(req, res, {
           return html(res,409,'Unavailable','<p>Pass missing, already revoked or belongs to another account.</p>');
         message='The selected RTC pass was revoked.';
       }
+    } else if (params.action === 'export_owner_data') {
+      // O-5b (VMCP-021): the owner export downloads everything the server
+      // holds for one account — metadata only, never token values. Same
+      // proof tier as pass issuance; the export is journaled before the
+      // download is served, so an unjournaled export never leaves.
+      if(env.VERCEL_ENV!=='production'||params.confirm!=='yes'||
+        !accounts.some(x=>x.id===params.account))
+        return html(res,403,'Permission denied','<p>Owner production setup session and confirmation required.</p>');
+      const proof=await evaluateLogin({ip:clientIp(req),
+        supplied:String(params.passphrase||''),expected:env.ADMIN_PASSPHRASE,store:db});
+      if(proof.status==='locked'){
+        res.setHeader('Retry-After','900');
+        return html(res,429,'Permission denied','<p>Too many attempts.</p>');
+      }
+      if(proof.status!=='ok')
+        return html(res,401,'Permission denied','<p>Incorrect passphrase.</p>');
+      let data;
+      try{
+        data=await buildOwnerExport({db,account:params.account});
+        await db.recordChange({account:params.account,
+          tool:'vercel_owner_export_data',mode:'production',dryRun:false,
+          production:false,
+          summary:'Owner exported account data (metadata, connections, passes, settings, change log) — no token values'});
+      }catch{
+        return html(res,400,'Export unavailable','<p>The export could not be completed. Nothing was downloaded.</p>');
+      }
+      const fileAccount=String(params.account).replace(/[^A-Za-z0-9_-]+/g,'-');
+      const fileDay=new Date().toISOString().slice(0,10);
+      res.setHeader('Content-Disposition',
+        'attachment; filename="owner-export-'+fileAccount+'-'+fileDay+'.json"');
+      return send(res,200,data);
     } else if (params.action === 'add_token') {
       const result = await storeTokenFn({
         db, token: params.token, teamId: params.teamId,
