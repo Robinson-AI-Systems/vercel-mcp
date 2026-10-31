@@ -38,8 +38,11 @@ Authenticated polling retries return the same encrypted authorization code until
 original request expires; native OAuth token exchange remains single use. The trusted
 service client-IP helper and atomic per-IP SQL counter enforce concurrent start quotas.
 Backend outages return retryable 503 instead of malformed-request 400. Native 32-character
-Google authorization codes are accepted, and its consent page retains the requested
-profile while leaving the final choice to the owner.
+Google authorization codes are accepted. Since AUD-AW (2026-10-31) the handoff
+requests the standard connection only: a start carries no profile or listing
+field (one is refused as an unknown key), the authorize request the handoff
+builds sets neither, and consent derives both values exactly as it does for
+any other sign-in — there is no developer sign-in class.
 
 Evidence must explicitly track all eight layers exactly once. Deployment-provider metadata
 can prove only deployment; runtime acceptance must use the actual custom-service transport.
