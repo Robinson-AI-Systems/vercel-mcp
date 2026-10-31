@@ -737,6 +737,27 @@ export function createDb(query) {
           AND (${includePreviews} OR dry_run = FALSE)
         ORDER BY at DESC, id DESC LIMIT ${limit}`;
     },
+    // X-1: the one account-scoped read vercel_undo_change needs — the
+    // row itself (with its stored inverse) plus whether a confirmed
+    // undo already points at it. Never returns another account's row.
+    async getChangeForUndo({ account, id }) {
+      if (typeof account !== 'string' || !account ||
+        !Number.isSafeInteger(id) || id < 1) {
+        throw new TypeError('Invalid change lookup');
+      }
+      const run = getSql();
+      const rows = await run`SELECT id, at, tool, mode, dry_run,
+          production, inverse FROM change_log
+        WHERE vercel_account = ${account} AND id = ${id} LIMIT 1`;
+      const row = rows[0] ?? null;
+      if (!row) return null;
+      const undone = await run`SELECT id FROM change_log
+        WHERE vercel_account = ${account}
+          AND tool = 'vercel_undo_change' AND dry_run = FALSE
+          AND (after ->> 'undoes')::bigint = ${id}
+        ORDER BY id DESC LIMIT 1`;
+      return { ...row, alreadyUndoneBy: undone[0]?.id ?? null };
+    },
     // A-5a: all single-use retrieval is an atomic DELETE RETURNING, never a
     // SELECT followed by DELETE (which could expose the same value twice).
     async insertOneTimeSecret({ id, account = null, kind, label = null, ciphertext, expiresAt }) {

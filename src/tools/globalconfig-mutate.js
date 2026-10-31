@@ -167,7 +167,12 @@ async function beforePatch(a,ctx){
   return {id:row.id,slug:row.slug,teamId:account.team_id,
     updatedAt:row.updatedAt,itemCount:row.itemCount,
     projects:linkSnapshot(row),keys:Object.keys(items).sort(),
-    ops:a.items.map(x=>({operation:x.operation,key:x.key}))};
+    ops:a.items.map(x=>({operation:x.operation,key:x.key})),
+    // X-1: the previous values of exactly the touched keys, so an
+    // undo can restore them (absent keys restore as deletions).
+    previous:Object.fromEntries(a.items.map(x=>[x.key,
+      Object.hasOwn(items,x.key)?{present:true,value:items[x.key]}:
+        {present:false}]))};
 }
 async function beforeDelete(a,ctx){
   validBase(a,common);
@@ -244,6 +249,24 @@ const patch=defineWrite({
       }
       return {confirmed:true};
     }catch{return {confirmed:null};}
+  },
+  // X-1: restore the previous item values captured at before time;
+  // the expected revision is the store's post-change revision, read
+  // back at journal time.
+  async inverse(a,b,_applied,ctx){
+    try{
+      const {row}=await exact(ctx,b.id);
+      const items=a.items.map(item=>{
+        const prev=b.previous?.[item.key];
+        return prev?.present?{operation:'upsert',key:item.key,
+          value:prev.value}:{operation:'delete',key:item.key};
+      });
+      return {tool:'vercel_globalconfig_patch_items',id:b.id,
+        expectedSlug:b.slug,expectedUpdatedAt:row.updatedAt,
+        outsideApp:true,items};
+    }catch{
+      return {undo:'Restore the previous Global Config item values with vercel_globalconfig_patch_items (the store revision could not be read back)'};
+    }
   }
 });
 const remove=defineWrite({

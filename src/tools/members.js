@@ -297,6 +297,16 @@ const updateRole=defineWrite({
     const confirmed=Boolean(target)&&
       (args.role===undefined||target.role===args.role);
     return {confirmed,teamId:before.teamId};
+  },
+  // X-1: restore the recorded previous team role. The previous team
+  // permissions / project roles are not captured by this tool's
+  // before state, so a permissions-only change stores the honest
+  // descriptive inverse instead.
+  async inverse(args,before){
+    if(before.body.role!==undefined)
+      return {tool:'vercel_member_update_role',uid:args.uid,
+        role:before.target.role};
+    return {undo:'Restore the previous team permissions and project roles with vercel_member_update_role directly — they were not captured when this change was made'};
   }
 });
 

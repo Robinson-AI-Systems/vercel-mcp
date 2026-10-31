@@ -106,7 +106,15 @@ function make(mode){
         // Complete selected-project inventory is required; no false 404.
         return {confirmed:true};
       }catch{return {confirmed:null};}
-    }
+    },
+    // X-1: an assignment is undone by assigning the alias back to
+    // the deployment that held it before. Deletion stores no
+    // inverse (there is nothing to restore from).
+    ...(mode==='assign'?{async inverse(_a,b){
+      return {tool:'vercel_alias_assign',project:b.project,alias:b.alias,
+        aliasId:b.aliasId,deployment:b.current,expectedCurrent:b.desired,
+        outsideApp:true};
+    }}:{})
   });
 }
 const assign=make('assign'),remove=make('delete');

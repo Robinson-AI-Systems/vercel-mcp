@@ -37,7 +37,7 @@ async function project(ctx,selector){
     throw new RefusalError('Project identity unavailable');
   return {row,client};
 }
-function trafficWrite({name,id,desired}){
+function trafficWrite({name,id,desired,opposite}){
   return defineWrite({
     name,
     async before(args,ctx){
@@ -82,11 +82,15 @@ function trafficWrite({name,id,desired}){
       return {confirmed:typeof row.paused==='boolean'?
         row.id===before.id && row.paused===desired : null,
         project:before.id,paused:typeof row.paused==='boolean'?row.paused:null};
+    },
+    // X-1: pause and unpause are exact opposites.
+    async inverse(_args,before){
+      return {tool:opposite,project:before.id};
     }
   });
 }
-const pause=trafficWrite({name:'vercel_project_pause',id:'projects_pause',desired:true});
-const resume=trafficWrite({name:'vercel_project_unpause',id:'projects_unpause',desired:false});
+const pause=trafficWrite({name:'vercel_project_pause',id:'projects_pause',desired:true,opposite:'vercel_project_unpause'});
+const resume=trafficWrite({name:'vercel_project_unpause',id:'projects_unpause',desired:false,opposite:'vercel_project_pause'});
 const output=result=>({isError:['refused_by_guard','outcome_unknown'].includes(result.status),
   content:[{type:'text',text:JSON.stringify(result)}]});
 function declaration(tool,description,contract){

@@ -135,7 +135,7 @@ function protectionView(row) {
 // Shared guarded PATCH of one projects_update field with drift protection.
 // bodyFor (optional) assembles the dispatch body inside apply, after the
 // drift re-check — set_password uses it to consume the setup-page input.
-function settingsWrite({ name, field, validate, plan, previewText, accessFor, verifyField, description, secretIn = false, bodyFor = null }) {
+function settingsWrite({ name, field, validate, plan, previewText, accessFor, verifyField, description, secretIn = false, bodyFor = null, inverseFor = null }) {
   const inputSchema = { type: 'object', additionalProperties: false,
     properties: {
       project: { type: 'string', minLength: 1, maxLength: 128 },
@@ -182,7 +182,11 @@ function settingsWrite({ name, field, validate, plan, previewText, accessFor, ve
       const { client } = await readProvider(ctx);
       const row = await client.request('projects_get', { path: { idOrName: before.id } });
       return { confirmed: row?.id === before.id && verifyField(row, before), project: before.id };
-    }
+    },
+    // X-1: re-apply the recorded previous field configuration.
+    ...(inverseFor ? { async inverse(_args, before) {
+      return inverseFor(before);
+    } } : {})
   });
   return { spec, name, inputSchema, description };
 }
@@ -223,7 +227,10 @@ const setVercelAuth = settingsWrite({
         what: 'View deployments that Vercel Authentication previously gated' }
     : { widens: false },
   verifyField: (row, b) => (row.ssoProtection == null) === (b.newType == null) &&
-    scopeOrNull(row.ssoProtection?.deploymentType, AUTH_TYPES) === b.newType
+    scopeOrNull(row.ssoProtection?.deploymentType, AUTH_TYPES) === b.newType,
+  inverseFor: b => ({ tool: 'vercel_protection_set_vercel_auth',
+    project: b.id, enabled: b.currentType !== null,
+    ...(b.currentType ? { deploymentType: b.currentType } : {}) })
 });
 
 const setPassword = settingsWrite({
@@ -289,7 +296,10 @@ const setPassword = settingsWrite({
     }
     return { passwordProtection: { deploymentType: before.newType,
       ...(password ? { password } : {}) } };
-  }
+  },
+  // X-1: descriptive only — the previous password is a secret this
+  // server never stores, so it cannot be restored (BATCH-X §X1).
+  inverseFor: () => ({ undo: 'Set a new password from the setup page: the previous password was a secret this server never stores, so it cannot be restored' })
 });
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?:\/(\d{1,2}))?$/;
 function validIp(value) {
@@ -331,7 +341,10 @@ const setTrustedIps = settingsWrite({
       JSON.stringify(normalizeTrusted(newValue)))
       throw new RefusalError('Trusted IPs already match the requested settings');
     return { body: { trustedIps: newValue },
-      before: { newValue: normalizeTrusted(newValue), enabling: args.enabled } };
+      before: { newValue: normalizeTrusted(newValue), enabling: args.enabled,
+        // X-1: the current configuration, captured so an undo can
+        // restore it exactly (normalizeTrusted output shape).
+        currentValue: row ? normalizeTrusted(row.trustedIps ?? null) : null } };
   }, { props: {
     enabled: { type: 'boolean' },
     deploymentType: { type: 'string', enum: IP_TYPES },
@@ -352,7 +365,15 @@ const setTrustedIps = settingsWrite({
         what: 'Satisfy or bypass deployment protection for this project from those addresses' }
     : { widens: false },
   verifyField: (row, b) => JSON.stringify(normalizeTrusted(row.trustedIps ?? null)) ===
-    JSON.stringify(b.newValue)
+    JSON.stringify(b.newValue),
+  inverseFor: b => b.currentValue == null
+    ? { tool: 'vercel_protection_set_trusted_ips', project: b.id,
+        enabled: false }
+    : { tool: 'vercel_protection_set_trusted_ips', project: b.id,
+        enabled: true, deploymentType: b.currentValue.deploymentType,
+        protectionMode: b.currentValue.protectionMode,
+        addresses: b.currentValue.addresses.map(a =>
+          ({ value: a.value, ...(a.note ? { note: a.note } : {}) })) }
 });
 
 function noteArg(args) {
@@ -427,6 +448,24 @@ const createBypass = defineWrite({
     const row = await client.request('projects_get', { path: { idOrName: b.id } });
     return { confirmed: bypassEntries(row).some(e => fp(e.secret) === applied.fingerprint),
       project: b.id };
+  },
+  // X-1: revoke the created secret, identified by the fingerprint
+  // apply proved, read back at journal time. The secret value itself
+  // is never stored — only its fingerprint and the revoke address.
+  async inverse(_args, b, applied, ctx) {
+    try {
+      const { client } = await readProvider(ctx);
+      const row = await client.request('projects_get',
+        { path: { idOrName: b.id } });
+      const entry = bypassEntries(row).find(e =>
+        e.scope !== 'integration-automation-bypass' &&
+        fp(e.secret) === applied?.fingerprint);
+      if (entry && typeof entry.note === 'string' && entry.note) {
+        return { tool: 'vercel_protection_revoke_bypass', project: b.id,
+          note: entry.note, createdAt: entry.createdAt };
+      }
+    } catch { /* fall through to the descriptive inverse */ }
+    return { undo: 'Revoke the created bypass secret with vercel_protection_revoke_bypass (its note could not be read back)' };
   }
 });
 
