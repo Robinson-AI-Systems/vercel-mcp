@@ -57,7 +57,9 @@ export default function handler(req, res) {
     'permissions, cannot touch another account, and cannot override ' +
     'Vercel\'s own plan limits — when Vercel refuses something, the ' +
     'refusal is explained in plain words. It also cannot spend beyond ' +
-    'your purchase policy without your word.</p></section>' +
+    'your purchase policy without your word.</p>' +
+    '<p>Vercel Unleashed is provided as-is, without warranties of any ' +
+    'kind, and with no service-level guarantee.</p></section>' +
 
     '<section><h2>Where things stand</h2>' +
     '<p>' + FRONT_DOOR_PRODUCT_NAME + ' is an independent product by ' +

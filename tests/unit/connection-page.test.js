@@ -51,6 +51,15 @@ describe('O-6 connection page (RAS MCP Standard, Branded front door)',()=>{
   expect(payload).toContain('takes effect at once');
   expect(payload).not.toMatch(/DATABASE_URL|TOKEN_ENCRYPTION_KEY|ADMIN_PASSPHRASE|vcp_[a-zA-Z0-9_-]{12,}/);
  });
+ it('carries the fleet standard disclaimer block and the as-is sentence verbatim (AUD-AK)',()=>{
+  const {payload}=render();
+  // The shared footer block (protection pass 2026-10-30 §7(b)): replaces
+  // the old one-line footer note on both public pages via the shell.
+  expect(payload).toContain('Vercel Unleashed is an independent service by Robinson AI Systems and is not affiliated with or endorsed by Vercel. Availability, features and tools can change at any time, and Vercel can change or limit the service this tool works through — this page describes things as they stand today, not a promise about tomorrow. Vercel Unleashed works through your own Vercel account, and Vercel\'s own terms govern that account.');
+  // The as-is sentence, added after the plan-limits paragraph.
+  expect(payload).toContain('Vercel Unleashed is provided as-is, without warranties of any kind, and with no service-level guarantee.');
+  expect(payload.indexOf('Vercel Unleashed is provided as-is')).toBeGreaterThan(payload.indexOf('plan limits'));
+ });
  it('is routed at /connection by a vercel.json rewrite, like the well-known routes',()=>{
   const config=JSON.parse(readFileSync(new URL('../../vercel.json',import.meta.url),'utf8'));
   expect(config.rewrites).toContainEqual({source:'/connection',destination:'/api/connection'});

@@ -50,6 +50,12 @@ describe('public landing cannot claim account setup or connected acceptance',()=
   expect(r.payload).toContain('href="/connection"');
   expect(r.payload).toContain('does not certify live provider or RTC acceptance');
   expect(r.payload).toContain('<small>Not affiliated with or endorsed by Vercel.</small>');
+  // AUD-AK: the shared footer carries the fleet standard disclaimer block
+  // verbatim (protection pass 2026-10-30 §7(b)) — non-affiliation,
+  // availability/change and provider-terms elements.
+  expect(r.payload).toContain('Vercel Unleashed is an independent service by Robinson AI Systems and is not affiliated with or endorsed by Vercel. Availability, features and tools can change at any time, and Vercel can change or limit the service this tool works through — this page describes things as they stand today, not a promise about tomorrow. Vercel Unleashed works through your own Vercel account, and Vercel\'s own terms govern that account.');
+  // The as-is sentence belongs to /connection only.
+  expect(r.payload).not.toContain('Vercel Unleashed is provided as-is');
   expect(r.payload).not.toContain('Robinson Vercel MCP');
   expect(r.payload).not.toContain('Status: setup required');
   expect(r.payload).not.toMatch(/DATABASE_URL|TOKEN_ENCRYPTION_KEY|ADMIN_PASSPHRASE|vcp_[a-zA-Z0-9_-]{12,}/);

@@ -51,9 +51,20 @@ export const brandHeader = () =>
   '<header class="brand"><img src="' + ICON_PATH + '" alt="" width="44" height="44"><div><b>' +
   FRONT_DOOR_PRODUCT_NAME + '</b><small>' + FRONT_DOOR_TAGLINE + '</small></div></header>';
 
+// The footer disclaimer is the fleet's standard short block, verbatim
+// (fleet disclaimer protection pass 2026-10-30 §7(b); canonical text in
+// the website blueprint's Legal & disclosures section). It replaces the
+// earlier one-line affiliation note so both public pages carry the
+// non-affiliation, availability/change and provider-terms elements.
 export const brandFooter = () =>
   '<footer>Operated by <a href="https://www.robinsonaisystems.com" rel="noopener noreferrer">' +
-  'Robinson AI Systems</a>. Not affiliated with or endorsed by Vercel. ' +
+  'Robinson AI Systems</a>. ' +
+  'Vercel Unleashed is an independent service by Robinson AI Systems and is not ' +
+  'affiliated with or endorsed by Vercel. Availability, features and tools can ' +
+  'change at any time, and Vercel can change or limit the service this tool works ' +
+  'through — this page describes things as they stand today, not a promise about ' +
+  'tomorrow. Vercel Unleashed works through your own Vercel account, and ' +
+  'Vercel\'s own terms govern that account. ' +
   '<a href="/">Status</a> · <a href="/connection">My connection</a> · ' +
   '<a href="/api/vercel/setup">Owner setup</a></footer>';
 
