@@ -39,7 +39,7 @@ describe('B-5 one-use secret input and output rules', () => {
       value: 'FAKEsecret', label: 'new credential' });
     expect(store.issue).toHaveBeenCalledTimes(1);
     expect(response).toMatchObject({ secret: '[hidden]', secretRef: 'secret_fixture',
-      revealAt: '/api/vercel/setup' });
+      revealAt: 'vercel_reveal_one_time_secret' });
     expect(JSON.stringify(response)).not.toContain('FAKEsecret');
   });
   it('never persists a secret value in a change description', () => {

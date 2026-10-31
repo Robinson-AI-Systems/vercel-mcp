@@ -78,7 +78,7 @@ describe('O-3 token tools', () => {
       {...args, confirm: true}, f.ctx())).content[0].text);
     // One-time delivery: the framework's own envelope carries the reveal ref.
     expect(done).toMatchObject({status: 'applied', confirmed: true,
-      revealAt: '/api/vercel/setup'});
+      revealAt: 'vercel_reveal_one_time_secret'});
     expect(done.ownerRevealRef).toMatch(/^[0-9a-f-]{36}$/);
     // The value itself appears NOWHERE in any tool result — only encrypted at rest.
     expect(JSON.stringify(plan) + JSON.stringify(done)).not.toContain(CREATED);

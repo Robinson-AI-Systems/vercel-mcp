@@ -13,11 +13,12 @@ import { registry } from '../../src/tools/index.js';
 import { listMcpTools, dispatchReadOnlyTool } from '../../src/core/mcp-server.js';
 
 // The owner operations as filed (AUD-Z card, extended by AUD-AA,
-// AUD-AQ, AUD-AS and AUD-AT): the six pre-existing LOCAL_OWNER_TOOLS
+// AUD-AQ, AUD-AS, AUD-AT and AUD-AU): the six pre-existing LOCAL_OWNER_TOOLS
 // entries plus vercel_set_working_box, vercel_remove_account,
 // vercel_set_read_only, vercel_apply_owner_approval and AUD-AT's
 // seven account-tool writes (the eighth, vercel_recheck_token, is a
-// read and is not a local owner write).
+// read and is not a local owner write), and AUD-AU's three
+// pass-administration writes.
 const OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_default_account', 'vercel_set_spend_limit', 'vercel_revoke_connection',
   'vercel_create_pass', 'vercel_set_working_box', 'vercel_remove_account',
@@ -25,7 +26,8 @@ const OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_export_owner_data', 'vercel_set_purchase_policy',
   'vercel_set_token_no_expiry', 'vercel_set_production_strictness',
   'vercel_add_protected_resource', 'vercel_clear_protected_resources',
-  'vercel_disconnect_blob_store'];
+  'vercel_disconnect_blob_store', 'vercel_issue_pass', 'vercel_revoke_pass',
+  'vercel_reveal_one_time_secret'];
 
 const listed = (profile) =>
   listMcpTools(registry, { profile, listing: 'catalog' }).map(t => t.name);

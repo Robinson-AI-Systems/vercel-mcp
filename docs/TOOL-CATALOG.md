@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-31 documentation audit AUD-AN, main `8fb9e83`): 240 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list; `scripts/check-catalog.mjs` verifies 241 catalog tools, 240 registered). The build-out completed 2026-10-30 (batches O-5, P-3, W and X and `vercel_undo_change` all shipped). The one unbuilt row is `vercel_admin_overview`, **closed by owner ruling IN-16 (ratified 2026-10-30) — it will not be built**; its row below records the closure. A Card cell saying `candidate #NNN` is the historical delivery-PR label from that tool's build era, not a build state; built state is the registry's, per the counts above. Do not read a catalog count as an implementation count. (AUD-AQ rider, 2026-10-31: `vercel_set_read_only` shipped after that audit — read the counts above as 241 of 242 implemented, 242 catalog rows, 241 registered. AUD-AS rider, 2026-10-31: `vercel_apply_owner_approval` shipped after that — read them as 242 of 243 implemented, 243 catalog rows, 242 registered. AUD-AT rider, 2026-10-31: the eight account tools shipped after that — read them as 250 of 251 implemented, 251 catalog rows, 250 registered.)never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-31 documentation audit AUD-AN, main `8fb9e83`): 240 of the 241 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list; `scripts/check-catalog.mjs` verifies 241 catalog tools, 240 registered). The build-out completed 2026-10-30 (batches O-5, P-3, W and X and `vercel_undo_change` all shipped). The one unbuilt row is `vercel_admin_overview`, **closed by owner ruling IN-16 (ratified 2026-10-30) — it will not be built**; its row below records the closure. A Card cell saying `candidate #NNN` is the historical delivery-PR label from that tool's build era, not a build state; built state is the registry's, per the counts above. Do not read a catalog count as an implementation count. (AUD-AQ rider, 2026-10-31: `vercel_set_read_only` shipped after that audit — read the counts above as 241 of 242 implemented, 242 catalog rows, 241 registered. AUD-AS rider, 2026-10-31: `vercel_apply_owner_approval` shipped after that — read them as 242 of 243 implemented, 243 catalog rows, 242 registered. AUD-AT rider, 2026-10-31: the eight account tools shipped after that — read them as 250 of 251 implemented, 251 catalog rows, 250 registered. AUD-AU rider, 2026-10-31: the three pass/reveal tools shipped after that — read them as 253 of 254 implemented, 254 catalog rows, 253 registered.)never offer two tools with the same name. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 
 are `vercel_dev_<job>` (contract §10).
 
@@ -54,7 +54,7 @@ the setup page.
 `R` read_only · `E` everyday · `F` full (every read tool is in `R`). **App:** `y` = the project-profile guard (Batch P)
 checks this tool against resources a profiled app owns; `—` = not applicable.
 
-## Server about itself (`vercel_*`) — 31
+## Server about itself (`vercel_*`) — 34
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
@@ -76,6 +76,9 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_clear_protected_resources` | Propose removing the old global defaults and all account project exclusions as an owner-approval envelope whose plan text is the form's remove-all acknowledgment; the owner applies it with `vercel_apply_owner_approval` | C | O | F | — | AUD-AT |
 | `vercel_recheck_token` | Recheck the stored Vercel token's read access for the account — the owner-surface twin of the setup page's recheck action (same probe as `vercel_check_token`, full profile only); write permissions and expiry remain unverified | — | O | F | — | AUD-AT |
 | `vercel_disconnect_blob_store` | Disconnect one Blob store from the account and delete its stored token; files in the store are not touched; direct on the owner's own connector connection with confirm (AUD-AR's enrollment is its pair) | C | O | F | — | AUD-AT |
+| `vercel_issue_pass` | Issue an RTC pass directly on the owner's own connector connection — read-only (preview/TEST) or write-capable (delegated profile, preview/production, spend ceiling in cents, optional project restriction) — with the setup forms' validations verbatim (areas from the full registry vocabulary, lifetime ≤ 720 h, rate 1–600/min, TEST = server area only). The scope is verified by the db's own read-back before delivery; the bearer is stored as a one-time secret and delivered only through `vercel_reveal_one_time_secret`, never in this result; any verification or delivery failure revokes the pass first. | C A 1x | O | F | — | AUD-AU |
+| `vercel_revoke_pass` | Revoke one RTC pass by its exact `pass_…` reference on the owner's own connector connection. Effective immediately — a revoked pass refuses at the door — and journaled by the same db write the setup form used. Unknown, already-revoked and foreign references share the form's one refusal. | C D | O | F | — | AUD-AU |
+| `vercel_reveal_one_time_secret` | Reveal a one-time secret exactly once on the owner's own connector connection (never visible to a pass): the row is consumed atomically, and the value returns in this result only — the one deliberate exception to result redaction (dossier D8) — with no stored result created. The journal records the reveal event and reference, never the value. An omitted account addresses the server / global scope, as the reveal form's default did. | C 1x | O | F | — | AUD-AU |
 | `vercel_enable_production` | Enable team production access on the owner's confirmed word; teams whose owner chose passphrase strictness on setup keep the ten-minute passphrase reentry step instead | C | O | F | — | B-2; AUD-B |
 | `vercel_disable_production` | Disable team production access and revoke existing production-mode connector tokens | C | O | F | — | B-2 |
 | `vercel_set_spend_limit` | Propose a tenant-scoped exact-cent daily limit for separate owner approval; no spending or default change | C | O | F | — | B-8b built #39 |
@@ -629,7 +632,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 
 | Section | Tools | Batch |
 |---|---|---|
-| Server about itself | 31 | A, B, C, R, X, O |
+| Server about itself | 34 | A, B, C, R, X, O |
 | Projects, crons and Git | 15 | D |
 | Deployments: reads, logs and checks | 10 | D |
 | Deployments: changes | 5 | D |
@@ -655,12 +658,12 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Owner: administration | 5 | O |
 | Project profiles | 5 | P |
 | Workflows | 12 | W |
-| **Hand-built total** | **247** | |
+| **Hand-built total** | **250** | |
 | Universal tools | 4 | U |
-| **All tools** | **251** | |
+| **All tools** | **254** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
-O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 15 (= 251). By lowest profile, of the 250 **registered** tools (registry truth, AUD-AN 2026-10-31; AUD-AQ and AUD-AS each add one full-profile tool, AUD-AT adds eight): `read_only` 103, `everyday` 41, `full` 106 — cumulative visibility `read_only` 103, `everyday` 144, `full` 250; the 251st catalog row (`vercel_admin_overview`, `full`) is unbuilt by the IN-16 ruling
+O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 18 (= 254). By lowest profile, of the 253 **registered** tools (registry truth, AUD-AN 2026-10-31; AUD-AQ and AUD-AS each add one full-profile tool, AUD-AT adds eight, AUD-AU adds three): `read_only` 103, `everyday` 41, `full` 109 — cumulative visibility `read_only` 103, `everyday` 144, `full` 253; the 254th catalog row (`vercel_admin_overview`, `full`) is unbuilt by the IN-16 ruling
 (B-6 prints the exact counts from the registry). In compact mode (`docs/designs/BATCH-C.md`) an agent loads about 20
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.
 

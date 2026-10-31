@@ -3,7 +3,9 @@ import { randomBytes } from 'node:crypto';
 import { compact, credentialLike } from '../core/util.js';
 
 const BANNER = 'PRODUCTION — live resources may be affected.';
-const OWNER_SETUP = '/api/vercel/setup';
+// AUD-AU (dossier D8): one-time secrets are revealed through the
+// owner's reveal tool now, not the setup page AUD-AV deletes.
+const OWNER_REVEAL_TOOL = 'vercel_reveal_one_time_secret';
 
 export function shapeVercelResult(value, { mode = 'preview' } = {}) {
   const safe = compact(value);
@@ -65,7 +67,7 @@ export async function issueVercelSecret({ store, account, kind, label, value }) 
     throw new TypeError('Encrypted one-time secret store and value required');
   }
   const { id, expiresAt } = await store.issue({ account, kind, label, value });
-  return { secret: '[hidden]', secretRef: id, revealAt: OWNER_SETUP, expiresAt };
+  return { secret: '[hidden]', secretRef: id, revealAt: OWNER_REVEAL_TOOL, expiresAt };
 }
 
 /** Safe change-log descriptions never contain the incoming configuration value. */
