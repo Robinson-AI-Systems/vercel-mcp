@@ -2,11 +2,17 @@
 
 ## Maximum legitimate authority — owner-approved 2026-10-21
 
-[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) adds five indexed APPROVED,
-NOT IMPLEMENTED units CAP-1..CAP-5: operation inventory; ordinary fullest authority;
-secure additional credential lifecycle; advanced functional gaps; independent proof.
-Existing acceptance and unfinished original cards retain priority. Named-tool counts
-do not establish provider API coverage. No runtime grant or release change is implied.
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) adds five indexed units CAP-1..CAP-5:
+operation inventory; ordinary fullest authority; secure additional credential lifecycle;
+advanced functional gaps; independent proof. **Reconciled 2026-10-30 (verdicts recorded in
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md)): CAP-1 SUPERSEDED in purpose — the one
+unbuilt artifact, a generated operation ledger, awaits an explicit commission or waiver;
+CAP-2 SATISFIED in source; CAP-3 SATISFIED in source for existing credential kinds (its
+pre-IN-17 resolver language superseded by the door doctrine); CAP-4 SATISFIED in source
+except R-2's separate HTTP write-contract leg, which stays on R-2's card; CAP-5 OPEN by
+design — its two-tenant scenarios need a second real user.** Existing acceptance and
+unfinished original cards retain priority. Named-tool counts do not establish provider API
+coverage. No runtime grant or release change is implied.
 
 
 Written 2026-10-10 for an empty repository. Order is in [MASTER-ROADMAP](MASTER-ROADMAP.md); current head and blockers in
@@ -48,7 +54,7 @@ rows pass, even where the source is merged.
 ## Batch C — Cheap on context (`designs/BATCH-C.md`)
 - [x] Summaries (env summaries never carry values), `fields`, `detail`, handles, annotations, structured output; logs summarized.
 - [x] Catalog and compact listing; meta-tools route through the wrapped handlers.
-- [x] Budgets enforced in CI: compact <5,000 tokens, everyday catalog <20,000, descriptions ≤160 characters, results ≤8 KB or a handle.
+- [x] Budgets enforced in CI: compact <5,000 tokens, everyday catalog <20,000, descriptions ≤160 characters, results ≤8 KB or a handle. (The everyday engineering bound has since stepped to 25,500 as the catalog grew — measured 25,208 at 240 tools; see the 2026-10-30 STATUS entries.)
 
 ## Batch D — Projects and deployments (`designs/BATCH-D.md`)
 - [ ] Every tool in TOOL-CATALOG sections Projects, crons and Git; Deployments (both); Releases built and marked.
@@ -80,7 +86,7 @@ rows pass, even where the source is merged.
 
 ## Batch O — Owner and administration (`designs/BATCH-O.md`)
 - [ ] Team, security, members, access groups, tokens, billing and activity tools built; owner writes guarded and logged; nobody locked out.
-- [ ] Owner side complete: admin overview, security and cost reviews; every dashboard settings page in the map as structured guided steps with read-back where possible (contract §11).
+- [ ] Owner side complete: security and cost reviews; every dashboard settings page in the map as structured guided steps with read-back where possible (contract §11). (The admin overview tool named in the original wording was closed by owner ruling IN-16, ratified 2026-10-30 — the O-5 reviews are the shipped shape and no overview tool will be built.)
 
 ## Batch P — Project profiles (`designs/BATCH-P.md`)
 - [ ] `known_apps` with the Appliance Desk profile, each item traceable to the app's files.
@@ -91,7 +97,7 @@ rows pass, even where the source is merged.
 - [ ] All 12 workflows; one preview and one confirm per write workflow; shipping gated; rollback honest; all writes logged.
 
 ## Batch U — Universal tools (`designs/BATCH-U.md`)
-- [ ] Three of four `vercel_api_*` tools built (`vercel_api_search`, `vercel_api_describe`, `vercel_api_read` — flag reads only); requests validated against the snapshot; spend, production and secret detection with safe defaults; hand-built tools win; same guards. **`vercel_api_write` is not built** — there is no write handler in `src/` and no `src/vercel/spend-operations.js` table; the write side of U-1 remains open work.
+- [ ] All four `vercel_api_*` tools built (`vercel_api_search`, `vercel_api_describe`, `vercel_api_read` — flag reads only — and `vercel_api_write`); requests validated against the snapshot; spend, production and secret detection with safe defaults; hand-built tools win; same guards. **`vercel_api_write` is built** (PR #297, 2026-10-30) on the spend table in `src/vercel/spend-operations.js`; U-1's write side is closed in source (box stays open for its live acceptance).
 
 ## Batch R — standalone RTC 1 doors (`designs/BATCH-R.md`)
 
@@ -103,10 +109,10 @@ rows pass, even where the source is merged.
 ## Batch X — Undo, smoke test (`designs/BATCH-X.md`)
 - [ ] Undo for every clean opposite; read-only smoke report against the real team; scratch-project write run (IN-06).
 
-## Maximum-authority acceptance (all open)
+## Maximum-authority acceptance (reconciled 2026-10-30; boxes stay open until the live acceptance rows pass)
 
-- [ ] **CAP-1:** Operation and credential coverage inventory; full criteria in MAXIMUM-AUTHORITY.
-- [ ] **CAP-2:** Standard fullest authorization and effective-access recovery; full criteria in MAXIMUM-AUTHORITY.
-- [ ] **CAP-3:** Guided additional authority lifecycle; full criteria in MAXIMUM-AUTHORITY.
-- [ ] **CAP-4:** Advanced functional workflow gap closure; full criteria in MAXIMUM-AUTHORITY.
-- [ ] **CAP-5:** Independent authority acceptance and coverage reporting; full criteria in MAXIMUM-AUTHORITY.
+- [ ] **CAP-1:** Operation and credential coverage inventory; full criteria in MAXIMUM-AUTHORITY. **Verdict: SUPERSEDED in purpose; the generated operation ledger is the one unbuilt artifact (commission or waiver owed).**
+- [ ] **CAP-2:** Standard fullest authorization and effective-access recovery; full criteria in MAXIMUM-AUTHORITY. **Verdict: SATISFIED in source.**
+- [ ] **CAP-3:** Guided additional authority lifecycle; full criteria in MAXIMUM-AUTHORITY. **Verdict: SATISFIED in source for existing credential kinds.**
+- [ ] **CAP-4:** Advanced functional workflow gap closure; full criteria in MAXIMUM-AUTHORITY. **Verdict: SATISFIED in source except R-2's HTTP write-contract leg.**
+- [ ] **CAP-5:** Independent authority acceptance and coverage reporting; full criteria in MAXIMUM-AUTHORITY. **Verdict: OPEN by design (two-tenant live acceptance needs a second real user).**
