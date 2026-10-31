@@ -109,12 +109,59 @@ describe('A-5 account read tools', () => {
     expect(parsed.daysLeft).toBeNull();
     expect(parsed.tokenWarning).toBeNull();
   });
-  it('no MCP tool can set the no-expiry attestation — it is setup-only (AUD-E)', async () => {
+  it('the no-expiry attestation is proposal-only over MCP — an agent call never sets it (AUD-E, as amended by AUD-AT)', async () => {
+    // AUD-E's property was that no agent action can attest. AUD-AT
+    // keeps it in envelope form: vercel_set_token_no_expiry only
+    // proposes (approvalOnly, bound to the token version); the
+    // attestation lands solely when the owner applies the envelope
+    // through vercel_apply_owner_approval. Behavioral proof lives
+    // in tests/unit/account-settings.test.js and
+    // tests/db/account-settings.test.js.
     const attempt = await dispatchReadOnlyTool({
       registry, name: 'vercel_set_token_no_expiry',
       args: { attested: true }, connection: conn, db });
     expect(attempt.isError).toBe(true);
-    expect(registry.tools.some(tool => /no_expiry|attest/i.test(tool.name))).toBe(false);
+    // And a well-formed call on a full connection still only
+    // proposes: an envelope is issued and the db setter — the only
+    // path that could attest — is never called by the tool itself.
+    const secrets = new Map();
+    const proposalDb = {
+      listVercelAccounts: async () => [{ id: 'team_FAKE',
+        token_version: '11111111-2222-3333-4444-555555555555' }],
+      listProtectedResources: async () => [],
+      recordChange: async () => 1,
+      requestReplayStore: () => ({
+        claim: async () => ({ state: 'claimed', claimId: 'FAKE' }),
+        complete: async () => {}, release: async () => {} }),
+      insertOneTimeSecret: async row => {
+        secrets.set(row.id, { ...row, vercel_account: row.account,
+          expires_at: row.expiresAt, viewed_at: null });
+      },
+      getAccountSettingRequest: async ({ account, reference }) => {
+        const row = secrets.get(reference);
+        return row && row.kind === 'owner_account_setting' &&
+          row.vercel_account === account && !row.viewed_at &&
+          new Date(row.expires_at).getTime() > Date.now() ? row : null;
+      },
+      consumeOneTimeSecret: async ({ id, account }) => {
+        const row = secrets.get(id);
+        if (!row || row.vercel_account !== account || row.viewed_at ||
+          new Date(row.expires_at).getTime() <= Date.now()) return null;
+        row.viewed_at = new Date(); return row;
+      },
+      setTokenNoExpiry: async () => {
+        throw new Error('a proposal must never call the setter');
+      }
+    };
+    const proposed = await dispatchReadOnlyTool({
+      registry, name: 'vercel_set_token_no_expiry',
+      args: { noExpiry: true, confirm: true },
+      connection: { account: 'team_FAKE', mode: 'production', profile: 'full',
+        listing: 'catalog', kind: 'connector' },
+      db: proposalDb,
+      env: { VERCEL_ENV: 'production', TOKEN_ENCRYPTION_KEY: '00'.repeat(32) } });
+    expect(JSON.parse(proposed.content[0].text).status).toBe('awaiting_owner_approval');
+    expect(secrets.size).toBe(1);
   });
   it('TEST whoami never loads account records or provider resources',async()=>{
     const noAccounts={listVercelAccounts:async()=>{throw new Error('must not query');}};
