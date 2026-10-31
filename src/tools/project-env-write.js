@@ -200,6 +200,24 @@ const set=defineWrite({
       // but never claim that the stored secret bytes were verified.
       return {confirmed:b.kind==='Secret'?null:raw.value===a.value};
     }catch{return {confirmed:null};}
+  },
+  // X-1: a create is undone by deleting the created row (identity +
+  // revision read back at journal time). An update stores the
+  // design's descriptive sentence: a changed value cannot be
+  // restored — Vercel keeps no value history and this server never
+  // stores values.
+  async inverse(a,b,applied,ctx){
+    if(b.mode==='update')
+      return {undo:'Set '+b.key+' again from the setup page: a changed value cannot be restored (Vercel keeps no value history and this server never stores values). Its previous targets were '+(b.oldTargets??[]).join(', ')};
+    try{
+      const {client}=await scoped(ctx,b.project);
+      const row=envMeta(await client.request('project_env_get',{
+        path:{idOrName:b.project,id:applied.id}}),b.project);
+      return {tool:'vercel_env_delete',project:b.project,id:applied.id,
+        expectedKey:b.key,expectedUpdatedAt:row.updatedAt,outsideApp:true};
+    }catch{
+      return {undo:'Delete the created variable '+b.key+' with vercel_env_delete (its revision could not be read back)'};
+    }
   }
 });
 const del=defineWrite({

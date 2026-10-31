@@ -363,6 +363,8 @@ const createWrite=defineWrite({
     // and Batch X must be able to re-create from the journal intact.
     return {undo:'Delete the created record',domain:before.domain,
       recordId:providerResult?.recordId??null,
+      ...(providerResult?.recordId?{tool:'vercel_dns_delete_record',
+        outsideApp:true}:{}),
       record:{type:before.intent.type,name:before.intent.name,
         recordValue:before.intent.value,srv:before.intent.srv,
         mxPriority:before.intent.mxPriority}};
@@ -471,6 +473,7 @@ const updateWrite=defineWrite({
   },
   async inverse(_args,before){
     return {undo:'Restore the previous record values',
+      tool:'vercel_dns_update_record',outsideApp:true,
       domain:before.domain,recordId:before.recordId,
       restore:{name:before.current.name,recordValue:before.current.value,
         ttl:before.current.ttl,mxPriority:before.current.mxPriority,
@@ -532,7 +535,9 @@ const deleteWrite=defineWrite({
   async inverse(_args,before){
     // The exact re-create image (design test: a deleted MX record is
     // restored from this inverse byte-for-byte on the create contract).
-    return {undo:'Re-create the deleted record',domain:before.domain,
+    return {undo:'Re-create the deleted record',
+      tool:'vercel_dns_create_record',outsideApp:true,
+      domain:before.domain,
       record:{type:before.current.type,name:before.current.name,
         recordValue:before.current.value,
         ...(before.current.mxPriority!==null?
@@ -695,7 +700,9 @@ const replaceWrite=defineWrite({
     }catch{return {confirmed:null};}
   },
   async inverse(_args,before){
-    return {undo:'Restore the previous zone',domain:before.domain,
+    return {undo:'Restore the previous zone',
+      tool:'vercel_dns_replace_zone',outsideApp:true,
+      domain:before.domain,
       records:before.zone.map(record=>({type:record.type,name:record.name,
         recordValue:record.value,mxPriority:record.mxPriority,ttl:record.ttl,
         comment:record.comment}))};
@@ -820,7 +827,7 @@ const removeCertWrite=defineWrite({
   },
   async inverse(_args,before){
     return {undo:'Re-issue a certificate for the same names',
-      cns:before.cert.cns};
+      tool:'vercel_cert_issue',cns:before.cert.cns};
   }
 });
 

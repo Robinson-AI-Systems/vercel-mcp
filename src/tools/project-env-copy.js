@@ -169,6 +169,21 @@ const copy=defineWrite({
       const l=Buffer.from(from.value),r=Buffer.from(raw.value);
       return {confirmed:l.length===r.length&&timingSafeEqual(l,r)};
     }catch{return {confirmed:null};}
+  },
+  // X-1: a copy is undone by deleting the created destination row
+  // (identity + revision read back at journal time).
+  async inverse(a,b,applied,ctx){
+    try{
+      const destination=await scoped(ctx,b.destinationProject);
+      const row=envMeta(await destination.client.request('project_env_get',{
+        path:{idOrName:b.destinationProject,id:applied.id}}),
+        b.destinationProject);
+      return {tool:'vercel_env_delete',project:b.destinationProject,
+        id:applied.id,expectedKey:b.destinationKey,
+        expectedUpdatedAt:row.updatedAt,outsideApp:true};
+    }catch{
+      return {undo:'Delete the copied variable '+b.destinationKey+' in '+b.destinationProject+' with vercel_env_delete (its revision could not be read back)'};
+    }
   }
 });
 const output=r=>({isError:['refused_by_guard','outcome_unknown'].includes(r.status),

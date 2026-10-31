@@ -143,6 +143,13 @@ function specFor(mode){
         const unchanged=aliases.every(x=>x.deployment===b.current);
         return {confirmed:assigned?true:unchanged?false:null};
       }catch{return {confirmed:null};}
+    },
+    // X-1: both directions undo as a rollback to the deployment that
+    // served before this change (promote refuses previously-served
+    // targets, so rollback is the universal opposite).
+    async inverse(_a,b){
+      return {tool:'vercel_deploy_rollback',project:b.project,
+        deployment:b.current,expectedCurrent:b.target,outsideApp:true};
     }
   });
 }

@@ -546,6 +546,7 @@ const autoRenewWrite=defineWrite({
   async inverse(_args,before){
     if(before.current.autoRenew===null)return null;
     return {undo:'Restore the previous auto-renew setting',
+      tool:'vercel_registrar_set_auto_renew',outsideApp:true,
       domain:before.domain,autoRenew:before.current.autoRenew};
   }
 });
@@ -620,7 +621,9 @@ const nameserversWrite=defineWrite({
   },
   async inverse(_args,before){
     if(!Array.isArray(before.current.nameservers))return null;
-    return {undo:'Restore the previous nameservers',domain:before.domain,
+    return {undo:'Restore the previous nameservers',
+      tool:'vercel_registrar_update_nameservers',outsideApp:true,
+      domain:before.domain,
       nameservers:before.current.nameservers};
   }
 });
