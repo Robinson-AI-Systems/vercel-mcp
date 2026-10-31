@@ -51,7 +51,7 @@ describe('E-1 guarded single-variable environment lifecycle',()=>{
   });
   it('creates exact preview Config and independently proves the value without leaking it',async()=>{
     const f=fixture();
-    f.fake.when('POST','/v10/projects/{idOrName}/env').resolves({created:{id,key,value:'PRIVATE_FAKE_RAW'},failed:[]});
+    f.fake.when('POST','/v10/projects/{idOrName}/env').resolves({created:{id,key,value:'PRIVATE_FAKE_RAW',updatedAt:100},failed:[]});
     f.fake.when('GET','/v1/projects/{idOrName}/env/{id}')
       .resolves({...original,value:setArgs.value});
     const out=parse(await f.call('vercel_env_set',setArgs));
@@ -65,6 +65,12 @@ describe('E-1 guarded single-variable environment lifecycle',()=>{
     expect(JSON.stringify(f.audits)).not.toContain(setArgs.value);
     expect(JSON.stringify(out)).not.toContain('PRIVATE_FAKE_RAW');
     expect(f.memo.size).toBe(2);
+    // X-1: the create journals its delete inverse from the create
+    // response's own revision — no extra provider read (the call
+    // sequence above is unchanged).
+    const journaled=f.audits.find(r=>r.tool==='vercel_env_set'&&!r.dryRun);
+    expect(journaled.inverse).toEqual({tool:'vercel_env_delete',
+      project,id,expectedKey:key,expectedUpdatedAt:100,outsideApp:true});
   });
   it('cryptographically generates Secret value, reports metadata only, never echoing private bytes',async()=>{
     const f=fixture();

@@ -164,6 +164,7 @@ const undoChange = defineWrite({
         requestKey: `${String(args.requestKey ?? 'wfundo').slice(0, 110)}-s1` });
     return { changeId: a.change_id, originalTool: row.tool,
       originalProduction: row.production === true,
+      accountRef: ctx.connection.account,
       outsideApp: a.outsideApp === true, tool, stepArgs,
       stepPreview: dry.ok ? (dry.value?.preview ?? `Run ${tool}`)
         : `The undo step cannot run on this connection yet: ${dry.reason}`,
@@ -179,10 +180,11 @@ const undoChange = defineWrite({
         : 'The change being undone was not a production change' };
   },
   async targets(_args, before) {
-    // The dispatched step's own targets are judged inside its own
-    // pipeline; the undo itself names only the change it reverses.
-    return [{ kind: 'change', id: String(before.changeId),
-      outsideApp: before.outsideApp }];
+    // The change log is account-scoped, so the undo's own target is
+    // the account; the dispatched step's real targets are judged
+    // inside its own pipeline.
+    return [{ kind: 'account', id: before.accountRef,
+      name: before.accountRef, outsideApp: before.outsideApp }];
   },
   async apply(args, ctx, before, requestKey) {
     const step = await tryStep(ctx, before.tool,
