@@ -153,12 +153,21 @@ async function invoke(name,args,ctx){
     connection:ctx.connection,db:ctx.db,env:ctx.env,
     fetchImpl:ctx.fetchImpl,formatError:vercelErrorResult,
     shapeResult:shapeStoredMcpResult});
-  if(response?.isError||!Array.isArray(response?.content)||response.content.length!==1||
+  if(!Array.isArray(response?.content)||response.content.length!==1||
     response.content[0]?.type!=='text')return null;
-  try{return JSON.parse(response.content[0].text);}
+  let data;
+  try{data=JSON.parse(response.content[0].text);}
   // Common read shaping has already screened every text part; plain text
   // is a valid safe RTC read payload, not an unfiltered error string.
-  catch{return response.content[0].text;}
+  catch{return response.isError?null:response.content[0].text;}
+  if(!response.isError)return data;
+  // AUD-BQ: a guarded write's structured refusal is a policy answer with
+  // its own door code (403 refused_by_guard), not a service failure. The
+  // executor's payload names it ({status:'refused_by_guard', reason});
+  // surface it to the route instead of flattening every dispatch error
+  // into a 503 claiming the service could not complete the call.
+  if(data&&typeof data==='object'&&data.status==='refused_by_guard')return data;
+  return null;
 }
 const PROJECT_ID=/^[a-zA-Z0-9_-]{3,128}$/;
 function validPassRecord(record){
@@ -315,6 +324,7 @@ export function rtcDoor({db,registry,env=process.env,fetchImpl}){
         catch{return fail(res,'invalid_args');}
         const data=await invoke(def.name,body,ctx);
         if(data===null)return fail(res,'service_error');
+        if(data?.status==='refused_by_guard')return fail(res,'refused_by_guard');
         if(data.status==='stored'&&typeof data.handle==='string')
           return send(res,200,{ok:true,result:data,handle:data.handle});
         return send(res,200,{ok:true,result:data});
