@@ -53,7 +53,7 @@ const branch=defineWrite({
         throw new TypeError('Linked Git repository changed');
     });
     await startRun(ctx,b);
-    const intent=await preIntent(ctx,b,'deployment',b.gitSha,{project:b.project,ref:b.ref});
+    const intent=await preIntent(ctx,b,'deployment',b.sha,{project:b.project,ref:b.ref});
     const created=await provider.write('deployments_create',{body:b.body},
       {tool:'vercel_dev_preview_branch',requestKey:key,mutationId:'branch-'+b.sha,
         shapeResult:row=>{
