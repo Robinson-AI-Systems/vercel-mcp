@@ -188,7 +188,7 @@ export async function checkConnectedAcceptance({
 }
 if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url) {
   checkConnectedAcceptance({
-    origin:process.env.VERCEL_MCP_ORIGIN||'https://vercel-mcp-liard.vercel.app',
+    origin:process.env.VERCEL_MCP_ORIGIN||'https://vercel.robinsonaisystems.com',
     testPass:process.env.RTC_TEST_PASS,previewPass:process.env.RTC_PREVIEW_PASS,
     project:process.env.RTC_APPROVED_PROJECT_ID,
     deployment:process.env.RTC_APPROVED_DEPLOYMENT_ID,

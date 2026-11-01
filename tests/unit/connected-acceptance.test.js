@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {describe,it,expect,vi} from 'vitest';
 import {checkConnectedAcceptance,AcceptanceFailure} from '../../scripts/check-connected-acceptance.mjs';
 
-const origin='https://vercel-mcp-liard.vercel.app';
+const origin='https://vercel.robinsonaisystems.com';
 const testPass='rtc_pass_'+('A'.repeat(43));
 const previewPass='rtc_pass_'+('B'.repeat(43));
 const project='prj_ONE123',deployment='dpl_ONE123',fileId='a'.repeat(40);
@@ -118,7 +118,7 @@ describe('secure owner-operated connected evidence runner',()=>{
  it('denies insecure origins and unverified deployment scope without network I/O',async()=>{
    const f=fixture();
    for(const settings of [
-     {origin:'http://vercel-mcp-liard.vercel.app'},
+     {origin:'http://vercel.robinsonaisystems.com'},
      {origin:origin+'/api/mcp'},
      {origin:origin+'?token=private'},
      {origin,previewPass,deployment},
