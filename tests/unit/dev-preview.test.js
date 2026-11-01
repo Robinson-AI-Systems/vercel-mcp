@@ -1,4 +1,5 @@
 import {beforeEach,describe,it,expect,vi} from 'vitest';
+import {createHash} from 'node:crypto';
 import {registry} from '../../src/tools/index.js';
 import {dispatchReadOnlyTool,listMcpTools} from '../../src/core/mcp-server.js';
 import {makeFakeVercel} from '../../test/helpers/fake-vercel.js';
@@ -109,6 +110,36 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect(deniedCost.status).toBe('refused_by_guard');
     expect(JSON.stringify(deniedCost)).toMatch(/Unbounded|ceiling/i);
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    f.fake.verify();
+  });
+
+  it('applies a confirmed branch preview through the real before/apply composition (AUD-BP)',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    const gitSha='c'.repeat(40),created='dpl_FAKE_V2_BRANCH';
+    const row={id:created,projectId:project,target:'preview',readyState:'READY'};
+    f.fake.when('POST','/v13/deployments').resolves(row);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(row);
+    const out=parse(await f.call('vercel_dev_preview_branch',
+      {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
+        requestKey:'branchPreviewFix01'},
+      {...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const intentId='intent-deployment-'+
+      createHash('sha256').update(gitSha).digest('hex').slice(0,32);
+    const objects=f.objects.get(runId);
+    expect(objects.find(o=>o.object_type==='intent')).toMatchObject(
+      {object_id:intentId,status:'cleaned'});
+    expect(objects.some(o=>o.object_type==='deployment'&&
+      o.object_id===created)).toBe(true);
+    const posts=f.fake.calls.filter(x=>x.method==='POST');
+    expect(posts).toHaveLength(1);
+    expect(posts[0].path).toBe('/v13/deployments');
+    expect(posts[0].body).toMatchObject({name:'test-preview',
+      project:'test-preview',target:'preview',
+      gitSource:{type:'github',org:'synthetic',repo:'preview',
+        ref:'feature/isolated',sha:gitSha},
+      meta:{rtc_run:runId}});
     f.fake.verify();
   });
   it('builds the V-2 preview env plan with exact run, provider and bounded inventory',async()=>{
