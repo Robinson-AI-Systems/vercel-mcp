@@ -41,7 +41,7 @@ describe('A-5 Vercel token probes and encrypted persistence', () => {
     const token = 'vcp_FAKEteamToken_12345678';
     const receipt = await storeToken({ db, token, teamId: 'team_FAKE', env, fetchImpl: api.fetch });
     expect(receipt).toEqual({ id: 'team_FAKE', team: 'test-team', scope: 'team',
-      project: null, expiry: null, last4: '5678' });
+      project: null, expiry: null, last4: '5678', attestedUserId: 'user_FAKE' });
     expect(JSON.stringify(receipt)).not.toContain(token);
     expect(JSON.stringify([...db.rows.values()])).not.toContain(token);
     const loaded = await loadToken({ db, accountId: 'team_FAKE', env });

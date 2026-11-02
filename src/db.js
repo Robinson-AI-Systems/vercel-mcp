@@ -1110,7 +1110,8 @@ export function createDb(query) {
     // Only owner setup routes may call these credential methods. Tool handlers
     // must never select token_enc or return decrypted credentials.
     async upsertVercelAccount({ id, teamId, teamSlug, label, scope, projectId = null,
-      projectName = null, tokenEnc, tokenLast4, expiresAt = null, probe }) {
+      projectName = null, tokenEnc, tokenLast4, expiresAt = null, probe,
+      attestedUserId = null }) {
       if (!id || !teamId || !teamSlug || !label ||
         !['team', 'project', 'full'].includes(scope) || !tokenEnc ||
         !/^[a-zA-Z0-9]{4}$/.test(tokenLast4) ||
@@ -1130,13 +1131,19 @@ export function createDb(query) {
       // CONFLICT update below deliberately does NOT name the column:
       // rotation/re-enrollment preserves the existing row's switch —
       // the owner's standing choice in either direction — untouched.
+      // SR-3 (gate O-2.7, dossier section 5.4): the enrollment's
+      // attested owner rides the upsert under AUD-E's semantics —
+      // the ON CONFLICT update takes the fresh probe's value
+      // (including null), so a rotated credential never inherits
+      // the previous key's attested owner, exactly like
+      // token_no_expiry above.
       await run`INSERT INTO vercel_accounts
         (id, team_id, team_slug, label, scope, project_id, project_name,
           token_enc, token_last4, token_expires_at, token_checked_at, token_probe,
-          token_version, production_enabled)
+          token_version, production_enabled, attested_user_id)
         VALUES (${id}, ${teamId}, ${teamSlug}, ${label}, ${scope}, ${projectId}, ${projectName},
           ${tokenEnc}, ${tokenLast4}, ${expiresAt}, now(), ${summary}::jsonb,
-          ${tokenVersion}, TRUE)
+          ${tokenVersion}, TRUE, ${attestedUserId})
         ON CONFLICT (id) DO UPDATE SET
           team_slug = EXCLUDED.team_slug, label = EXCLUDED.label, scope = EXCLUDED.scope,
           project_id = EXCLUDED.project_id, project_name = EXCLUDED.project_name,
@@ -1144,7 +1151,25 @@ export function createDb(query) {
           token_expires_at = EXCLUDED.token_expires_at,
           token_no_expiry = FALSE,
           token_version = EXCLUDED.token_version,
+          attested_user_id = EXCLUDED.attested_user_id,
           token_checked_at = now(), token_probe = EXCLUDED.token_probe`;
+    },
+    // SR-3 (gate O-2.7, dossier section 5.5): the recheck's
+    // identity backfill — one additive column, written from the
+    // identity the stored credential's own probe just read.
+    // Never a credential or scope write; the caller reports the
+    // outcome, and a missing row answers false.
+    async recordAccountAttestation({ accountId, attestedUserId }) {
+      if (typeof accountId !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(accountId) ||
+        typeof attestedUserId !== 'string' || !attestedUserId ||
+        attestedUserId.length > 128) {
+        throw new TypeError('Invalid account attestation');
+      }
+      const run = getSql();
+      const rows = await run`UPDATE vercel_accounts
+        SET attested_user_id = ${attestedUserId}
+        WHERE id = ${accountId} RETURNING id`;
+      return rows.length === 1;
     },
     async getAccountCredential(id) {
       if (typeof id !== 'string' || !id) return null;

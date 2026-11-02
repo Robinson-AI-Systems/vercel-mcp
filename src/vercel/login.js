@@ -3,7 +3,7 @@ import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 import { encryptSecret } from '../core/secret-box.js';
 import { BLOB_CONTEXT } from './blob.js';
 import { boxReport } from './box.js';
-import { loadToken, storeToken } from './tokens.js';
+import { loadToken, probeToken, storeToken } from './tokens.js';
 import { makeVercelClient } from './client.js';
 import { SIGNIN_BINDING_COOKIE, buildSigninAuthorizeUrl, signinConfig } from './signin.js';
 
@@ -82,6 +82,10 @@ function attestedOwnerOf(account) {
 // list must name the signer. Fail closed on every error: an
 // expired credential, a scope that cannot read members, or
 // a malformed page simply does not grant.
+function membersOf(page) {
+  return Array.isArray(page?.members) ? page.members :
+    (Array.isArray(page) ? page : []);
+}
 async function rosterHasUser({ db, account, userId, env, fetchImpl }) {
   try {
     const { token, account: loaded } = await loadToken({ db, accountId: account.id, env });
@@ -90,10 +94,50 @@ async function rosterHasUser({ db, account, userId, env, fetchImpl }) {
         db.requestReplayStore() : undefined });
     const page = await client.request('teams_members_list',
       { path: { teamId: account.team_id } });
-    const members = Array.isArray(page?.members) ? page.members :
-      (Array.isArray(page) ? page : []);
-    return members.some((member) => member?.uid === userId);
+    return membersOf(page).some((member) => member?.uid === userId);
   } catch { return false; }
+}
+
+// SR-3 (gate O-2.7, dossier sections 5.4 + 7.2) — the binding
+// rule at enrollment on the public class, enforced BEFORE
+// anything is stored: the enrolling credential is probed
+// first, and the signer may enroll it only when the probe's
+// attested owner IS the signer (limb 1) or the enrolling
+// credential's own team roster names the signer (limb 2 —
+// the credential attests its own team's roster, the same
+// read consent-time binding makes with the stored one).
+// Returns a plain-words refusal, or null when enrollment
+// may proceed. A probe failure maps to the same leg wording
+// the enrollment read-back has always used, and stores
+// nothing either way.
+async function enrollmentIdentityRefusal({ token, teamId, projectId, allowFull,
+  attestedUserId, fetchImpl }) {
+  let probe;
+  try {
+    probe = await probeToken({ token, teamId, projectId, allowFull, fetchImpl });
+  } catch (err) {
+    const leg = ENROLL_LEG_WORDS[err?.probeLeg];
+    if (leg) {
+      return 'Enrollment failed at the ' + leg + ' check: ' + err.message;
+    }
+    return 'Enrollment could not be completed. ' +
+      'Check the team ID and the token, then try again.';
+  }
+  if (probe.attestedUserId === attestedUserId) return null;
+  try {
+    const client = makeVercelClient({
+      token, account: { id: 'probe_only', team_id: teamId },
+      ...(fetchImpl ? { fetchImpl } : {}) });
+    const page = await client.request('teams_members_list',
+      { path: { teamId } });
+    if (membersOf(page).some((member) => member?.uid === attestedUserId)) {
+      return null;
+    }
+  } catch { /* An unreadable roster never grants — fail closed. */ }
+  return 'This token cannot be enrolled with your Vercel sign-in: Vercel ' +
+    'shows it belongs to a different Vercel user, and your sign-in is ' +
+    'not on that team\'s member list. Enroll a token of your own, or ' +
+    'have a member of the team enroll it.';
 }
 
 // The optional fetchImpl seam exists for tests (the fake provider);
@@ -101,6 +145,22 @@ async function rosterHasUser({ db, account, userId, env, fetchImpl }) {
 // global fetch inside the token store, exactly as the setup page's
 // enrollment does today.
 export function createVercelLoginService(db, { fetchImpl } = {}) {
+  // SR-2's binding rule (dossier section 5.4), factored so the
+  // consent path and SR-3's enrollment gates share ONE
+  // eligibility derivation — never a second copy to drift.
+  async function computeBindableAccounts(attestedUserId, env = process.env) {
+    if (typeof attestedUserId !== 'string' || !attestedUserId) return [];
+    const accounts = await db.listVercelAccounts();
+    const bindable = [];
+    for (const account of accounts) {
+      if (attestedOwnerOf(account) === attestedUserId) { bindable.push(account); continue; }
+      if (account.team_id &&
+        await rosterHasUser({ db, account, userId: attestedUserId, env, fetchImpl })) {
+        bindable.push(account);
+      }
+    }
+    return bindable;
+  }
   return {
     name: SERVICE_DISPLAY_NAME,
     accountLabel: 'Vercel team',
@@ -142,8 +202,19 @@ export function createVercelLoginService(db, { fetchImpl } = {}) {
     // connection binds it only when the owner finishes signing in.
     // The read-back is composed from the stored row (the box report),
     // so what the page states is what was actually recorded.
-    async enrollToken({ token, teamId, projectId = null, allowFull = false } = {},
-      env = process.env) {
+    async enrollToken({ token, teamId, projectId = null, allowFull = false,
+      attestedUserId = null } = {}, env = process.env) {
+      // SR-3: on the public class the handler passes the
+      // sign-in's attested identity, and the section 5.4 rule
+      // gates BEFORE the store (see enrollmentIdentityRefusal).
+      // Without one (the dev class, the interim public class)
+      // enrollment is exactly the passphrase-gated branch it
+      // has always been — the handler owns that proof.
+      if (typeof attestedUserId === 'string' && attestedUserId) {
+        const refusal = await enrollmentIdentityRefusal({
+          token, teamId, projectId, allowFull, attestedUserId, fetchImpl });
+        if (refusal) return { ok: false, error: refusal };
+      }
       let result;
       try {
         result = await storeToken({ db, token, teamId, projectId, allowFull, env, fetchImpl });
@@ -168,12 +239,24 @@ export function createVercelLoginService(db, { fetchImpl } = {}) {
     // must look like a Blob read-write token. The token is encrypted
     // under the store's own context and stored as ciphertext only;
     // it is never shown again after this call.
-    async enrollBlobStore({ account, storeId, label, access, token } = {},
-      env = process.env) {
+    async enrollBlobStore({ account, storeId, label, access, token,
+      attestedUserId = null } = {}, env = process.env) {
       const cleanAccount = String(account || '');
       const accounts = await db.listVercelAccounts();
       if (!cleanAccount || !accounts.some((row) => row.id === cleanAccount)) {
         return { ok: false, error: 'Choose a connected account.' };
+      }
+      // SR-3 (dossier section 7.2): under an attested sign-in
+      // the store may attach only to an account the signer may
+      // bind — the same eligibility derivation consent uses.
+      if (typeof attestedUserId === 'string' && attestedUserId) {
+        const bindable = await computeBindableAccounts(attestedUserId, env);
+        if (!bindable.some((row) => row.id === cleanAccount)) {
+          return { ok: false, error: 'That account cannot be used with this ' +
+            'Vercel sign-in. A Blob store can be connected only to an ' +
+            'account the signed-in Vercel user owns, or whose team ' +
+            'they belong to.' };
+        }
       }
       const cleanStoreId = String(storeId || '');
       const cleanLabel = String(label || '');
@@ -220,17 +303,7 @@ export function createVercelLoginService(db, { fetchImpl } = {}) {
     // generic handlers call this lazily, only on the
     // attested path.
     async bindableAccounts(attestedUserId, env = process.env) {
-      if (typeof attestedUserId !== 'string' || !attestedUserId) return [];
-      const accounts = await db.listVercelAccounts();
-      const bindable = [];
-      for (const account of accounts) {
-        if (attestedOwnerOf(account) === attestedUserId) { bindable.push(account); continue; }
-        if (account.team_id &&
-          await rosterHasUser({ db, account, userId: attestedUserId, env, fetchImpl })) {
-          bindable.push(account);
-        }
-      }
-      return bindable;
+      return computeBindableAccounts(attestedUserId, env);
     }
   };
 }

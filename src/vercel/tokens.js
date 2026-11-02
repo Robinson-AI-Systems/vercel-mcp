@@ -205,7 +205,12 @@ async function probeTeamVisible(client, { teamId, projectId, allowFull }) {
     projectName: project && typeof project.name === 'string' ? project.name : null,
     checkedAt: new Date().toISOString(),
     visibleTeamCount: teams.length,
-    visibleProjectCount: projects.length
+    visibleProjectCount: projects.length,
+    // SR-3 (gate O-2.7, dossier section 5.4): the identity this
+    // probe already read, returned so the stores can persist it
+    // as the row's attested owner instead of discarding it.
+    attestedUserId: typeof identity.user.id === 'string' && identity.user.id ?
+      identity.user.id : null
   };
 }
 
@@ -254,7 +259,20 @@ async function probeProjectScoped(client, { teamId, projectId, allowFull }) {
   if (broad && !allowFull) {
     throw probeFail('broad_visibility', 'Broader token visibility requires explicit owner allowance');
   }
+  // SR-3 (gate O-2.7, dossier section 5.4): identity is
+  // deliberately not load-bearing on this path; attestation
+  // capture is best-effort — one unscoped identity attempt,
+  // recorded when it answers and null when it does not. A
+  // refusal or an unusable shape changes nothing above.
+  let attestedUserId = null;
+  try {
+    const identity = await client.request('user_get_unscoped');
+    if (typeof identity?.user?.id === 'string' && identity.user.id) {
+      attestedUserId = identity.user.id;
+    }
+  } catch { /* Attestation evidence only; never load-bearing. */ }
   return {
+    attestedUserId,
     teamId,
     teamSlug: typeof teamRow?.slug === 'string' ? teamRow.slug : teamId,
     teamName: typeof teamRow?.name === 'string' ? teamRow.name :
@@ -352,6 +370,9 @@ export async function probePersonalToken({ token, userId, allowFull = false,
   const username = typeof identity.user.username === 'string' && identity.user.username ?
     identity.user.username : userId;
   return {
+    // SR-3: the identity leg above cross-checked the credential
+    // against this very user id — attested by construction.
+    attestedUserId: userId,
     teamId: userId, teamSlug: username,
     teamName: typeof identity.user.name === 'string' && identity.user.name ?
       identity.user.name : username,
@@ -372,6 +393,7 @@ export async function storePersonalToken({ db, token, userId,
       id, teamId: result.teamId, teamSlug: result.teamSlug, label: result.teamName,
       scope: result.scope, projectId: null, projectName: null,
       tokenEnc, tokenLast4: token.slice(-4), expiresAt: null,
+      attestedUserId: userId,
       probe: {
         checkedAt: result.checkedAt,
         visibleTeamCount: result.visibleTeamCount,
@@ -386,7 +408,7 @@ export async function storePersonalToken({ db, token, userId,
       'The verified token could not be saved; check the server storage configuration');
   }
   return { id, team: result.teamSlug, scope: result.scope, project: null,
-    expiry: null, last4: token.slice(-4) };
+    expiry: null, last4: token.slice(-4), attestedUserId: userId };
 }
 
 // AUD-K (VMCP-026 / A-1): the credential-class-aware probe for a
@@ -558,6 +580,10 @@ export async function probeInstallationToken({ token, teamId, installationId,
   }
   const label = await installationLabel(client, teamId);
   return {
+    // SR-3: the exchange's installer identity (the probe
+    // record's installerUserId, lifted) — the install's
+    // attested owner, when the exchange named one.
+    attestedUserId: typeof userId === 'string' && userId ? userId : null,
     teamId, teamSlug: label.slug, teamName: label.name,
     scope, projectId, projectName,
     checkedAt: new Date().toISOString(),
@@ -611,6 +637,7 @@ export async function storeInstallationToken({ db, token, teamId, installationId
       id, teamId: result.teamId, teamSlug: result.teamSlug, label: result.teamName,
       scope: result.scope, projectId: result.projectId, projectName: result.projectName,
       tokenEnc, tokenLast4: token.slice(-4), expiresAt: null,
+      attestedUserId: result.attestedUserId ?? null,
       probe: {
         checkedAt: result.checkedAt,
         visibleTeamCount: result.visibleTeamCount,
@@ -630,7 +657,7 @@ export async function storeInstallationToken({ db, token, teamId, installationId
       'The verified token could not be saved; check the server storage configuration');
   }
   return { id, team: result.teamSlug, scope: result.scope, project: result.projectName,
-    expiry: null, last4: token.slice(-4) };
+    expiry: null, last4: token.slice(-4), attestedUserId: result.attestedUserId ?? null };
 }
 
 // AUD-BI (VMCP-003): the enrollment expiry leg — the one documented
@@ -709,6 +736,7 @@ export async function storeToken({ db, token, teamId, projectId = null,
       id, teamId: result.teamId, teamSlug: result.teamSlug, label: result.teamName,
       scope: result.scope, projectId: result.projectId, projectName: result.projectName,
       tokenEnc, tokenLast4: token.slice(-4), expiresAt: recordedExpiry,
+      attestedUserId: result.attestedUserId ?? null,
       probe: {
         checkedAt: result.checkedAt,
         visibleTeamCount: result.visibleTeamCount,
@@ -733,7 +761,8 @@ export async function storeToken({ db, token, teamId, projectId = null,
       'The verified token could not be saved; check the server storage configuration');
   }
   return { id, team: result.teamSlug, scope: result.scope, project: result.projectName,
-    expiry: recordedExpiry, last4: token.slice(-4) };
+    expiry: recordedExpiry, last4: token.slice(-4),
+    attestedUserId: result.attestedUserId ?? null };
 }
 
 export async function loadToken({ db, accountId, env = process.env }) {
@@ -751,8 +780,11 @@ export async function loadToken({ db, accountId, env = process.env }) {
 
 /**
  * Recheck a credential already approved and encrypted by the owner.
- * This is deliberately READ-ONLY: GET access is not permission to write, nor
- * evidence of the complete privilege footprint or token expiry.
+ * Against the provider this stays read-only: GET access is not permission
+ * to write, nor evidence of the complete privilege footprint or token
+ * expiry. SR-3 adds exactly one write, on this server only: the identity
+ * the probe reads is persisted to the account's attested_user_id (the
+ * section 5.5 backfill) — no credential, scope or provider state moves.
  * Only the authenticated connection's stored account ID is accepted by callers.
  */
 // AUD-AI (recheck conviction): when a recheck refuses, one
@@ -816,11 +848,13 @@ export async function recheckStoredToken({ db, accountId, env = process.env, fet
     route = personal ? 'personal' : integrationTeam ? 'installation' : 'user';
     // AUD-AI: the recheck derives WITHOUT the enrollment consent
     // gate (allowFull: true). The credential was already
-    // owner-approved for this row and the recheck persists nothing;
-    // gating the derivation on the stored scope made any row whose
-    // reach had grown since enrollment refuse with broad_visibility
-    // instead of reporting the drift. The derived scope is returned
-    // beside the stored one; enrollment paths keep their gate.
+    // owner-approved for this row; gating the derivation on the
+    // stored scope made any row whose reach had grown since
+    // enrollment refuse with broad_visibility instead of reporting
+    // the drift. The derived scope is returned beside the stored
+    // one; enrollment paths keep their gate. (SR-3's identity
+    // write below is separate from the derivation and never
+    // gates on it either.)
     const result = personal ?
       await probePersonalToken({ token, userId: account.id,
         allowFull: true, fetchImpl, baseUrl }) :
@@ -834,8 +868,25 @@ export async function recheckStoredToken({ db, accountId, env = process.env, fet
           token, teamId: account.team_id, projectId: account.project_id || null,
           allowFull: true, fetchImpl, baseUrl
         });
+    // SR-3 (gate O-2.7, dossier sections 5.4-5.5): persist the
+    // identity the probe just read — the backfill that makes a
+    // legacy Door-2 row bindable by its owner at consent with
+    // no token re-paste. Best-effort like the refusal journal:
+    // a failed write is reported on the result and never
+    // changes the recheck's verdict; the read-back at SR-5 is
+    // the verification that it landed.
+    const attestedUserId = typeof result.attestedUserId === 'string' &&
+      result.attestedUserId ? result.attestedUserId : null;
+    let attestationPersisted = false;
+    if (attestedUserId && typeof db?.recordAccountAttestation === 'function') {
+      try {
+        attestationPersisted = await db.recordAccountAttestation({
+          accountId, attestedUserId }) === true;
+      } catch { attestationPersisted = false; }
+    }
     return {
       checkedAt: result.checkedAt, teamId: result.teamId, teamSlug: result.teamSlug,
+      attestedUserId, attestationPersisted,
       projectId: result.projectId, storedScope: account.scope,
       ...(typeof result.scope === 'string' ? { derivedScope: result.scope } : {}),
       ...(personal ? { accountKind: 'personal' } : {}),
