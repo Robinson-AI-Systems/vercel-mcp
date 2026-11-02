@@ -12185,7 +12185,8 @@
         "dispatchFiles": [
           "src/tools/admin.js",
           "src/tools/members.js",
-          "src/tools/project-member-safety.js"
+          "src/tools/project-member-safety.js",
+          "src/vercel/login.js"
         ]
       },
       "tests": {

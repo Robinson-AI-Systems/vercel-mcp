@@ -228,9 +228,11 @@ describe('SR-1 sign-in callback handler', () => {
     const { handle, pkce } = await seedFlow(db);
     const code = fakeAs.issueCode({ verifier: pkce.verifier, nonce: 'nonce-fixture' });
     const res = await callCallback({ db, env, fetchImpl: fakeAs.fetch }, { code, state: handle });
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toContain('Vercel sign-in verified');
-    expect(res.body).toContain('fixtureuser');
+    // SR-2: success hands the browser back to the authorize
+    // endpoint, where the attested flow unlocks the consent.
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.Location).toBe(
+      'https://vercel-mcp.example.test/api/oauth/authorize?flow=' + handle);
     const flow = await db.getSigninFlow(handle);
     expect(flow.attested_user_id).toBe(SUB);
     expect(flow.vercel_state_consumed_at).not.toBeNull();
@@ -250,7 +252,7 @@ describe('SR-1 sign-in callback handler', () => {
     const { handle, pkce } = await seedFlow(db);
     const first = await callCallback({ db, env, fetchImpl: fakeAs.fetch },
       { code: fakeAs.issueCode({ verifier: pkce.verifier, nonce: 'nonce-fixture' }), state: handle });
-    expect(first.statusCode).toBe(200);
+    expect(first.statusCode).toBe(302);
     const replay = await callCallback({ db, env, fetchImpl: fakeAs.fetch },
       { code: fakeAs.issueCode({ verifier: pkce.verifier, nonce: 'nonce-fixture' }), state: handle });
     expect(replay.statusCode).toBe(400);
@@ -263,7 +265,7 @@ describe('SR-1 sign-in callback handler', () => {
     const { handle, pkce } = await seedFlow(db);
     const ok = await callCallback({ db, env, fetchImpl: fakeAs.fetch },
       { code: fakeAs.issueCode({ verifier: pkce.verifier, nonce: 'nonce-fixture' }), state: handle });
-    expect(ok.statusCode).toBe(200);
+    expect(ok.statusCode).toBe(302);
     const consumed = await db.consumeSigninFlow({ handle, chosenAccount: 'team_FAKE' });
     expect(consumed?.attested_user_id).toBe(SUB);
     // A second consent consume is refused by the store itself.
@@ -354,7 +356,7 @@ describe('SR-1 sign-in callback refusals', () => {
     expect(wrongCookie.statusCode).toBe(400);
     const bound = await callCallback({ db, env, fetchImpl: fakeAs.fetch },
       { code: code(), state: handle }, { cookie: 'rmcp_signin_binding=binding-secret-fixture' });
-    expect(bound.statusCode).toBe(200);
+    expect(bound.statusCode).toBe(302);
   });
 
   it('accepts only GET', async () => {

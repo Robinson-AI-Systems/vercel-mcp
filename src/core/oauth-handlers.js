@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {createOAuthRevocation} from './oauth-revocation.js';
 // Contract-generic OAuth HTTP handlers. Provider-specific behavior is injected via service.
 import {
@@ -40,6 +41,16 @@ export function oauthServerMetadata(origin) {
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['client_secret_post', 'none']
   };
+}
+
+// SR-2 — deployment class, one authority: the public class is
+// exactly this server's production deployment — the same
+// VERCEL_ENV conjunct the service's issuance derivation uses
+// as its mode authority, so class and derivation can never
+// disagree about which deployment this is. Everything else
+// is the dev class.
+export function deploymentClass(env = process.env) {
+  return env?.VERCEL_ENV === 'production' ? 'public' : 'dev';
 }
 
 const tokenResponse = (access, refresh) => ({
@@ -180,11 +191,230 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     });
   }
 
+
+  // SR-2 (gate O-2.7, dossier §5.1) — the public-class journey.
+  // The generic handlers stay provider-free: the sign-in leg is
+  // reached only through the service adapter (signinConfigured /
+  // signinAuthorizeUrl / signinBindingCookie / bindableAccounts),
+  // which the Vercel login service implements over SR-1's leg.
+  // The leg engages only when configured — while it is not, the
+  // public class falls through to the legacy passphrase path
+  // exactly as today (the interim behavior the SR-2 card
+  // records), so no existing user can be stranded mid-consent.
+  const signinReady = () =>
+    typeof service.signinConfigured === 'function' &&
+    typeof service.signinAuthorizeUrl === 'function' &&
+    service.signinConfigured(env);
+  const bindingCookieName = () =>
+    typeof service.signinBindingCookie === 'function' ?
+      service.signinBindingCookie() : 'rmcp_signin_binding';
+  function cookieValue(req, name) {
+    const header = req?.headers?.cookie;
+    if (typeof header !== 'string') return null;
+    for (const part of header.split(';')) {
+      const eq = part.indexOf('=');
+      if (eq >= 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+    }
+    return null;
+  }
+  function claimsOf(flow) {
+    const claims = flow?.attested_claims;
+    if (!claims) return {};
+    if (typeof claims === 'object') return claims;
+    try {
+      const parsed = JSON.parse(claims);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch { return {}; }
+  }
+  // Plain-words refusals for the attested path: each names the
+  // leg and the remedy, never a raw token or provider body.
+  function refusal(res, status, heading, text) {
+    return send(res, status, frontDoorPage({
+      title: 'Connect ' + escapeHtml(service.name) + ' MCP',
+      heading,
+      body: '<p>' + escapeHtml(text) + '</p>'
+    }), 'text/html; charset=utf-8');
+  }
+
+  // The attested consent: the verified identity, a picker of
+  // ONLY the accounts that identity may bind (§5.4), each
+  // captioned by the same derivation that will issue the code,
+  // and no passphrase field — consent on this class is
+  // authorized by the flow record, not by a shared secret. The
+  // empty state offers the enrollment legs inside the journey:
+  // token enrollment carrying the in-flight parameters, and the
+  // doors page (Door 1 install + explainer).
+  function consentPage(params, flow, bindable, totalAccounts, error = '') {
+    const claims = claimsOf(flow);
+    const who = claims.username || claims.name || claims.email || 'your Vercel account';
+    // Preselection mirrors AUD-AE within the filtered set: the
+    // flagged default wins, else the first bindable account.
+    const selectedAccount = bindable.find((account) => account.is_default) || bindable[0];
+    const accountList = bindable.map((account) =>
+      '<option value="' + escapeHtml(account.id) + '"' +
+      (selectedAccount?.id === account.id ? ' selected' : '') + '>' +
+      escapeHtml(account.label) + ' — ' + escapeHtml(service.issuanceFor(account, env).caption) + '</option>'
+    ).join('');
+    const productionNote = selectedAccount ? service.issuanceFor(selectedAccount, env).note : '';
+    const pairs = flowPairs(params);
+    const enrollHref = '/api/oauth/enroll' + (pairs.length ? '?' + pairs.join('&') : '');
+    const enrollLinks = '<p><a href="' + escapeHtml(enrollHref) + '">Enroll another account with a Vercel token</a>' +
+      ' · <a href="/api/vercel/connect">Connect a Vercel team</a></p>';
+    const intro = bindable.length ?
+      '<p>Choose the ' + escapeHtml(service.accountLabel) + ' for this AI connection. ' +
+        'Only accounts your Vercel sign-in may use are listed — each caption states the reach it starts with.</p>' :
+      (totalAccounts ?
+        '<p>None of the accounts connected to this server can be used with this Vercel ' +
+        'sign-in. An account can be connected by the Vercel user it belongs to, or by a ' +
+        'member of its team. Enroll the account, or connect the team, and it will appear here.</p>' :
+        '<p>No Vercel teams are connected yet. Enroll an account first, then return here to authorize this connection.</p>');
+    const body =
+      '<p>Signed in to Vercel as <strong>' + escapeHtml(who) + '</strong>.</p>' +
+      (error ? '<p role="alert">' + escapeHtml(error) + '</p>' : '') +
+      intro +
+      (bindable.length ?
+        '<form method="post">' +
+        '<input type="hidden" name="flow" value="' + escapeHtml(flow.handle) + '">' +
+        '<label>' + escapeHtml(service.accountLabel) + '<select name="account" id="account-select" required>' + accountList + '</select></label>' +
+        '<div id="mode-note">' + productionNote + '</div>' +
+        '<button type="submit">Authorize this connection</button></form>' : '') +
+      enrollLinks;
+    return frontDoorPage({
+      title: 'Connect ' + escapeHtml(service.name) + ' MCP',
+      heading: 'Connect ' + escapeHtml(service.name) + ' MCP',
+      body
+    });
+  }
+
+  // A fresh authorize on the configured public class starts
+  // the detour: the flow record carries the client parameters,
+  // a fresh Vercel-leg PKCE pair + nonce, and the hash of a
+  // browser-binding secret whose cookie ties the returning
+  // browser to this flow.
+  async function authorizeSignin(req, res, params) {
+    if (req.method === 'POST') {
+      // Consent on this class is authorized by the flow record
+      // alone; a POST without one has nothing to stand on —
+      // the passphrase is not honored here.
+      return refusal(res, 400, 'This sign-in needs Vercel sign-in first',
+        'Open the connection from your AI app and sign in with Vercel; ' +
+        'the consent step follows from that sign-in.');
+    }
+    const handle = randomToken(32);
+    const verifier = randomToken(32);
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const nonce = randomToken(24);
+    const binding = randomToken(32);
+    await db.createSigninFlow({
+      handle, clientId: params.client_id, redirectUri: params.redirect_uri,
+      codeChallenge: params.code_challenge, codeChallengeMethod: 'S256',
+      clientState: typeof params.state === 'string' ? params.state : null,
+      resource: params.resource, vercelCodeVerifier: verifier, nonce,
+      browserBindingHash: hashToken(binding)
+    });
+    res.setHeader('Set-Cookie', bindingCookieName() + '=' + binding +
+      '; HttpOnly; Secure; SameSite=Lax; Path=/api/oauth; Max-Age=600');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Location', service.signinAuthorizeUrl(
+      { state: handle, nonce, codeChallenge: challenge }, env));
+    return res.status(302).end();
+  }
+
+  // The returning leg of the journey: the flow record IS the
+  // request. It must be live, attested, unconsumed and
+  // browser-bound; the client parameters are re-validated from
+  // the record, never from anything re-posted; and the
+  // eligible set is recomputed at POST time, so a tampered or
+  // stale account id refuses without consuming the flow.
+  async function authorizeAttested(req, res, params) {
+    const handle = str(params.flow);
+    const flow = await db.getSigninFlow(handle);
+    if (!flow || flow.consumed_at || !(flow.expires_at > Date.now()) ||
+      typeof flow.attested_user_id !== 'string' || !flow.attested_user_id) {
+      return refusal(res, 400, 'This sign-in link is no longer usable',
+        'The sign-in may have expired, already been used, or its Vercel sign-in ' +
+        'did not finish. Start the connection again from your AI app.');
+    }
+    flow.handle = handle;
+    if (flow.browser_binding_hash) {
+      const cookie = cookieValue(req, bindingCookieName());
+      if (!cookie || !secretsMatch(hashToken(cookie), flow.browser_binding_hash)) {
+        return refusal(res, 400, 'Finish signing in from the browser that started it',
+          'This sign-in belongs to the browser that began it. Return to that ' +
+          'browser, or start the connection again.');
+      }
+    }
+    const client = await resolveClient(flow.client_id);
+    if (!client || !client.redirect_uris?.includes(flow.redirect_uri)) {
+      return refusal(res, 400, 'This sign-in link is no longer usable',
+        'The app that asked for this connection is no longer registered here. ' +
+        'Start the connection again from your AI app.');
+    }
+    if (typeof service.bindableAccounts !== 'function') {
+      return refusal(res, 503, 'Sign-in is not fully set up on this server',
+        'This server cannot check which accounts your Vercel sign-in may use yet.');
+    }
+    const flowParams = {
+      client_id: flow.client_id, redirect_uri: flow.redirect_uri,
+      response_type: 'code', code_challenge: flow.code_challenge,
+      code_challenge_method: 'S256',
+      state: typeof flow.client_state === 'string' ? flow.client_state : undefined,
+      resource: flow.resource
+    };
+    const bindable = await service.bindableAccounts(flow.attested_user_id, env);
+    if (req.method === 'GET') {
+      const accounts = await service.listAccounts();
+      return send(res, 200, consentPage(flowParams, flow, bindable, accounts.length),
+        'text/html; charset=utf-8');
+    }
+    const chosen = bindable.find((account) => account.id === str(params.account));
+    if (!chosen) {
+      const accounts = await service.listAccounts();
+      return send(res, 400, consentPage(flowParams, flow, bindable, accounts.length,
+        'That account cannot be connected with this Vercel sign-in. Choose one of ' +
+        'the accounts listed, or enroll the account first.'),
+        'text/html; charset=utf-8');
+    }
+    const consumed = await db.consumeSigninFlow({ handle, chosenAccount: chosen.id });
+    if (!consumed) {
+      return refusal(res, 400, 'This sign-in link is no longer usable',
+        'The sign-in may have expired or already been used. ' +
+        'Start the connection again from your AI app.');
+    }
+    // AUD-AZ: issuance is DERIVED from the chosen account; any
+    // mode/profile/listing a client posts is not read.
+    const issuance = service.issuanceFor(chosen, env);
+    const code = randomToken(32);
+    await db.createAuthCode({
+      code, clientId: consumed.client_id, redirectUri: consumed.redirect_uri,
+      codeChallenge: consumed.code_challenge, codeChallengeMethod: 'S256',
+      vercelAccount: chosen.id, mode: issuance.mode, profile: issuance.profile,
+      listing: OAUTH_LISTING
+    });
+    const destination = new URL(consumed.redirect_uri);
+    destination.searchParams.set('code', code);
+    if (typeof consumed.client_state === 'string') {
+      destination.searchParams.set('state', consumed.client_state);
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Location', destination.toString());
+    return res.status(302).end();
+  }
+
   async function authorize(req, res) {
     if (!only(res, req, ['GET', 'POST'])) return;
     let params;
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed authorization request');
+    }
+    // SR-2: a returning attested flow is validated against its
+    // own record (authorizeAttested re-checks the client and
+    // redirect from it); only a fresh request validates the
+    // posted client parameters below — and validates them
+    // BEFORE any detour, exactly as before.
+    if (deploymentClass(env) === 'public' && signinReady() &&
+      typeof params.flow === 'string' && params.flow) {
+      return authorizeAttested(req, res, params);
     }
     const client = await resolveClient(str(params.client_id));
     if (!client || !client.redirect_uris?.includes(params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
@@ -194,6 +424,16 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       !/^[A-Za-z0-9_-]{43}$/.test(str(params.code_challenge)) || !validateResource(params.resource)) {
       return bad(res, 400, 'invalid_request', 'Authorization code, S256 PKCE, and exact MCP resource are required');
     }
+    if (deploymentClass(env) === 'public' && signinReady()) {
+      return authorizeSignin(req, res, params);
+    }
+    return authorizeLegacy(req, res, params);
+  }
+
+  // The pre-SR-2 authorize, unchanged: the dev class on every
+  // deployment, and the public class while the Vercel sign-in
+  // leg is unconfigured (the interim behavior).
+  async function authorizeLegacy(req, res, params) {
     const accounts = await service.listAccounts();
     if (req.method === 'GET') return send(res, 200, authorizePage(params, accounts), 'text/html; charset=utf-8');
     if (!env.ADMIN_PASSPHRASE) {

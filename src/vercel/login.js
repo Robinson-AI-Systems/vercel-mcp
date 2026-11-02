@@ -3,7 +3,9 @@ import { SERVICE_DISPLAY_NAME } from '../service-identity.js';
 import { encryptSecret } from '../core/secret-box.js';
 import { BLOB_CONTEXT } from './blob.js';
 import { boxReport } from './box.js';
-import { storeToken } from './tokens.js';
+import { loadToken, storeToken } from './tokens.js';
+import { makeVercelClient } from './client.js';
+import { SIGNIN_BINDING_COOKIE, buildSigninAuthorizeUrl, signinConfig } from './signin.js';
 
 // AUD-AZ — what a new connection is issued with is DERIVED from the
 // chosen account at consent, never picked on the authorize form
@@ -47,6 +49,52 @@ const ENROLL_LEG_WORDS = {
   project_team_match: 'project-team match', broad_visibility: 'broad-visibility',
   storage: 'storage'
 };
+
+// SR-2 — the Door 1 probe record persists the installer's
+// Vercel user id (integration.js writes it as probe data); the
+// stored probe may be an object or its JSON text.
+function probeRecordOf(account) {
+  const probe = account?.token_probe;
+  if (!probe) return null;
+  if (typeof probe === 'object') return probe;
+  try {
+    const parsed = JSON.parse(probe);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch { return null; }
+}
+
+// SR-2 — limb 1's attested owner: the account's own attested
+// identity (SR-1's column; SR-3 populates it at enrollment)
+// or, until then, the installer identity its Door 1 probe
+// record already carries.
+function attestedOwnerOf(account) {
+  if (typeof account?.attested_user_id === 'string' && account.attested_user_id) {
+    return account.attested_user_id;
+  }
+  const installer = probeRecordOf(account)?.installerUserId;
+  return typeof installer === 'string' && installer ? installer : null;
+}
+
+// SR-2 — limb 2: the account's OWN stored credential reads
+// its team's member list (teams_members_list — GET
+// /v3/teams/{teamId}/members, verified against the pinned
+// snapshot in this card; member items carry uid) and the
+// list must name the signer. Fail closed on every error: an
+// expired credential, a scope that cannot read members, or
+// a malformed page simply does not grant.
+async function rosterHasUser({ db, account, userId, env, fetchImpl }) {
+  try {
+    const { token, account: loaded } = await loadToken({ db, accountId: account.id, env });
+    const client = makeVercelClient({ token, account: loaded, fetchImpl,
+      replayStore: typeof db?.requestReplayStore === 'function' ?
+        db.requestReplayStore() : undefined });
+    const page = await client.request('teams_members_list',
+      { path: { teamId: account.team_id } });
+    const members = Array.isArray(page?.members) ? page.members :
+      (Array.isArray(page) ? page : []);
+    return members.some((member) => member?.uid === userId);
+  } catch { return false; }
+}
 
 // The optional fetchImpl seam exists for tests (the fake provider);
 // production callers pass only the db and provider calls use the
@@ -147,6 +195,42 @@ export function createVercelLoginService(db, { fetchImpl } = {}) {
         return { ok: false, error: 'The store could not be saved on this server. Nothing was stored.' };
       }
       return { ok: true, storeId: cleanStoreId, label: cleanLabel };
+    },
+    // SR-2 (gate O-2.7, dossier section 5.1) — the Sign in
+    // with Vercel adapter the generic OAuth handlers
+    // orchestrate through, so src/core stays provider-free:
+    // whether the leg is configured, where its authorize URL
+    // points, and the flow's browser-binding cookie name
+    // (SR-1's constant, carried here so the handlers never
+    // import the provider module).
+    signinConfigured(env = process.env) {
+      return signinConfig(env) !== null;
+    },
+    signinAuthorizeUrl({ state, nonce, codeChallenge } = {}, env = process.env) {
+      return buildSigninAuthorizeUrl({ config: signinConfig(env),
+        state, nonce, codeChallenge });
+    },
+    signinBindingCookie() {
+      return SIGNIN_BINDING_COOKIE;
+    },
+    // SR-2 — identity binding (dossier section 5.4): the
+    // accounts a verified Vercel identity may pick at
+    // consent — owner match or team-roster membership, each
+    // limb failing closed (see the helpers above). The
+    // generic handlers call this lazily, only on the
+    // attested path.
+    async bindableAccounts(attestedUserId, env = process.env) {
+      if (typeof attestedUserId !== 'string' || !attestedUserId) return [];
+      const accounts = await db.listVercelAccounts();
+      const bindable = [];
+      for (const account of accounts) {
+        if (attestedOwnerOf(account) === attestedUserId) { bindable.push(account); continue; }
+        if (account.team_id &&
+          await rosterHasUser({ db, account, userId: attestedUserId, env, fetchImpl })) {
+          bindable.push(account);
+        }
+      }
+      return bindable;
     }
   };
 }
