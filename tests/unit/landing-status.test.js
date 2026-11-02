@@ -22,6 +22,8 @@ describe('public landing cannot claim account setup or connected acceptance',()=
     tools:registry.tools.length,oauth:'/.well-known/oauth-authorization-server',
     endpoint:'/api/mcp',health:'/api/health',deployed_source_sha:null});
   expect(info.note).toContain('not provider setup, OAuth consent or RTC acceptance');
+  // SR-6: no per-tier census on the anonymous document.
+  expect(info.tools_by_profile).toBeUndefined();
   expect(r.payload).not.toMatch(/DATABASE_URL|TOKEN_ENCRYPTION_KEY|ADMIN_PASSPHRASE|vcp_[a-zA-Z0-9_-]{12,}/);
   expect(publicInfo('a'.repeat(40)).deployed_source_sha).toBe('a'.repeat(40));
   expect(publicInfo('not-a-sha').deployed_source_sha).toBe(null);
@@ -42,7 +44,9 @@ describe('public landing cannot claim account setup or connected acceptance',()=
   expect(r.payload).toContain('#00B67A');
   expect(r.payload).toContain('Status: hosted service endpoint');
   expect(r.payload).toContain('Registered tools: ' + registry.tools.length);
-  expect(r.payload).toContain('Available by connection profile: read-only ');
+  // SR-6: the public page states the one sign-in truth, no tier census.
+  expect(r.payload).toContain('Every sign-in gets the full tool set');
+  expect(r.payload).not.toContain('Available by connection profile');
   expect(r.payload).toContain('<code>/api/mcp</code>');
   expect(r.payload).toContain('<code>/.well-known/oauth-authorization-server</code>');
   // Bordered address box carries the branded server address.

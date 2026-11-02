@@ -1408,7 +1408,7 @@ export function createDb(query) {
     },
     async createAuthCode({
       code, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',
-      vercelAccount = null, mode = 'preview', profile = 'everyday', listing = 'front_door', ttlSeconds = 600
+      vercelAccount = null, mode = 'preview', profile = 'full', listing = 'front_door', ttlSeconds = 600
     }) {
       const run = getSql();
       const data = JSON.stringify({
@@ -1508,7 +1508,7 @@ export function createDb(query) {
     },
     async createAccessToken({
       accessToken, refreshToken, clientId, vercelAccount = null,
-      mode = 'preview', profile = 'everyday', listing = 'front_door', ttlSeconds = 3600
+      mode = 'preview', profile = 'full', listing = 'front_door', ttlSeconds = 3600
     }) {
       const run = getSql();
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
@@ -1940,11 +1940,11 @@ export function createDb(query) {
         client_id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
       await run`CREATE TABLE IF NOT EXISTS oauth_codes (
         code TEXT PRIMARY KEY, client_id TEXT NOT NULL, data JSONB NOT NULL, vercel_account TEXT,
-        mode TEXT NOT NULL DEFAULT 'preview', profile TEXT NOT NULL DEFAULT 'everyday',
+        mode TEXT NOT NULL DEFAULT 'preview', profile TEXT NOT NULL DEFAULT 'full',
         listing TEXT NOT NULL DEFAULT 'front_door', expires_at TIMESTAMPTZ NOT NULL)`;
       await run`CREATE TABLE IF NOT EXISTS oauth_tokens (
         token_hash TEXT PRIMARY KEY, client_id TEXT, refresh_hash TEXT, vercel_account TEXT,
-        mode TEXT NOT NULL DEFAULT 'preview', profile TEXT NOT NULL DEFAULT 'everyday',
+        mode TEXT NOT NULL DEFAULT 'preview', profile TEXT NOT NULL DEFAULT 'full',
         listing TEXT NOT NULL DEFAULT 'front_door', kind TEXT NOT NULL DEFAULT 'connector',
         expires_at TIMESTAMPTZ, last_used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
@@ -1953,6 +1953,15 @@ export function createDb(query) {
       // stored rows keep the listing they were issued with — never rewritten.
       await run`ALTER TABLE oauth_codes ALTER COLUMN listing SET DEFAULT 'front_door'`;
       await run`ALTER TABLE oauth_tokens ALTER COLUMN listing SET DEFAULT 'front_door'`;
+      // SR-6 (owner profile ruling, 2026-11-02): a public sign-in
+      // always issues the full profile — read_only/everyday/full
+      // are development options, never a login outcome. Align the
+      // profile defaults on the connection tables (the AUD-C
+      // pattern above); stored rows keep the profile they were
+      // issued with — never rewritten. rtc_passes keeps its own
+      // defaults: a pass is an owner-issued delegation, not a login.
+      await run`ALTER TABLE oauth_codes ALTER COLUMN profile SET DEFAULT 'full'`;
+      await run`ALTER TABLE oauth_tokens ALTER COLUMN profile SET DEFAULT 'full'`;
       // AUD-BD (the login fix): a NEW vercel_accounts row is born with
       // its production switch ON, so a normal end-user sign-in lands in
       // production instead of silently starting in preview. Align the
