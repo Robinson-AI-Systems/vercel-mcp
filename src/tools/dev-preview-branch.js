@@ -2,6 +2,7 @@
 import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, RefusalError } from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
+import {deploymentProjectSettings} from '../vercel/project-settings.js';
 import {common,exact,owned,safeBranch,SHA,DEPLOY,context,respond,
   startRun,preIntent,record,markIntent,selectedWrite} from './dev-preview-common.js';
 import {previewBranchRefusal} from './app-guard.js';
@@ -24,9 +25,25 @@ const branch=defineWrite({
     const git=row?.link;
     if(git?.type!=='github'||!REPO.test(git.org??'')||!REPO.test(git.repo??''))
       throw new RefusalError('Project must have verified linked GitHub origin');
+    // projectSettings are required for a project's FIRST deployment and
+    // saved by the provider for later ones (vendored OpenAPI description;
+    // src/vercel/project-settings.js states the shape once). A git-source
+    // create that omits them against a settings-less project is refused
+    // 400 missing_project_settings (AUD-BS; VMCP-016 branch G, live
+    // 2026-11-02: the retained fixture reads framework null, every build
+    // field null, never deployed). AUD-AD's rule governs the shape: send
+    // them ONLY when this create is that first deployment — the record's
+    // documented hasDeployments flag is the proof — echoing the record's
+    // own stored fields (null = provider auto-detects; for framework,
+    // null selects no framework, the contract's honest value for a
+    // project whose record carries none — "other" is not in the pinned
+    // enum). On a deployed project the provider inherits its saved
+    // settings and the body stays exactly as before.
     const body={name:b.name,project:b.name,target:'preview',
       gitSource:{type:'github',org:git.org,repo:git.repo,ref:a.gitRef,sha:a.gitSha},
-      meta:{rtc_run:b.runId}};
+      meta:{rtc_run:b.runId},
+      ...(row?.hasDeployments===false?
+        {projectSettings:deploymentProjectSettings(row)}:{})};
     validateRequest('deployments_create',{query:{teamId:b.teamId},body});
     return {...b,body,ref:a.gitRef,sha:a.gitSha,org:git.org,repo:git.repo};
   },

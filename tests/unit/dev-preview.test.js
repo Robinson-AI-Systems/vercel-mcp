@@ -142,6 +142,69 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
       meta:{rtc_run:runId}});
     f.fake.verify();
   });
+  it('supplies all-null projectSettings on a first deployment of a settings-less project (AUD-BS)',async()=>{
+    const row={...projectRow,hasDeployments:false,framework:null,
+      buildCommand:null,devCommand:null,installCommand:null,
+      outputDirectory:null,rootDirectory:null};
+    const f=fixture([],row);
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    const gitSha='d'.repeat(40),created='dpl_FAKE_V2_FIRST';
+    const dep={id:created,projectId:project,target:'preview',readyState:'READY'};
+    f.fake.when('POST','/v13/deployments').resolves(dep);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(dep);
+    const out=parse(await f.call('vercel_dev_preview_branch',
+      {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
+        requestKey:'branchFirstDeploy01'},
+      {...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const posts=f.fake.calls.filter(x=>x.method==='POST');
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body.projectSettings).toEqual({
+      buildCommand:null,devCommand:null,framework:null,
+      installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
+  it('echoes the record stored fields as projectSettings on a first deployment (AUD-BS)',async()=>{
+    const row={...projectRow,hasDeployments:false,framework:'nextjs',
+      buildCommand:'next build',devCommand:null,installCommand:null,
+      outputDirectory:null,rootDirectory:null};
+    const f=fixture([],row);
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    const gitSha='e'.repeat(40),created='dpl_FAKE_V2_ECHO';
+    const dep={id:created,projectId:project,target:'preview',readyState:'READY'};
+    f.fake.when('POST','/v13/deployments').resolves(dep);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(dep);
+    const out=parse(await f.call('vercel_dev_preview_branch',
+      {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
+        requestKey:'branchEchoDeploy01'},
+      {...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const posts=f.fake.calls.filter(x=>x.method==='POST');
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body.projectSettings).toEqual({
+      buildCommand:'next build',devCommand:null,framework:'nextjs',
+      installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
+  it('sends no projectSettings once the project has deployments (AUD-BS)',async()=>{
+    const row={...projectRow,hasDeployments:true,framework:'nextjs',
+      buildCommand:'next build'};
+    const f=fixture([],row);
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    const gitSha='f'.repeat(40),created='dpl_FAKE_V2_AGAIN';
+    const dep={id:created,projectId:project,target:'preview',readyState:'READY'};
+    f.fake.when('POST','/v13/deployments').resolves(dep);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(dep);
+    const out=parse(await f.call('vercel_dev_preview_branch',
+      {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
+        requestKey:'branchAgainDeploy1'},
+      {...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const posts=f.fake.calls.filter(x=>x.method==='POST');
+    expect(posts).toHaveLength(1);
+    expect('projectSettings' in posts[0].body).toBe(false);
+    f.fake.verify();
+  });
   it('builds the V-2 preview env plan with exact run, provider and bounded inventory',async()=>{
     const f=fixture();
     f.fake.when('GET','/v10/projects/{idOrName}/env')
