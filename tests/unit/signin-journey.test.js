@@ -376,7 +376,7 @@ describe('SR-2 binding limbs (service level)', () => {
   });
 });
 
-describe('SR-2 dev class and interim behavior', () => {
+describe('SR-2 dev class; SR-4 interim behavior', () => {
   it('keeps the passphrase form on the dev class (no detour)', async () => {
     const devEnv = { ...publicEnv, VERCEL_ENV: 'preview' };
     const world = makeWorld(devEnv);
@@ -388,20 +388,30 @@ describe('SR-2 dev class and interim behavior', () => {
     expect(res.headers.Location).toBeUndefined();
   });
 
-  it('interim: while the sign-in client is unconfigured, the public class keeps the working passphrase path', async () => {
+  it('interim: while the sign-in client is unconfigured, the public class serves no passphrase path (SR-4)', async () => {
+    // SR-4 supersedes SR-2's interim judgment: the public
+    // surface renders the notice and refuses the POST; the
+    // working passphrase door is the developer route.
     const interimEnv = { ...baseEnv, VERCEL_ENV: 'production' };
     const world = makeWorld(interimEnv);
     await seedAccounts(world.db, interimEnv);
     const page = response();
     await world.handlers.authorize(getReq({ ...clientParams }), page);
     expect(page.statusCode).toBe(200);
-    expect(page.body).toContain('Administrator passphrase');
+    expect(page.body).toContain('moving to Vercel');
+    expect(page.body).not.toContain('name="passphrase"');
+    expect(page.body).not.toContain('<form');
     const post = response();
     await world.handlers.authorize(postReq({
       ...clientParams, account: 'acct-owner', passphrase: 'fixture-passphrase'
     }), post);
-    expect(post.statusCode).toBe(302);
-    const code = new URL(post.headers.Location).searchParams.get('code');
+    expect(post.statusCode).toBe(400);
+    const devPost = response();
+    await world.handlers.devAuthorize(postReq({
+      ...clientParams, account: 'acct-owner', passphrase: 'fixture-passphrase'
+    }), devPost);
+    expect(devPost.statusCode).toBe(302);
+    const code = new URL(devPost.headers.Location).searchParams.get('code');
     const record = await world.db.consumeAuthCode(code);
     expect(record.vercel_account).toBe('acct-owner');
     expect(record.mode).toBe('production');

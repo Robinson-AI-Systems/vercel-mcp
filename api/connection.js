@@ -24,10 +24,11 @@ export default function handler(req, res) {
     'client document:</p>' +
     '<code class="addr">' + BRANDED_ORIGIN +
     '/.well-known/muse-client.json</code>' +
-    '<p>Then you land on this server\'s own sign-in page. Pick your ' +
-    'account and enter the administrator passphrase — what the ' +
+    '<p>Then you sign in with your own Vercel account, on Vercel\'s ' +
+    'own sign-in, and pick the account to connect — what the ' +
     'connection can do follows the account you pick; none of it is ' +
-    'chosen on the sign-in page.</p></section>' +
+    'chosen on the sign-in page. Enrolling an account with a token ' +
+    'of your own happens inside that same sign-in.</p></section>' +
 
     '<section><h2>Signing in claims your existing identity</h2>' +
     '<p>Connecting never creates a Vercel account and never gives a ' +
@@ -43,7 +44,7 @@ export default function handler(req, res) {
     'service\'s addresses.</p></section>' +
 
     '<section><h2>Your secrets stay yours</h2>' +
-    '<p>Administrator passphrases, tokens and passwords are typed only on ' +
+    '<p>Tokens and passwords are typed only on ' +
     'this server\'s own pages or into your client\'s protected credential ' +
     'store — never in chat, and never on any other page.</p></section>' +
 

@@ -247,6 +247,19 @@ expired provider authorization. Keep the protected checkpoint single-runner and 
 all operation, provider, production, spending and isolation gates.
 
 
+## Developer-only backend access (SR-4, owner direction 2026-11-01)
+
+This deployment carries a developer-only backend route that is NOT part of the
+public sign-in and is never linked from the public pages: `/api/dev/authorize`
+and `/api/dev/enroll` serve the operator passphrase consent and enrollment
+branch, and the developer handoff runs its browser consent through
+`/api/dev/authorize` — builder agents recover production connections through
+it. Full record (routes, purpose, authentication, limits):
+[docs/DEVELOPER-ACCESS.md](docs/DEVELOPER-ACCESS.md). The passphrase value is
+obtained only through the owner's secure credential route — never write it in
+docs, chat, code, tests or commits.
+
+
 ## Product, builder and acceptance boundaries — owner correction 2026-10-13
 
 This repository builds a full independently usable custom MCP integration. Do not narrow
