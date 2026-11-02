@@ -151,6 +151,8 @@ a flow on the configured public class, plus the dev-class
 byte-shape and the interim unconfigured pair. SR-1's
 callback tests are updated for the redirect tail.
 
+The operation ledger regenerates with exactly one row changed: the getTeamMembers row gains src/vercel/login.js among its dispatch files, the roster read being its newest caller (455 rows, count unchanged).
+
 Catalog judgment: no tool added, removed or renamed and
 nothing under `src/tools/` changes, so TOOL-CATALOG is
 untouched; checklist B is satisfied by this card + the
