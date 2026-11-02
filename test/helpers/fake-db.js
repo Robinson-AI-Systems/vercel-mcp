@@ -255,7 +255,7 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
 
     async createAuthCode({
       code, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',
-      vercelAccount = null, mode = 'preview', profile = 'everyday', listing = 'front_door', ttlSeconds = 600
+      vercelAccount = null, mode = 'preview', profile = 'full', listing = 'front_door', ttlSeconds = 600
     }) {
       codes.set(hashToken(code), {
         client_id: clientId,
@@ -283,7 +283,7 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
 
     async createAccessToken({
       accessToken, refreshToken, clientId, vercelAccount = null,
-      mode = 'preview', profile = 'everyday', listing = 'front_door', ttlSeconds = 3600
+      mode = 'preview', profile = 'full', listing = 'front_door', ttlSeconds = 3600
     }) {
       tokens.set(hashToken(accessToken), {
         token_hash: hashToken(accessToken),

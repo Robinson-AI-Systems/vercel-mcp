@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { createFakeDb } from '../../test/helpers/fake-db.js';
 import { encryptSecret } from '../../src/core/secret-box.js';
 import { createOAuthHandlers } from '../../src/core/oauth-handlers.js';
+import { requireMcpToken } from '../../src/core/mcp-auth.js';
 import { createVercelLoginService } from '../../src/vercel/login.js';
 import {
   SIGNIN_JWKS_URL, SIGNIN_TOKEN_URL, SIGNIN_USERINFO_URL, handleSigninCallback
@@ -418,3 +419,59 @@ describe('SR-2 dev class; SR-4 interim behavior', () => {
   });
 });
 
+
+describe('SR-6 public login always full', () => {
+  it('crafted profile/mode/listing params cannot steer a public issuance', async () => {
+    const world = makeWorld(publicEnv);
+    await seedAccounts(world.db, publicEnv);
+    const { db, handlers, fakeAs } = world;
+    // A real S256 challenge so the journey can run to token exchange.
+    const verifier = 'sr6-verifier-fixture-0123456789abcdef0123456789';
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const crafted = {
+      ...clientParams, code_challenge: challenge,
+      profile: 'read_only', mode: 'preview', listing: 'catalog'
+    };
+    const detour = response();
+    await handlers.authorize(getReq(crafted), detour);
+    expect(detour.statusCode).toBe(302);
+    const authorizeUrl = new URL(detour.headers.Location);
+    const handle = authorizeUrl.searchParams.get('state');
+    const cookie = String(detour.headers['Set-Cookie']).split(';')[0];
+    const flow = await db.getSigninFlow(handle);
+    const code = fakeAs.issueCode({ verifier: flow.vercel_code_verifier, nonce: flow.nonce });
+    const callbackRes = response();
+    await handleSigninCallback({ db, env: publicEnv, fetchImpl: fakeAs.fetch },
+      getReq({ code, state: handle }, { cookie }), callbackRes);
+    expect(callbackRes.statusCode).toBe(302);
+    // The crafted fields ride the consent POST too.
+    const post = response();
+    await handlers.authorize(postReq({
+      flow: handle, account: 'acct-roster',
+      profile: 'read_only', mode: 'preview', listing: 'catalog'
+    }, { cookie }), post);
+    expect(post.statusCode).toBe(302);
+    const authCode = new URL(post.headers.Location).searchParams.get('code');
+    expect(authCode).toBeTruthy();
+    // Exchange at the token endpoint, exactly as a client does.
+    const tokenRes = response();
+    await handlers.token(postReq({
+      grant_type: 'authorization_code', code: authCode,
+      client_id: CLIENT_ID, redirect_uri: REDIRECT, code_verifier: verifier,
+      resource: ORIGIN + '/api/mcp'
+    }), tokenRes);
+    expect(tokenRes.statusCode).toBe(200);
+    const tokenBody = typeof tokenRes.body === 'string' ?
+      JSON.parse(tokenRes.body) : tokenRes.body;
+    expect(tokenBody.access_token).toBeTruthy();
+    // The authenticated connection — the record whoami reads back —
+    // is full/front_door with the DERIVED mode, never the crafted tier.
+    const res = response();
+    const connection = await requireMcpToken(
+      { headers: { authorization: 'Bearer ' + tokenBody.access_token } },
+      res, db, publicEnv);
+    expect(connection.profile).toBe('full');
+    expect(connection.listing).toBe('front_door');
+    expect(connection.mode).toBe('production');
+  });
+});

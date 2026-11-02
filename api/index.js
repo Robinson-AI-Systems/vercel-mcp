@@ -1,5 +1,4 @@
 import { registry } from '../src/tools/index.js';
-import { profileToolCounts } from '../src/core/mcp-server.js';
 import { SERVICE_VERSION } from '../src/service-identity.js';
 import { BRANDED_ORIGIN, FRONT_DOOR_CSP, FRONT_DOOR_PRODUCT_NAME, frontDoorPage } from '../src/front-door.js';
 import { iconBytes } from '../src/brand-assets.js';
@@ -8,14 +7,12 @@ import { iconBytes } from '../src/brand-assets.js';
 // No public endpoint may infer owner setup, OAuth consent, provider
 // access or acceptance (the reference implementation's rule, adopted).
 export function publicInfo(buildSha = process.env.VERCEL_GIT_COMMIT_SHA) {
-  const counts = profileToolCounts(registry);
   const sourceSha = typeof buildSha === 'string' && /^[a-f0-9]{40}$/.test(buildSha)
     ? buildSha : null;
   return {
     name: FRONT_DOOR_PRODUCT_NAME, status: 'service-online',
     version: SERVICE_VERSION, deployed_source_sha: sourceSha,
     tools: registry.tools.length,
-    tools_by_profile: { read_only: counts.read_only, everyday: counts.everyday, full: counts.full },
     oauth: '/.well-known/oauth-authorization-server', endpoint: '/api/mcp', health: '/api/health',
     note: 'HTTP reachability is not provider setup, OAuth consent or RTC acceptance. ' +
       'Use authenticated owner diagnostics and direct custom MCP calls to verify those separately.'
@@ -37,7 +34,6 @@ export default function handler(req, res) {
   // People opening the address in a browser get the front-door page;
   // programs (health checks, scripts) keep the plain JSON status.
   if (/\btext\/html\b/.test(String(req.headers?.accept ?? ''))) {
-    const counts = profileToolCounts(registry);
     res.setHeader('Content-Security-Policy', FRONT_DOOR_CSP);
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -58,8 +54,7 @@ export default function handler(req, res) {
       '<a class="button" href="/connection">How connecting works</a></section>' +
       '<section><h2>Service facts</h2>' +
       '<p>Registered tools: ' + registry.tools.length + '</p>' +
-      '<p>Available by connection profile: read-only ' + counts.read_only +
-      ' · everyday ' + counts.everyday + ' · full ' + counts.full + '</p>' +
+      '<p>Every sign-in gets the full tool set — there are no sign-in tiers.</p>' +
       '<p>Service version: ' + SERVICE_VERSION + '</p>' +
       '<p>MCP endpoint: <code>/api/mcp</code></p>' +
       '<p>OAuth issuer: <code>/.well-known/oauth-authorization-server</code></p>' +

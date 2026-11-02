@@ -126,6 +126,16 @@ describe('AUD-C issuance defaults', () => {
     expect(third.calls[0].values).not.toContain('front_door');
   });
 
+  it('defaults new auth codes and access tokens to the full profile (SR-6)', async () => {
+    const first = captureDb();
+    await first.db.createAuthCode({ code: 'code_fixture', clientId: 'client_fixture', redirectUri: 'https://client.example.test/cb', codeChallenge: 'x'.repeat(43) });
+    expect(first.calls[0].values).toContain('full');
+    expect(first.calls[0].values).not.toContain('everyday');
+    const second = captureDb();
+    await second.db.createAccessToken({ accessToken: 'token_fixture', refreshToken: 'refresh_fixture', clientId: 'client_fixture' });
+    expect(second.calls[0].values).toContain('full');
+    expect(second.calls[0].values).not.toContain('everyday');
+  });
   it('authenticates a front_door token and leaves a stored catalog token untouched', async () => {
     const env = { PUBLIC_BASE_URL: 'https://vercel-mcp.example.test', VERCEL_ENV: 'preview' };
     const db = createFakeDb();

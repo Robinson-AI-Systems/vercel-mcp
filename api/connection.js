@@ -53,9 +53,12 @@ export default function handler(req, res) {
     'store — never in chat, and never on any other page.</p></section>' +
 
     '<section><h2>What a connection can do</h2>' +
-    '<p>That follows the door you connected through. A team install ' +
-    'starts with the everyday tool set; a connection made with your ' +
-    'own Vercel token starts with the full set. It also follows your ' +
+    '<p>Every sign-in starts with the full tool set \u2014 there are ' +
+    'no sign-in tiers to pick or fall into. What a connection can ' +
+    'reach still follows the Vercel account you connected: an ' +
+    'installed team\'s own Vercel-side permissions are its ceiling, ' +
+    'and a token\'s reach is the scope read back when it was ' +
+    'enrolled. It also follows your ' +
     'account\'s production switch: a connection starts in preview or ' +
     'production as that switch stands, and the owner can flip a live ' +
     'connection either way at any time ' +

@@ -58,7 +58,7 @@ it('enforces safe defaults and has no plaintext token columns', async () => {
     );
     const defaults = Object.fromEntries(rows.map((row) => [row.column_name, row.column_default]));
     expect(defaults.mode).toMatch(/preview/);
-    expect(defaults.profile).toMatch(/everyday/);
+    expect(defaults.profile).toMatch(/full/); // SR-6: connection tables default to the full profile (owner profile ruling)
     expect(defaults.listing).toMatch(/front_door/);
     if (table === 'oauth_tokens') expect(defaults.kind).toMatch(/connector/);
   }
