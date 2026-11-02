@@ -28,7 +28,11 @@ export default function handler(req, res) {
     'own sign-in, and pick the account to connect — what the ' +
     'connection can do follows the account you pick; none of it is ' +
     'chosen on the sign-in page. Enrolling an account with a token ' +
-    'of your own happens inside that same sign-in.</p></section>' +
+    'of your own happens inside that same sign-in.</p>' +
+    '<p>Signing in is Vercel\'s own, start to finish — there is no ' +
+    'password for this server itself. Enrolling is different: it is ' +
+    'bringing a credential of your own, a token you made in ' +
+    'Vercel\'s dashboard.</p></section>' +
 
     '<section><h2>Signing in claims your existing identity</h2>' +
     '<p>Connecting never creates a Vercel account and never gives a ' +

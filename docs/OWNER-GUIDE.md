@@ -51,7 +51,7 @@ Since SR-4 (2026-11-01) the public sign-in is Vercel's own sign-in, and the
 administrator passphrase belongs only to the developer-only backend route on
 this same deployment (`/api/dev/authorize`, `/api/dev/enroll`) — it is not
 part of the public connection page and stays configured in production to gate
-that route. The full record for operators and builder agents is
+that route. On the public surface, enrolling a token of your own happens inside that sign-in and binds to the identity it attests — your own account, or a team you belong to; the developer route keeps its own passphrase-gated enrollment for operator work. The full record for operators and builder agents is
 [DEVELOPER-ACCESS.md](DEVELOPER-ACCESS.md); `AGENTS.md` points there too.
 
 On a managed POSIX cloud runner, configure RTOOL_DEVELOPER_VAULT_DIR to an absolute private
