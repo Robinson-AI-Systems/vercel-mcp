@@ -112,3 +112,15 @@ reach them, and no pass behavior changes in this card.
 Expedited on the owner's word (2026-11-02 05:48 MST):
 merged to main on build, released by owner-override
 promotion; the owner's next login is the acceptance test.
+
+## Fix note (same PR, second commit)
+
+CI's db suite caught a pin this card missed in its first
+commit: `tests/db/schema.test.js` ("enforces safe
+defaults") asserted the oauth tables' profile default
+matched /everyday/ — the pre-ruling value, pinned the same
+way AUD-BD's production-switch pin sits above it. The pin
+now asserts /full/ for exactly the two convicted tables;
+the assertion's strength is unchanged (an exact default is
+still enforced), and the local db-suite run that
+reproduced the failure passes with it.
