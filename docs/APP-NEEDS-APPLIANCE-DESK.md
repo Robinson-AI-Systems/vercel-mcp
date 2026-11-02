@@ -9,7 +9,7 @@ provider safety"), `docs/GO-LIVE-CHECKLIST.md`, `docs/OWNER-INPUTS.md` (IN-67, I
 This is an **example project profile**, and the completeness check used to prove the Vercel MCP can do everything a real
 app needs. The server itself is a general development tool; profiles are optional and any app Chris builds can have one
 (Batch P, `docs/designs/BATCH-P.md`; `vercel_profile_draft` drafts one from a codebase). This file is also the template
-for future profiles. No Vercel team, project or deployment IDs are recorded here (added on the setup page).
+for future profiles. No Vercel team, project or deployment IDs are recorded here (they are recorded when a profile is created through the owner's connection).
 
 **Rule for this file:** every row names the tool or workflow that covers it, or says plainly that Vercel has no API for
 it and how the server guides Chris instead. Batch P turns this table into data (`known_apps`) and into one check,
@@ -27,7 +27,7 @@ same PR (P-1 owns the seed).
 | Has Blob stores connected (`appliance-desk-photos`, the private photo store, the preview-only private store); "never clean up a store by browsing and deleting" | ARCHITECTURE "Photo uploads"; `docs/runbooks/STORAGE.md` | Profile `owned_stores`; store delete refused; Blob files can be listed only if Chris connects the store (IN-15, answered 2026-10-27: connection is his choice and state, not a server rule; the no-cleanup limit here is this app's own contract), and `vercel_blob_delete` / overwriting `vercel_blob_put` are refused on these stores unless he says "outside the app". 2026-10-30 (P-1): the seed names only `appliance-desk-photos` — the other two stores are unnamed in every source the audit cites, and store names are setup-page data; they join `owned_stores` when Chris names them there (store deletes still match by connection label in the meantime) |
 | Gets some variables injected by Vercel or integrations (`BLOB_READ_WRITE_TOKEN` from the store connection; Vercel system variables) | ARCHITECTURE "Environment variables" | Profile `managed_env`; writes refused without `outsideApp` |
 | Refuses live provider keys and sends no email/SMS in non-production deployments by itself | ARCHITECTURE "O02A" | Nothing to do; readiness reports it as the app's own guard |
-| Uses a persistent Vercel Sandbox for agent work (resumed, never one per card) | `docs/DECISIONS.md` 2026-10-09 entries | Profile `protected_sandboxes` (name entered on the setup page); never stopped or deleted by cleanup |
+| Uses a persistent Vercel Sandbox for agent work (resumed, never one per card) | `docs/DECISIONS.md` 2026-10-09 entries | Profile `protected_sandboxes` (name recorded on the profile); never stopped or deleted by cleanup |
 
 **Variables the app expects (names only; values are never read or shown by this server):** `DATABASE_URL`,
 `DIRECT_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `STRIPE_SECRET_KEY`,
@@ -50,7 +50,7 @@ same PR (P-1 owns the seed).
 | V6 | Nineteen crons present on the live deployment and running daily (GO-LIVE "Nightly jobs are running"; count corrected 2026-10-30) | Scheduled | `vercel_cron_list`; run history and "run now" guided; `vercel_workflow_project_health` | Read by API; run/enable **guided** |
 | V7 | Every expected variable present in Production (and preview ones in Preview) — names only | Mostly set | `vercel_env_list`, `vercel_workflow_app_readiness` (missing names → pending-input request, never invented values) | API |
 | V8 | **Preview database isolated from production**: Preview `DATABASE_URL`/`DIRECT_URL` differ from Production (ARCHITECTURE "Neon ↔ Vercel preview isolation") | Verified by the app | `vercel_env_compare` (same/different, computed on the server, values never shown) | API |
-| V9 | `NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL` equal the real domain in Production (GO-LIVE §URLs) | One verified, one pending | `vercel_env_compare` cannot read Secret values; readiness lists it as "needs you: check on the setup page" when the variable is Secret-kind; Config-kind values are compared server-side to the domain | API + setup-page view |
+| V9 | `NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL` equal the real domain in Production (GO-LIVE §URLs) | One verified, one pending | `vercel_env_compare` cannot read Secret values; readiness lists it as "needs you: check in the Vercel dashboard" when the variable is Secret-kind; Config-kind values are compared server-side to the domain | API + dashboard view |
 | V10 | Production secrets long, random and unique (`BETTER_AUTH_SECRET`, `CRON_SECRET`) (GO-LIVE) | Set | `vercel_workflow_rotate_secret` (generated on the server, redeploy confirmed) when Chris asks; never shown | API |
 | V11 | Custom domain `robinsonappliancerentals.com` on the project, verified, HTTPS (GO-LIVE) | Live | `vercel_domain_list_project_domains`, `vercel_domain_check_config`, `vercel_cert_list` | API |
 | V12 | DNS on Vercel nameservers carries the site **and email** (Google Workspace MX, SPF/DKIM/DMARC; Resend sending records) | Live | Profile `owned_dns_records` (MX, SPF, DKIM, DMARC, Resend) — changes need `outsideApp`; `vercel_dns_list` shows owners | API + guard |

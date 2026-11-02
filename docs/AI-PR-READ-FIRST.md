@@ -19,8 +19,8 @@ applicable item in the PR description saying how it is honored.
 6. No Vercel token, environment variable value (any type), bypass secret, webhook secret, Global Config token, transfer
    code, pass, passphrase, encryption key or GitHub token in code, tests, fixtures, logs, change-log rows, tool results
    or PR text. The key-scan test and the planted-value env test must stay green.
-7. Tokens enter only through the setup page; secret inputs only through `pending_inputs` or server-side `generate`;
-   created secrets leave only through the one-time page. Credential-shaped plain values are refused.
+7. Tokens enter only through the sign-in flow's enrollment branch (or the developer route's twin); secret inputs only through the Vercel dashboard or server-side `generate` (the `pending_inputs` supply channel was removed in AUD-AV);
+   created secrets leave only as one-time secrets, revealed once on the owner's own connection. Credential-shaped plain values are refused.
 8. Retries are safe without Vercel idempotency keys: the request key in the change log within 10 minutes; POST/PUT/PATCH
    never retried automatically.
 
