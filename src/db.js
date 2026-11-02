@@ -7,7 +7,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections', 'known_apps'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections', 'known_apps', 'signin_flows'
 ]);
 
 // AUD-AO (Production Gate decision, 2026-10-31): the fleet retention
@@ -1397,6 +1397,81 @@ export function createDb(query) {
         VALUES (${hashToken(code)}, ${clientId}, ${data}::jsonb, ${vercelAccount},
           ${mode}, ${profile}, ${listing}, ${expiresAt})`;
     },
+    // SR-1 (gate O-2.7): the server-side sign-in flow record the
+    // Vercel detour rides on (dossier section 5.2). The handle is
+    // stored only as its hash; the record carries the client
+    // in-flight params, the Vercel leg PKCE verifier and nonce,
+    // an optional browser-binding hash, and - after the callback
+    // - the attested Vercel identity. Ten-minute TTL.
+    async createSigninFlow({
+      handle, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',
+      clientState = null, resource = null, vercelCodeVerifier, nonce,
+      browserBindingHash = null, ttlSeconds = 600
+    }) {
+      if (typeof handle !== 'string' || !handle || typeof clientId !== 'string' || !clientId ||
+        typeof redirectUri !== 'string' || !redirectUri ||
+        typeof codeChallenge !== 'string' || !codeChallenge ||
+        codeChallengeMethod !== 'S256' ||
+        typeof vercelCodeVerifier !== 'string' || !vercelCodeVerifier ||
+        typeof nonce !== 'string' || !nonce ||
+        !Number.isInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > 3600) {
+        throw new TypeError('Invalid sign-in flow');
+      }
+      const run = getSql();
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+      await run`INSERT INTO signin_flows
+        (handle_hash, client_id, redirect_uri, code_challenge, code_challenge_method,
+          client_state, resource, vercel_code_verifier, nonce, browser_binding_hash, expires_at)
+        VALUES (${hashToken(handle)}, ${clientId}, ${redirectUri}, ${codeChallenge},
+          ${codeChallengeMethod}, ${clientState}, ${resource}, ${vercelCodeVerifier},
+          ${nonce}, ${browserBindingHash}, ${expiresAt})`;
+    },
+    async getSigninFlow(handle) {
+      if (typeof handle !== 'string' || !handle) return null;
+      const run = getSql();
+      const rows = await run`SELECT handle_hash, client_id, redirect_uri, code_challenge,
+          code_challenge_method, client_state, resource, vercel_code_verifier, nonce,
+          browser_binding_hash, attested_user_id, attested_claims, chosen_account,
+          vercel_state_consumed_at, consumed_at, created_at, expires_at
+        FROM signin_flows WHERE handle_hash = ${hashToken(handle)}`;
+      return rows[0] ?? null;
+    },
+    // The callback single-use mark: the attestation lands and
+    // the Vercel-leg state is consumed in one guarded update, so
+    // a replayed callback finds no live unconsumed leg and gets
+    // false. Expiry is enforced here, not trusted to the sweep.
+    async attestSigninFlow({ handle, userId, claims = null }) {
+      if (typeof handle !== 'string' || !handle ||
+        typeof userId !== 'string' || !userId) {
+        throw new TypeError('Invalid sign-in attestation');
+      }
+      const run = getSql();
+      const rows = await run`UPDATE signin_flows
+        SET attested_user_id = ${userId},
+          attested_claims = ${claims === null ? null : JSON.stringify(claims)}::jsonb,
+          vercel_state_consumed_at = now()
+        WHERE handle_hash = ${hashToken(handle)}
+          AND vercel_state_consumed_at IS NULL AND consumed_at IS NULL
+          AND expires_at > now()
+        RETURNING handle_hash`;
+      return rows.length === 1;
+    },
+    // The consent POST consume (SR-2 calls this): single-use,
+    // attested flows only, unexpired. Returns the consumed row
+    // so the consent re-derives issuance from the record itself.
+    async consumeSigninFlow({ handle, chosenAccount }) {
+      if (typeof handle !== 'string' || !handle ||
+        typeof chosenAccount !== 'string' || !chosenAccount) return null;
+      const run = getSql();
+      const rows = await run`UPDATE signin_flows
+        SET consumed_at = now(), chosen_account = ${chosenAccount}
+        WHERE handle_hash = ${hashToken(handle)}
+          AND consumed_at IS NULL AND attested_user_id IS NOT NULL
+          AND expires_at > now()
+        RETURNING client_id, redirect_uri, code_challenge, code_challenge_method,
+          client_state, resource, attested_user_id, chosen_account`;
+      return rows[0] ?? null;
+    },
     async consumeAuthCode(code) {
       if (typeof code !== 'string' || !code) return null;
       const run = getSql();
@@ -1716,7 +1791,8 @@ export function createDb(query) {
       const run = getSql();
       const counts = {
         changeLog: 0, purchaseIntents: 0, purchaseIntentsUnused: 0,
-        oauthCodes: 0, oneTimeSecrets: 0, pendingInputs: 0, rtcPassesUnused: 0
+        oauthCodes: 0, oneTimeSecrets: 0, pendingInputs: 0, rtcPassesUnused: 0,
+        signinFlows: 0
       };
       const purged = async (rows) => rows.length;
       counts.changeLog = await purged(await run`WITH aged AS (
@@ -1756,6 +1832,15 @@ export function createDb(query) {
           ORDER BY expires_at LIMIT ${batch})
         DELETE FROM pending_inputs USING aged
         WHERE pending_inputs.id = aged.id RETURNING pending_inputs.id`);
+      // Sign-in flows are swept at their own ten-minute expiry
+      // (SR-1; the dossier names the class explicitly rather
+      // than folding it into the 180-day authorization clock).
+      counts.signinFlows = await purged(await run`WITH aged AS (
+          SELECT handle_hash FROM signin_flows
+          WHERE expires_at < now()
+          ORDER BY expires_at LIMIT ${batch})
+        DELETE FROM signin_flows USING aged WHERE signin_flows.handle_hash = aged.handle_hash
+        RETURNING signin_flows.handle_hash`);
       counts.rtcPassesUnused = await purged(await run`WITH aged AS (
           SELECT pass_id FROM rtc_passes
           WHERE window_count = 0 AND revoked_at IS NULL
@@ -1769,7 +1854,7 @@ export function createDb(query) {
             (vercel_account, mode, tool, summary, dry_run, production, after)
           VALUES (NULL, 'production', 'vercel_retention_sweep',
             ${'Retention sweep purged ' + total + ' aged record(s) under the ' +
-              '400-day journal/ledger and 180-day unused-authorization clocks ' +
+              '400-day journal/ledger and 180-day unused-authorization clocks, and sign-in flows at expiry, ' +
               '(counts only; contents never recorded)'},
             FALSE, TRUE, ${JSON.stringify(counts)}::jsonb)`;
       }
@@ -1798,6 +1883,11 @@ export function createDb(query) {
         WHERE token_version IS NULL`;
       // AUD-A1 (D-A/OP-2): standing purchase policy on existing tables.
       await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS purchase_budget_cents INTEGER`;
+      // SR-1 (gate O-2.7): the attested Vercel user id an account
+      // enrollment proved (dossier section 5.4). Additive and
+      // nullable; SR-3 populates it - SR-1 only creates it.
+      await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS
+        attested_user_id TEXT`;
       await run`ALTER TABLE vercel_accounts ADD COLUMN IF NOT EXISTS
         purchase_grant_required BOOLEAN NOT NULL DEFAULT FALSE`;
       // AUD-B (D-B/IN-09): per-team production enable strictness.
@@ -1879,6 +1969,18 @@ export function createDb(query) {
       await run`ALTER TABLE rtc_passes ADD COLUMN IF NOT EXISTS spend_limit_cents
         INTEGER NOT NULL DEFAULT 0`;
       await run`ALTER TABLE rtc_passes ADD COLUMN IF NOT EXISTS project_ids JSONB`;
+      // SR-1 (gate O-2.7): sign-in flow records (dossier 5.2) -
+      // the client in-flight params plus the Vercel leg verifier
+      // and nonce, keyed by the flow handle hash. The shortest-
+      // lived authorization artifacts the server holds: a ten-
+      // minute TTL, swept at expiry by sweepRetention.
+      await run`CREATE TABLE IF NOT EXISTS signin_flows (
+        handle_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, redirect_uri TEXT NOT NULL,
+        code_challenge TEXT NOT NULL, code_challenge_method TEXT NOT NULL DEFAULT 'S256',
+        client_state TEXT, resource TEXT, vercel_code_verifier TEXT NOT NULL, nonce TEXT NOT NULL,
+        browser_binding_hash TEXT, attested_user_id TEXT, attested_claims JSONB,
+        chosen_account TEXT, vercel_state_consumed_at TIMESTAMPTZ, consumed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL)`;
       await run`CREATE TABLE IF NOT EXISTS login_attempts (
         id BIGSERIAL PRIMARY KEY, ip TEXT NOT NULL, attempted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         success BOOLEAN NOT NULL)`;

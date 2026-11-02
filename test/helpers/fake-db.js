@@ -18,6 +18,7 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
   const codes = new Map();
   const tokens = new Map();
   const attempts = [];
+  const signinFlows = new Map();
   return {
     async initSchema() { for (const table of SCHEMA_TABLES) tables.add(table); },
     listTables() { return [...tables].sort(); },
@@ -183,6 +184,60 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
       });
     },
     async getOAuthClient(clientId) { return structuredClone(clients.get(clientId) || null); },
+
+    // SR-1: mirrors the real signin_flows methods (src/db.js) -
+    // hash-keyed records, ten-minute TTL on the fake clock, the
+    // guarded attest/consume transitions.
+    async createSigninFlow({
+      handle, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',
+      clientState = null, resource = null, vercelCodeVerifier, nonce,
+      browserBindingHash = null, ttlSeconds = 600
+    }) {
+      if (!handle || !clientId || !redirectUri || !codeChallenge ||
+        codeChallengeMethod !== 'S256' || !vercelCodeVerifier || !nonce ||
+        !Number.isInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > 3600) {
+        throw new TypeError('Invalid sign-in flow');
+      }
+      signinFlows.set(hashToken(handle), {
+        handle_hash: hashToken(handle), client_id: clientId, redirect_uri: redirectUri,
+        code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod,
+        client_state: clientState, resource, vercel_code_verifier: vercelCodeVerifier,
+        nonce, browser_binding_hash: browserBindingHash,
+        attested_user_id: null, attested_claims: null, chosen_account: null,
+        vercel_state_consumed_at: null, consumed_at: null,
+        created_at: clock(), expires_at: clock() + ttlSeconds * 1000
+      });
+    },
+    async getSigninFlow(handle) {
+      if (typeof handle !== 'string' || !handle) return null;
+      const row = signinFlows.get(hashToken(handle));
+      return row ? structuredClone(row) : null;
+    },
+    async attestSigninFlow({ handle, userId, claims = null }) {
+      if (!handle || !userId) throw new TypeError('Invalid sign-in attestation');
+      const row = signinFlows.get(hashToken(handle));
+      if (!row || row.vercel_state_consumed_at !== null || row.consumed_at !== null ||
+        row.expires_at <= clock()) return false;
+      row.attested_user_id = userId;
+      row.attested_claims = claims === null ? null : structuredClone(claims);
+      row.vercel_state_consumed_at = clock();
+      return true;
+    },
+    async consumeSigninFlow({ handle, chosenAccount }) {
+      if (!handle || !chosenAccount) return null;
+      const row = signinFlows.get(hashToken(handle));
+      if (!row || row.consumed_at !== null || row.attested_user_id === null ||
+        row.expires_at <= clock()) return null;
+      row.consumed_at = clock();
+      row.chosen_account = chosenAccount;
+      return structuredClone({
+        client_id: row.client_id, redirect_uri: row.redirect_uri,
+        code_challenge: row.code_challenge,
+        code_challenge_method: row.code_challenge_method,
+        client_state: row.client_state, resource: row.resource,
+        attested_user_id: row.attested_user_id, chosen_account: row.chosen_account
+      });
+    },
 
     async createAuthCode({
       code, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',
