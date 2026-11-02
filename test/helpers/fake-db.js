@@ -42,7 +42,8 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         // The real listVercelAccounts SELECT carries token_probe
         // (src/db.js); AUD-AZ's door derivation reads its source,
         // so the fake's projection must carry it too.
-        token_probe: account.token_probe ?? null
+        token_probe: account.token_probe ?? null,
+        attested_user_id: account.attested_user_id ?? null
       }));
     },
 
@@ -54,7 +55,7 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
     // upsert writes it explicitly on insert); an existing row's
     // switch is preserved, as the real ON CONFLICT update omits it.
     async upsertVercelAccount({ id, teamId, teamSlug, label, scope, projectId = null,
-      projectName = null, tokenEnc, tokenLast4, expiresAt = null, probe }) {
+      projectName = null, tokenEnc, tokenLast4, expiresAt = null, probe, attestedUserId = null }) {
       if (!id || !teamId || !teamSlug || !label ||
         !['team', 'project', 'full'].includes(scope) || !tokenEnc ||
         !/^[a-zA-Z0-9]{4}$/.test(tokenLast4) ||
@@ -67,7 +68,7 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         id, team_id: teamId, team_slug: teamSlug, label, scope,
         project_id: projectId, project_name: projectName,
         token_enc: tokenEnc, token_last4: tokenLast4,
-        token_expires_at: expiresAt, token_no_expiry: false,
+        token_expires_at: expiresAt, token_no_expiry: false, attested_user_id: attestedUserId,
         token_version: randomUUID(), token_probe: probe
       });
     },

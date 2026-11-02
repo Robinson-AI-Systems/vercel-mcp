@@ -71,6 +71,27 @@ describe('AUD-AP health document', () => {
     expect(oauthMetadataConsistent(ENV, wrongPath)).toBe(false);
     expect(oauthMetadataConsistent(ENV)).toBe(true);
   });
+
+  // SR-2: the consistency leg above passes by construction
+  // (health derives the document from the same function the
+  // server serves). This pins the document ITSELF — the exact
+  // key set and every endpoint derivation — so a future
+  // metadata edit fails loudly here instead of drifting.
+  it('pins the served OAuth metadata document exactly (SR-2)', () => {
+    expect(oauthServerMetadata('https://vercel-mcp.example.test')).toEqual({
+      issuer: 'https://vercel-mcp.example.test',
+      authorization_endpoint: 'https://vercel-mcp.example.test/api/oauth/authorize',
+      token_endpoint: 'https://vercel-mcp.example.test/api/oauth/token',
+      registration_endpoint: 'https://vercel-mcp.example.test/api/oauth/register',
+      client_id_metadata_document_supported: true,
+      revocation_endpoint: 'https://vercel-mcp.example.test/api/oauth/revoke',
+      revocation_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      code_challenge_methods_supported: ['S256'],
+      token_endpoint_auth_methods_supported: ['client_secret_post', 'none']
+    });
+  });
 });
 
 describe('AUD-AP store reachability probe', () => {

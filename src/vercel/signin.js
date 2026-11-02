@@ -237,13 +237,13 @@ function cookieValue(req, name) {
   return null;
 }
 
-// The Vercel-leg callback. SR-1 scope: it completes the leg -
-// state match, code exchange, ID-Token verification, userinfo
-// cross-check, attestation recorded on the flow - and renders
-// a plain confirmation. It mints nothing and stores no
-// credential; SR-2 replaces this terminal page with the
-// consent render the attested flow unlocks. Every refusal is
-// plain words naming the leg that failed and the remedy
+// The Vercel-leg callback. It completes the leg - state
+// match, code exchange, ID-Token verification, userinfo
+// cross-check, attestation recorded on the flow - and hands
+// the browser back to the authorize endpoint, where the
+// attested flow unlocks the consent render (SR-2). It mints
+// nothing and stores no credential. Every refusal is plain
+// words naming the leg that failed and the remedy
 // (IN-18's shape) - never a raw provider error.
 export async function handleSigninCallback({ db, env = process.env, fetchImpl = fetch }, req, res) {
   if (!only(res, req, ['GET'])) return;
@@ -331,9 +331,11 @@ export async function handleSigninCallback({ db, env = process.env, fetchImpl = 
       'This sign-in link was already used. Sign-in links work once.',
       'Start the connection again from your app.');
   }
-  const who = attestedClaims.username || attestedClaims.name || 'your Vercel account';
-  return signinPage(res, 200, 'Vercel sign-in verified',
-    '<p>Signed in to Vercel as ' + escapeHtml(who) + '. This step only proved your ' +
-    'Vercel identity: nothing was connected, and no credential was stored.</p>' +
-    '<p>Return to your app and continue connecting.</p>');
+  // SR-2: the attested flow returns to the authorize endpoint,
+  // which renders the consent from the flow record. The state
+  // handle is the only thing the URL carries.
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Location',
+    publicOrigin(env) + '/api/oauth/authorize?flow=' + encodeURIComponent(state));
+  return res.status(302).end();
 }
