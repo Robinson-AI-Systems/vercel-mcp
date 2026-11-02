@@ -5,10 +5,10 @@
 [MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md) adds five indexed units CAP-1..CAP-5:
 operation inventory; ordinary fullest authority; secure additional credential lifecycle;
 advanced functional gaps; independent proof. **Reconciled 2026-10-30 (verdicts in
-[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md)): CAP-1 SUPERSEDED in purpose (a
-generated operation ledger is the one unbuilt artifact — commission or waiver owed);
+[MAXIMUM-AUTHORITY](designs/MAXIMUM-AUTHORITY.md)); updated 2026-11-02 (AUD-BU): CAP-1 SUPERSEDED in purpose — its one unbuilt artifact, the generated operation ledger, has since been **built and is enforced** (AUD-BE, PR #375; 455 rows, byte-stable);
 CAP-2 SATISFIED in source; CAP-3 SATISFIED in source for existing credential kinds;
-CAP-4 SATISFIED in source except R-2's HTTP write-contract leg; CAP-5 OPEN by design
+CAP-4 SATISFIED in source — R-2's executed-write atom has since been proven live
+(AUD-BM3, 2026-11-02), with pass-door typed-outcome residuals carded as AUD-BT; CAP-5 OPEN by design
 (two-tenant live acceptance).** Existing acceptance and unfinished original cards retain
 priority. Named-tool counts do not establish provider API coverage. No runtime grant or
 release change is implied.
@@ -28,7 +28,7 @@ The October 17 owner clarification supersedes interpretations of $0, preview-onl
 
 ## What is next
 
-**Current state (2026-10-31, AUD-AN):** the catalog build-out is complete — **240 of the 241 catalog tools are registered** (the one unbuilt row, `vercel_admin_overview`, is closed by owner ruling IN-16) and every batch A–X has shipped in source. What remains is not building: the live acceptance program ([STATUS](STATUS.md) carries the record), R-2's separate HTTP write-contract leg, R-3 conformance, the X-2 scratch run, and CAP-5/UA-18 two-tenant live acceptance. The independently hosted Vercel MCP project, dedicated Neon schema and owner token are already configured. Do not re-provision existing infrastructure.
+**Current state (2026-11-02, AUD-BU):** the catalog build-out is complete — **253 of the 254 catalog tools are registered** (the one unbuilt row, `vercel_admin_overview`, is closed by owner ruling IN-16) and every batch A–X has shipped in source. The sign-in replacement program (SR-1…SR-6) is live and gate O-2.7 is closed. What remains is not building: the live acceptance program ([STATUS](STATUS.md) carries the record), R-2's pass-door typed-outcome residuals (AUD-BT) and its parked §3 door suite (AUD-BM1), the X-2 re-stage, and CAP-5/UA-18 two-tenant live acceptance. R-3 conformance executes in CI (AUD-BG) and CAP-1's generated operation ledger is built and enforced (AUD-BE). The independently hosted Vercel MCP project, dedicated Neon schema and owner token are already configured. Do not re-provision existing infrastructure.
 
 **Rule:** session PR count/scope comes only from the current owner prompt,
 never from a standing quota or PR numbering. Prioritize real acceptance and usable
@@ -77,7 +77,7 @@ covered by the approved design; write the card when its predecessor is real.
 | C Context | C-1 small results · C-2 listing modes + budgets | MERGED ×2 (#41–#46) |
 | D Projects and deployments | D-1 projects/members/crons/Git · D-2 deployment reads/logs/checks · D-3 deployment changes · D-4 releases | IN_PROGRESS ×4 (source largely merged, live acceptance pending) |
 | E Variables and config | E-1 project env · E-2 shared env + custom environments · E-3 Global Config · E-4 Global Config tokens + schema | IN_PROGRESS ×4 (source largely merged, live acceptance pending) |
-| V Developer tools | V-1 runs/seed/cleanup · V-2 previews/env/aliases/bypass · V-3 logs/diagnosis/fetch/check · V-4 sandboxes · V-5 test webhooks | V-1/V-2/V-3 MERGED (#206/#207/#209); V-4/V-5 IN_PROGRESS (source merged #216, live acceptance pending) |
+| V Developer tools | V-1 runs/seed/cleanup · V-2 previews/env/aliases/bypass · V-3 logs/diagnosis/fetch/check · V-4 sandboxes · V-5 test webhooks | V-1/V-2/V-3 MERGED (#206/#207/#209); V-4/V-5 MERGED (#216) |
 | N Domains | N-1 domains · N-2 DNS + certificates · N-3 registrar | MERGED in source (2026-10-30 build-out; live acceptance per STATUS) |
 | F Security and traffic | F-1 protection · F-2 firewall · F-3 routes/redirects/cache | MERGED in source (2026-10-30 build-out) |
 | M Monitoring and integrations | M-1 logs/analytics · M-2 drains/webhooks · M-3 integrations/storage · M-4 Blob files | MERGED in source (2026-10-30 build-out) |
@@ -85,5 +85,5 @@ covered by the approved design; write the card when its predecessor is real.
 | P Project profiles | P-1 known_apps + Appliance Desk · P-2 readiness · P-3 project setup + draft | MERGED in source (2026-10-30 build-out) |
 | W Workflows | W-1 … W-6 (`designs/BATCH-W.md` §4 table) | MERGED in source (2026-10-30 build-out) |
 | U Universal | U-1 | MERGED in source (`vercel_api_write` built, PR #297) |
-| R Hub-ready doors (RTC 1) | R-1 passes · R-2 HTTPS API, manifest, rate limit · R-3 conformance in CI | R-1/R-2 MERGED in source incl. R-1W write-capable passes (R-2's HTTP write-contract leg open); R-3 conformance open |
+| R Hub-ready doors (RTC 1) | R-1 passes · R-2 HTTPS API, manifest, rate limit · R-3 conformance in CI | R-1/R-2 source complete incl. R-1W write-capable passes (index lifecycle stays IN_PROGRESS per AUD-BC — they carry their own acceptance bookkeeping; R-2's executed-write atom proven live 2026-11-02, residuals AUD-BT/AUD-BM1); R-3 conformance MERGED — executes in CI (AUD-BG) |
 | X Close-out | X-1 undo · X-2 smoke + scratch run | X-1 MERGED (`vercel_undo_change`, PR #330); X-2 scratch run open |
