@@ -47,6 +47,13 @@ then uses developer-check, developer-tools and developer-call. Existing original
 write previews, owner approvals and resource guards still apply. This developer workflow
 does not reduce the finished product's tool capabilities.
 
+Since SR-4 (2026-11-01) the public sign-in is Vercel's own sign-in, and the
+administrator passphrase belongs only to the developer-only backend route on
+this same deployment (`/api/dev/authorize`, `/api/dev/enroll`) — it is not
+part of the public connection page and stays configured in production to gate
+that route. The full record for operators and builder agents is
+[DEVELOPER-ACCESS.md](DEVELOPER-ACCESS.md); `AGENTS.md` points there too.
+
 On a managed POSIX cloud runner, configure RTOOL_DEVELOPER_VAULT_DIR to an absolute private
 folder outside every Git checkout. The CLI creates a separate 0600 encryption key and
 AES-GCM encrypted connection files in a 0700 folder; keep that private runner state for
