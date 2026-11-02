@@ -95,7 +95,13 @@ const update=defineWrite({
   },
   async targets(_args,before){
     return [{kind:'project',id:before.id,name:before.name},
-      ...(before.changeName?[{kind:'project',id:before.newName,name:before.newName}]:[])];
+      // AUD-BT: the rename target is this same project under its new
+      // name; projectId declares that identity, so the pass
+      // project-restriction (which resolves projectId first) judges
+      // the project, not the name string. The guards still screen
+      // this target's id/name exactly as before.
+      ...(before.changeName?[{kind:'project',id:before.newName,name:before.newName,
+        projectId:before.id}]:[])];
   },
   async apply(_args,ctx,before,requestKey){
     const provider=await writeProvider(ctx);
