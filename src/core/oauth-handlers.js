@@ -217,6 +217,10 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     }
     return null;
   }
+  function attestedWho(flow) {
+    const claims = claimsOf(flow);
+    return claims.username || claims.name || claims.email || 'your Vercel account';
+  }
   function claimsOf(flow) {
     const claims = flow?.attested_claims;
     if (!claims) return {};
@@ -245,8 +249,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
   // token enrollment carrying the in-flight parameters, and the
   // doors page (Door 1 install + explainer).
   function consentPage(params, flow, bindable, totalAccounts, error = '') {
-    const claims = claimsOf(flow);
-    const who = claims.username || claims.name || claims.email || 'your Vercel account';
+    const who = attestedWho(flow);
     // Preselection mirrors AUD-AE within the filtered set: the
     // flagged default wins, else the first bindable account.
     const selectedAccount = bindable.find((account) => account.is_default) || bindable[0];
@@ -256,8 +259,8 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       escapeHtml(account.label) + ' — ' + escapeHtml(service.issuanceFor(account, env).caption) + '</option>'
     ).join('');
     const productionNote = selectedAccount ? service.issuanceFor(selectedAccount, env).note : '';
-    const pairs = flowPairs(params);
-    const enrollHref = '/api/oauth/enroll' + (pairs.length ? '?' + pairs.join('&') : '');
+    const pairs = [...flowPairs(params), 'flow=' + encodeURIComponent(flow.handle)];
+    const enrollHref = '/api/oauth/enroll?' + pairs.join('&');
     const enrollLinks = '<p><a href="' + escapeHtml(enrollHref) + '">Enroll another account with a Vercel token</a>' +
       ' · <a href="/api/vercel/connect">Connect a Vercel team</a></p>';
     const intro = bindable.length ?
@@ -326,24 +329,40 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
   // the record, never from anything re-posted; and the
   // eligible set is recomputed at POST time, so a tampered or
   // stale account id refuses without consuming the flow.
-  async function authorizeAttested(req, res, params) {
-    const handle = str(params.flow);
+  // The guard every attested surface shares (consent in
+  // SR-2, enrollment in SR-3): the flow record must be live,
+  // attested, unconsumed and bound to this browser. Each
+  // surface renders its own wording for the two refusals.
+  async function liveAttestedFlow(req, handle) {
     const flow = await db.getSigninFlow(handle);
     if (!flow || flow.consumed_at || !(flow.expires_at > Date.now()) ||
       typeof flow.attested_user_id !== 'string' || !flow.attested_user_id) {
-      return refusal(res, 400, 'This sign-in link is no longer usable',
-        'The sign-in may have expired, already been used, or its Vercel sign-in ' +
-        'did not finish. Start the connection again from your AI app.');
+      return { refusal: 'unusable' };
     }
     flow.handle = handle;
     if (flow.browser_binding_hash) {
       const cookie = cookieValue(req, bindingCookieName());
       if (!cookie || !secretsMatch(hashToken(cookie), flow.browser_binding_hash)) {
+        return { refusal: 'browser' };
+      }
+    }
+    return { flow };
+  }
+
+  async function authorizeAttested(req, res, params) {
+    const handle = str(params.flow);
+    const guard = await liveAttestedFlow(req, handle);
+    if (!guard.flow) {
+      if (guard.refusal === 'browser') {
         return refusal(res, 400, 'Finish signing in from the browser that started it',
           'This sign-in belongs to the browser that began it. Return to that ' +
           'browser, or start the connection again.');
       }
+      return refusal(res, 400, 'This sign-in link is no longer usable',
+        'The sign-in may have expired, already been used, or its Vercel sign-in ' +
+        'did not finish. Start the connection again from your AI app.');
     }
+    const flow = guard.flow;
     const client = await resolveClient(flow.client_id);
     if (!client || !client.redirect_uris?.includes(flow.redirect_uri)) {
       return refusal(res, 400, 'This sign-in link is no longer usable',
@@ -492,18 +511,33 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       '<input type="hidden" name="' + name + '" value="' + escapeHtml(params[name]) + '">'
     ).join('');
   }
-  function enrollPage(params, accounts, error = '') {
+  // SR-3: with `attested` set (the public class under a
+  // Vercel sign-in) the page carries NO passphrase field —
+  // the flow record is the authorization, restated as a
+  // hidden field — and says whose sign-in enrollment is
+  // tied to. Without it the page is byte-for-byte AUD-AR's.
+  function enrollPage(params, accounts, error = '', attested = null) {
     const hidden = flowHidden(params);
     const pairs = flowPairs(params);
-    const backLink = pairs.length ?
-      '<p><a href="/api/oauth/authorize?' + pairs.join('&') + '">Back to sign-in</a></p>' :
-      '<p><a href="/api/vercel/connect">How connecting works</a></p>';
+    const backLink = attested ?
+      '<p><a href="/api/oauth/authorize?flow=' + encodeURIComponent(attested.handle) +
+        '">Back to sign-in</a></p>' :
+      (pairs.length ?
+        '<p><a href="/api/oauth/authorize?' + pairs.join('&') + '">Back to sign-in</a></p>' :
+        '<p><a href="/api/vercel/connect">How connecting works</a></p>');
     const accountOptions = accounts.map((account) =>
       '<option value="' + escapeHtml(account.id) + '">' + escapeHtml(account.label) + '</option>').join('');
-    const passphraseField = '<label>Administrator passphrase<input type="password" name="passphrase" ' +
+    const passphraseField = attested ? '' :
+      '<label>Administrator passphrase<input type="password" name="passphrase" ' +
       'required autocomplete="current-password"></label>';
+    const flowField = attested ?
+      '<input type="hidden" name="flow" value="' + escapeHtml(attested.handle) + '">' : '';
     const body =
       (error ? '<p role="alert">' + escapeHtml(error) + '</p>' : '') +
+      (attested ?
+        '<p>Signed in to Vercel as <strong>' + escapeHtml(attested.who) + '</strong>. ' +
+        'Enrollment is tied to this sign-in: a token can be enrolled for the ' +
+        'Vercel user it belongs to, or for a team that user belongs to.</p>' : '') +
       '<p>Enrollment adds an account to this server. A pasted token is checked with the ' +
       'provider and its reach is read back before anything is stored, and enrolling never ' +
       'switches anything on: a connection uses the account only when you finish signing in.</p>' +
@@ -515,7 +549,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       'choice and warns ahead of an expiry it knows about.</li>' +
       '<li>Paste the token and the team ID below and enroll. To rotate a token later, enroll ' +
       'its replacement the same way — the stored token is replaced, nothing else changes.</li></ol>' +
-      '<form method="post">' + hidden +
+      '<form method="post">' + hidden + flowField +
       '<input type="hidden" name="kind" value="token">' +
       '<label>Team ID<input name="teamId" required autocomplete="off"></label>' +
       '<label>Project ID (optional — for a token limited to one project)' +
@@ -530,7 +564,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
         '<p>Connect a Blob store to an enrolled account so its files can be listed, read and ' +
         'written through the connection. The store\u2019s read-write token is stored encrypted ' +
         'and is not shown again.</p>' +
-        '<form method="post">' + hidden +
+        '<form method="post">' + hidden + flowField +
         '<input type="hidden" name="kind" value="blob">' +
         '<label>' + escapeHtml(service.accountLabel) + '<select name="account" required>' +
         accountOptions + '</select></label>' +
@@ -554,6 +588,11 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     'team-projects': 'Chosen projects on the team', project: 'One project'
   };
   function enrollContinue(params, accountId = null) {
+    // SR-3: the attested journey returns to its own consent.
+    if (typeof params.flow === 'string' && params.flow) {
+      return '<p><a class="button" href="/api/oauth/authorize?flow=' +
+        encodeURIComponent(params.flow) + '">Continue to sign-in</a></p>';
+    }
     const pairs = flowPairs(params);
     if (pairs.length) {
       const query = pairs.join('&') +
@@ -594,11 +633,89 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     });
   }
 
+  // SR-3 — enrollment under attested identity (dossier
+  // section 7.2): the flow record authorizes, validated by
+  // the same guard as consent. A request without a usable
+  // flow detours first — into the authorize detour when the
+  // client parameters ride along, else a plain-words
+  // refusal naming the route in. A posted passphrase is
+  // never evaluated on this class. The Blob form offers
+  // only accounts the signer may bind; the token dispatch
+  // carries the attested identity into the service, which
+  // enforces the binding rule before storing.
+  async function enrollAttested(req, res, params) {
+    const guard = await liveAttestedFlow(req, str(params.flow));
+    if (!guard.flow) {
+      if (req.method === 'GET') {
+        const pairs = flowPairs(params);
+        if (pairs.length) {
+          res.setHeader('Cache-Control', 'no-store');
+          res.setHeader('Location', '/api/oauth/authorize?' + pairs.join('&'));
+          return res.status(302).end();
+        }
+      }
+      return refusal(res, 400, 'Enrollment needs Vercel sign-in first',
+        'Enrollment on this server happens inside the sign-in: start the ' +
+        'connection from your AI app, sign in with Vercel, and use the ' +
+        'enrollment link on the consent step.');
+    }
+    const flow = guard.flow;
+    if (typeof service.enrollToken !== 'function' ||
+      typeof service.enrollBlobStore !== 'function') {
+      return bad(res, 503, 'server_not_configured',
+        'Enrollment is not available on this server');
+    }
+    const attested = { handle: flow.handle, who: attestedWho(flow) };
+    const bindable = typeof service.bindableAccounts === 'function' ?
+      await service.bindableAccounts(flow.attested_user_id, env) : [];
+    if (req.method === 'GET') {
+      return send(res, 200, enrollPage(params, bindable, '', attested),
+        'text/html; charset=utf-8');
+    }
+    if (params.kind === 'blob') {
+      const result = await service.enrollBlobStore({
+        account: str(params.account), storeId: str(params.storeId),
+        label: str(params.label), access: str(params.access),
+        token: str(params.token), attestedUserId: flow.attested_user_id
+      }, env);
+      if (!result.ok) {
+        return send(res, 400, enrollPage(params, bindable, result.error, attested),
+          'text/html; charset=utf-8');
+      }
+      return send(res, 200, enrollBlobReadbackPage(params, result),
+        'text/html; charset=utf-8');
+    }
+    if (params.kind !== 'token') {
+      return send(res, 400,
+        enrollPage(params, bindable, 'Choose an enrollment to complete.', attested),
+        'text/html; charset=utf-8');
+    }
+    const result = await service.enrollToken({
+      token: str(params.token), teamId: str(params.teamId),
+      projectId: str(params.projectId) || null,
+      allowFull: params.allowFull === 'yes',
+      attestedUserId: flow.attested_user_id
+    }, env);
+    if (!result.ok) {
+      return send(res, 400, enrollPage(params, bindable, result.error, attested),
+        'text/html; charset=utf-8');
+    }
+    return send(res, 200, enrollTokenReadbackPage(params, result),
+      'text/html; charset=utf-8');
+  }
+
   async function enroll(req, res) {
     if (!only(res, req, ['GET', 'POST'])) return;
     let params;
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed enrollment request');
+    }
+    // SR-3: on the public class with the leg configured,
+    // enrollment runs under the attested sign-in; the
+    // passphrase branch below serves the dev class and the
+    // interim public class, unchanged.
+    if (deploymentClass(env) === 'public' && signinReady()) {
+      return enrollAttested(req, res, params);
     }
     const accounts = await service.listAccounts();
     if (req.method === 'GET') {

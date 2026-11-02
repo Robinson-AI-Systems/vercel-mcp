@@ -72,6 +72,19 @@ export function createFakeDb({ clock = () => Date.now(), accounts = [] } = {}) {
         token_version: randomUUID(), token_probe: probe
       });
     },
+    // Mirrors the real recordAccountAttestation (src/db.js):
+    // the same validation, true only when the row exists.
+    async recordAccountAttestation({ accountId, attestedUserId }) {
+      if (typeof accountId !== 'string' || !/^[a-zA-Z0-9_/-]{3,256}$/.test(accountId) ||
+        typeof attestedUserId !== 'string' || !attestedUserId ||
+        attestedUserId.length > 128) {
+        throw new TypeError('Invalid account attestation');
+      }
+      const account = accountRows.get(accountId);
+      if (!account) return false;
+      account.attested_user_id = attestedUserId;
+      return true;
+    },
     async getAccountCredential(id) {
       if (typeof id !== 'string' || !id) return null;
       const account = accountRows.get(id);
