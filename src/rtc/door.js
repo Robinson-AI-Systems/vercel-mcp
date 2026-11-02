@@ -160,13 +160,30 @@ async function invoke(name,args,ctx){
   // Common read shaping has already screened every text part; plain text
   // is a valid safe RTC read payload, not an unfiltered error string.
   catch{return response.isError?null:response.content[0].text;}
-  if(!response.isError)return data;
+  // AUD-BT: under a production-mode connection the result shaper wraps
+  // every payload in the production envelope ({mode:'PRODUCTION',
+  // banner, result}); the executor's own payload sits one level down.
+  // AUD-BQ's refusal check read only the top level, so on a production
+  // pass (AUD-BM3's shape) every structured refusal missed it and fell
+  // through to the 503 below. Unwrap the envelope for the two statuses
+  // the route dispatches on; ordinary results keep today's shape in
+  // both modes, and outcome_unknown payloads keep AUD-BQ's flattening
+  // (a write outcome, not a refusal).
+  const inner=(data&&typeof data==='object'&&data.mode==='PRODUCTION'&&
+    typeof data.banner==='string'&&data.result&&
+    typeof data.result==='object')?data.result:null;
+  if(!response.isError){
+    if(inner&&inner.status==='stored'&&typeof inner.handle==='string')
+      return inner;
+    return data;
+  }
   // AUD-BQ: a guarded write's structured refusal is a policy answer with
   // its own door code (403 refused_by_guard), not a service failure. The
   // executor's payload names it ({status:'refused_by_guard', reason});
   // surface it to the route instead of flattening every dispatch error
   // into a 503 claiming the service could not complete the call.
   if(data&&typeof data==='object'&&data.status==='refused_by_guard')return data;
+  if(inner&&inner.status==='refused_by_guard')return inner;
   return null;
 }
 const PROJECT_ID=/^[a-zA-Z0-9_-]{3,128}$/;
