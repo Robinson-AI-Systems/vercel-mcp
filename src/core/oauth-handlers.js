@@ -53,6 +53,16 @@ export function deploymentClass(env = process.env) {
   return env?.VERCEL_ENV === 'production' ? 'public' : 'dev';
 }
 
+// SR-4 — the route split's two namespaces. The public paths
+// are the shipped journey's; the dev paths are the
+// developer-only backend route on the same deployment
+// (docs/DEVELOPER-ACCESS.md). The legacy handlers serve
+// either namespace: the links a page renders are re-based
+// onto the namespace it was reached through, so a journey
+// never crosses between the two.
+const PUBLIC_PATHS = { authorizePath: '/api/oauth/authorize', enrollPath: '/api/oauth/enroll' };
+const DEV_PATHS = { authorizePath: '/api/dev/authorize', enrollPath: '/api/dev/enroll' };
+
 const tokenResponse = (access, refresh) => ({
   access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh
 });
@@ -140,7 +150,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     'client_id', 'redirect_uri', 'response_type', 'code_challenge',
     'code_challenge_method', 'state', 'resource'
   ];
-  function authorizePage(params, accounts, error = '') {
+  function authorizePage(params, accounts, error = '', paths = PUBLIC_PATHS) {
     const hidden = flowFields.map((name) =>
       '<input type="hidden" name="' + name + '" value="' + escapeHtml(params[name]) + '">'
     ).join('');
@@ -170,7 +180,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     const enrollPairs = flowFields
       .filter((name) => typeof params[name] === 'string' && params[name] !== '')
       .map((name) => encodeURIComponent(name) + '=' + encodeURIComponent(params[name]));
-    const enrollHref = '/api/oauth/enroll' + (enrollPairs.length ? '?' + enrollPairs.join('&') : '');
+    const enrollHref = paths.enrollPath + (enrollPairs.length ? '?' + enrollPairs.join('&') : '');
     const enrollLinks = '<p><a href="' + escapeHtml(enrollHref) + '">Enroll another account with a Vercel token</a>' +
       ' · <a href="/api/vercel/connect">How connecting works</a></p>';
     const body =
@@ -197,10 +207,13 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
   // reached only through the service adapter (signinConfigured /
   // signinAuthorizeUrl / signinBindingCookie / bindableAccounts),
   // which the Vercel login service implements over SR-1's leg.
-  // The leg engages only when configured — while it is not, the
-  // public class falls through to the legacy passphrase path
-  // exactly as today (the interim behavior the SR-2 card
-  // records), so no existing user can be stranded mid-consent.
+  // The leg engages only when configured. SR-4 retired SR-2's
+  // interim fallback: while the leg is unconfigured, the public
+  // class renders the interim notice (authorizeInterim /
+  // enrollInterim — no passphrase form or evaluation on this
+  // surface) and the legacy passphrase path serves the dev
+  // class and the developer route; the SR-4 card records the
+  // no-stranding argument.
   const signinReady = () =>
     typeof service.signinConfigured === 'function' &&
     typeof service.signinAuthorizeUrl === 'function' &&
@@ -443,18 +456,93 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       !/^[A-Za-z0-9_-]{43}$/.test(str(params.code_challenge)) || !validateResource(params.resource)) {
       return bad(res, 400, 'invalid_request', 'Authorization code, S256 PKCE, and exact MCP resource are required');
     }
-    if (deploymentClass(env) === 'public' && signinReady()) {
-      return authorizeSignin(req, res, params);
+    if (deploymentClass(env) === 'public') {
+      // SR-4: on the public class the passphrase is never
+      // served or honored here. Configured, the journey is
+      // the Vercel detour; unconfigured, the interim notice
+      // (authorizeInterim). The operator's working door is
+      // the developer route (devAuthorize).
+      return signinReady() ?
+        authorizeSignin(req, res, params) : authorizeInterim(req, res, params);
     }
     return authorizeLegacy(req, res, params);
   }
 
-  // The pre-SR-2 authorize, unchanged: the dev class on every
-  // deployment, and the public class while the Vercel sign-in
-  // leg is unconfigured (the interim behavior).
-  async function authorizeLegacy(req, res, params) {
+  // SR-4 — the developer route's authorize: the legacy
+  // passphrase consent served on every deployment class
+  // under the dev namespace. The client parameters are
+  // validated exactly as a fresh public authorize validates
+  // them, then the legacy handler runs with its links
+  // re-based into the dev namespace. This is the door the
+  // developer handoff's browser leg lands on.
+  async function devAuthorize(req, res) {
+    if (!only(res, req, ['GET', 'POST'])) return;
+    let params;
+    try { params = paramsOf(req); } catch {
+      return bad(res, 400, 'invalid_request', 'Malformed authorization request');
+    }
+    const client = await resolveClient(str(params.client_id));
+    if (!client || !client.redirect_uris?.includes(params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
+      return bad(res, 400, 'invalid_request', 'Unknown client or redirect address');
+    }
+    if (params.response_type !== 'code' || params.code_challenge_method !== 'S256' ||
+      !/^[A-Za-z0-9_-]{43}$/.test(str(params.code_challenge)) || !validateResource(params.resource)) {
+      return bad(res, 400, 'invalid_request', 'Authorization code, S256 PKCE, and exact MCP resource are required');
+    }
+    return authorizeLegacy(req, res, params, DEV_PATHS);
+  }
+
+  // SR-4 — the interim public authorize: while the Vercel
+  // sign-in leg is unconfigured, the public class renders a
+  // notice, never a form, and a POST refuses in plain words
+  // (a posted passphrase is never evaluated). The notice
+  // cannot strand a consent: existing connections refresh
+  // through the token endpoint untouched, no completable
+  // public consent exists in this state to take away, the
+  // operator's door is the developer route on this same
+  // deployment, and the state ends by configuration alone
+  // when the owner creates the sign-in App (the SR-4 card
+  // records the full argument).
+  function interimAuthorizePage(params, accounts) {
+    const enrollPairs = flowPairs(params);
+    const enrollHref = '/api/oauth/enroll' + (enrollPairs.length ? '?' + enrollPairs.join('&') : '');
+    const accountList = accounts.map((account) =>
+      '<li>' + escapeHtml(account.label) + ' \u2014 ' +
+      escapeHtml(service.issuanceFor(account, env).caption) + '</li>').join('');
+    const body =
+      '<p>Sign-in on this server is moving to Vercel\u2019s own sign-in, and that ' +
+      'switch is not finished yet, so a new connection cannot be completed ' +
+      'from this page right now.</p>' +
+      '<p>Connections that already exist keep working. When Vercel sign-in ' +
+      'is switched on, this page will take you to Vercel to sign in, then ' +
+      'ask which account to connect.</p>' +
+      (accounts.length ?
+        '<p>Accounts already connected to this server:</p><ul>' + accountList + '</ul>' : '') +
+      '<p><a href="' + escapeHtml(enrollHref) + '">Enroll another account with a Vercel token</a>' +
+      ' \u00b7 <a href="/api/vercel/connect">How connecting works</a></p>';
+    return frontDoorPage({
+      title: 'Connect ' + escapeHtml(service.name) + ' MCP',
+      heading: 'Connect ' + escapeHtml(service.name) + ' MCP',
+      body
+    });
+  }
+  async function authorizeInterim(req, res, params) {
+    if (req.method === 'POST') {
+      return refusal(res, 400, 'This sign-in needs Vercel sign-in first',
+        'Open the connection from your AI app and sign in with Vercel; ' +
+        'the consent step follows from that sign-in.');
+    }
     const accounts = await service.listAccounts();
-    if (req.method === 'GET') return send(res, 200, authorizePage(params, accounts), 'text/html; charset=utf-8');
+    return send(res, 200, interimAuthorizePage(params, accounts), 'text/html; charset=utf-8');
+  }
+
+  // The pre-SR-2 authorize, unchanged: the dev class on the
+  // public paths, and every class on the developer route
+  // (devAuthorize passes the dev paths, re-basing the page's
+  // enrollment link into the dev namespace).
+  async function authorizeLegacy(req, res, params, paths = PUBLIC_PATHS) {
+    const accounts = await service.listAccounts();
+    if (req.method === 'GET') return send(res, 200, authorizePage(params, accounts, '', paths), 'text/html; charset=utf-8');
     if (!env.ADMIN_PASSPHRASE) {
       return bad(res, 503, 'server_not_configured', 'Admin passphrase is not configured');
     }
@@ -463,14 +551,14 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     });
     if (verdict.status === 'locked') {
       res.setHeader('Retry-After', String(LOCKOUT_WINDOW_MINUTES * 60));
-      return send(res, 429, authorizePage(params, accounts, 'Too many sign-in attempts'), 'text/html; charset=utf-8');
+      return send(res, 429, authorizePage(params, accounts, 'Too many sign-in attempts', paths), 'text/html; charset=utf-8');
     }
     if (verdict.status !== 'ok') {
-      return send(res, 401, authorizePage(params, accounts, 'Incorrect passphrase'), 'text/html; charset=utf-8');
+      return send(res, 401, authorizePage(params, accounts, 'Incorrect passphrase', paths), 'text/html; charset=utf-8');
     }
     const account = accounts.find((item) => item.id === params.account);
     if (!account) {
-      return send(res, 400, authorizePage(params, accounts, 'Invalid account'), 'text/html; charset=utf-8');
+      return send(res, 400, authorizePage(params, accounts, 'Invalid account', paths), 'text/html; charset=utf-8');
     }
     // AUD-AZ: mode, profile and listing are DERIVED from the chosen
     // account at issuance (dossier §2.3) — any mode/profile/listing
@@ -516,14 +604,14 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
   // the flow record is the authorization, restated as a
   // hidden field — and says whose sign-in enrollment is
   // tied to. Without it the page is byte-for-byte AUD-AR's.
-  function enrollPage(params, accounts, error = '', attested = null) {
+  function enrollPage(params, accounts, error = '', attested = null, paths = PUBLIC_PATHS) {
     const hidden = flowHidden(params);
     const pairs = flowPairs(params);
     const backLink = attested ?
       '<p><a href="/api/oauth/authorize?flow=' + encodeURIComponent(attested.handle) +
         '">Back to sign-in</a></p>' :
       (pairs.length ?
-        '<p><a href="/api/oauth/authorize?' + pairs.join('&') + '">Back to sign-in</a></p>' :
+        '<p><a href="' + paths.authorizePath + '?' + pairs.join('&') + '">Back to sign-in</a></p>' :
         '<p><a href="/api/vercel/connect">How connecting works</a></p>');
     const accountOptions = accounts.map((account) =>
       '<option value="' + escapeHtml(account.id) + '">' + escapeHtml(account.label) + '</option>').join('');
@@ -587,22 +675,22 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     account: 'Full Account', team: 'One team', personal: 'Personal account',
     'team-projects': 'Chosen projects on the team', project: 'One project'
   };
-  function enrollContinue(params, accountId = null) {
+  function enrollContinue(params, accountId = null, authorizePath = PUBLIC_PATHS.authorizePath) {
     // SR-3: the attested journey returns to its own consent.
     if (typeof params.flow === 'string' && params.flow) {
-      return '<p><a class="button" href="/api/oauth/authorize?flow=' +
+      return '<p><a class="button" href="' + authorizePath + '?flow=' +
         encodeURIComponent(params.flow) + '">Continue to sign-in</a></p>';
     }
     const pairs = flowPairs(params);
     if (pairs.length) {
       const query = pairs.join('&') +
         (accountId ? '&account=' + encodeURIComponent(accountId) : '');
-      return '<p><a class="button" href="/api/oauth/authorize?' + query + '">Continue to sign-in</a></p>';
+      return '<p><a class="button" href="' + authorizePath + '?' + query + '">Continue to sign-in</a></p>';
     }
     return '<p><a href="/api/vercel/connect">Return to how connecting works</a> — start the ' +
       'connection from your AI client and this account will be offered when you sign in.</p>';
   }
-  function enrollTokenReadbackPage(params, result) {
+  function enrollTokenReadbackPage(params, result, authorizePath = PUBLIC_PATHS.authorizePath) {
     const scopeText = result.scope === 'full' ? 'Full Account (account-wide)' :
       result.scope === 'project' ? 'one project (' + result.project + ')' : 'one team';
     const boxLine = result.declaredBox ?
@@ -614,18 +702,18 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       boxLine +
       '<p>Nothing has been switched on: the account is enrolled, and a connection binds it ' +
       'only when you finish signing in.</p>' +
-      enrollContinue(params, result.accountId);
+      enrollContinue(params, result.accountId, authorizePath);
     return frontDoorPage({
       title: 'Account enrolled — ' + escapeHtml(service.name),
       heading: 'Account enrolled',
       body
     });
   }
-  function enrollBlobReadbackPage(params, result) {
+  function enrollBlobReadbackPage(params, result, authorizePath = PUBLIC_PATHS.authorizePath) {
     const body =
       '<p>Blob store ' + escapeHtml(result.storeId) + ' connected as ' + escapeHtml(result.label) +
       '; its token is stored encrypted and will not be shown again.</p>' +
-      enrollContinue(params);
+      enrollContinue(params, null, authorizePath);
     return frontDoorPage({
       title: 'Blob store connected — ' + escapeHtml(service.name),
       heading: 'Blob store connected',
@@ -710,16 +798,69 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed enrollment request');
     }
-    // SR-3: on the public class with the leg configured,
-    // enrollment runs under the attested sign-in; the
-    // passphrase branch below serves the dev class and the
-    // interim public class, unchanged.
-    if (deploymentClass(env) === 'public' && signinReady()) {
-      return enrollAttested(req, res, params);
+    // SR-3 + SR-4: on the public class, enrollment runs
+    // under the attested sign-in when the leg is configured
+    // and renders the interim notice while it is not; the
+    // passphrase branch (enrollLegacy) serves the dev class
+    // on this path and every class on the developer route.
+    if (deploymentClass(env) === 'public') {
+      return signinReady() ?
+        enrollAttested(req, res, params) : enrollInterim(req, res, params);
     }
+    return enrollLegacy(req, res, params);
+  }
+
+  // SR-4 — the developer route's enroll: the AUD-AR branch
+  // under the dev namespace, on every deployment class.
+  async function devEnroll(req, res) {
+    if (!only(res, req, ['GET', 'POST'])) return;
+    let params;
+    try { params = paramsOf(req); } catch {
+      return bad(res, 400, 'invalid_request', 'Malformed enrollment request');
+    }
+    return enrollLegacy(req, res, params, DEV_PATHS);
+  }
+
+  // SR-4 — the interim public enroll: the notice matching
+  // authorizeInterim. No token form is rendered either:
+  // enrollment without its gate would be an ungated
+  // credential intake, worse than none. A POST refuses in
+  // plain words; a posted passphrase is never evaluated.
+  function interimEnrollPage(params) {
+    const pairs = flowPairs(params);
+    const back = pairs.length ?
+      '<p><a href="/api/oauth/authorize?' + pairs.join('&') + '">Back to sign-in</a></p>' :
+      '<p><a href="/api/vercel/connect">How connecting works</a></p>';
+    const body =
+      '<p>Enrollment adds an account to this server, and on this server it ' +
+      'happens inside the sign-in. Sign-in is moving to Vercel\u2019s own ' +
+      'sign-in and that switch is not finished yet, so enrollment cannot ' +
+      'be completed from this page right now.</p>' +
+      '<p>Accounts already enrolled keep working, and connections that ' +
+      'already exist are unaffected.</p>' + back;
+    return frontDoorPage({
+      title: 'Enroll an account \u2014 ' + escapeHtml(service.name),
+      heading: 'Enroll an account',
+      body
+    });
+  }
+  async function enrollInterim(req, res, params) {
+    if (req.method === 'POST') {
+      return refusal(res, 400, 'Enrollment needs Vercel sign-in first',
+        'Enrollment on this server happens inside the sign-in: start the ' +
+        'connection from your AI app, sign in with Vercel, and use the ' +
+        'enrollment link on the consent step.');
+    }
+    return send(res, 200, interimEnrollPage(params), 'text/html; charset=utf-8');
+  }
+
+  // The AUD-AR branch, unchanged: the dev class on the
+  // public paths, and every class on the developer route
+  // (devEnroll passes the dev paths).
+  async function enrollLegacy(req, res, params, paths = PUBLIC_PATHS) {
     const accounts = await service.listAccounts();
     if (req.method === 'GET') {
-      return send(res, 200, enrollPage(params, accounts), 'text/html; charset=utf-8');
+      return send(res, 200, enrollPage(params, accounts, '', null, paths), 'text/html; charset=utf-8');
     }
     if (!env.ADMIN_PASSPHRASE) {
       return bad(res, 503, 'server_not_configured', 'Admin passphrase is not configured');
@@ -734,10 +875,10 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     });
     if (verdict.status === 'locked') {
       res.setHeader('Retry-After', String(LOCKOUT_WINDOW_MINUTES * 60));
-      return send(res, 429, enrollPage(params, accounts, 'Too many sign-in attempts'), 'text/html; charset=utf-8');
+      return send(res, 429, enrollPage(params, accounts, 'Too many sign-in attempts', null, paths), 'text/html; charset=utf-8');
     }
     if (verdict.status !== 'ok') {
-      return send(res, 401, enrollPage(params, accounts, 'Incorrect passphrase'), 'text/html; charset=utf-8');
+      return send(res, 401, enrollPage(params, accounts, 'Incorrect passphrase', null, paths), 'text/html; charset=utf-8');
     }
     if (params.kind === 'blob') {
       const result = await service.enrollBlobStore({
@@ -745,12 +886,12 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
         access: str(params.access), token: str(params.token)
       }, env);
       if (!result.ok) {
-        return send(res, 400, enrollPage(params, accounts, result.error), 'text/html; charset=utf-8');
+        return send(res, 400, enrollPage(params, accounts, result.error, null, paths), 'text/html; charset=utf-8');
       }
-      return send(res, 200, enrollBlobReadbackPage(params, result), 'text/html; charset=utf-8');
+      return send(res, 200, enrollBlobReadbackPage(params, result, paths.authorizePath), 'text/html; charset=utf-8');
     }
     if (params.kind !== 'token') {
-      return send(res, 400, enrollPage(params, accounts, 'Choose an enrollment to complete.'),
+      return send(res, 400, enrollPage(params, accounts, 'Choose an enrollment to complete.', null, paths),
         'text/html; charset=utf-8');
     }
     const result = await service.enrollToken({
@@ -758,9 +899,9 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       projectId: str(params.projectId) || null, allowFull: params.allowFull === 'yes'
     }, env);
     if (!result.ok) {
-      return send(res, 400, enrollPage(params, accounts, result.error), 'text/html; charset=utf-8');
+      return send(res, 400, enrollPage(params, accounts, result.error, null, paths), 'text/html; charset=utf-8');
     }
-    return send(res, 200, enrollTokenReadbackPage(params, result), 'text/html; charset=utf-8');
+    return send(res, 200, enrollTokenReadbackPage(params, result, paths.authorizePath), 'text/html; charset=utf-8');
   }
 
   async function token(req, res) {
@@ -832,6 +973,6 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     return send(res, 200, museClientDocument());
   }
 
-  return { register, authorize, enroll, token, metadata, resourceMetadata, museClient,
+  return { register, authorize, enroll, devAuthorize, devEnroll, token, metadata, resourceMetadata, museClient,
     revoke:createOAuthRevocation({db,env,getClient:resolveClient}) };
 }

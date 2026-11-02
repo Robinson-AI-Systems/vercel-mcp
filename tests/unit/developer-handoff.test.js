@@ -26,6 +26,9 @@ describe('mobile developer OAuth handoff',()=>{
   expect(u.searchParams.get('profile')).toBeNull();expect(u.searchParams.get('listing')).toBeNull();
   expect(u.searchParams.get('code_challenge')).toBe(challenge);
   expect(u.searchParams.get('redirect_uri')).toBe(origin+'/api/developer/connect');
+  // SR-4: the browser leg lands on the developer route's authorize,
+  // never the public authorize path.
+  expect(u.pathname).toBe('/api/dev/authorize');
   expect(JSON.stringify(r.data)).not.toContain(secret);expect(row().poll_hash).not.toBe(secret);
  });
  it('refuses a start carrying a profile or listing field as an unknown key',async()=>{

@@ -3,6 +3,10 @@
 // AUD-AW: the handoff requests the standard connection only. It carries no
 // profile or listing choice of its own — consent derives those values exactly
 // as it does for any other sign-in — and no public page links this route.
+// SR-4: the browser leg lands on the developer route's authorize
+// (/api/dev/authorize), never the public authorize path, so the consent is
+// proven by the developer door on every deployment class — incl. the
+// configured public class, whose public path detours to Vercel sign-in.
 // AUD-AX: the result pages render on the shared fleet shell (frontDoorPage)
 // like every other surviving page; the JSON responses keep this handler's
 // stricter CSP, and only the page responses take the shell's.
@@ -44,7 +48,7 @@ export function createHandoff({store,origin,getClient,clientIp=req=>req.socket?.
         const state=random(), expires=new Date(now()+600000);
         const ip=digest(String(clientIp(req)));
         if(!await store.start({...p,state,ip,expires}))return json(429,{error:'rate_limited'});
-        const u=new URL('/api/oauth/authorize',origin);
+        const u=new URL('/api/dev/authorize',origin);
         const q={client_id:p.client_id,redirect_uri:origin+callbackPath,response_type:'code',
           code_challenge:p.challenge,code_challenge_method:'S256',resource:origin+'/api/mcp',
           state};

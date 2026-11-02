@@ -140,7 +140,11 @@ describe('OAuth registration and authorization endpoints', () => {
       env: { VERCEL_ENV: 'production' }
     });
     const productionClient = await register(productionFixture.handlers);
-    const productionPage = await call(productionFixture.handlers.authorize, request('GET', authorizeArgs(productionClient)));
+    // SR-4: on a production deployment the legacy consent lives on the
+    // developer route; the production-env fixtures in this suite reach
+    // it there (the public authorize path serves the attested journey
+    // or the interim notice instead). Assertions are unchanged.
+    const productionPage = await call(productionFixture.handlers.devAuthorize, request('GET', authorizeArgs(productionClient)));
     expect(productionPage.body).toContain('starts in production');
     expect(productionPage.body).toContain('<div id="mode-note"></div>');
 
@@ -152,7 +156,7 @@ describe('OAuth registration and authorization endpoints', () => {
       env: { VERCEL_ENV: 'production' }
     });
     const switchedOffClient = await register(switchedOff.handlers);
-    const switchedOffPage = await call(switchedOff.handlers.authorize, request('GET', authorizeArgs(switchedOffClient)));
+    const switchedOffPage = await call(switchedOff.handlers.devAuthorize, request('GET', authorizeArgs(switchedOffClient)));
     expect(switchedOffPage.body).toContain('starts in preview');
     expect(switchedOffPage.body).toContain('Production mode is switched off for this account');
     expect(switchedOffPage.body).toContain('vercel_set_working_box');
@@ -182,7 +186,7 @@ describe('OAuth registration and authorization endpoints', () => {
     const client = await register(fixture.handlers);
     const args = authorizeArgs(client);
     delete args.account;
-    const page = await call(fixture.handlers.authorize, request('GET', args));
+    const page = await call(fixture.handlers.devAuthorize, request('GET', args));
     expect(page.statusCode).toBe(200);
     expect(page.body).toContain('<option value="team_real" selected>');
     expect(page.body).not.toContain('<option value="team_scratch" selected>');
@@ -197,7 +201,7 @@ describe('OAuth registration and authorization endpoints', () => {
     // The consent the old form could never produce — the default
     // account in production — is now simply what derivation issues
     // for it: no mode is posted at all.
-    const authorized = await call(fixture.handlers.authorize, request('POST', {
+    const authorized = await call(fixture.handlers.devAuthorize, request('POST', {
       ...authorizeArgs(client), account: 'team_real',
       passphrase: baseEnv.ADMIN_PASSPHRASE
     }));
@@ -254,7 +258,7 @@ describe('OAuth registration and authorization endpoints', () => {
       env: { VERCEL_ENV: 'production' }
     });
     const client = await register(fixture.handlers);
-    const page = await call(fixture.handlers.authorize, request('GET',
+    const page = await call(fixture.handlers.devAuthorize, request('GET',
       authorizeArgs(client, { account: 'team_off' })));
     expect(page.body).toContain('<option value="team_off" selected>');
     expect(page.body).toContain('<div id="mode-note"><p>Production mode is switched off for this account');
@@ -348,7 +352,11 @@ describe('OAuth registration and authorization endpoints', () => {
         env: testCase.env
       });
       const client = await register(fixture.handlers);
-      const authorized = await call(fixture.handlers.authorize, request('POST', {
+      // SR-4: the matrix pins issuance DERIVATION, which is
+      // route-independent; the legacy consent is reached on the
+      // developer route, the one door that serves it on every
+      // deployment class (production cases included).
+      const authorized = await call(fixture.handlers.devAuthorize, request('POST', {
         ...authorizeArgs(client), passphrase: baseEnv.ADMIN_PASSPHRASE
       }));
       expect(authorized.statusCode, testCase.name).toBe(302);
