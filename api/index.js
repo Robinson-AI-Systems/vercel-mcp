@@ -51,7 +51,57 @@ export default function handler(req, res) {
       '<section id="connect"><h2>Connect your AI app</h2>' +
       '<p>Paste this address into your AI app when it asks for a server or connector address:</p>' +
       '<code class="addr" id="address">' + BRANDED_ORIGIN + '/api/mcp</code>' +
-      '<a class="button" href="/connection">How connecting works</a></section>' +
+      '<h2>Muse</h2>' +
+      '<p>In Muse, open <b>Settings</b>, then <b>Connectors</b>, then ' +
+      '<b>Add custom connector</b>. Name it Vercel Unleashed and paste ' +
+      'the address above as the server address.</p>' +
+      '<p>If Muse shows the <b>Secure credentials store</b> screen ' +
+      'asking for a Client ID, paste this \u2014 the server\'s own ' +
+      'client document, the same for everyone:</p>' +
+      '<code class="addr">' + BRANDED_ORIGIN +
+      '/.well-known/muse-client.json</code>' +
+      '<p><b>Client Secret: leave blank.</b> Then choose <b>Add</b>. ' +
+      'Muse opens Vercel\'s own sign-in, where you sign in to your own ' +
+      'Vercel account and approve the connection. Never enter a Vercel ' +
+      'password or token in Muse \u2014 sign-in happens on Vercel\'s ' +
+      'own page.</p>' +
+      '<p><small>The Client ID identifies Muse, not you, and gives no ' +
+      'access by itself. It works only in Muse: the document accepts ' +
+      'only Muse\'s own return address, so pasting it into any other ' +
+      'app fails. Every other app below leaves both boxes blank.</small></p>' +
+      '<h2>Claude (web, desktop and phone app)</h2><ol>' +
+      '<li>Open Claude on the web, or in the desktop or phone app, and ' +
+      'go to <b>Customize</b>, then <b>Connectors</b>.</li>' +
+      '<li>Choose <b>Add custom connector</b> and paste the address above.</li>' +
+      '<li>Leave the Client ID and the Client Secret blank \u2014 the ' +
+      'app identifies itself automatically.</li>' +
+      '<li>Choose <b>Add</b>, then <b>Connect</b>, and sign in with ' +
+      'your Vercel account.</li></ol>' +
+      '<p><small>On a team or company plan, an owner adds it first ' +
+      'under Organization settings, then members choose Connect.</small></p>' +
+      '<h2>ChatGPT</h2>' +
+      '<p><small>On a phone, add it from the phone\'s web browser at ' +
+      'chatgpt.com. Once added, you can use it in the ChatGPT app too.</small></p><ol>' +
+      '<li>Open ChatGPT on the web and go to <b>Plugins</b>.</li>' +
+      '<li>Choose the plus button, then <b>Add custom MCP server</b>.</li>' +
+      '<li>Enter a name and paste the address above. For authentication ' +
+      'choose <b>OAuth</b>. Leave the Client ID and the Client Secret ' +
+      'blank \u2014 the app identifies itself automatically.</li>' +
+      '<li>Confirm the warning, choose <b>Create as a plugin</b>, then ' +
+      'install it and sign in with your Vercel account.</li></ol>' +
+      '<h2>Claude Code</h2>' +
+      '<pre>claude mcp add --transport http vercel-unleashed ' +
+      BRANDED_ORIGIN + '/api/mcp</pre>' +
+      '<p><small>Then type /mcp inside Claude Code and sign in with ' +
+      'your Vercel account.</small></p>' +
+      '<h2>Cursor</h2>' +
+      '<p>Add this to <code>.cursor/mcp.json</code> (or ' +
+      '<code>~/.cursor/mcp.json</code>), then sign in when asked:</p>' +
+      '<pre>{\n  "mcpServers": {\n    "vercel-unleashed": { "url": "' +
+      BRANDED_ORIGIN + '/api/mcp" }\n  }\n}</pre>' +
+      '<p>Already connected, or want to know what a connection can ' +
+      'do and how to disconnect?</p>' +
+      '<a class="button" href="/connection">Open My connection</a></section>' +
       '<section><h2>Service facts</h2>' +
       '<p>Registered tools: ' + registry.tools.length + '</p>' +
       '<p>Every sign-in gets the full tool set — there are no sign-in tiers.</p>' +
