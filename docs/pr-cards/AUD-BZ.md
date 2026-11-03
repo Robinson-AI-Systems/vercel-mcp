@@ -12,7 +12,7 @@ well as the retained one. The AUD-BS fix never fired live.
 AUD-BS keys the first-deployment decision on the project record's
 documented `hasDeployments` flag being exactly `false`. The live
 record for the retained fixture (`rtc-git-fixture`,
-prj_rJleKdg3zxL5YBvh63LU3qI3vfCw) does not carry the flag at all —
+the retained fixture project) does not carry the flag at all —
 this server's own project read-back shapes it null, with the
 code's own comment: "The Vercel SDK/project body may omit these
 fields; null is unknown." So `row?.hasDeployments===false` is
