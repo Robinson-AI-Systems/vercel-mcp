@@ -4,6 +4,7 @@ import {deploymentReadTools} from '../../src/tools/deployments.js';
 import {dispatchReadOnlyTool} from '../../src/core/mcp-server.js';
 import {mergeNamespaces} from '../../src/core/registry.js';
 import {loadToken} from '../../src/vercel/tokens.js';
+import {vercelErrorResult} from '../../src/tools/errors.js';
 vi.mock('../../src/vercel/tokens.js',async original=>({...await original(),loadToken:vi.fn()}));
 const registry=mergeNamespaces([deploymentReadTools]);
 const connection={account:'acct_ALPHA',profile:'read_only',mode:'preview',listing:'catalog'};
@@ -94,6 +95,41 @@ describe('D-2 scoped Vercel deployment reads',()=>{
    const fake=makeFakeVercel();
    expect((await call('vercel_deploy_list',{},fake)).isError).toBe(true);
    expect((await call('vercel_deploy_list',{project:'prj_ONE',cursor:'unsafe'},fake)).isError).toBe(true);
+   expect(fake.calls).toHaveLength(0);
+ });
+ it('reports the commit from gitSource and asks the provider for git details (provenance)',async()=>{
+   const sha='0123456789abcdef0123456789abcdef01234567';
+   const row={...deployment(),meta:{},gitSource:{type:'github',ref:'main',sha}};
+   const fake=makeFakeVercel();
+   fake.when('GET','/v13/deployments/{idOrUrl}').resolves(row);
+   const res=parsed(await call('vercel_deploy_get',{deployment:'dpl_ABC123',project:'prj_ONE'},fake));
+   expect(res).toMatchObject({commit:sha,branch:'main'});
+   expect(fake.calls[0].query.withGitRepoInfo).toBe('true');
+   fake.verify();
+ });
+ it('falls back across git hosts for the commit and keeps null only when none is present',async()=>{
+   const fake=makeFakeVercel();
+   fake.when('GET','/v13/deployments/{idOrUrl}')
+     .resolves({...deployment(),meta:{gitlabCommitSha:'cafe1234',gitlabCommitRef:'trunk'}})
+     .resolves({...deployment(),meta:{}});
+   const first=parsed(await call('vercel_deploy_get',{deployment:'dpl_ABC123',project:'prj_ONE'},fake));
+   expect(first).toMatchObject({commit:'cafe1234',branch:'trunk'});
+   const second=parsed(await call('vercel_deploy_get',{deployment:'dpl_ABC123',project:'prj_ONE'},fake));
+   expect(second.commit).toBeNull();
+ });
+ it('explains a project name versus a project ID in the message the agent actually sees',async()=>{
+   const fake=makeFakeVercel();
+   const live=args=>dispatchReadOnlyTool({registry,name:'vercel_deploy_list',args,connection,db,
+     fetchImpl:fake.fetch,formatError:vercelErrorResult});
+   const named=await live({project:'my-app'});
+   expect(named.isError).toBe(true);
+   const text=named.content[0].text;
+   expect(text).toMatch(/looks like a project name/);
+   expect(text).toMatch(/prj_/);
+   expect(text).toMatch(/vercel_workflow_find/);
+   expect(text).toMatch(/vercel_project_list/);
+   const missing=await live({});
+   expect(missing.content[0].text).toMatch(/exact project ID/);
    expect(fake.calls).toHaveLength(0);
  });
 });

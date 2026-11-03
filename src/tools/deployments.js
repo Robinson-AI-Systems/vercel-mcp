@@ -2,7 +2,7 @@
 // and project scope; never trust arbitrary upstream metadata or a caller token.
 import {readProvider} from '../vercel/provider.js';
 import { RefusalError } from '../core/write.js';
-import {credentialLike} from '../core/util.js';
+import {credentialLike,isCommitId} from '../core/util.js';
 
 const PROFILES=['read_only','everyday','full'];
 const IDENT=/^[A-Za-z0-9][A-Za-z0-9_-]{1,127}$/;
@@ -17,6 +17,9 @@ function name(value,max=128){
   return typeof value==='string'&&value.length>0&&value.length<=max&&
     !/[\x00-\x1f\x7f]/.test(value)&&!credentialLike(value)?value:null;
 }
+// A commit ID is bare hex; a long hex string trips the credential filter that name() applies, which is
+// why production reads showed a null commit. Accept only strict hex here, anything else is null.
+function commitId(value){return isCommitId(value)?value:null;}
 function deploymentLocator(value){
   if(typeof value!=='string'||value.length<3||value.length>253||credentialLike(value))
     throw new TypeError('Invalid deployment identifier');
@@ -35,14 +38,17 @@ function deploymentLocator(value){
 export function projectFor(args,account){
   const requested=args.project;
   if(requested!==undefined && (typeof requested!=='string'||!IDENT.test(requested)))
-    throw new RefusalError('Select a valid project ID');
+    throw new RefusalError('Select a valid project ID (it starts with prj_)');
+  // A project name is a common first guess. Say so plainly instead of failing later with a generic mismatch.
+  if(typeof requested==='string'&&!requested.startsWith('prj_')&&account.scope!=='project')
+    throw new RefusalError('"'+requested.slice(0,40)+'" looks like a project name; deployment reads need the project ID (prj_…)');
   if(account.scope==='project'){
     if(typeof account.project_id!=='string'||!IDENT.test(account.project_id)||
       requested!==undefined&&requested!==account.project_id)
       throw new RefusalError('Connection cannot inspect a different project');
     return account.project_id;
   }
-  if(requested===undefined)throw new RefusalError('Select the exact project ID to read deployments');
+  if(requested===undefined)throw new RefusalError('Select the exact project ID (starts with prj_) to read deployments');
   return requested;
 }
 function deploymentProject(row){
@@ -55,7 +61,7 @@ function deploymentProject(row){
 }
 function summary(row,project){
   if(!row||typeof row!=='object'||Array.isArray(row)||
-    deploymentProject(row)!==project)throw new RefusalError('Deployment outside requested project — deployment reads are keyed by the exact project ID (prj_…), not a project name');
+    deploymentProject(row)!==project)throw new RefusalError('Deployment outside requested project — use the exact project ID (prj_…), not a project name');
   const id=name(row.uid??row.id,128);
   if(!id)throw new RefusalError('Provider deployment ID is unsafe');
   const git=row.meta&&typeof row.meta==='object'?row.meta:{};
@@ -66,8 +72,12 @@ function summary(row,project){
     target:name(row.target,64),createdAt:Number.isSafeInteger(row.created)?row.created:
       Number.isSafeInteger(row.createdAt)?row.createdAt:null,
     readyAt:Number.isSafeInteger(row.ready)?row.ready:null,
-    branch:name(git.githubCommitRef??row.gitSource?.ref,128),
-    commit:name(git.githubCommitSha,64),
+    branch:name(git.githubCommitRef??git.gitlabCommitRef??git.bitbucketCommitRef??row.gitSource?.ref,128),
+    // Provenance (AUD-PROV): the commit lives in different places depending on how the deployment was
+    // made — git integration metadata per host, or the gitSource object that the provider only returns
+    // when asked (withGitRepoInfo). Take the first one present so "what is running" is never a bare null.
+    commit:commitId(git.githubCommitSha??git.gitlabCommitSha??git.bitbucketCommitSha??git.gitCommitSha??
+      row.gitSource?.sha),
     aliases};
 }
 function cursorFor(reply,items,limit){
@@ -94,7 +104,8 @@ export async function scopedDeployment(args,ctx,requestOptions={}){
     throw new RefusalError('Select a valid deployment ID');
   const {client,account}=await readProvider(ctx);
   const project=projectFor(args,account);
-  const row=await client.request('deployments_get',{path:{idOrUrl:args.deployment}},requestOptions);
+  const row=await client.request('deployments_get',
+    {path:{idOrUrl:args.deployment},query:{withGitRepoInfo:'true'}},requestOptions);
   const verified=summary(row,project);
   if(verified.id!==args.deployment)throw new RefusalError('Deployment identity changed');
   return {client,account,project,verified};
@@ -418,7 +429,8 @@ export const deploymentReadTools={
       const locator=deploymentLocator(args.deployment);
       const {client,account}=await readProvider(ctx);
       const project=projectFor(args,account);
-      const response=await client.request('deployments_get',{path:{idOrUrl:locator}});
+      const response=await client.request('deployments_get',
+        {path:{idOrUrl:locator},query:{withGitRepoInfo:'true'}});
       const data=summary(response,project);
       const errorCode=name(response.errorCode,80);
       return asText({...data,errorCode,aliasesCapped:Array.isArray(response.alias)&&

@@ -104,7 +104,7 @@ export function explainVercelError(raw, context = {}) {
     // VMCP-030: our own validation refused — say which, plainly.
     what=own || 'The request did not match what this tool requires.';
     why='This failed on this server while checking the selection or shaping the record — Vercel did not refuse it.';
-    next='Verify the identifier against a fresh list result (deployment and project reads are keyed by the exact ID) and retry.';
+    next='Project and deployment reads need exact IDs (prj_…, dpl_…), not names. Find a project ID by searching its name with vercel_workflow_find or by listing with vercel_project_list, then retry.';
   } else if (code==='recheck_failed') {
     // AUD-AI: the recheck names the leg it stopped at; the cause
     // refines by provider status class when the provider answered,
