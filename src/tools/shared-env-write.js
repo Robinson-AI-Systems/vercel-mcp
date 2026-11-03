@@ -1,6 +1,12 @@
 // E-2: team-scoped shared environment variable lifecycle. Writes never return
 // provider values; shared scope/links/production impact must be independently proven.
-import {randomBytes} from 'node:crypto';
+// AUD-CO (owner's ruling, 2026-11-03, from the AUD-CH refusal audit):
+// deletion used to require a variable linked to NO projects — an
+// eligibility veto over the owner. The delete path now evaluates
+// the linked projects into a fingerprinted evaluation the owner
+// confirms by its exact evaluationId; execution unlinks each named
+// project, then deletes, in the AUD-CH pattern.
+import {createHash,randomBytes} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -34,12 +40,13 @@ const props={
   },required:['bytes','encoding'],additionalProperties:false},
   outsideApp:{type:'boolean',const:true},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
+  evaluationId:{type:'string',pattern:'^[0-9a-f]{64}$'},
   requestKey:{type:'string',pattern:REQUEST.source}
 };
 const setKeys=['mode','project','key','id','expectedUpdatedAt','kind',
   'value','generate','outsideApp','confirm','dryRun','requestKey'];
 const removeKeys=['mode','project','id','expectedKey','expectedKind',
-  'expectedUpdatedAt','outsideApp','confirm','dryRun','requestKey'];
+  'expectedUpdatedAt','outsideApp','confirm','dryRun','evaluationId','requestKey'];
 const only=(a,keys)=>a&&typeof a==='object'&&!Array.isArray(a)&&
   Object.keys(a).every(k=>keys.includes(k));
 function validControl(a){
@@ -80,7 +87,10 @@ function validRemoval(a){
     a.dryRun!==undefined&&typeof a.dryRun!=='boolean'||
     a.requestKey!==undefined&&!REQUEST.test(a.requestKey)||
     (a.mode==='unlink'&&!PROJECT.test(a.project??''))||
-    (a.mode==='delete'&&a.project!==undefined))
+    (a.mode==='delete'&&a.project!==undefined)||
+    (a.mode==='unlink'&&a.evaluationId!==undefined)||
+    (a.evaluationId!==undefined&&
+      (typeof a.evaluationId!=='string'||!/^[0-9a-f]{64}$/.test(a.evaluationId))))
     throw new RefusalError('Shared removal needs exact ID, revision, kind and unlink/delete intent');
 }
 function rowMeta(raw,teamId){
@@ -158,12 +168,28 @@ async function beforeRemoval(a,ctx){
   if(!row||row.key!==a.expectedKey||row.kind!==a.expectedKind||
     !row.previewOnly||!row.noCustomLinks||
     row.updatedAt!==a.expectedUpdatedAt||
-    (a.mode==='unlink'&&!row.projects.includes(a.project))||
-    (a.mode==='delete'&&row.projects.length!==0))
+    (a.mode==='unlink'&&!row.projects.includes(a.project)))
     throw new RefusalError('Shared variable changed or deletion still has project links');
+  // AUD-CO: a delete whose variable is still linked is evaluated,
+  // not refused — the links (the variable's exact projects, already
+  // canonical-sorted by rowMeta) become the fingerprinted
+  // evaluation the owner confirms. Unlink keeps its simple form.
+  const linked=a.mode==='delete'&&row.projects.length>0;
+  let evaluation=null,evaluationId=null;
+  if(a.mode==='delete'){
+    evaluation={id:row.id,key:row.key,kind:row.kind,
+      updatedAt:row.updatedAt,projects:row.projects};
+    evaluationId=createHash('sha256')
+      .update(JSON.stringify(evaluation)).digest('hex');
+    if(a.evaluationId!==undefined&&a.evaluationId!==evaluationId)
+      throw new RefusalError('That evaluation is no longer current: the variable or its project links have changed since it was made. Run the plan again and confirm the evaluation it shows now');
+    if(linked&&a.confirm===true&&a.dryRun!==true&&a.evaluationId===undefined)
+      throw new RefusalError('Shared variable changed or deletion still has project links: run the plan (dryRun) to see every linked project named, then confirm with the evaluationId it shows — or unlink the projects first');
+  }
   return {mode:a.mode,project:a.project??null,teamId:account.team_id,
     id:row.id,key:row.key,kind:row.kind,updatedAt:row.updatedAt,
-    projects:row.projects};
+    projects:row.projects,linked,evaluation,evaluationId,
+    ownerConfirmed:linked&&a.evaluationId===evaluationId};
 }
 function same(before,now){
   return before.mode===now.mode&&before.project===now.project&&
@@ -256,6 +282,15 @@ const remove=defineWrite({
   async preview(_a,_ctx,b){
     return b.mode==='unlink'?'Unlink shared variable '+b.key+' ('+b.id+
       ') from exact preview project '+b.project+'; other links preserved':
+      b.linked?'IRREVERSIBLY delete shared variable '+b.key+' ('+b.id+
+      ') in selected team. OWNER-CONFIRMED DELETION: it is still '+
+      'linked to project(s) '+b.projects.join(', ')+' — deleting it '+
+      'first unlinks it from those projects, then deletes it; the '+
+      'variable and its value are permanently destroyed and every '+
+      'linked project loses it at its next deployment. Evaluation: '+
+      b.evaluationId+'. To proceed, confirm with evaluationId set '+
+      'to that exact value; if the variable or its links change, '+
+      'the evaluation changes and the confirmation is refused':
       'IRREVERSIBLY delete unlinked shared variable '+b.key+' ('+b.id+
       ') in selected team; no project links permitted';
   },
@@ -270,6 +305,21 @@ const remove=defineWrite({
         if(r?.id!==b.id)throw new TypeError('Unlink response ID unverified');
         return {id:b.id};
       }});
+    // AUD-CO: a linked deletion the owner confirmed on its exact
+    // evaluation unlinks every named project first — each unlink is
+    // its own proven provider write under this guarded call.
+    if(b.linked){
+      if(!b.ownerConfirmed)
+        throw new TypeError('Linked shared deletion was not confirmed on its evaluation');
+      for(const projectId of b.projects)
+        await provider.write('shared_env_unlink',{
+          path:{id:b.id,projectId}
+        },{requestKey,tool:'vercel_shared_env_delete',
+          mutationId:'unlink-'+projectId,shapeResult:r=>{
+            if(r?.id!==b.id)throw new TypeError('Unlink response ID unverified');
+            return {id:b.id};
+          }});
+    }
     return provider.write('shared_env_delete',{body:{ids:[b.id]}},{
       requestKey,tool:'vercel_shared_env_delete',shapeResult:r=>{
         if(!Array.isArray(r?.failed)||r.failed.length!==0||
@@ -304,7 +354,7 @@ export const sharedEnvWriteTools={
       writeContract:set.writeContract,annotations:{readOnlyHint:false,destructiveHint:false}},
     {name:'vercel_shared_env_delete',writes:true,guardedWrite:true,
       profiles:['full'],area:'env',
-      description:'Explicitly unlink one selected project or delete a completely unlinked preview shared variable by exact ID/revision.',
+      description:'Unlink one selected project, or delete a preview shared variable by exact ID/revision; a linked deletion needs the plan\'s exact evaluationId.',
       inputSchema:{type:'object',properties:Object.fromEntries(removeKeys.map(k=>[k,props[k]])),
         required:['mode','id','expectedKey','expectedKind','expectedUpdatedAt','outsideApp'],
         additionalProperties:false},

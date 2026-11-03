@@ -160,6 +160,76 @@ describe('E-2 selected-team shared variable lifecycle',()=>{
       .toBe('refused_by_guard');
     expect(mutations(incomplete)).toHaveLength(0);
   });
+  it('AUD-CO: the plan for a linked variable renders the warning with its evaluation id and deletes nothing',async()=>{
+    const f=fixture();
+    const out=parse(await f.call('vercel_shared_env_delete',
+      {...remove,confirm:false,dryRun:true}));
+    expect(out.status).toBe('preview');
+    expect(out.preview).toContain('OWNER-CONFIRMED DELETION');
+    expect(out.preview).toContain(project);
+    expect(out.preview).toMatch(/Evaluation: [0-9a-f]{64}/);
+    expect(mutations(f)).toHaveLength(0);
+  });
+  it('AUD-CO: a confirmation naming a stale evaluation refuses the linked deletion',async()=>{
+    const f=fixture();
+    const out=parse(await f.call('vercel_shared_env_delete',
+      {...remove,evaluationId:'0'.repeat(64)}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(out.reason).toMatch(/no longer current/);
+    expect(mutations(f)).toHaveLength(0);
+  });
+  it('AUD-CO: a confirmation naming the exact evaluation unlinks then deletes a linked variable, verified by absence',async()=>{
+    const f=fixture();
+    f.fake.when('PATCH','/v1/env/{id}/unlink/{projectId}').resolves({id});
+    f.fake.when('DELETE','/v1/env').resolves({deleted:[id],failed:[]});
+    f.fake.when('GET','/v1/env')
+      .resolves({data:[row],pagination:{next:null}})
+      .resolves({data:[row],pagination:{next:null}})
+      .resolves({data:[row],pagination:{next:null}})
+      .resolves({data:[],pagination:{next:null}});
+    const plan=parse(await f.call('vercel_shared_env_delete',
+      {...remove,confirm:false,dryRun:true}));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const out=parse(await f.call('vercel_shared_env_delete',
+      {...remove,evaluationId}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(mutations(f)).toHaveLength(2);
+    expect(mutations(f)[0]).toMatchObject({method:'PATCH',
+      path:'/v1/env/'+id+'/unlink/'+project});
+    expect(mutations(f)[1]).toMatchObject({method:'DELETE',body:{ids:[id]}});
+    expect(f.audits.length).toBeGreaterThan(0);
+    f.fake.verify();
+  });
+  it('AUD-CO: a link change between plan and confirm refuses as stale',async()=>{
+    const f=fixture();
+    const more={...row,projectId:[project,'prj_FAKE_SHARED2']};
+    f.fake.when('GET','/v1/env')
+      .resolves({data:[row],pagination:{next:null}})
+      .resolves({data:[more],pagination:{next:null}});
+    const plan=parse(await f.call('vercel_shared_env_delete',
+      {...remove,confirm:false,dryRun:true}));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const out=parse(await f.call('vercel_shared_env_delete',
+      {...remove,evaluationId}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(out.reason).toMatch(/no longer current/);
+    expect(mutations(f)).toHaveLength(0);
+  });
+  it('AUD-CO: a link change between preview and dispatch refuses at apply',async()=>{
+    const f=fixture();
+    const more={...row,projectId:[project,'prj_FAKE_SHARED2']};
+    f.fake.when('GET','/v1/env')
+      .resolves({data:[row],pagination:{next:null}})
+      .resolves({data:[row],pagination:{next:null}})
+      .resolves({data:[more],pagination:{next:null}});
+    const plan=parse(await f.call('vercel_shared_env_delete',
+      {...remove,confirm:false,dryRun:true}));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const out=parse(await f.call('vercel_shared_env_delete',
+      {...remove,evaluationId}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(mutations(f)).toHaveLength(0);
+  });
   it('refuses stale revision, duplicate key, foreign project, scope and untrusted arguments',async()=>{
     for(const a of [
       {...setCreate,project:'prj_FAKE_OTHER'},
