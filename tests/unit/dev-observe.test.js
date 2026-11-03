@@ -9,7 +9,7 @@ import {loadToken} from '../../src/vercel/tokens.js';
 import {lookup} from 'node:dns/promises';
 import {encryptSecret} from '../../src/core/secret-box.js';
 import {BUILD_RULES,diagnoseBuildText} from '../../src/dev/build-failures.js';
-import {publicAddress,pinnedHttpsGet,publicHost} from '../../src/tools/dev-preview-fetch.js';
+import {publicAddress,pinnedHttpsGet,pinnedHttpsGetAny,publicHost} from '../../src/tools/dev-preview-fetch.js';
 vi.mock('../../src/vercel/tokens.js',async orig=>({...await orig(),loadToken:vi.fn()}));
 vi.mock('node:dns/promises',()=>({lookup:vi.fn()}));
 const account='acct_FAKE_DEV3',team='team_FAKE_DEV3';
@@ -166,6 +166,41 @@ describe('V-3 preview-only observation and diagnostics',()=>{
       expect(address).toBe('8.8.8.8');
       expect(family).toBe(4);
     });
+  });
+  it('answers the lookup in the address-list shape Node asks for and falls through dead addresses (AUD-CG)',async()=>{
+    const attempts=[];
+    const requestImpl=(url,options,callback)=>{
+      const req=new EventEmitter();
+      req.setTimeout=()=>{};
+      req.destroy=error=>req.emit('error',error);
+      req.end=()=>{
+        options.lookup(url.hostname,{all:true},(error,addresses)=>{
+          expect(error).toBe(null);
+          // The all:true contract is an array of {address, family}.
+          expect(Array.isArray(addresses)).toBe(true);
+          expect(addresses).toHaveLength(1);
+          const [{address}]=addresses;
+          attempts.push(address);
+          if(address==='8.8.8.8'){
+            const err=new Error('connect ECONNREFUSED');
+            err.code='ECONNREFUSED';
+            req.emit('error',err);
+            return;
+          }
+          const response=new PassThrough();
+          response.statusCode=200;
+          response.headers={'content-type':'text/plain'};
+          callback(response);
+          response.end('second address success');
+        });
+      };
+      return req;
+    };
+    const r=await pinnedHttpsGetAny(new URL('https://'+host+'/'),{
+      addresses:[{address:'8.8.8.8',family:4},{address:'8.8.4.4',family:4}],
+      requestImpl});
+    expect(r).toMatchObject({status:200,sample:'second address success'});
+    expect(attempts).toEqual(['8.8.8.8','8.8.4.4']);
   });
   it('rejects DNS rebinding addresses before creating any TLS socket',async()=>{
     let called=false;

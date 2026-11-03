@@ -84,7 +84,19 @@ export function pinnedHttpsGet(url,{address,family,headers={},requestImpl=httpsR
       req=requestImpl(url,{
         method:'GET',timeout:3000,agent:false,
         headers:{accept:'text/html,application/json,text/plain',...headers},
-        lookup:(_name,_options,callback)=>callback(null,address,family)
+        // AUD-CG: Node's connection layer asks the lookup for
+        // the full address list (options.all, the auto-select
+        // family contract) and expects an array of {address,
+        // family}; answering with the scalar form breaks the
+        // socket before any connection is attempted — the live
+        // fetch failed with failureClass 'connection' and no
+        // request ever left the server (branch G, 2026-11-03,
+        // named by AUD-CF). Answer each contract in its own
+        // shape.
+        lookup:(_name,options,callback)=>{
+          if(options?.all)callback(null,[{address,family}]);
+          else callback(null,address,family);
+        }
       },res=>{
         if(res.statusCode>=300&&res.statusCode<400){
           res.destroy();done(new TypeError('Preview redirect refused'));return;
@@ -115,6 +127,27 @@ export function pinnedHttpsGet(url,{address,family,headers={},requestImpl=httpsR
       req.end();
     }catch(error){done(error);}
   });
+}
+// AUD-CG: try each pre-validated address in resolver order
+// until one produces an HTTP outcome. A connection or timeout
+// failure on one address (a family the egress cannot route,
+// a dead edge) falls through to the next; a redirect or an
+// invalid status is a real answer from the deployment and
+// stops the iteration. Every attempt stays pinned to an
+// address publicHost already validated — the SSRF discipline
+// is unchanged.
+export async function pinnedHttpsGetAny(url,{addresses,headers={},requestImpl}) {
+  let lastError;
+  for(const target of addresses??[]){
+    try{
+      return await pinnedHttpsGet(url,{...target,headers,...(requestImpl?{requestImpl}:{})});
+    }catch(error){
+      lastError=error;
+      const cls=failureClassOf(error);
+      if(cls!=='connection'&&cls!=='timeout')throw error;
+    }
+  }
+  throw lastError??new TypeError('No validated address available');
 }
 async function readBypass(a,ctx,b){
   if(a.bypassId===undefined)return null;
@@ -202,8 +235,8 @@ export const devPreviewFetchTools={
                 'x-vercel-cache':response.headers?.get('x-vercel-cache'),
                 'x-vercel-id':response.headers?.get('x-vercel-id')},...read};
           }else{
-            parsed=await pinnedHttpsGet(new URL('https://'+host+path),
-              {...verifiedAddresses[0],headers});
+            parsed=await pinnedHttpsGetAny(new URL('https://'+host+path),
+              {addresses:verifiedAddresses,headers});
           }
           results.push({path,status:parsed.status,
             headers:safeHeader({headers:{get:key=>parsed.headers?.[key]}}),
