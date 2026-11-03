@@ -25,7 +25,7 @@ export default function handler(req, res) {
     '<code class="addr">' + BRANDED_ORIGIN +
     '/.well-known/muse-client.json</code>' +
     '<p>In Claude, ChatGPT, or any other client, leave the Client ' +
-    'ID and the Client Secret blank \u2014 the client registers ' +
+    'ID and the Client Secret blank \u2014 the app identifies ' +
     'itself automatically. Do not paste the Muse document there: ' +
     'it only accepts Muse\'s own return address, so any other ' +
     'client using it fails with an \u201cUnknown client or ' +
@@ -38,7 +38,10 @@ export default function handler(req, res) {
     '<p>Signing in is Vercel\'s own, start to finish — there is no ' +
     'password for this server itself. Enrolling is different: it is ' +
     'bringing a credential of your own, a token you made in ' +
-    'Vercel\'s dashboard.</p></section>' +
+    'Vercel\'s dashboard.</p>' +
+    '<p>Step-by-step instructions for each app \u2014 Muse, Claude, ' +
+    'ChatGPT, Claude Code and Cursor \u2014 are on the ' +
+    '<a href="/#connect">home page\'s connect section</a>.</p></section>' +
 
     '<section><h2>Signing in claims your existing identity</h2>' +
     '<p>Connecting never creates a Vercel account and never gives a ' +
