@@ -64,6 +64,14 @@ function fixture(items=[],row=projectRow){
   const call=(name,args={},conn=owner,fetchImpl=fake.fetch,env={})=>
     dispatchReadOnlyTool({registry,name,args,connection:conn,db,fetchImpl,env});
   fake.when('GET','/v9/projects/{idOrName}').resolves(row);
+  // AUD-BZ: the first-deployment proof falls back to the deployment
+  // inventory when the project record omits the hasDeployments flag;
+  // the default project here is deployed (one existing deployment).
+  // Flag-absent first-deployment tests override with an empty page
+  // (the newest matching rule wins).
+  fake.when('GET','/v7/deployments').resolves({deployments:[
+    {id:'dpl_FAKE_V2_EXISTING',projectId:project}],
+    pagination:{next:null,count:1}});
   return {call,db,audit,fake,runs,objects,receipts};
 }
 describe('V-2 owned branch, preview env, alias and bypass',()=>{
@@ -198,6 +206,49 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     const out=parse(await f.call('vercel_dev_preview_branch',
       {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
         requestKey:'branchAgainDeploy1'},
+      {...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const posts=f.fake.calls.filter(x=>x.method==='POST');
+    expect(posts).toHaveLength(1);
+    expect('projectSettings' in posts[0].body).toBe(false);
+    f.fake.verify();
+  });
+  it('supplies projectSettings when the record omits the flag and the inventory is empty (AUD-BZ, the live fixture shape)',async()=>{
+    const row={...projectRow,framework:null,
+      buildCommand:null,devCommand:null,installCommand:null,
+      outputDirectory:null,rootDirectory:null};
+    const f=fixture([],row);
+    f.fake.when('GET','/v7/deployments').resolves({deployments:[],
+      pagination:{next:null,count:0}});
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    const gitSha='1'.repeat(40),created='dpl_FAKE_V2_FLAGLESS';
+    const dep={id:created,projectId:project,target:'preview',readyState:'READY'};
+    f.fake.when('POST','/v13/deployments').resolves(dep);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(dep);
+    const out=parse(await f.call('vercel_dev_preview_branch',
+      {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
+        requestKey:'branchFlagless01'},
+      {...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    const posts=f.fake.calls.filter(x=>x.method==='POST');
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body.projectSettings).toEqual({
+      buildCommand:null,devCommand:null,framework:null,
+      installCommand:null,outputDirectory:null,rootDirectory:null});
+    f.fake.verify();
+  });
+  it('sends no projectSettings when the record omits the flag but the inventory is non-empty (AUD-BZ)',async()=>{
+    const row={...projectRow,framework:'nextjs',
+      buildCommand:'next build'};
+    const f=fixture([],row);
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    const gitSha='2'.repeat(40),created='dpl_FAKE_V2_FLAGLESS_AGAIN';
+    const dep={id:created,projectId:project,target:'preview',readyState:'READY'};
+    f.fake.when('POST','/v13/deployments').resolves(dep);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(dep);
+    const out=parse(await f.call('vercel_dev_preview_branch',
+      {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
+        requestKey:'branchFlagless02'},
       {...owner,kind:'connector'}));
     expect(out).toMatchObject({status:'applied',confirmed:true});
     const posts=f.fake.calls.filter(x=>x.method==='POST');
