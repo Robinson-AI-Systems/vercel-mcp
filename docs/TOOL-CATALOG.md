@@ -211,7 +211,7 @@ names, targets, kind (Config/Secret), branch and dates come out.
 | `vercel_environment_list` | Project-verified bounded custom environment slugs, branch rules, timestamps and domain count; no secrets or domain proofs | — | B O | R | — | E-2 (source merged #194; native provider pending) |
 | `vercel_environment_create` | Add a custom environment (branch rule, copy variables from another environment) | P | B O | E | — | E-2 (guarded code candidate; live acceptance pending) |
 | `vercel_environment_update` | Change a custom environment's name, branch rule or description | P | B O | E | — | E-2 (guarded code candidate; live acceptance pending) |
-| `vercel_environment_delete` | Remove a custom environment | D | O | F | y | E-2 (guarded code candidate; live acceptance pending) |
+| `vercel_environment_delete` | Remove a custom environment; linked domains or aliases need the plan's exact evaluationId (AUD-CN) | D | O | F | y | E-2 (guarded code candidate; live acceptance pending) |
 
 ## Global Config (formerly Edge Config) (`vercel_globalconfig_*`) — 11
 

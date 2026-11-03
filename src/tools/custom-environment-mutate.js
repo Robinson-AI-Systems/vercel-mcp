@@ -1,5 +1,14 @@
 // E-2: exact custom-environment update and irreversible removal.
-// Nonproduction-only, with no domains/deployment aliases and safe provider rechecks.
+// Nonproduction-only, with safe provider rechecks. AUD-CN (owner's
+// ruling, 2026-11-03, from the AUD-CH refusal audit): deletion used
+// to require a provably EMPTY environment (no linked domains, no
+// active deployment aliases) — an eligibility veto over the owner.
+// The delete path now collects the links into a fingerprinted
+// evaluation the owner confirms by its exact evaluationId, in the
+// AUD-CH pattern. The update path keeps the emptiness proof: it is
+// not destructive, and retargeting live links is a separate design
+// question the owner has not commissioned.
+import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {credentialLike} from '../core/util.js';
 import {writeProvider} from '../vercel/provider.js';
@@ -18,6 +27,7 @@ const props={
   description:{type:'string',maxLength:200},
   outsideApp:{type:'boolean',const:true},confirm:{type:'boolean'},
   dryRun:{type:'boolean'},
+  evaluationId:{type:'string',pattern:'^[0-9a-f]{64}$'},
   requestKey:{type:'string',pattern:'^[A-Za-z0-9_-]{8,128}$'}
 };
 const core=['project','expectedName','id','expectedSlug','expectedBranch',
@@ -26,7 +36,7 @@ const schema=(required, allowed)=>({type:'object',properties:Object.fromEntries(
   allowed.map(key=>[key,props[key]])),required,additionalProperties:false});
 function valid(a,change=false){
   const allowed=change?[...core,'slug','branch','description','confirm','dryRun','requestKey']:
-    [...core,'confirm','dryRun','requestKey'];
+    [...core,'confirm','dryRun','evaluationId','requestKey'];
   if(!a||typeof a!=='object'||Array.isArray(a)||
     Object.keys(a).some(k=>!allowed.includes(k))||
     !PROJECT.test(a.project??'')||!NAME.test(a.expectedName??'')||
@@ -36,7 +46,9 @@ function valid(a,change=false){
     !Number.isSafeInteger(a.expectedUpdatedAt)||a.expectedUpdatedAt<=0||
     a.outsideApp!==true||
     a.confirm!==undefined&&typeof a.confirm!=='boolean'||
-    a.dryRun!==undefined&&typeof a.dryRun!=='boolean')
+    a.dryRun!==undefined&&typeof a.dryRun!=='boolean'||
+    (!change&&a.evaluationId!==undefined&&
+      (typeof a.evaluationId!=='string'||!/^[0-9a-f]{64}$/.test(a.evaluationId))))
     throw new RefusalError('Exact custom environment identity and revision required');
   if(change){
     if(a.slug===undefined&&a.branch===undefined&&a.description===undefined)
@@ -56,17 +68,20 @@ function safeDescription(text){
   return typeof text==='string'&&text.length<=200&&
     !/[\x00-\x1f\x7f]/.test(text)&&!credentialLike(text);
 }
-async function getExact(client,project,id,a,productionBranch){
+async function getExact(client,project,id,a,productionBranch,collect=false){
   const r=await client.request('custom_environments_get',{
     path:{idOrName:project,environmentSlugOrId:id}});
+  // AUD-CN: on the delete path (collect) the link lists are read into
+  // the evaluation instead of refusing on non-empty; a list that is
+  // not an array is unprovable and still refuses on every path.
   if(!r||r.id!==id||r.slug!==a.expectedSlug||
     r.type!=='preview'||r.updatedAt!==a.expectedUpdatedAt||
     r.branchMatcher?.type!=='equals'||
     r.branchMatcher.pattern!==a.expectedBranch||
     a.expectedBranch===productionBranch||
-    !Array.isArray(r.domains)||r.domains.length!==0||
+    !Array.isArray(r.domains)||(!collect&&r.domains.length!==0)||
     !Array.isArray(r.currentDeploymentAliases)||
-    r.currentDeploymentAliases.length!==0||
+    (!collect&&r.currentDeploymentAliases.length!==0)||
     (r.projectId!=null&&r.projectId!==project))
     throw new RefusalError('Custom environment revision, branch or emptiness changed');
   return r;
@@ -97,7 +112,7 @@ async function conflicts(client,project,id,slug,branch){
 async function state(args,ctx,change){
   valid(args,change);
   const {client,account,productionBranch}=await scope(ctx,args.project,args.expectedName);
-  const row=await getExact(client,args.project,args.id,args,productionBranch);
+  const row=await getExact(client,args.project,args.id,args,productionBranch,!change);
   const next=change?proposed(args):{slug:args.expectedSlug,branch:args.expectedBranch};
   if(next.branch===productionBranch)
     throw new RefusalError('Cannot attach a custom environment to production');
@@ -108,11 +123,28 @@ async function state(args,ctx,change){
     await conflicts(client,args.project,args.id,next.slug,next.branch);
   }
   if(!change)await conflicts(client,args.project,args.id,row.slug,row.branchMatcher.pattern);
-  return {project:args.project,name:args.expectedName,id:row.id,slug:row.slug,
+  const base={project:args.project,name:args.expectedName,id:row.id,slug:row.slug,
     branch:row.branchMatcher.pattern,updatedAt:row.updatedAt,
     teamId:account.team_id,productionBranch,
     nextSlug:next.slug,nextBranch:next.branch,
     nextDescription:args.description??null,descriptionChanged:args.description!==undefined};
+  if(change)return base;
+  // AUD-CN: the delete evaluation — the links that used to refuse the
+  // deletion outright, named and fingerprinted. A link entry whose
+  // name cannot be proven refuses the evaluation: the warning must
+  // be complete or it does not exist.
+  const linkNames=(list,pick)=>list.map(entry=>{
+    const value=typeof entry==='string'?entry:pick(entry);
+    if(typeof value!=='string'||!value)
+      throw new RefusalError('Custom environment link inventory could not be verified');
+    return value;
+  }).sort();
+  const domains=linkNames(row.domains,e=>e?.name??e?.domain);
+  const aliases=linkNames(row.currentDeploymentAliases,e=>e?.alias??e?.name);
+  const evaluation={project:args.project,id:row.id,slug:row.slug,
+    branch:row.branchMatcher.pattern,updatedAt:row.updatedAt,domains,aliases};
+  return {...base,domains,aliases,evaluation,
+    evaluationId:createHash('sha256').update(JSON.stringify(evaluation)).digest('hex')};
 }
 async function recheck(ctx,args,b,change){
   const provider=await writeProvider(ctx);
@@ -125,6 +157,12 @@ async function recheck(ctx,args,b,change){
       now.id!==b.id||now.updatedAt!==b.updatedAt||
       now.nextSlug!==b.nextSlug||now.nextBranch!==b.nextBranch)
       throw new TypeError('Custom environment changed since confirmation');
+    // AUD-CN: on the delete path the links are part of what the owner
+    // confirmed — drift in them, or a linked deletion that was never
+    // confirmed on its evaluation, refuses before dispatch.
+    if(!change&&(now.evaluationId!==b.evaluationId||
+      ((now.domains.length>0||now.aliases.length>0)&&!b.ownerConfirmed)))
+      throw new TypeError('Custom environment links changed since confirmation');
   });
   return provider;
 }
@@ -171,12 +209,36 @@ const remove=defineWrite({
   async before(a,ctx){
     if(ctx.connection?.profile!=='full')
       throw new RefusalError('Full owner profile required for irreversible environment removal');
-    return state(a,ctx,false);
+    const b=await state(a,ctx,false);
+    // AUD-CN: a named evaluation must be the CURRENT one on either
+    // path, and a linked environment confirms only on its exact
+    // evaluation — never silently on the simple confirmation.
+    if(a.evaluationId!==undefined&&a.evaluationId!==b.evaluationId)
+      throw new RefusalError('That evaluation is no longer current: the environment or its links have changed since it was made. Run the plan again and confirm the evaluation it shows now');
+    const linked=b.domains.length>0||b.aliases.length>0;
+    if(linked&&a.confirm===true&&a.dryRun!==true&&a.evaluationId===undefined)
+      throw new RefusalError('This custom environment still has linked domains or active deployment aliases; remove the links first — or confirm the exact evaluation: run the plan (dryRun) to see the links named, then confirm with the evaluationId it shows');
+    return {...b,linked,ownerConfirmed:linked&&a.evaluationId===b.evaluationId};
   },
-  async preview(_a,_ctx,b){return 'IRREVERSIBLY remove isolated custom environment '+b.slug+
-    ' ('+b.id+') from project '+b.project+'; no linked domains or active aliases. '+
-    'Unassigned project variables are never deleted by this operation';},
-  async production(){return {production:false,why:'No production branch, domains or active deployment aliases'};},
+  async preview(_a,_ctx,b){
+    if(!b.linked)return 'IRREVERSIBLY remove isolated custom environment '+b.slug+
+      ' ('+b.id+') from project '+b.project+'; no linked domains or active aliases. '+
+      'Unassigned project variables are never deleted by this operation';
+    return 'IRREVERSIBLY remove custom environment '+b.slug+
+      ' ('+b.id+') from project '+b.project+'. OWNER-CONFIRMED REMOVAL: '+
+      'it still has '+(b.domains.length?'linked domain(s) '+b.domains.join(', '):'')+
+      (b.domains.length&&b.aliases.length?' and ':'')+
+      (b.aliases.length?'active deployment alias(es) '+b.aliases.join(', '):'')+
+      ' — removing the environment breaks those links and the previews '+
+      'they serve stop answering; Vercel may itself refuse while links '+
+      'exist, and that verdict is reported as returned. Unassigned '+
+      'project variables are never deleted by this operation. '+
+      'Evaluation: '+b.evaluationId+'. To proceed, confirm with '+
+      'evaluationId set to that exact value; if the environment or its '+
+      'links change, the evaluation changes and the confirmation is refused.';},
+  async production(_a,_ctx,b){return {production:false,
+    why:b.linked?'Nonproduction branch environment; its linked domains and aliases serve only its own preview deployments':
+      'No production branch, domains or active deployment aliases'};},
   async targets(_a,b){return [{kind:'project',id:b.project,name:b.name},
     {kind:'env',id:b.id,projectId:b.project}];},
   async apply(a,ctx,b,requestKey){
@@ -208,8 +270,8 @@ export const customEnvironmentMutateTools={
       writeContract:update.writeContract,annotations:{readOnlyHint:false,destructiveHint:false}},
     {name:'vercel_environment_delete',writes:true,guardedWrite:true,
       profiles:['full'],area:'env',
-      description:'Irreversibly remove an independently verified empty nonproduction custom environment without deleting orphan variables.',
-      inputSchema:schema(core,[...core,'confirm','dryRun','requestKey']),
+      description:'Irreversibly remove a nonproduction custom environment by exact revision; linked domains or aliases need the plan\'s exact evaluationId.',
+      inputSchema:schema(core,[...core,'confirm','dryRun','evaluationId','requestKey']),
       writeContract:remove.writeContract,annotations:{readOnlyHint:false,destructiveHint:true}}
   ],
   handlers:{

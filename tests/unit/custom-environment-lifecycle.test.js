@@ -121,6 +121,77 @@ describe('E-2 guarded custom environment lifecycle',()=>{
       body:{deleteUnassignedEnvironmentVariables:false}});
     expect(f.fake.calls.every(x=>x.query.teamId===team)).toBe(true);
   });
+  const linkedRow={...row,domains:[{name:'attached.fake'}],
+    currentDeploymentAliases:['alias.fake']};
+  it('AUD-CN: the plan for a linked environment renders the warning with its evaluation id and deletes nothing',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}/custom-environments/{environmentSlugOrId}')
+      .resolves(linkedRow);
+    const out=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,confirm:false,dryRun:true}));
+    expect(out.status).toBe('preview');
+    expect(out.preview).toContain('OWNER-CONFIRMED REMOVAL');
+    expect(out.preview).toContain('attached.fake');
+    expect(out.preview).toContain('alias.fake');
+    expect(out.preview).toMatch(/Evaluation: [0-9a-f]{64}/);
+    expect(changes(f)).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('AUD-CN: a confirmation naming a stale evaluation refuses the linked deletion',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}/custom-environments/{environmentSlugOrId}')
+      .resolves(linkedRow);
+    const out=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,evaluationId:'0'.repeat(64)}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(out.reason).toMatch(/no longer current/);
+    expect(changes(f)).toHaveLength(0);
+  });
+  it('AUD-CN: a confirmation naming the exact evaluation deletes a linked environment, verified by read-back',async()=>{
+    const f=fixture();
+    f.fake.when('DELETE','/v9/projects/{idOrName}/custom-environments/{environmentSlugOrId}')
+      .resolves(linkedRow);
+    f.fake.when('GET','/v9/projects/{idOrName}/custom-environments/{environmentSlugOrId}')
+      .resolves(linkedRow).resolves(linkedRow).resolves(linkedRow).rejects(404);
+    const plan=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,confirm:false,dryRun:true}));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const out=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,evaluationId}));
+    expect(out).toMatchObject({status:'applied',confirmed:true});
+    expect(changes(f)).toHaveLength(1);
+    expect(changes(f)[0]).toMatchObject({method:'DELETE',
+      body:{deleteUnassignedEnvironmentVariables:false}});
+    expect(f.audit.length).toBeGreaterThan(0);
+    f.fake.verify();
+  });
+  it('AUD-CN: a link change between plan and confirm refuses as stale',async()=>{
+    const f=fixture();
+    const more={...linkedRow,currentDeploymentAliases:['alias.fake','alias2.fake']};
+    f.fake.when('GET','/v9/projects/{idOrName}/custom-environments/{environmentSlugOrId}')
+      .resolves(linkedRow).resolves(more);
+    const plan=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,confirm:false,dryRun:true}));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const out=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,evaluationId}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(out.reason).toMatch(/no longer current/);
+    expect(changes(f)).toHaveLength(0);
+  });
+  it('AUD-CN: a link change between preview and dispatch refuses at apply',async()=>{
+    const f=fixture();
+    const more={...linkedRow,domains:[{name:'attached.fake'},{name:'other.fake'}]};
+    f.fake.when('GET','/v9/projects/{idOrName}/custom-environments/{environmentSlugOrId}')
+      .resolves(linkedRow).resolves(linkedRow).resolves(more);
+    const plan=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,confirm:false,dryRun:true}));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const out=parse(await f.call('vercel_environment_delete',
+      {...exactArgs,evaluationId}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(changes(f)).toHaveLength(0);
+  });
   it('dry run, missing confirm, protected project and read-only profile never mutate',async()=>{
     for(const t of ['vercel_environment_create','vercel_environment_update',
       'vercel_environment_delete']){
