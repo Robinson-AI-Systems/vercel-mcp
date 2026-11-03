@@ -17,13 +17,19 @@ export default function handler(req, res) {
     'disconnect.</p>' +
 
     '<section><h2>Connect from your AI client</h2>' +
-    '<p>In your client (for example Muse), add a custom connector with ' +
-    'this address:</p>' +
+    '<p>In your client, add a custom connector with this ' +
+    'address:</p>' +
     '<code class="addr">' + BRANDED_ORIGIN + '/api/mcp</code>' +
-    '<p>If the client asks for a Client ID, paste the server\'s own ' +
-    'client document:</p>' +
+    '<p>Muse only: if Muse asks for a Client ID, paste the ' +
+    'server\'s own client document:</p>' +
     '<code class="addr">' + BRANDED_ORIGIN +
     '/.well-known/muse-client.json</code>' +
+    '<p>In Claude, ChatGPT, or any other client, leave the Client ' +
+    'ID and the Client Secret blank \u2014 the client registers ' +
+    'itself automatically. Do not paste the Muse document there: ' +
+    'it only accepts Muse\'s own return address, so any other ' +
+    'client using it fails with an \u201cUnknown client or ' +
+    'redirect address\u201d error.</p>' +
     '<p>Then you sign in with your own Vercel account, on Vercel\'s ' +
     'own sign-in, and pick the account to connect — what the ' +
     'connection can do follows the account you pick; none of it is ' +
