@@ -2,7 +2,8 @@
 // Never serialize values, digests or raw provider rows to the result or audit.
 import {randomBytes} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
-import {compact,credentialLike} from '../core/util.js';
+import {compact} from '../core/util.js';
+import {checkValueSource} from './env-value-source.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
@@ -23,8 +24,8 @@ const props={
   id:{type:'string',pattern:ID.source},expectedUpdatedAt:{type:'integer',minimum:1},
   targets:{type:'array',minItems:1,maxItems:3,uniqueItems:true,
     items:{type:'string',enum:['preview','development','production']}},
-  kind:{type:'string',enum:['Config','Secret']},
-  value:{type:'string',minLength:1,maxLength:65536},
+  kind:{type:'string',enum:['Config','Secret'],description:'Default Secret. Config = plain non-secret value'},
+  value:{type:'string',minLength:1,maxLength:65536,description:'Config only; credential-shaped text refused'},
   generate:{type:'object',properties:{
     bytes:{type:'integer',const:32},
     encoding:{type:'string',enum:['hex','base64url']}
@@ -60,17 +61,7 @@ function validateSet(a){
     (a.outsideApp!==undefined&&typeof a.outsideApp!=='boolean')||
     (a.dryRun!==undefined&&typeof a.dryRun!=='boolean'))
     throw new RefusalError('Invalid exact environment value request');
-  const kind=a.kind??'Secret';
-  const sources=['value','generate'].filter(k=>a[k]!==undefined);
-  if(sources.length!==1||
-    (kind==='Config'&&sources[0]!=='value')||
-    (kind==='Secret'&&sources[0]==='value')||
-    (kind==='Secret'&&a.targets.includes('development'))||
-    (sources[0]==='value'&&(typeof a.value!=='string'||a.value.length<1||
-      a.value.length>65536||credentialLike(a.value)))||
-    (sources[0]==='generate'&&(!exact(a.generate,{bytes:1,encoding:1})||
-      a.generate.bytes!==32||!['hex','base64url'].includes(a.generate.encoding))))
-    throw new RefusalError('Choose one permitted private environment value source');
+  checkValueSource(a);
 }
 function validateDelete(a){
   if(!exact(a,delProps)||!PROJECT.test(a.project??'')||!ID.test(a.id??'')||
@@ -286,7 +277,7 @@ const output=result=>({isError:['refused_by_guard','outcome_unknown'].includes(r
 export const projectEnvWriteTools={
   tools:[
     {name:'vercel_env_set',writes:true,guardedWrite:true,profiles:['everyday','full'],
-      area:'env',description:'Create or replace one exact project variable; private value input and independently checked target.',
+      area:'env',description:'Create or replace one exact project variable: kind Config takes a plain non-secret value; kind Secret takes generate. Checked target.',
       inputSchema:setSchema,writeContract:set.writeContract,
       annotations:{readOnlyHint:false,destructiveHint:false}},
     {name:'vercel_env_delete',writes:true,guardedWrite:true,profiles:['full'],
