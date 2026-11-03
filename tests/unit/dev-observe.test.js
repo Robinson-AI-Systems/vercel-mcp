@@ -40,7 +40,9 @@ function fixture(extraObjects=[],projectOverrides={}){
     ...projectOverrides};
   fake.when('GET','/v9/projects/{idOrName}').resolves(row);
   fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
-    uid:deployment,projectId:project,target:'preview',url:host,readyState:'READY'});
+    // AUD-CC: the provider's documented preview encoding — the
+    // read-back carries target null, not the literal 'preview'.
+    uid:deployment,projectId:project,target:null,url:host,readyState:'READY'});
   const defaultFetch=async(input,options={})=>{
     const url=String(input);
     if(url.startsWith('https://'+host+'/')){
