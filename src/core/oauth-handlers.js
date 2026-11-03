@@ -6,6 +6,7 @@ import {
   evaluateLogin, clientIp, LOCKOUT_WINDOW_MINUTES
 } from './oauth.js';
 import { publicOrigin, send, escapeHtml, paramsOf, only } from './http.js';
+import { createCimdResolver, redirectUriAllowed } from './cimd.js';
 import { frontDoorPage } from '../front-door.js';
 
 // AUD-AZ: an OAuth connection's listing is always the OP-1 front
@@ -69,7 +70,7 @@ const tokenResponse = (access, refresh) => ({
 const bad = (res, status, code, description) => send(res, status, { error: code, error_description: description });
 const str = (value) => typeof value === 'string' ? value : '';
 
-export function createOAuthHandlers({ db, env = process.env, service }) {
+export function createOAuthHandlers({ db, env = process.env, service, fetchDocument }) {
   if (!service || typeof service.listAccounts !== 'function' || typeof service.issuanceFor !== 'function') {
     throw new TypeError('An OAuth service adapter is required');
   }
@@ -90,8 +91,15 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       token_endpoint_auth_method: 'none'
     };
   }
-  // The Muse document client resolves to a fixed public-client record; every
-  // other client_id keeps the registered-client lookup, unchanged.
+  // The Muse document client resolves to a fixed public-client record.
+  // Any other URL-shaped client_id is a Client ID Metadata Document
+  // (AUD-BX): it is fetched and validated by the CIMD resolver, and a
+  // conforming document resolves to the same public-client record
+  // shape. Every remaining client_id keeps the registered-client
+  // lookup, unchanged. This one funnel serves authorize, the dev
+  // authorize, the attested-flow re-check, the token endpoint and
+  // revocation, so no surface can drift from another.
+  const resolveCimdClient = createCimdResolver(fetchDocument ? { fetchDocument } : {});
   async function resolveClient(clientId) {
     if (typeof clientId === 'string' && clientId === museClientDocument().client_id) {
       return {
@@ -99,6 +107,10 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
         redirect_uris: [MUSE_REDIRECT_URI],
         token_endpoint_auth_method: 'none', client_secret_hash: null
       };
+    }
+    if (typeof clientId === 'string' && clientId.startsWith('https://')) {
+      const cimd = await resolveCimdClient(clientId);
+      if (cimd) return cimd;
     }
     return db.getOAuthClient(clientId);
   }
@@ -377,7 +389,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
     }
     const flow = guard.flow;
     const client = await resolveClient(flow.client_id);
-    if (!client || !client.redirect_uris?.includes(flow.redirect_uri)) {
+    if (!client || !redirectUriAllowed(client, flow.redirect_uri)) {
       return refusal(res, 400, 'This sign-in link is no longer usable',
         'The app that asked for this connection is no longer registered here. ' +
         'Start the connection again from your AI app.');
@@ -449,7 +461,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       return authorizeAttested(req, res, params);
     }
     const client = await resolveClient(str(params.client_id));
-    if (!client || !client.redirect_uris?.includes(params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
+    if (!client || !redirectUriAllowed(client, params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
       return bad(res, 400, 'invalid_request', 'Unknown client or redirect address');
     }
     if (params.response_type !== 'code' || params.code_challenge_method !== 'S256' ||
@@ -482,7 +494,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       return bad(res, 400, 'invalid_request', 'Malformed authorization request');
     }
     const client = await resolveClient(str(params.client_id));
-    if (!client || !client.redirect_uris?.includes(params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
+    if (!client || !redirectUriAllowed(client, params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
       return bad(res, 400, 'invalid_request', 'Unknown client or redirect address');
     }
     if (params.response_type !== 'code' || params.code_challenge_method !== 'S256' ||
@@ -925,7 +937,7 @@ export function createOAuthHandlers({ db, env = process.env, service }) {
       return bad(res, 401, 'invalid_client', 'Client credentials rejected');
     }
     if (params.grant_type === 'authorization_code') {
-      if (!params.code || !client.redirect_uris.includes(params.redirect_uri) || !params.code_verifier) {
+      if (!params.code || !redirectUriAllowed(client, params.redirect_uri) || !params.code_verifier) {
         return bad(res, 400, 'invalid_grant', 'Missing or invalid authorization details');
       }
       const record = await db.consumeAuthCode(params.code);
