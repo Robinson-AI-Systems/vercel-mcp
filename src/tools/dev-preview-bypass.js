@@ -32,12 +32,34 @@ async function isolated(client,b,ownIds=new Set()){
   const safe=d=>deploymentTargetMatches(d.target,'preview')||
     (d.target==='production'&&ownIds.has(d.id??d.uid)&&
      (d.meta==null||d.meta.rtc_run===b.runId));
+  // AUD-CE: two more arms of this proof counted the scratch
+  // project's own fixture surface as live traffic. The project
+  // record designates the promoted seed deployment as its
+  // production deployment — that designation disqualifies only
+  // when it points at a deployment this run did not record.
+  // And the provider assigns every project its own vercel.app
+  // domain at creation (live read-back, 2026-11-03: the seeded
+  // project's only domain is that auto-assigned one) — a domain
+  // disqualifies only when it is not that auto-assigned domain:
+  // a vercel.app apex, no git branch, its stem a prefix of the
+  // project name (the provider truncates long names).
+  const designatedKnown=row.productionDeploymentId!=null||
+    row.productionDeployment!=null;
+  const designated=row.productionDeploymentId??
+    (typeof row.productionDeployment==='string'?
+      row.productionDeployment:
+      row.productionDeployment?.id??row.productionDeployment?.uid);
+  const ownDomain=d=>d.apexName==='vercel.app'&&
+    (d.gitBranch==null)&&typeof d.name==='string'&&
+    d.name.endsWith('.vercel.app')&&
+    row.name.startsWith(d.name.slice(0,-'.vercel.app'.length))&&
+    (d.projectId==null||d.projectId===b.project);
   if(row?.id!==b.project||row.name!==b.name||!row.name.startsWith(
     'rtc-'+b.runId.replaceAll('_','-')+'-')||
-     row.productionDeployment||row.productionDeploymentId||
+     (designatedKnown&&(designated==null||!ownIds.has(designated)))||
      complete(deps,'deployments').some(d=>
        d.projectId!==b.project||!safe(d))||
-     complete(domains,'domains').length)
+     complete(domains,'domains').some(d=>!ownDomain(d)))
     throw new RefusalError('Protection bypass is unsafe on a project with any live or unknown traffic');
 }
 const ownDeploymentIds=objects=>new Set(objects
