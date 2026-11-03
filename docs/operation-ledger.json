@@ -8603,7 +8603,8 @@
           "src/tools/dev-preview-bypass.js",
           "src/tools/dev-runs.js",
           "src/tools/project-delete.js",
-          "src/tools/team-retention.js"
+          "src/tools/team-retention.js",
+          "src/vercel/project-settings.js"
         ]
       },
       "tests": {
