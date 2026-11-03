@@ -318,6 +318,30 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect(p).toMatchObject({project,runId,deployment,alias:name});
     f.fake.verify();
   });
+  it('plans an alias for the run’s own promoted first deployment, and refuses another run’s',async()=>{
+    const name='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
+    // AUD-CD: the provider promotes a first deployment to
+    // production; stamped with this run's meta and recorded in
+    // the run, it is the run's preview fixture.
+    const own=fixture([object('deployment',deployment)]);
+    own.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      uid:deployment,projectId:project,target:'production',
+      meta:{rtc_run:runId},readyState:'READY'});
+    own.fake.when('GET','/v4/aliases/{idOrAlias}').rejects(404);
+    const p=await planPreviewAlias({runId,project,deployment,alias:name},
+      context({db:own.db,connection:owner,env:{},fetchImpl:own.fake.fetch}));
+    expect(p).toMatchObject({project,runId,deployment,alias:name});
+    own.fake.verify();
+    const foreign=fixture([object('deployment',deployment)]);
+    foreign.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
+      uid:deployment,projectId:project,target:'production',
+      meta:{rtc_run:'run_20260101_otherx'},readyState:'READY'});
+    foreign.fake.when('GET','/v4/aliases/{idOrAlias}').rejects(404);
+    await expect(planPreviewAlias({runId,project,deployment,alias:name},
+      context({db:foreign.db,connection:owner,env:{},
+        fetchImpl:foreign.fake.fetch})))
+      .rejects.toThrow(/Only a READY, owner-scoped preview/);
+  });
   it('validates one preview-only env body and never exposes the inline source value',async()=>{
     const f=fixture();
     const source='synthetic-value-123';
@@ -408,12 +432,14 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
     const row={...projectRow,name,productionDeployment:null,
       protectionBypass:{}};
-    const f=fixture([object('project',project,{name})],row);
-    // AUD-CC: the project's inventory holds the run's own preview
-    // deployment in the provider's documented encoding (target
-    // null) — the isolation proof must still pass.
+    const f=fixture([object('project',project,{name}),
+      object('deployment',deployment)],row);
+    // AUD-CC/AUD-CD: the project's inventory holds the run's own
+    // first deployment, promoted to production and stamped with
+    // this run's meta — the isolation proof must still pass.
     f.fake.when('GET','/v7/deployments').resolves({
-      deployments:[{id:deployment,projectId:project,target:null}],
+      deployments:[{id:deployment,projectId:project,
+        target:'production',meta:{rtc_run:runId}}],
       pagination:{count:1,next:null}});
     f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
       domains:[],pagination:{count:0,next:null}});

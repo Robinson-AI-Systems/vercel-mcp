@@ -40,9 +40,12 @@ function fixture(extraObjects=[],projectOverrides={}){
     ...projectOverrides};
   fake.when('GET','/v9/projects/{idOrName}').resolves(row);
   fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
-    // AUD-CC: the provider's documented preview encoding — the
-    // read-back carries target null, not the literal 'preview'.
-    uid:deployment,projectId:project,target:null,url:host,readyState:'READY'});
+    // AUD-CC/AUD-CD: the run's deployment as the provider
+    // actually returns it — a first deployment promoted to
+    // production, stamped with this run's meta. The observe
+    // tools must still recognize it as the run's own preview.
+    uid:deployment,projectId:project,target:'production',
+    meta:{rtc_run:runId},url:host,readyState:'READY'});
   const defaultFetch=async(input,options={})=>{
     const url=String(input);
     if(url.startsWith('https://'+host+'/')){
