@@ -45,6 +45,10 @@ const BRAND_CSS =
   'a.button{display:block;text-align:center;font:600 16px Inter,-apple-system,sans-serif;' +
   'color:#fff;background:var(--grad);border-radius:50px;padding:13px 20px;text-decoration:none;margin:14px 0}' +
   'ul.links{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px}' +
+  'ol{padding-left:22px;margin:0 0 12px}ol li{margin:4px 0}' +
+  'pre{background:var(--surface);border:1px solid var(--border);border-radius:10px;' +
+  'padding:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0 14px;' +
+  'font:14px/1.5 ui-monospace,Menlo,Consolas,monospace}' +
   'footer{margin-top:28px;color:var(--muted);font-size:14px}' +
   // Form elements: the authorize page (AUD-AZ) is the shell's first
   // form. The status and connection pages contain no form elements,
@@ -76,12 +80,15 @@ export const brandFooter = () =>
   'through — this page describes things as they stand today, not a promise about ' +
   'tomorrow. Vercel Unleashed works through your own Vercel account, and ' +
   'Vercel\'s own terms govern that account. ' +
-  '<a href="/">Status</a> · <a href="/connection">My connection</a></footer>';
+  '<a href="/">Status</a> · <a href="/connection">My connection</a> · ' +
+  '<a href="/#connect">Connect your AI app</a></footer>';
 
 export function frontDoorPage({ title, heading, body }) {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>' + title + '</title><style>' + BRAND_CSS + '</style></head><body>' +
+    '<title>' + title + '</title>' +
+    '<link rel="icon" type="image/png" href="' + ICON_PATH + '">' +
+    '<style>' + BRAND_CSS + '</style></head><body>' +
     '<main>' + brandHeader() +
     '<h1>' + heading + '</h1>' + body + brandFooter() + '</main>' +
     '</body></html>';
