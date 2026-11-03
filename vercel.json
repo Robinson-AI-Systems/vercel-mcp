@@ -17,6 +17,10 @@
       "destination": "/api/well-known/muse-client"
     },
     {
+      "source": "/api/health/deep",
+      "destination": "/api/health-deep"
+    },
+    {
       "source": "/",
       "destination": "/api/index"
     },
