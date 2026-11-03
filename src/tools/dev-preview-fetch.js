@@ -125,6 +125,21 @@ async function readBypass(a,ctx,b){
   return decryptSecret(item.detail.ciphertext,
     'dev-bypass:'+a.runId+':'+a.bypassId,ctx.env);
 }
+// AUD-CF: the per-path failure bucket ("failed, redirected or
+// exceeded its deadline") cannot distinguish a protection
+// redirect from a dead connection — the two live failure modes
+// need opposite fixes, and branch G's fetch leg failed live
+// twice (2026-11-03) with no way to tell which. Classify from
+// the errors the transport already produces; coarse classes
+// only, never a message, never a provider body.
+function failureClassOf(error){
+  const message=error instanceof Error?error.message:'';
+  const code=error&&typeof error==='object'?error.code:undefined;
+  if(message.includes('redirect refused'))return 'redirect';
+  if(message.includes('timed out')||code==='ETIMEDOUT')return 'timeout';
+  if(message.includes('Invalid upstream'))return 'invalid_status';
+  return 'connection';
+}
 function hostOf(row){
   const input=row?.url;
   if(typeof input!=='string'||input.length>253)
@@ -194,8 +209,9 @@ export const devPreviewFetchTools={
             headers:safeHeader({headers:{get:key=>parsed.headers?.[key]}}),
             body:safeText(parsed.sample,4096),truncated:parsed.truncated,
             completed:true});
-        }catch{
+        }catch(error){
           results.push({path,status:null,completed:false,
+            failureClass:failureClassOf(error),
             reason:'Preview fetch failed, redirected or exceeded its bounded deadline'});
         }
       }

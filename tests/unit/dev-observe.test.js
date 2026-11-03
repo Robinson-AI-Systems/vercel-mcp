@@ -231,6 +231,23 @@ describe('V-3 preview-only observation and diagnostics',()=>{
       {runId,project,deployment,paths:['/']},conn,redirected));
     expect(result.complete).toBe(false);
     expect(result.results[0].status).toBe(null);
+    // AUD-CF: a refused redirect names its own failure class.
+    expect(result.results[0].failureClass).toBe('redirect');
+    f.fake.verify();
+  });
+  it('classifies a failed preview fetch connection honestly (AUD-CF)',async()=>{
+    const f=fixture();
+    lookup.mockResolvedValue([{address:'8.8.8.8',family:4}]);
+    const dead=async(input,opts)=>{
+      if(String(input).startsWith('https://'+host+'/'))
+        throw new Error('connect ECONNREFUSED');
+      return f.fake.fetch(input,opts);
+    };
+    const result=parse(await f.call('vercel_dev_fetch_preview',
+      {runId,project,deployment,paths:['/']},conn,dead));
+    expect(result.complete).toBe(false);
+    expect(result.results[0]).toMatchObject({status:null,
+      failureClass:'connection'});
     f.fake.verify();
   });
   it('checks only preview metadata with honest unverified provider integration findings',async()=>{
