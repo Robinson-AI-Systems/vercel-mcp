@@ -168,3 +168,100 @@ describe('D-3 terminal unaliased preview cleanup',()=>{
     }
   });
 });
+
+describe('AUD-CJ owner-confirmed deletion of a serving deployment',()=>{
+  const prodDeployment='dpl_FAKE_PROD';
+  const prodRow={uid:prodDeployment,projectId:project,readyState:'READY',
+    target:'production',url:'fake-prod.vercel.app',created:1730000000000,
+    alias:['www.example.com'],
+    meta:{githubCommitRef:'main',githubCommitSha:'a'.repeat(40)}};
+  const prodProject={id:project,name:'fake-prod-project',
+    productionDeploymentId:prodDeployment};
+  const prodConnection={account:'acct_FAKE',profile:'full',
+    mode:'production',listing:'catalog'};
+  const prodArgs={deployment:prodDeployment,project,expectedState:'READY',
+    outsideApp:true,requestKey:'deleteProdFAKE01'};
+  function prodFixture(rowOverride=prodRow,projectOverride=prodProject){
+    const f=fixture();
+    const reads=f.fake.when('GET','/v13/deployments/{idOrUrl}');
+    // Plan (2) + confirm before (2) + apply re-reads (2); the
+    // verify read after the DELETE is the one that must 404.
+    for(let i=0;i<6;i++)reads.resolves(rowOverride);
+    reads.rejects(404);
+    const projects=f.fake.when('GET','/v9/projects/{idOrName}');
+    for(let i=0;i<6;i++)projects.resolves(projectOverride);
+    f.fake.when('DELETE','/v13/deployments/{id}').resolves({},204);
+    return f;
+  }
+  const deletes=f=>f.fake.calls.filter(x=>x.method==='DELETE');
+  it('plans a production deletion with the full warning and fingerprint, deleting nothing',async()=>{
+    const f=prodFixture();
+    const plan=result(await f.call({...prodArgs,dryRun:true},prodConnection));
+    expect(plan.status).toBe('preview');
+    expect(plan.preview).toContain('OWNER-CONFIRMED DELETION');
+    expect(plan.preview).toContain('CURRENT PRODUCTION DEPLOYMENT');
+    expect(plan.preview).toContain('www.example.com');
+    expect(plan.preview).toMatch(/Evaluation: [0-9a-f]{64}/);
+    expect(deletes(f)).toHaveLength(0);
+  });
+  it('refuses a confirmation that names no evaluation or a stale one',async()=>{
+    const f=prodFixture();
+    const noId=result(await f.call({...prodArgs,confirm:true,
+      requestKey:'deleteProdNoId02'},prodConnection));
+    expect(noId).toMatchObject({status:'refused_by_guard'});
+    expect(JSON.stringify(noId)).toContain('requires confirming the exact evaluation');
+    const stale=result(await f.call({...prodArgs,confirm:true,
+      evaluationId:'0'.repeat(64),requestKey:'deleteProdStale3'},prodConnection));
+    expect(stale).toMatchObject({status:'refused_by_guard'});
+    expect(JSON.stringify(stale)).toContain('no longer current');
+    expect(deletes(f)).toHaveLength(0);
+  });
+  it('deletes the current production deployment on the exact evaluation, verified gone',async()=>{
+    const f=prodFixture();
+    const plan=result(await f.call({...prodArgs,dryRun:true,
+      requestKey:'deleteProdPlan04'},prodConnection));
+    const evaluationId=/Evaluation: ([0-9a-f]{64})/.exec(plan.preview)[1];
+    const done=result(await f.call({...prodArgs,confirm:true,evaluationId,
+      requestKey:'deleteProdDo05'},prodConnection));
+    expect(done).toMatchObject({status:'applied',confirmed:true});
+    expect(deletes(f)).toHaveLength(1);
+    expect(f.audits).toHaveLength(2);
+  });
+  it('deletes a healthy aliased preview on the exact evaluation',async()=>{
+    const previewRow={uid:prodDeployment,projectId:project,readyState:'READY',
+      target:null,url:'fake-preview.vercel.app',created:1730000000000,
+      alias:['preview.example.com'],meta:{githubCommitRef:'feature'}};
+    const otherProject={id:project,name:'fake-prod-project',
+      productionDeploymentId:'dpl_SOMEONE_ELSE'};
+    const f=prodFixture(previewRow,otherProject);
+    const plan=result(await f.call({...prodArgs,dryRun:true,
+      requestKey:'deletePrevPlan06'},prodConnection));
+    expect(plan.preview).toContain('preview.example.com');
+    expect(plan.preview).not.toContain('CURRENT PRODUCTION DEPLOYMENT');
+    const evaluationId=/Evaluation: ([0-9a-f]{64})/.exec(plan.preview)[1];
+    const done=result(await f.call({...prodArgs,confirm:true,evaluationId,
+      requestKey:'deletePrevDo07'},prodConnection));
+    expect(done).toMatchObject({status:'applied',confirmed:true});
+    expect(deletes(f)).toHaveLength(1);
+  });
+  it('refuses when an alias appears between the plan and the confirmation',async()=>{
+    const f=fixture();
+    const plain={...prodRow,alias:[]};
+    const aliased={...prodRow,alias:['new.example.com']};
+    const reads=f.fake.when('GET','/v13/deployments/{idOrUrl}');
+    // plan: scoped + raw; confirm before: scoped + raw (still plain);
+    // apply re-reads: fresh + scoped (aliased now).
+    reads.resolves(plain).resolves(plain).resolves(plain).resolves(plain)
+      .resolves(aliased).resolves(aliased);
+    const projects=f.fake.when('GET','/v9/projects/{idOrName}');
+    for(let i=0;i<4;i++)projects.resolves(prodProject);
+    f.fake.when('DELETE','/v13/deployments/{id}').resolves({},204);
+    const plan=result(await f.call({...prodArgs,dryRun:true,
+      requestKey:'deleteDriftPlan8'},prodConnection));
+    const evaluationId=/Evaluation: ([0-9a-f]{64})/.exec(plan.preview)[1];
+    const done=result(await f.call({...prodArgs,confirm:true,evaluationId,
+      requestKey:'deleteDriftDo9'},prodConnection));
+    expect(done).toMatchObject({status:'refused_by_guard'});
+    expect(deletes(f)).toHaveLength(0);
+  });
+});
