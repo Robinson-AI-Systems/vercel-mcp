@@ -103,6 +103,32 @@ async function verifiedTeam(ctx){
 }
 const teamFingerprint=(teamId,rows)=>createHash('sha256')
   .update(JSON.stringify([teamId,rows.map(r=>[r.uid,r.role])])).digest('hex');
+// AUD-CL (owner's ruling, 2026-11-03, from the AUD-CH refusal audit):
+// the last-Owner lockout guards in member remove / role update were
+// eligibility vetoes over the owner. They are converted to the
+// AUD-CH pattern: the roster is already fingerprinted (the etag);
+// the evaluation binds that fingerprint to the tool and the target,
+// the plan warns in plain words that the team is left with no Owner,
+// and the owner's confirmation must name the exact evaluationId.
+// The self-target guards are NOT converted: a tool never uses the
+// acting credential to remove or demote that credential's own
+// principal — that refusal protects the owner's own access path
+// (the same class as the server-credential protection in the audit).
+function memberGate(tool,args,teamId,target,members){
+  const etag=teamFingerprint(teamId,members);
+  const evaluation={tool,teamId,uid:target.uid,role:target.role,etag};
+  const evaluationId=createHash('sha256')
+    .update(JSON.stringify(evaluation)).digest('hex');
+  if(args.evaluationId!==undefined&&args.evaluationId!==evaluationId)
+    throw new RefusalError('That evaluation is no longer current: the team roster has changed since it was made. Run the plan again and confirm the evaluation it shows now');
+  return {etag,evaluation,evaluationId,
+    ownerConfirmed:args.evaluationId===evaluationId};
+}
+const EVAL_ID={type:'string',pattern:'^[0-9a-f]{64}$'};
+function evalIdCheck(args){
+  return args.evaluationId!==undefined&&
+    (typeof args.evaluationId!=='string'||!/^[0-9a-f]{64}$/.test(args.evaluationId));
+}
 
 // ---------------- vercel_member_invite ----------------
 const inviteProps={
@@ -204,6 +230,7 @@ const roleProps={
   projects:{type:'array',items:{type:'object',additionalProperties:false,
     required:['projectId'],properties:{projectId:{type:'string'},
     role:{type:['string','null'],enum:[...PROJECT_ROLES,null]}}}},
+  evaluationId:EVAL_ID,
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
   acknowledgeUnpricedSeat:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}};
@@ -218,6 +245,7 @@ function validateRole(args){
       args.projects.some(p=>!p||!ID.test(p.projectId??'')||
         (p.role!==undefined&&p.role!==null&&!PROJECT_ROLES.includes(p.role)))))||
     ['confirm','dryRun','acknowledgeUnpricedSeat'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
+    evalIdCheck(args)||
     args.requestKey!==undefined&&(typeof args.requestKey!=='string'||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)))
     throw new RefusalError('Invalid member role request');
@@ -239,9 +267,13 @@ const updateRole=defineWrite({
     const self=await selfUid(client);
     if(args.uid===self)
       throw new RefusalError('Refusing to change the role of the token\'s own user');
-    if(target.role==='OWNER'&&args.role!==undefined&&args.role!=='OWNER'&&
-      members.filter(m=>m.role==='OWNER').length<=1)
-      throw new RefusalError('Refusing to demote the team\'s last Owner');
+    // AUD-CL: demoting the last Owner is the owner's call to make on
+    // the exact evaluation, not the tool's to veto.
+    const gate=memberGate('vercel_member_update_role',args,teamId,target,members);
+    const lastOwner=target.role==='OWNER'&&args.role!==undefined&&
+      args.role!=='OWNER'&&members.filter(m=>m.role==='OWNER').length<=1;
+    if(lastOwner&&args.confirm===true&&args.dryRun!==true&&!gate.ownerConfirmed)
+      throw new RefusalError('Refusing to demote the team\'s last Owner without the owner-confirmed evaluation: run the plan (dryRun) to see what demoting the last Owner means, then confirm with the evaluationId it shows');
     const priceDelta=args.role!==undefined&&seatPrice(args.role).cents>0&&
       !(seatPrice(target.role).cents>0);
     const unknownPrice=args.role==='SECURITY'&&target.role!=='SECURITY';
@@ -254,7 +286,8 @@ const updateRole=defineWrite({
       body,priceDelta,unknownPrice,
       widens:args.role==='OWNER'&&target.role!=='OWNER'||
         (args.teamPermissions?.length??0)>0,
-      etag:teamFingerprint(teamId,members)};
+      etag:gate.etag,lastOwner,
+      evaluationId:gate.evaluationId,ownerConfirmed:gate.ownerConfirmed};
   },
   risk:{spend:true,access:true},
   async spend(_args,_ctx,before){
@@ -280,7 +313,15 @@ const updateRole=defineWrite({
     if(before.priceDelta)parts.push('this moves them onto a paid seat: $20/month');
     return parts.join('; ')+'.'+(before.unknownPrice
       ?' '+SECURITY_SEAT_DISCLOSURE:'')+
-      ' PRODUCTION owner confirmation required.';
+      ' PRODUCTION owner confirmation required.'+
+      (before.lastOwner
+        ?' OWNER-CONFIRMED CHANGE: this demotes the team\'s LAST Owner — '+
+          'the team is left with no Owner: nobody can manage members, '+
+          'billing or ownership, and Vercel may itself refuse. '+
+          'Evaluation: '+before.evaluationId+'. To proceed, confirm '+
+          'with evaluationId set to that exact value; if the roster '+
+          'changes, the evaluation changes and the confirmation is refused.'
+        :'');
   },
   async production(){
     return {production:true,why:'Member roles govern access on the live owner account'};
@@ -300,6 +341,14 @@ const updateRole=defineWrite({
       if(!target||target.role!==before.target.role||
         teamFingerprint(before.teamId,members)!==before.etag)
         throw new TypeError('Member roster changed after preview');
+      // AUD-CL defense in depth (the fingerprint above already binds
+      // the roster): a last-Owner demotion dispatches only on the
+      // exact confirmed evaluation.
+      if(target.role==='OWNER'&&before.body.role!==undefined&&
+        before.body.role!=='OWNER'&&
+        members.filter(m=>m.role==='OWNER').length<=1&&
+        !before.ownerConfirmed)
+        throw new TypeError('Last-Owner demotion was not owner-confirmed');
     });
     return provider.write('teams_member_patch',{path:{teamId:before.teamId,uid:args.uid},
       body:before.body},{
@@ -331,12 +380,14 @@ const updateRole=defineWrite({
 });
 
 // ---------------- vercel_member_remove ----------------
-const uidProps={uid:{type:'string'},confirm:{type:'boolean'},dryRun:{type:'boolean'},
+const uidProps={uid:{type:'string'},evaluationId:EVAL_ID,
+  confirm:{type:'boolean'},dryRun:{type:'boolean'},
   requestKey:{type:'string',pattern:'^[a-zA-Z0-9_-]{8,128}$'}};
 function validateUid(args){
   if(!args||typeof args!=='object'||Array.isArray(args)||
     Object.keys(args).some(k=>!Object.hasOwn(uidProps,k))||!ID.test(args.uid??'')||
     ['confirm','dryRun'].some(k=>args[k]!==undefined&&typeof args[k]!=='boolean')||
+    evalIdCheck(args)||
     args.requestKey!==undefined&&(typeof args.requestKey!=='string'||
       !/^[a-zA-Z0-9_-]{8,128}$/.test(args.requestKey)))
     throw new RefusalError('Invalid member request');
@@ -354,15 +405,29 @@ const remove=defineWrite({
     const self=await selfUid(client);
     if(args.uid===self)
       throw new RefusalError('Refusing to remove the token\'s own user');
-    if(target.role==='OWNER'&&members.filter(m=>m.role==='OWNER').length<=1)
-      throw new RefusalError('Refusing to remove the team\'s last Owner');
+    // AUD-CL: removing the last Owner is the owner's call to make on
+    // the exact evaluation, not the tool's to veto.
+    const gate=memberGate('vercel_member_remove',args,teamId,target,members);
+    const lastOwner=target.role==='OWNER'&&
+      members.filter(m=>m.role==='OWNER').length<=1;
+    if(lastOwner&&args.confirm===true&&args.dryRun!==true&&!gate.ownerConfirmed)
+      throw new RefusalError('Refusing to remove the team\'s last Owner without the owner-confirmed evaluation: run the plan (dryRun) to see what removing the last Owner means, then confirm with the evaluationId it shows');
     return {teamId,target:{uid:target.uid,role:target.role,email:target.email},
-      etag:teamFingerprint(teamId,members)};
+      etag:gate.etag,lastOwner,
+      evaluationId:gate.evaluationId,ownerConfirmed:gate.ownerConfirmed};
   },
   async preview(_args,_ctx,before){
     return 'Remove '+(before.target.email??before.target.uid)+' ('+before.target.role+
       ') from this team. They lose all team and project access immediately. '+
-      'PRODUCTION owner confirmation required.';
+      'PRODUCTION owner confirmation required.'+
+      (before.lastOwner
+        ?' OWNER-CONFIRMED REMOVAL: this removes the team\'s LAST Owner — '+
+          'the team is left with no Owner: nobody can manage members, '+
+          'billing or ownership, and Vercel may itself refuse. '+
+          'Evaluation: '+before.evaluationId+'. To proceed, confirm '+
+          'with evaluationId set to that exact value; if the roster '+
+          'changes, the evaluation changes and the confirmation is refused.'
+        :'');
   },
   async production(){
     return {production:true,why:'Removing a member revokes access on the live owner account'};
@@ -380,6 +445,14 @@ const remove=defineWrite({
       const {members}=await roster(readClient,before.teamId);
       if(teamFingerprint(before.teamId,members)!==before.etag)
         throw new TypeError('Member roster changed after preview');
+      // AUD-CL defense in depth (the fingerprint above already binds
+      // the roster): a last-Owner removal dispatches only on the
+      // exact confirmed evaluation.
+      const fresh=members.find(m=>m.uid===args.uid);
+      if(fresh?.role==='OWNER'&&
+        members.filter(m=>m.role==='OWNER').length<=1&&
+        !before.ownerConfirmed)
+        throw new TypeError('Last-Owner removal was not owner-confirmed');
     });
     return provider.write('teams_member_delete',{path:{teamId:before.teamId,uid:args.uid}},{
       requestKey,tool:'vercel_member_remove',shapeResult:()=>{
@@ -460,11 +533,11 @@ export const memberTools={
       inputSchema:{type:'object',required:['email'],properties:inviteProps,additionalProperties:false},
       writeContract:invite.writeContract,annotations:{readOnlyHint:false,destructiveHint:false}},
     {name:'vercel_member_update_role',writes:true,guardedWrite:true,area:'teams',profiles:['full'],
-      description:'Change a member\'s team role, team permissions or project roles; refuses self-changes and demoting the last Owner.',
+      description:'Change a member\'s team role, team permissions or project roles; refuses self-changes; demoting the last Owner needs the plan\'s exact evaluationId.',
       inputSchema:{type:'object',required:['uid'],properties:roleProps,additionalProperties:false},
       writeContract:updateRole.writeContract,annotations:{readOnlyHint:false,destructiveHint:false}},
     {name:'vercel_member_remove',writes:true,guardedWrite:true,area:'teams',profiles:['full'],
-      description:'Remove a member from the connected team; refuses removing yourself or the last Owner.',
+      description:'Remove a member from the connected team; refuses removing yourself; removing the last Owner needs the plan\'s exact evaluationId.',
       inputSchema:{type:'object',required:['uid'],properties:uidProps,additionalProperties:false},
       writeContract:remove.writeContract,annotations:{readOnlyHint:false,destructiveHint:true}},
     {name:'vercel_member_revoke_invite',writes:true,guardedWrite:true,area:'teams',profiles:['full'],

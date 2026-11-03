@@ -172,6 +172,87 @@ describe('O-2 member tools',()=>{
    expect(g.api.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
    f.api.verify();
  });
+ it('AUD-CL: the plan to remove the last Owner renders the warning with its evaluation id and deletes nothing',async()=>{
+   const f=fixture();const before=rosterOf(
+     [member('usr_OWNER1','OWNER'),member('usr_DEV','DEVELOPER')]);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   f.api.when('GET','/v3/teams/{teamId}/members').resolves(before);
+   f.api.when('GET','/v2/user').resolves({user:{id:'usr_DEV'}});
+   const r=read(await f.call('vercel_member_remove',{uid:'usr_OWNER1',dryRun:true}));
+   expect(r.status).toBe('preview');
+   expect(r.preview).toMatch(/OWNER-CONFIRMED REMOVAL/);
+   expect(r.preview).toMatch(/LAST Owner/);
+   expect(r.preview).toMatch(/Evaluation: [0-9a-f]{64}/);
+   expect(f.api.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+   f.api.verify();
+ });
+ it('AUD-CL: a confirmation naming a stale evaluation refuses the last-Owner removal',async()=>{
+   const f=fixture();const before=rosterOf(
+     [member('usr_OWNER1','OWNER'),member('usr_DEV','DEVELOPER')]);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   f.api.when('GET','/v3/teams/{teamId}/members').resolves(before);
+   f.api.when('GET','/v2/user').resolves({user:{id:'usr_DEV'}});
+   const r=read(await f.call('vercel_member_remove',
+     {uid:'usr_OWNER1',confirm:true,evaluationId:'0'.repeat(64)}));
+   expect(r.status).toBe('refused_by_guard');
+   expect(r.reason).toMatch(/no longer current/);
+   expect(f.api.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+ });
+ it('AUD-CL: a confirmation naming the exact evaluation removes the last Owner, verified by read-back',async()=>{
+   const f=fixture();const before=rosterOf(
+     [member('usr_OWNER1','OWNER'),member('usr_DEV','DEVELOPER')]);
+   const after=rosterOf([member('usr_DEV','DEVELOPER')]);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   f.api.when('GET','/v3/teams/{teamId}/members')
+     .resolves(before).resolves(before).resolves(before).resolves(after);
+   f.api.when('GET','/v2/user').resolves({user:{id:'usr_DEV'}});
+   f.api.when('DELETE','/v1/teams/{teamId}/members/{uid}').resolves({});
+   const plan=read(await f.call('vercel_member_remove',{uid:'usr_OWNER1',dryRun:true}));
+   const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+   const r=read(await f.call('vercel_member_remove',
+     {uid:'usr_OWNER1',confirm:true,evaluationId}));
+   expect(r).toMatchObject({status:'applied',confirmed:true});
+   expect(f.api.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+   expect(f.audit.length).toBeGreaterThan(0);
+   f.api.verify();
+ });
+ it('AUD-CL: a roster change between plan and confirm refuses as stale',async()=>{
+   const f=fixture();const before=rosterOf(
+     [member('usr_OWNER1','OWNER'),member('usr_DEV','DEVELOPER')]);
+   const changed=rosterOf([member('usr_OWNER1','OWNER'),
+     member('usr_OWNER2','OWNER'),member('usr_DEV','DEVELOPER')]);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   f.api.when('GET','/v3/teams/{teamId}/members').resolves(before).resolves(changed);
+   f.api.when('GET','/v2/user').resolves({user:{id:'usr_DEV'}});
+   const plan=read(await f.call('vercel_member_remove',{uid:'usr_OWNER1',dryRun:true}));
+   const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+   const r=read(await f.call('vercel_member_remove',
+     {uid:'usr_OWNER1',confirm:true,evaluationId}));
+   expect(r.status).toBe('refused_by_guard');
+   expect(r.reason).toMatch(/no longer current/);
+   expect(f.api.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+ });
+ it('AUD-CL: demoting the last Owner runs on the exact evaluation and verifies',async()=>{
+   const f=fixture();const before=rosterOf(
+     [member('usr_OWNER1','OWNER'),member('usr_DEV','DEVELOPER')]);
+   const after=rosterOf([member('usr_OWNER1','MEMBER'),member('usr_DEV','DEVELOPER')]);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(team);
+   f.api.when('GET','/v3/teams/{teamId}/members')
+     .resolves(before).resolves(before).resolves(before).resolves(before)
+     .resolves(after);
+   f.api.when('GET','/v2/user').resolves({user:{id:'usr_DEV'}});
+   f.api.when('PATCH','/v1/teams/{teamId}/members/{uid}').resolves({id:account.team_id});
+   const plan=read(await f.call('vercel_member_update_role',
+     {uid:'usr_OWNER1',role:'MEMBER',dryRun:true}));
+   expect(plan.status).toBe('preview');
+   expect(plan.preview).toMatch(/OWNER-CONFIRMED CHANGE/);
+   const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+   const r=read(await f.call('vercel_member_update_role',
+     {uid:'usr_OWNER1',role:'MEMBER',confirm:true,evaluationId}));
+   expect(r).toMatchObject({status:'applied',confirmed:true});
+   expect(f.api.calls.find(x=>x.method==='PATCH').body).toEqual({role:'MEMBER'});
+   f.api.verify();
+ });
  it('revokes a pending invite and refuses unknown invites',async()=>{
    const f=fixture();const before=rosterOf([member('usr_OWNER1','OWNER')],
      [{id:'inv_FAKE1',email:'new@example.com',role:'VIEWER',createdAt:1,isDSyncUser:false}]);
