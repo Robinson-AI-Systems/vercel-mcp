@@ -184,6 +184,80 @@ describe('AUD-AB guarded team lifecycle writes',()=>{
    expect(r.status).toBe('refused_by_guard');
    expect(f.api.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
  });
+ it('AUD-CK: the plan for a seated team renders the warning with its evaluation id and deletes nothing',async()=>{
+   const f=fixture([{id:account.id,team_id:seat.id,scope:'full'},
+     {id:'acct_9',team_id:target.id,scope:'team'}]);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(target);
+   f.api.when('GET','/v2/user').resolves({defaultTeamId:seat.id});
+   const r=read(await f.remove({teamId:target.id,dryRun:true}));
+   expect(r.status).toBe('preview');
+   expect(r.preview).toMatch(/OWNER-CONFIRMED DELETION/);
+   expect(r.preview).toMatch(/acct_9/);
+   expect(r.preview).toMatch(/strands those enrollments/);
+   expect(r.preview).toMatch(/Evaluation: [0-9a-f]{64}/);
+   expect(f.api.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+   f.api.verify();
+ });
+ it('AUD-CK: a confirmation naming a stale evaluation refuses and deletes nothing',async()=>{
+   const f=fixture([{id:account.id,team_id:seat.id,scope:'full'},
+     {id:'acct_9',team_id:target.id,scope:'team'}]);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(target);
+   f.api.when('GET','/v2/user').resolves({defaultTeamId:seat.id});
+   const r=read(await f.remove({teamId:target.id,confirm:true,
+     evaluationId:'0'.repeat(64)}));
+   expect(r.status).toBe('refused_by_guard');
+   expect(r.reason).toMatch(/no longer current/);
+   expect(f.api.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+ });
+ it('AUD-CK: a confirmation naming the exact evaluation deletes a seated team, verified by read-back',async()=>{
+   const f=fixture([{id:account.id,team_id:seat.id,scope:'full'},
+     {id:'acct_9',team_id:target.id,scope:'team'}]);
+   f.api.when('GET','/v2/teams/{teamId}')
+     .resolves(target).resolves(target).resolves(target)
+     .rejects(404,vercelError(404));
+   f.api.when('GET','/v2/user').resolves({defaultTeamId:seat.id});
+   f.api.when('DELETE','/v1/teams/{teamId}').resolves({id:target.id});
+   const plan=read(await f.remove({teamId:target.id,dryRun:true}));
+   const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+   const r=read(await f.remove({teamId:target.id,confirm:true,evaluationId}));
+   expect(r).toMatchObject({status:'applied',confirmed:true,
+     receipt:{teamId:target.id}});
+   expect(f.api.calls.filter(c=>c.method==='DELETE')).toHaveLength(1);
+   expect(f.audit.length).toBeGreaterThan(0);
+   f.api.verify();
+ });
+ it('AUD-CK: an enrollment seated between plan and confirm refuses as stale',async()=>{
+   let seated=[{id:account.id,team_id:seat.id,scope:'full'},
+     {id:'acct_9',team_id:target.id,scope:'team'}];
+   const f=fixture();
+   f.db.listVercelAccounts=async()=>seated;
+   f.api.when('GET','/v2/teams/{teamId}').resolves(target);
+   f.api.when('GET','/v2/user').resolves({defaultTeamId:seat.id});
+   const plan=read(await f.remove({teamId:target.id,dryRun:true}));
+   const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+   seated=[...seated,{id:'acct_10',team_id:target.id,scope:'team'}];
+   const r=read(await f.remove({teamId:target.id,confirm:true,evaluationId}));
+   expect(r.status).toBe('refused_by_guard');
+   expect(r.reason).toMatch(/no longer current/);
+   expect(f.api.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+ });
+ it('AUD-CK: an enrollment seated between preview and dispatch refuses at apply',async()=>{
+   let calls=0;
+   const one=[{id:account.id,team_id:seat.id,scope:'full'},
+     {id:'acct_9',team_id:target.id,scope:'team'}];
+   const two=[...one,{id:'acct_10',team_id:target.id,scope:'team'}];
+   const f=fixture();
+   f.db.listVercelAccounts=async()=>(++calls<=2?one:two);
+   f.api.when('GET','/v2/teams/{teamId}').resolves(target).resolves(target);
+   f.api.when('GET','/v2/user').resolves({defaultTeamId:seat.id});
+   const plan=read(await f.remove({teamId:target.id,dryRun:true}));
+   const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+   calls=0;
+   f.db.listVercelAccounts=async()=>(++calls===1?one:two);
+   const r=read(await f.remove({teamId:target.id,confirm:true,evaluationId}));
+   expect(r.status).toBe('refused_by_guard');
+   expect(f.api.calls.filter(c=>c.method==='DELETE')).toHaveLength(0);
+ });
  it('refuses an unknown or invisible target before any DELETE',async()=>{
    const f=fixture();
    f.api.when('GET','/v2/teams/{teamId}').rejects(404,vercelError(404));

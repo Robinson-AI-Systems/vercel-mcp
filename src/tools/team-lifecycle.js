@@ -2,10 +2,19 @@
 // writes (VMCP-026 A-13). Team create/delete are account-layer acts (IN-16):
 // they run on the selected team/full seat, never on a project seat, and the
 // tool never pre-judges Vercel's plan, billing or state verdicts (IN-18) —
-// it attempts, classifies and names the remedy. The one refusal the product
-// owns is its own data integrity: a team with live enrollments seated on it
-// cannot be deleted until those enrollments are removed as their own named
-// act (AUD-AA), because the rows are derived credentials that would strand.
+// it attempts, classifies and names the remedy.
+// AUD-CK (owner's ruling, 2026-11-03, from the AUD-CH refusal audit):
+// AUD-AB's one product-owned refusal — a team with live enrollments
+// seated on it could not be deleted until the enrollments were removed
+// first — was an eligibility veto over the owner. It is converted to
+// the AUD-CH pattern: the seated enrollments are named in a complete,
+// fingerprinted evaluation; the plan warns in plain words that
+// deleting the team strands those enrollment rows (they keep pointing
+// at a team that no longer exists and are removed afterwards as their
+// own named act, AUD-AA); the owner's confirmation must name the
+// exact evaluationId; execution re-evaluates before the DELETE. A
+// team with no seated enrollments keeps the simple path unchanged.
+import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -18,19 +27,10 @@ const SLUG=/^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const REQUEST_KEY=/^[a-zA-Z0-9_-]{8,128}$/;
 const control=/[\x00-\x1f\x7f]/;
 const secretShape=/(?:password|secret|access.?token|private.?key)\s*[:=]/i;
-// The write preflight genericizes every before() throw into one refusal
-// text; only the guard channels surface their reason verbatim. The one
-// refusal whose remedy the caller must act on — the enrollment guard —
-// therefore rides guardProtected (composed after the owner-protection
-// check, never replacing it), and is re-checked pre-dispatch in apply.
-function ctxFor({db,connection,env,fetchImpl},guardExtra){
+function ctxFor({db,connection,env,fetchImpl}){
   return {db,connection,env,fetchImpl,shape:compact,
     audit:x=>db.recordChange(x),replayStore:db.requestReplayStore(),
-    guardProtected:async targets=>{
-      const base=await checkProtected(targets,{db,connection,env});
-      if(base?.blocked||typeof guardExtra!=='function')return base;
-      return (await guardExtra(targets,db))??base;
-    },
+    guardProtected:targets=>checkProtected(targets,{db,connection,env}),
     guardApp:targets=>checkApp(targets,{db,connection,env})};
 }
 const resultMapper=result=>({
@@ -148,6 +148,7 @@ const create=defineWrite({
 /* ------------------------------ delete ------------------------------ */
 const deleteProps={
   teamId:{type:'string'},newDefaultTeamId:{type:'string'},
+  evaluationId:{type:'string',pattern:'^[0-9a-f]{64}$'},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
   requestKey:{type:'string',pattern:REQUEST_KEY.source}
 };
@@ -162,6 +163,9 @@ function validateDelete(args){
     throw new RefusalError('Invalid replacement default team identifier');
   if(args.newDefaultTeamId!==undefined&&args.newDefaultTeamId===args.teamId)
     throw new RefusalError('The replacement default team must differ from the team being deleted');
+  if(args.evaluationId!==undefined&&
+    (typeof args.evaluationId!=='string'||!/^[0-9a-f]{64}$/.test(args.evaluationId)))
+    throw new RefusalError('Invalid evaluation identifier');
   keyCheck(args);
 }
 async function enrolledOn(db,teamId){
@@ -169,18 +173,31 @@ async function enrolledOn(db,teamId){
   if(!Array.isArray(rows))throw new TypeError('Account inventory unavailable');
   return rows.filter(row=>row?.team_id===teamId);
 }
-function guardClear(seated){
-  if(seated.length)
-    throw new TypeError(seated.length+
-      ' enrolled account(s) are seated on this team; remove the enrollment first (vercel_remove_account), then delete the team');
+// AUD-CK evaluation: the seated enrollments behind the warning,
+// identities only (account row id, label, scope — never a credential),
+// sorted so the fingerprint is stable. A seated row whose identity
+// cannot be proven refuses the evaluation: the warning must be
+// complete or it does not exist.
+function seatedDetail(rows){
+  const seated=rows.map(row=>{
+    if(!row||typeof row.id!=='string'||!row.id)
+      throw new RefusalError('Seated enrollment inventory could not be verified');
+    return {id:row.id,
+      label:typeof row.label==='string'?row.label:null,
+      scope:typeof row.scope==='string'?row.scope:null};
+  });
+  seated.sort((a,b)=>a.id.localeCompare(b.id));
+  return seated;
 }
-async function enrollmentGuard(targets,db){
-  const target=targets?.[0];
-  if(!target||target.kind!=='account'||typeof target.id!=='string')return null;
-  const seated=await enrolledOn(db,target.id);
-  if(!seated.length)return null;
-  return {blocked:true,reason:seated.length+
-    ' enrolled account(s) are seated on this team; remove the enrollment first (vercel_remove_account), then delete the team'};
+function evaluationIdFor(evaluation){
+  return createHash('sha256').update(JSON.stringify(evaluation)).digest('hex');
+}
+function seatedRefusal(count){
+  return new RefusalError(count+
+    ' enrolled account(s) are seated on this team; deleting it strands '+
+    'those enrollments — remove the enrollment first (vercel_remove_account), '+
+    'or confirm the exact evaluation: run the plan (dryRun) to see the '+
+    'seated enrollments named, then confirm with the evaluationId it shows');
 }
 const remove=defineWrite({
   name:'vercel_team_delete',
@@ -208,13 +225,29 @@ const remove=defineWrite({
     validateRequest('teams_delete',{path:{teamId:args.teamId},
       query:args.newDefaultTeamId?{newDefaultTeamId:args.newDefaultTeamId}:{},
       body:{}});
-    return {teamId:args.teamId,
+    // AUD-CK: the seated enrollments are part of the evaluation on
+    // every path — a named evaluation must be the CURRENT one, so a
+    // confirmation can never silently bind to seats the owner did
+    // not see.
+    const seated=seatedDetail(await enrolledOn(ctx.db,args.teamId));
+    const evaluation={teamId:args.teamId,
       slug:typeof row.slug==='string'?row.slug:null,
-      isDefault,newDefaultTeamId:args.newDefaultTeamId??null,
-      accountScope:account.scope,accountTeamId:account.team_id};
+      isDefault,newDefaultTeamId:args.newDefaultTeamId??null,seated};
+    const evaluationId=evaluationIdFor(evaluation);
+    if(args.evaluationId!==undefined&&args.evaluationId!==evaluationId)
+      throw new RefusalError('That evaluation is no longer current: the team or its seated enrollments have changed since it was made. Run the plan again and confirm the evaluation it shows now');
+    if(seated.length&&args.confirm===true&&args.dryRun!==true&&
+      args.evaluationId===undefined)
+      throw seatedRefusal(seated.length);
+    return {teamId:args.teamId,
+      slug:evaluation.slug,
+      isDefault,newDefaultTeamId:evaluation.newDefaultTeamId,
+      accountScope:account.scope,accountTeamId:account.team_id,
+      seated,evaluation,evaluationId,
+      ownerConfirmed:seated.length>0&&args.evaluationId===evaluationId};
   },
   async preview(_args,_ctx,before){
-    return 'Delete Vercel team '+before.teamId+
+    const base='Delete Vercel team '+before.teamId+
       (before.slug?' ('+before.slug+')':'')+
       ' PERMANENTLY — the team and everything in it (projects, deployments, domains, settings) go with it under Vercel\'s rules and cannot be restored'+
       (before.isDefault===true?
@@ -225,6 +258,23 @@ const remove=defineWrite({
           '; '+before.newDefaultTeamId+' becomes the account default team':'')+
       '; Vercel may still refuse for billing, team state or organization linkage — that verdict is Vercel\'s and is reported as returned'+
       '; PRODUCTION owner confirmation required';
+    if(!before.seated.length)return base;
+    // AUD-CK: the warning is the tool's duty; the decision is the
+    // owner's. Name exactly what strands, and bind the confirmation
+    // to this evaluation.
+    const names=before.seated.map(s=>s.id+
+      (s.label?' ('+s.label+')':'')).join(', ');
+    return base+'; OWNER-CONFIRMED DELETION: '+before.seated.length+
+      ' enrolled account(s) are seated on this team on this server ('+
+      names+'). Deleting the team strands those enrollments: the rows '+
+      'stay on this server pointing at a team that no longer exists, '+
+      'and the credentials they hold stop working for it. Remove a '+
+      'stranded enrollment afterwards with vercel_remove_account (its '+
+      'own owner-approved act), or remove the enrollments first and '+
+      'delete on the simple path. Evaluation: '+before.evaluationId+
+      '. To proceed, confirm with evaluationId set to that exact '+
+      'value; if anything about the team or its seated enrollments '+
+      'changes, the evaluation changes and the confirmation is refused.';
   },
   async production(){
     return {production:true,
@@ -240,7 +290,17 @@ const remove=defineWrite({
         provider.account.team_id!==before.accountTeamId||
         ctx.connection?.profile!=='full'||ctx.connection?.mode!=='production')
         throw new TypeError('Team authority changed');
-      guardClear(await enrolledOn(ctx.db,before.teamId));
+      // AUD-CK: re-evaluate at execution. The seated set is the
+      // fact the owner's confirmation priced in: any drift in it
+      // refuses, and a seated team deletes only on the exact
+      // confirmed evaluation. (Team identity is re-proven by the
+      // GET below, as before; the default-team designation is
+      // Vercel's to re-derive at delete time.)
+      const seated=seatedDetail(await enrolledOn(ctx.db,before.teamId));
+      const freshId=evaluationIdFor({...before.evaluation,seated});
+      if(freshId!==before.evaluationId||
+        (seated.length&&!before.ownerConfirmed))
+        throw new TypeError('Seated enrollments changed after preview');
       const current=await provider.read('teams_get',{path:{teamId:before.teamId}});
       if(current?.id!==before.teamId)
         throw new TypeError('Target team changed after preview');
@@ -282,14 +342,13 @@ export const teamLifecycleTools={
       annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:true}},
     {name:'vercel_team_delete',writes:true,guardedWrite:true,
       area:'teams',profiles:['full'],
-      description:'Delete a Vercel team permanently from the account layer; enrolled seats on the target refuse until removed, platform verdicts classify.',
+      description:'Delete a Vercel team permanently from the account layer; seats enrolled on it are named in the plan evaluation, confirmed by exact evaluationId.',
       inputSchema:{type:'object',properties:deleteProps,additionalProperties:false},
       writeContract:remove.writeContract,
       annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:true}}
   ],
   handlers:{
     vercel_team_create:bindGuardedWrite(create,ctxFor,resultMapper),
-    vercel_team_delete:bindGuardedWrite(remove,
-      ctx=>ctxFor(ctx,enrollmentGuard),resultMapper)
+    vercel_team_delete:bindGuardedWrite(remove,ctxFor,resultMapper)
   }
 };
