@@ -8599,6 +8599,7 @@
         "handBuiltTool": "vercel_deploy_list",
         "dedicatedTransport": null,
         "dispatchFiles": [
+          "src/tools/deployment-delete.js",
           "src/tools/deployments.js",
           "src/tools/dev-preview-bypass.js",
           "src/tools/dev-runs.js",
@@ -10497,6 +10498,7 @@
           "src/tools/checks.js",
           "src/tools/crons.js",
           "src/tools/custom-environment-create.js",
+          "src/tools/deployment-delete.js",
           "src/tools/deployment-file-create.js",
           "src/tools/deployment-git-create.js",
           "src/tools/dev-observe-common.js",
