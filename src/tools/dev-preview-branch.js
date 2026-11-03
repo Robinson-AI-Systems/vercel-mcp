@@ -38,19 +38,36 @@ const branch=defineWrite({
     // framework, null selects no framework, the contract's honest value
     // for a project whose record carries none — "other" is not in the
     // pinned enum). On a deployed project the provider inherits its
-    // saved settings and the body stays exactly as before. AUD-BZ: the
-    // first-deployment proof is isFirstDeployment — the record's flag
-    // when present, the provider's deployment inventory when the live
-    // record omits the flag (the retained fixture's record omits it,
-    // which is why AUD-BS never fired live).
+    // saved settings. AUD-BZ: the first-deployment proof is
+    // isFirstDeployment — the record's flag when present, the
+    // provider's deployment inventory when the live record omits the
+    // flag (the retained fixture's record omits it, which is why
+    // AUD-BS never fired live).
     const firstDeployment=await isFirstDeployment(client,b.project,row);
-    const body={name:b.name,project:b.name,target:'preview',
+    // AUD-CB: a NON-first create uses the documented preview
+    // construction — the same convicted class AUD-AL fixed in
+    // vercel_deploy_create_from_files. The documented request
+    // vocabulary omits the literal 'preview' ("If omitted, the
+    // target will be preview"), and an automated create carries
+    // the documented skipAutoDetectionConfirmation suppressor.
+    // This route's non-first construction — literal 'preview',
+    // no suppressor, no settings to judge — is refused 400
+    // bad_request live (2026-11-03, branch G on the retained
+    // fixture, on the production branch and on a side branch
+    // alike). The FIRST-create construction (literal target plus
+    // the echoed settings, no suppressor) is the live-proven
+    // shape (branch G, 2026-11-03) and stays exactly as it was.
+    const body={name:b.name,project:b.name,
+      ...(firstDeployment?{target:'preview'}:{}),
       gitSource:{type:'github',org:git.org,repo:git.repo,ref:a.gitRef,sha:a.gitSha},
       meta:{rtc_run:b.runId},
       ...(firstDeployment?
         {projectSettings:deploymentProjectSettings(row)}:{})};
-    validateRequest('deployments_create',{query:{teamId:b.teamId},body});
-    return {...b,body,ref:a.gitRef,sha:a.gitSha,org:git.org,repo:git.repo};
+    const query=firstDeployment?undefined:
+      {skipAutoDetectionConfirmation:'1'};
+    validateRequest('deployments_create',
+      {query:{teamId:b.teamId,...(query??{})},body});
+    return {...b,body,query,ref:a.gitRef,sha:a.gitSha,org:git.org,repo:git.repo};
   },
   async preview(_a,_ctx,b){
     return 'Deploy exact GitHub '+b.org+'/'+b.repo+'@'+b.sha+' ('+b.ref+
@@ -76,7 +93,8 @@ const branch=defineWrite({
     });
     await startRun(ctx,b);
     const intent=await preIntent(ctx,b,'deployment',b.sha,{project:b.project,ref:b.ref});
-    const created=await provider.write('deployments_create',{body:b.body},
+    const created=await provider.write('deployments_create',
+      {body:b.body,...(b.query?{query:b.query}:{})},
       {tool:'vercel_dev_preview_branch',requestKey:key,mutationId:'branch-'+b.sha,
         shapeResult:row=>{
           const id=row?.id??row?.uid;
