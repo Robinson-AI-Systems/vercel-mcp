@@ -144,10 +144,17 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect(posts).toHaveLength(1);
     expect(posts[0].path).toBe('/v13/deployments');
     expect(posts[0].body).toMatchObject({name:'test-preview',
-      project:'test-preview',target:'preview',
+      project:'test-preview',
       gitSource:{type:'github',org:'synthetic',repo:'preview',
         ref:'feature/isolated',sha:gitSha},
       meta:{rtc_run:runId}});
+    // AUD-CB: this project is deployed (the fixture's inventory is
+    // non-empty), so the create is a non-first one — preview is
+    // requested by omission and the documented auto-detection
+    // suppressor rides the query.
+    expect('target' in posts[0].body).toBe(false);
+    expect(posts[0].query).toMatchObject(
+      {skipAutoDetectionConfirmation:'1'});
     f.fake.verify();
   });
   it('supplies all-null projectSettings on a first deployment of a settings-less project (AUD-BS)',async()=>{
@@ -170,6 +177,11 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect(posts[0].body.projectSettings).toEqual({
       buildCommand:null,devCommand:null,framework:null,
       installCommand:null,outputDirectory:null,rootDirectory:null});
+    // AUD-CB: the first-create construction is the live-proven
+    // one and does not change — literal target, no suppressor.
+    expect(posts[0].body.target).toBe('preview');
+    expect(posts[0].query?.skipAutoDetectionConfirmation)
+      .toBeUndefined();
     f.fake.verify();
   });
   it('echoes the record stored fields as projectSettings on a first deployment (AUD-BS)',async()=>{
@@ -254,6 +266,11 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     const posts=f.fake.calls.filter(x=>x.method==='POST');
     expect(posts).toHaveLength(1);
     expect('projectSettings' in posts[0].body).toBe(false);
+    // AUD-CB: non-first construction — preview by omission, with
+    // the documented suppressor on the query.
+    expect('target' in posts[0].body).toBe(false);
+    expect(posts[0].query).toMatchObject(
+      {skipAutoDetectionConfirmation:'1'});
     f.fake.verify();
   });
   it('records a provider-promoted first deployment as applied, honestly unconfirmed (AUD-CA)',async()=>{
