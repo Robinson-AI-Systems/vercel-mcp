@@ -256,6 +256,27 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect('projectSettings' in posts[0].body).toBe(false);
     f.fake.verify();
   });
+  it('records a provider-promoted first deployment as applied, honestly unconfirmed (AUD-CA)',async()=>{
+    const f=fixture();
+    f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
+    const gitSha='4'.repeat(40),created='dpl_FAKE_V2_PROMOTED';
+    // The provider promotes a project's FIRST deployment to
+    // production: the create response and the read-back both carry
+    // target 'production' (live shape, 2026-11-03 branch-G fixture).
+    const row={id:created,projectId:project,target:'production',
+      readyState:'READY'};
+    f.fake.when('POST','/v13/deployments').resolves(row);
+    f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves(row);
+    const out=parse(await f.call('vercel_dev_preview_branch',
+      {runId,project,gitRef:'feature/isolated',gitSha,confirm:true,
+        requestKey:'branchPromoted01'},
+      {...owner,kind:'connector'}));
+    expect(out).toMatchObject({status:'applied',confirmed:false});
+    const objects=f.objects.get(runId);
+    expect(objects.some(o=>o.object_type==='deployment'&&
+      o.object_id===created)).toBe(true);
+    f.fake.verify();
+  });
   it('builds the V-2 preview env plan with exact run, provider and bounded inventory',async()=>{
     const f=fixture();
     f.fake.when('GET','/v10/projects/{idOrName}/env')

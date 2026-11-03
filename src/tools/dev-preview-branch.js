@@ -3,6 +3,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, R
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {deploymentProjectSettings,isFirstDeployment} from '../vercel/project-settings.js';
+import {deploymentTargetMatches} from '../vercel/deployment-target.js';
 import {common,exact,owned,safeBranch,SHA,DEPLOY,context,respond,
   startRun,preIntent,record,markIntent,selectedWrite} from './dev-preview-common.js';
 import {previewBranchRefusal} from './app-guard.js';
@@ -79,7 +80,18 @@ const branch=defineWrite({
       {tool:'vercel_dev_preview_branch',requestKey:key,mutationId:'branch-'+b.sha,
         shapeResult:row=>{
           const id=row?.id??row?.uid;
-          if(!DEPLOY.test(id??'')||row.projectId!==b.project||row.target!=='preview')
+          // Identity only, no target arm (AUD-CA, mirroring AUD-N in
+          // vercel_deploy_create_from_files): the provider PROMOTES a
+          // project's first deployment to target production, so a
+          // first-ever branch preview's create response legitimately
+          // carries target 'production'. Judging the target here
+          // converted that successful create into outcome_unknown and
+          // skipped the record below, orphaning a READY deployment
+          // from its run (live conviction, 2026-11-03, retained
+          // branch-G fixture: deployment created READY while the tool
+          // reported response_shape_unverified). verify() reports
+          // the target honestly instead.
+          if(!DEPLOY.test(id??'')||row.projectId!==b.project)
             throw new TypeError('Provider did not attest a preview deployment');
           return {id};
         }});
@@ -97,7 +109,13 @@ const branch=defineWrite({
     let row;
     do{
       row=await client.request('deployments_get',{path:{idOrUrl:r.id}});
-      if((row?.uid??row?.id)!==r.id||row.projectId!==b.project||row.target!=='preview')
+      // deploymentTargetMatches states the documented encoding once:
+      // a preview read-back carries target null (or 'preview'); a
+      // provider-promoted first deployment carries 'production' and
+      // honestly confirms false, the AUD-AL posture — the deployment
+      // stays recorded either way.
+      if((row?.uid??row?.id)!==r.id||row.projectId!==b.project||
+        !deploymentTargetMatches(row.target,'preview'))
         return {confirmed:false};
       if(['READY','ERROR','CANCELED'].includes(row.readyState))break;
       if(Date.now()+2000>deadline)break;
