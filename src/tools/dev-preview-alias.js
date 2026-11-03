@@ -2,6 +2,7 @@
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
+import {deploymentTargetMatches} from '../vercel/deployment-target.js';
 import {common,exact,owned,DEPLOY,context,respond,
   startRun,preIntent,record,markIntent,selectedWrite} from './dev-preview-common.js';
 const HOST=/^[a-z0-9][a-z0-9-]{4,95}\.vercel\.app$/;
@@ -16,7 +17,13 @@ async function absent(client,alias){
 }
 async function previewDeployment(client,id,project){
   const row=await client.request('deployments_get',{path:{idOrUrl:id}});
-  if((row?.uid??row?.id)!==id||row.projectId!==project||row.target!=='preview'||
+  // AUD-CC: deploymentTargetMatches states the documented target
+  // encoding once — a real preview's read-back carries target null,
+  // not the literal 'preview' this check demanded, so no live
+  // preview could ever be aliased (live refusal, 2026-11-03,
+  // branch G: a READY recorded preview refused at this line).
+  if((row?.uid??row?.id)!==id||row.projectId!==project||
+     !deploymentTargetMatches(row.target,'preview')||
      row.readyState!=='READY')
     throw new RefusalError('Only a READY, owner-scoped preview deployment can be aliased');
 }

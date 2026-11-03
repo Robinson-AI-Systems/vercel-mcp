@@ -308,8 +308,10 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
   it('builds the V-2 preview alias plan only for absent recorded deployment',async()=>{
     const name='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
     const f=fixture([object('deployment',deployment)]);
+    // AUD-CC: the provider's documented preview encoding — the
+    // read-back carries target null, not the literal 'preview'.
     f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
-      uid:deployment,projectId:project,target:'preview',readyState:'READY'});
+      uid:deployment,projectId:project,target:null,readyState:'READY'});
     f.fake.when('GET','/v4/aliases/{idOrAlias}').rejects(404);
     const p=await planPreviewAlias({runId,project,deployment,alias:name},
       context({db:f.db,connection:owner,env:{},fetchImpl:f.fake.fetch}));
@@ -365,7 +367,7 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     const name='rtc-'+runId.replaceAll('_','-')+'-preview.vercel.app';
     const f=fixture([object('deployment',deployment,{target:'preview'})]);
     f.fake.when('GET','/v13/deployments/{idOrUrl}').resolves({
-      uid:deployment,projectId:project,target:'preview',readyState:'READY'});
+      uid:deployment,projectId:project,target:null,readyState:'READY'});
     f.fake.when('GET','/v4/aliases/{idOrAlias}')
       .rejects(404).rejects(404)
       .resolves({uid:'alias_FAKE_V2',alias:name,deploymentId:deployment});
@@ -407,8 +409,12 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     const row={...projectRow,name,productionDeployment:null,
       protectionBypass:{}};
     const f=fixture([object('project',project,{name})],row);
+    // AUD-CC: the project's inventory holds the run's own preview
+    // deployment in the provider's documented encoding (target
+    // null) — the isolation proof must still pass.
     f.fake.when('GET','/v7/deployments').resolves({
-      deployments:[],pagination:{count:0,next:null}});
+      deployments:[{id:deployment,projectId:project,target:null}],
+      pagination:{count:1,next:null}});
     f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
       domains:[],pagination:{count:0,next:null}});
     let generated;

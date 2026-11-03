@@ -2,6 +2,7 @@
 // Never claim production configuration or unverified provider pagination is READY.
 import {ownerRun,base,schema,reply,assertInput,safeText}
   from './dev-observe-common.js';
+import {deploymentTargetMatches} from '../vercel/deployment-target.js';
 const ENV=/^[A-Z_][A-Z0-9_]{0,127}$/;
 const ITEM=/^[A-Za-z0-9_.-]{1,100}$/;
 const CRON=/^\/[A-Za-z0-9_/-]{1,119}$/;
@@ -133,7 +134,8 @@ export const devIntegrationTools={
           checked=(alias.uid??alias.id)===known.object_id&&alias.alias===host&&
             (alias.deploymentId??alias.deployment?.id)===known.detail.deployment&&
             (deploy.uid??deploy.id)===known.detail.deployment&&
-            deploy.projectId===s.project&&deploy.target==='preview';
+            deploy.projectId===s.project&&
+            deploymentTargetMatches(deploy.target,'preview');
         }catch{/* Missing, changed or unavailable native alias proof stays unverified */}
         result.push(row('preview-domain',host,checked?'ok':'unverified',
           checked?'Verified Vercel alias still routes to run-owned preview':

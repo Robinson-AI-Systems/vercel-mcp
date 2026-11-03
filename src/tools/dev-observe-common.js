@@ -1,5 +1,6 @@
 // V-3: scoped, read-only development run proofs; no production connections.
 import {readProvider} from '../vercel/provider.js';
+import {deploymentTargetMatches} from '../vercel/deployment-target.js';
 import { RefusalError } from '../core/write.js';
 import {credentialLike} from '../core/util.js';
 export const RUN=/^run_[0-9]{8}_[a-z0-9]{6,24}$/;
@@ -62,7 +63,8 @@ export async function ownerDeployment(ctx,args){
   const deployment=await bound.client.request('deployments_get',
     {path:{idOrUrl:args.deployment}});
   if((deployment?.uid??deployment?.id)!==args.deployment||
-     deployment.projectId!==args.project||deployment.target!=='preview')
+     deployment.projectId!==args.project||
+     !deploymentTargetMatches(deployment.target,'preview'))
     throw new RefusalError('Deployment is no longer an owned preview');
   return {...bound,deployment,objects};
 }

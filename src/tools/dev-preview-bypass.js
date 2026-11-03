@@ -6,6 +6,7 @@ import {encryptSecret} from '../core/secret-box.js';
 import {oneTimeSecrets} from '../core/one-time-secrets.js';
 import {readProvider} from '../vercel/provider.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
+import {deploymentTargetMatches} from '../vercel/deployment-target.js';
 import {common,exact,owned,boundedLabel,context,respond,
   preIntent,record,markIntent,selectedWrite} from './dev-preview-common.js';
 const props={...common,note:{type:'string',minLength:3,maxLength:80}};
@@ -27,7 +28,7 @@ async function isolated(client,b){
     'rtc-'+b.runId.replaceAll('_','-')+'-')||
      row.productionDeployment||row.productionDeploymentId||
      complete(deps,'deployments').some(d=>
-       d.projectId!==b.project||d.target!=='preview')||
+       d.projectId!==b.project||!deploymentTargetMatches(d.target,'preview'))||
      complete(domains,'domains').length)
     throw new RefusalError('Protection bypass is unsafe on a project with any live or unknown traffic');
 }
