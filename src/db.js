@@ -7,7 +7,7 @@ import { randomUUID,randomBytes } from 'node:crypto';
 
 export const SCHEMA_TABLES = Object.freeze([
   'vercel_accounts', 'oauth_clients', 'oauth_codes', 'oauth_tokens', 'login_attempts',
-  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections', 'known_apps', 'signin_flows'
+  'change_log', 'one_time_secrets', 'pending_inputs', 'protected_resources', 'request_replay', 'result_store', 'purchase_intents', 'rtc_passes', 'dev_runs', 'dev_run_objects', 'dev_sandbox_usage', 'schema_migrations', 'blob_store_connections', 'known_apps', 'signin_flows', 'deployment_events', 'deployments'
 ]);
 
 // AUD-AO (Production Gate decision, 2026-10-31): the fleet retention
@@ -1885,6 +1885,83 @@ export function createDb(query) {
       }
       return { ...counts, total, journaled: total > 0 };
     },
+    // AUD-CI: the deployment webhook receiver's store surface.
+    // The receiver verifies the signature before any of this is
+    // called; these methods only persist what they are given.
+    async recordDeploymentEvent(row) {
+      const run = getSql();
+      const inserted = await run`INSERT INTO deployment_events
+          (delivery_id, event_type, event_created_at, deployment_id,
+           project_id, project_name, team_id, actor_user_id, target,
+           deployment_url, meta, raw_payload)
+        VALUES (${row.deliveryId}, ${row.eventType}, ${row.eventCreatedAt},
+          ${row.deploymentId}, ${row.projectId}, ${row.projectName},
+          ${row.teamId}, ${row.actorUserId}, ${row.target},
+          ${row.deploymentUrl}, ${row.meta === null ? null : JSON.stringify(row.meta)}::jsonb,
+          ${JSON.stringify(row.rawPayload)}::jsonb)
+        ON CONFLICT (delivery_id) DO NOTHING
+        RETURNING delivery_id`;
+      return inserted.length > 0;
+    },
+    async getDeploymentRecord(deploymentId) {
+      const run = getSql();
+      const rows = await run`SELECT * FROM deployments
+        WHERE deployment_id = ${deploymentId}`;
+      return rows[0] ?? null;
+    },
+    async upsertDeploymentRecord(row) {
+      const run = getSql();
+      await run`INSERT INTO deployments
+          (deployment_id, project_id, project_name, team_id, actor_user_id,
+           target, commit_sha, commit_ref, repo, state, promoted, rolled_back,
+           created_at, ready_at, failed_at, promoted_at, rolled_back_at,
+           purpose, purpose_rule, purpose_confirmed)
+        VALUES (${row.deploymentId}, ${row.projectId}, ${row.projectName},
+          ${row.teamId}, ${row.actorUserId}, ${row.target}, ${row.commitSha},
+          ${row.commitRef}, ${row.repo}, ${row.state}, ${row.promoted},
+          ${row.rolledBack}, ${row.createdAt}, ${row.readyAt}, ${row.failedAt},
+          ${row.promotedAt}, ${row.rolledBackAt}, ${row.purpose},
+          ${row.purposeRule}, ${row.purposeConfirmed})
+        ON CONFLICT (deployment_id) DO UPDATE SET
+          project_id = EXCLUDED.project_id,
+          project_name = EXCLUDED.project_name,
+          team_id = EXCLUDED.team_id,
+          actor_user_id = EXCLUDED.actor_user_id,
+          target = EXCLUDED.target,
+          commit_sha = EXCLUDED.commit_sha,
+          commit_ref = EXCLUDED.commit_ref,
+          repo = EXCLUDED.repo,
+          state = EXCLUDED.state,
+          promoted = EXCLUDED.promoted,
+          rolled_back = EXCLUDED.rolled_back,
+          created_at = EXCLUDED.created_at,
+          ready_at = EXCLUDED.ready_at,
+          failed_at = EXCLUDED.failed_at,
+          promoted_at = EXCLUDED.promoted_at,
+          rolled_back_at = EXCLUDED.rolled_back_at,
+          purpose = EXCLUDED.purpose,
+          purpose_rule = EXCLUDED.purpose_rule,
+          purpose_confirmed = EXCLUDED.purpose_confirmed,
+          updated_at = now()`;
+    },
+    async deploymentClassificationContext({ projectId, deploymentId, createdAt, branch, dayStart, dayEnd }) {
+      const run = getSql();
+      const previous = await run`SELECT state, created_at, commit_ref FROM deployments
+        WHERE project_id = ${projectId} AND target = 'production'
+          AND deployment_id <> ${deploymentId} AND created_at < ${createdAt}
+        ORDER BY created_at DESC LIMIT 1`;
+      const counted = branch === null
+        ? await run`SELECT count(*)::int AS n FROM deployments
+            WHERE project_id = ${projectId}
+              AND created_at >= ${dayStart} AND created_at < ${dayEnd}`
+        : await run`SELECT count(*)::int AS n FROM deployments
+            WHERE project_id = ${projectId} AND commit_ref = ${branch}
+              AND created_at >= ${dayStart} AND created_at < ${dayEnd}`;
+      return {
+        previousProduction: previous[0] ?? null,
+        sameDayCount: counted[0]?.n ?? 0
+      };
+    },
     async initSchema() {
       const run = getSql();
       await run`CREATE TABLE IF NOT EXISTS vercel_accounts (
@@ -2214,6 +2291,53 @@ export function createDb(query) {
             name = EXCLUDED.name, profile = EXCLUDED.profile, updated_at = now()
           WHERE known_apps.source = 'default'`;
       }
+      // AUD-CI: the deployment webhook receiver's two tables
+      // (design: vercel-deployment-webhook-design-2026-11-03).
+      // deployment_events is the raw-first record, one row per
+      // delivery, idempotent on Vercel's delivery id because
+      // deliveries retry for up to 24 hours. deployments is the
+      // per-deployment rollup the classifier writes its purpose
+      // onto. Additive only, like everything in this schema.
+      await run`CREATE TABLE IF NOT EXISTS deployment_events (
+        delivery_id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        event_created_at TIMESTAMPTZ NOT NULL,
+        received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        deployment_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        project_name TEXT,
+        team_id TEXT,
+        actor_user_id TEXT,
+        target TEXT,
+        deployment_url TEXT,
+        meta JSONB,
+        raw_payload JSONB NOT NULL)`;
+      await run`CREATE INDEX IF NOT EXISTS deployment_events_deployment
+        ON deployment_events(deployment_id, event_type)`;
+      await run`CREATE TABLE IF NOT EXISTS deployments (
+        deployment_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        project_name TEXT,
+        team_id TEXT,
+        actor_user_id TEXT,
+        target TEXT,
+        commit_sha TEXT,
+        commit_ref TEXT,
+        repo TEXT,
+        state TEXT NOT NULL DEFAULT 'created',
+        promoted BOOLEAN NOT NULL DEFAULT FALSE,
+        rolled_back BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL,
+        ready_at TIMESTAMPTZ,
+        failed_at TIMESTAMPTZ,
+        promoted_at TIMESTAMPTZ,
+        rolled_back_at TIMESTAMPTZ,
+        purpose TEXT,
+        purpose_rule TEXT,
+        purpose_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
+      await run`CREATE INDEX IF NOT EXISTS deployments_project_created
+        ON deployments(project_id, created_at DESC)`;
       // AUD-AO: the retention sweep rides the one hook every entry
       // route already calls, throttled in-process (see the constants
       // at the top of this module). A sweep failure must never break
