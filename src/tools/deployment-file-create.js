@@ -6,7 +6,7 @@ import {defineWrite,bindGuardedWrite,requirePreDispatch,purchaseDelegationFor, R
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
 import {deploymentTargetMatches} from '../vercel/deployment-target.js';
-import {deploymentProjectSettings} from '../vercel/project-settings.js';
+import {deploymentProjectSettings,isFirstDeployment} from '../vercel/project-settings.js';
 import {validateRequest} from '../vercel/openapi-validation.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
@@ -170,14 +170,17 @@ const create=defineWrite({
   async before(args,ctx){
     const files=manifest(args);
     if(ctx.connection?.profile!=='full')throw new RefusalError('Full profile required');
-    const {account,row}=await checkProject(ctx,args.project,args.expectedName);
+    const {client,account,row}=await checkProject(ctx,args.project,args.expectedName);
     // projectSettings are required for a project's FIRST deployment and
     // saved by the provider for later ones (vendored OpenAPI description;
     // omitting them against a settings-less project is the 400
     // missing_project_settings of VMCP-023's 2026-10-28 live probe).
     // AUD-AD: they are sent ONLY when this create is that first
-    // deployment — the record's documented hasDeployments flag, already
-    // read above, is the proof. On a deployed project the provider
+    // deployment. AUD-BZ: the proof is isFirstDeployment — the record's
+    // documented hasDeployments flag when present, the provider's
+    // deployment inventory when the live record omits the flag (the
+    // branch-G fixture's record omits it; flag-only keying never fired
+    // live there). On a deployed project the provider
     // inherits its saved settings (the create contract's redeploy rule:
     // inherited unless explicitly overridden), which is the shape every
     // other create caller uses (git create, branch previews). Resending
@@ -187,7 +190,7 @@ const create=defineWrite({
     // dossier: dev-preview-dossier-2026-10-30.md). Effective settings
     // are unchanged — the saved copy IS the record's values; they are
     // no longer restated.
-    const firstDeployment=row.hasDeployments===false;
+    const firstDeployment=await isFirstDeployment(client,args.project,row);
     const projectSettings=firstDeployment?deploymentProjectSettings(row):undefined;
     // AUD-AL: a preview is requested by OMISSION — the documented
     // request vocabulary for target is not-defined / 'staging' /

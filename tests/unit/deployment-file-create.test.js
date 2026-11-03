@@ -19,6 +19,12 @@ const decode=x=>JSON.parse(x.content[0].text);
 function fixture(override=row){
   const fake=makeFakeVercel(),claims=[],audits=[];
   fake.when('GET','/v9/projects/{idOrName}').resolves(override);
+  // AUD-BZ: the first-deployment proof falls back to the deployment
+  // inventory when the record omits the hasDeployments flag; the
+  // default project here is deployed (one existing deployment).
+  fake.when('GET','/v7/deployments').resolves({deployments:[
+    {id:'dpl_FAKE_EXISTING',projectId:project}],
+    pagination:{next:null,count:1}});
   const db={
     getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
     recordChange:async entry=>audits.push(entry),
@@ -49,7 +55,10 @@ describe('D-3 2 MiB immutable file deployment manifest and billing lockout',()=>
     expect(out.preview).toContain('SHA-1');
     expect(out.preview).toContain('2 MiB');
     expect(out.moneyLine).toMatch(/total ceiling/);
-    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET']);
+    // AUD-BZ: a plan reads the project record and, when its record
+    // omits the hasDeployments flag, the deployment inventory — both
+    // reads, never a write.
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET']);
     expect(f.audits).toHaveLength(1);expect(f.claims).toHaveLength(0);
     f.fake.verify();
   });
@@ -328,10 +337,15 @@ describe('AUD-AD/AUD-AL provider behavior (dev-preview construction)',()=>{
   // journaled as SHAPE-FP change_log id 90; the fake encodes the
   // combination as observed and claims nothing about either marker
   // alone); any other non-first create inherits and is created.
-  function behaviorFixture(projectRow,deploymentRow){
+  function behaviorFixture(projectRow,deploymentRow,
+      existing=[{id:'dpl_FAKE_EXISTING',projectId:project}]){
     const f=fixture(projectRow);
     f.db.getPurchasePolicy=async()=>({grantRequired:false,budgetCents:null});
     f.db.getTodaySpendCents=async()=>0;
+    // AUD-BZ: the provider's deployment inventory for this project;
+    // for a record without the flag it is the first-deployment proof.
+    f.fake.when('GET','/v7/deployments').resolves({deployments:existing,
+      pagination:{next:null,count:existing.length}});
     f.fake.when('POST','/v2/files')
       .resolves({urls:['example-upload.aws.com']},200);
     f.fake.when('POST','/v13/deployments').resolves(deploymentRow);
@@ -341,7 +355,8 @@ describe('AUD-AD/AUD-AL provider behavior (dev-preview construction)',()=>{
       if((init.method||'GET').toUpperCase()==='POST'&&
         url.pathname==='/v13/deployments'){
         const body=JSON.parse(init.body);
-        const first=projectRow.hasDeployments===false;
+        const first=projectRow.hasDeployments===false||
+          (projectRow.hasDeployments===undefined&&existing.length===0);
         if(first&&!('projectSettings' in body))
           return new Response(JSON.stringify({error:{
             code:'missing_project_settings',
@@ -421,13 +436,29 @@ describe('AUD-AD/AUD-AL provider behavior (dev-preview construction)',()=>{
     expect(create.body).not.toHaveProperty('target');
     f.fake.verify();
   });
-  it('treats a record without the hasDeployments flag as deployed (no resend)',async()=>{
+  it('treats a record without the hasDeployments flag as deployed when the inventory proves it (AUD-BZ; no resend)',async()=>{
     const f=behaviorFixture({...row,framework:'nextjs'},previewDeployment);
     const out=decode(await f.call({...args,confirm:true}));
     expect(out).toMatchObject({status:'applied',confirmed:true});
     const create=f.fake.calls.find(c=>c.method==='POST'&&
       c.path==='/v13/deployments');
     expect(create.body).not.toHaveProperty('projectSettings');
+    f.fake.verify();
+  });
+  it('sends the echoed settings when the record omits the flag and the inventory is empty (AUD-BZ, the live fixture shape)',async()=>{
+    const flaglessRow={...row,framework:'nextjs',
+      buildCommand:'next build'};
+    // Same first-deployment promotion posture as the flag-present
+    // first-deployment case above.
+    const promoted={...previewDeployment,target:'production'};
+    const f=behaviorFixture(flaglessRow,promoted,[]);
+    const out=decode(await f.call({...args,confirm:true}));
+    expect(out).toMatchObject({status:'applied',confirmed:false});
+    const create=f.fake.calls.find(c=>c.method==='POST'&&
+      c.path==='/v13/deployments');
+    expect(create.body.projectSettings).toEqual({
+      buildCommand:'next build',devCommand:null,framework:'nextjs',
+      installCommand:null,outputDirectory:null,rootDirectory:null});
     f.fake.verify();
   });
 });
