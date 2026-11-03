@@ -1,7 +1,8 @@
 // Bounded provider batch mutations. No raw environment values in tool responses.
 import {randomBytes} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
-import {compact,credentialLike} from '../core/util.js';
+import {compact} from '../core/util.js';
+import {checkValueSource} from './env-value-source.js';
 import {writeProvider} from '../vercel/provider.js';
 import {checkProtected} from './self-guard.js';
 import {checkApp} from './app-guard.js';
@@ -26,8 +27,8 @@ const createItem={type:'object',properties:{
  key:{type:'string',pattern:KEY.source},
  targets:{type:'array',minItems:1,maxItems:3,uniqueItems:true,
    items:{type:'string',enum:['production','preview','development']}},
- kind:{type:'string',enum:['Config','Secret']},
- value:{type:'string',minLength:1,maxLength:65536},
+ kind:{type:'string',enum:['Config','Secret'],description:'Default Secret. Config = plain non-secret value'},
+ value:{type:'string',minLength:1,maxLength:65536,description:'Config only; credential-shaped text refused'},
  generate:{type:'object',properties:{bytes:{type:'integer',const:32},
    encoding:{type:'string',enum:['hex','base64url']}},
    required:['bytes','encoding'],additionalProperties:false}
@@ -74,21 +75,11 @@ function checkCreate(a){
      ![undefined,'Config','Secret'].includes(item.kind))
      throw new RefusalError('Duplicate or invalid environment key/target');
    keys.add(item.key);
-   const kind=item.kind??'Secret';
-   const from=['value','generate'].filter(k=>item[k]!==undefined);
-   if(from.length!==1||(kind==='Config'&&from[0]!=='value')||
-     (kind==='Secret'&&(from[0]==='value'||item.targets.includes('development'))))
-     throw new RefusalError('Invalid private value source');
-   if(from[0]==='value'){
-     if(typeof item.value!=='string'||item.value.length<1||
-       item.value.length>65536||credentialLike(item.value))
-       throw new RefusalError('Invalid Config value');
-     bytes+=Buffer.byteLength(item.value);
-   }else{
-     if(!only(item.generate,['bytes','encoding'])||
-       item.generate.bytes!==32||!['hex','base64url'].includes(item.generate.encoding))
-       throw new RefusalError('Invalid cryptographic generation request');
-     bytes+=64;
+   try{bytes+=checkValueSource(item).bytes;}
+   catch(error){
+     if(error instanceof RefusalError&&item.key.length<=48)
+       throw new RefusalError(item.key+': '+error.message);
+     throw error;
    }
  }
  if(bytes>65536)throw new RefusalError('Batch total value bound exceeded');
@@ -283,7 +274,7 @@ export const projectEnvBatchTools={
  tools:[
    {name:'vercel_env_set_many',writes:true,guardedWrite:true,
      profiles:['everyday','full'],area:'env',
-     description:'Create 2–10 new env keys in one guarded provider batch; private values, per-key readback.',
+     description:'Create 2–10 new env keys in one guarded batch: Config takes a plain non-secret value, Secret takes generate; per-key readback.',
      inputSchema:schemas.create,writeContract:create.writeContract,
      annotations:{readOnlyHint:false,destructiveHint:false}},
    {name:'vercel_env_delete_many',writes:true,guardedWrite:true,
