@@ -430,8 +430,11 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
   });
   it('issues bypass only on a provably isolated scratch project and hides the value',async()=>{
     const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
+    // AUD-CE: the live seeded-project shape — the project record
+    // designates the run's own promoted deployment as its
+    // production deployment.
     const row={...projectRow,name,productionDeployment:null,
-      protectionBypass:{}};
+      productionDeploymentId:deployment,protectionBypass:{}};
     const f=fixture([object('project',project,{name}),
       object('deployment',deployment)],row);
     // AUD-CC/AUD-CD: the project's inventory holds the run's own
@@ -441,8 +444,14 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
       deployments:[{id:deployment,projectId:project,
         target:'production',meta:{rtc_run:runId}}],
       pagination:{count:1,next:null}});
+    // AUD-CE: the provider assigns the project its own vercel.app
+    // domain at creation (stem truncated from the project name) —
+    // the isolation proof must still pass; any other domain
+    // would disqualify.
     f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
-      domains:[],pagination:{count:0,next:null}});
+      domains:[{name:name.slice(0,35)+'.vercel.app',apexName:'vercel.app',
+        gitBranch:null,projectId:project,verified:true}],
+      pagination:{count:1,next:null}});
     let generated;
     const fetchImpl=async(input,init={})=>{
       const url=new URL(input instanceof Request?input.url:String(input));
@@ -484,6 +493,36 @@ describe('V-2 owned branch, preview env, alias and bypass',()=>{
     expect(out.status).toBe('refused_by_guard');
     expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
     f.fake.verify();
+  });
+  it('never issues bypass when the project carries a foreign domain or designation',async()=>{
+    const name='rtc-'+runId.replaceAll('_','-')+'-static-site';
+    // AUD-CE: a custom domain is real traffic surface — refuse.
+    const f=fixture([object('project',project,{name}),
+      object('deployment',deployment)],{...projectRow,name});
+    f.fake.when('GET','/v7/deployments').resolves({
+      deployments:[],pagination:{count:0,next:null}});
+    f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[{name:'app.example.com',apexName:'example.com',
+        gitBranch:null,projectId:project,verified:true}],
+      pagination:{count:1,next:null}});
+    const out=parse(await f.call('vercel_dev_create_bypass',
+      {runId,project,note:'Must refuse custom domain',confirm:true}));
+    expect(out.status).toBe('refused_by_guard');
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    f.fake.verify();
+    // A production designation pointing outside the run — refuse.
+    const g=fixture([object('project',project,{name}),
+      object('deployment',deployment)],
+      {...projectRow,name,productionDeploymentId:'dpl_FOREIGN'});
+    g.fake.when('GET','/v7/deployments').resolves({
+      deployments:[],pagination:{count:0,next:null}});
+    g.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[],pagination:{count:0,next:null}});
+    const out2=parse(await g.call('vercel_dev_create_bypass',
+      {runId,project,note:'Must refuse foreign designation',confirm:true}));
+    expect(out2.status).toBe('refused_by_guard');
+    expect(g.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    g.fake.verify();
   });
   it('pinned Vercel env, alias and bypass operation schemas are validated',()=>{
     expect(validateRequest('project_env_create',{
