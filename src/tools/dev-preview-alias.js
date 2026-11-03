@@ -15,15 +15,23 @@ async function absent(client,alias){
   catch(e){if(e?.status===404)return;throw e;}
   throw new RefusalError('Existing alias must never be reassigned by a preview workflow');
 }
-async function previewDeployment(client,id,project){
+async function previewDeployment(client,id,project,runId){
   const row=await client.request('deployments_get',{path:{idOrUrl:id}});
   // AUD-CC: deploymentTargetMatches states the documented target
   // encoding once — a real preview's read-back carries target null,
   // not the literal 'preview' this check demanded, so no live
   // preview could ever be aliased (live refusal, 2026-11-03,
   // branch G: a READY recorded preview refused at this line).
-  if((row?.uid??row?.id)!==id||row.projectId!==project||
-     !deploymentTargetMatches(row.target,'preview')||
+  // AUD-CD: the provider promotes a project's first deployment to
+  // production; when that deployment is this run's own creation —
+  // recorded active by the caller and stamped with this run's meta
+  // when the shape carries meta — it is the run's preview fixture,
+  // the equivalence the seed's verify already states. A production
+  // deployment this run did not author still refuses.
+  const ownPreview=deploymentTargetMatches(row.target,'preview')||
+    (row.target==='production'&&
+     (row.meta==null||row.meta.rtc_run===runId));
+  if((row?.uid??row?.id)!==id||row.projectId!==project||!ownPreview||
      row.readyState!=='READY')
     throw new RefusalError('Only a READY, owner-scoped preview deployment can be aliased');
 }
@@ -38,7 +46,7 @@ export async function planPreviewAlias(a,ctx){
          o.project_id===b.project&&o.status==='active'))
       throw new RefusalError('Deployment is not recorded and active in this run');
     const {client}=await readProvider(ctx);
-    await Promise.all([previewDeployment(client,a.deployment,b.project),absent(client,a.alias)]);
+    await Promise.all([previewDeployment(client,a.deployment,b.project,b.runId),absent(client,a.alias)]);
     validateRequest('release_alias_assign',{path:{id:a.deployment},
       query:{teamId:b.teamId},body:{alias:a.alias}});
     return {...b,deployment:a.deployment,alias:a.alias};
@@ -60,7 +68,7 @@ const aliasWrite=defineWrite({
     const provider=await selectedWrite(ctx,b);
     await requirePreDispatch(async()=>{
       const client={request:(...x)=>provider.read(...x)};
-      await Promise.all([previewDeployment(client,b.deployment,b.project),
+      await Promise.all([previewDeployment(client,b.deployment,b.project,b.runId),
         absent(client,b.alias)]);
     });
     await startRun(ctx,b);

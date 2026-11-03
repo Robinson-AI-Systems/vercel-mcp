@@ -19,19 +19,30 @@ function complete(result,key){
     throw new RefusalError('Production/alias inventory cannot be verified completely');
   return entries;
 }
-async function isolated(client,b){
+async function isolated(client,b,ownIds=new Set()){
   const [row,deps,domains]=await Promise.all([
     client.request('projects_get',{path:{idOrName:b.project}}),
     client.request('deployments_list',{query:{projectId:b.project,limit:100}}),
     client.request('projects_domains_list',{path:{idOrName:b.project}})]);
+  // AUD-CD: the provider promotes a scratch project's first
+  // deployment to production; that deployment is the run's own
+  // fixture when its id is among the run's recorded deployments
+  // and its meta names this run when carried. Any OTHER
+  // non-preview deployment still disqualifies the project.
+  const safe=d=>deploymentTargetMatches(d.target,'preview')||
+    (d.target==='production'&&ownIds.has(d.id??d.uid)&&
+     (d.meta==null||d.meta.rtc_run===b.runId));
   if(row?.id!==b.project||row.name!==b.name||!row.name.startsWith(
     'rtc-'+b.runId.replaceAll('_','-')+'-')||
      row.productionDeployment||row.productionDeploymentId||
      complete(deps,'deployments').some(d=>
-       d.projectId!==b.project||!deploymentTargetMatches(d.target,'preview'))||
+       d.projectId!==b.project||!safe(d))||
      complete(domains,'domains').length)
     throw new RefusalError('Protection bypass is unsafe on a project with any live or unknown traffic');
 }
+const ownDeploymentIds=objects=>new Set(objects
+  .filter(o=>o.object_type==='deployment'&&o.status==='active')
+  .map(o=>o.object_id));
 const bypass=defineWrite({
   name:'vercel_dev_create_bypass',risk:{access:true},secretOut:true,oneTimeDelivery:true,
   async before(a,ctx){
@@ -43,7 +54,7 @@ const bypass=defineWrite({
         o.status==='active'))
       throw new RefusalError('Only an owned run scratch project can receive a bypass');
     const {client}=await readProvider(ctx);
-    await isolated(client,b);
+    await isolated(client,b,ownDeploymentIds(objects));
     const probe={generate:{secret:'a'.repeat(32),note:a.note}};
     validateRequest('project_protection_bypass_update',{
       path:{idOrName:b.project},query:{teamId:b.teamId},body:probe});
@@ -60,7 +71,10 @@ const bypass=defineWrite({
   async apply(_a,ctx,b,key){
     const provider=await selectedWrite(ctx,b);
     await requirePreDispatch(async()=>{
-      await isolated({request:(...x)=>provider.read(...x)},b);
+      const objects=await ctx.db.listDevRunObjects(
+        {account:ctx.connection.account,id:b.runId});
+      await isolated({request:(...x)=>provider.read(...x)},b,
+        ownDeploymentIds(objects));
     });
     const value=randomBytes(16).toString('hex');
     const id='byp_'+createHash('sha256').update(value).digest('hex').slice(0,32);
@@ -91,8 +105,8 @@ const bypass=defineWrite({
     if(typeof r?.id!=='string')return {confirmed:null};
     const {client,account}=await readProvider(ctx);
     if(account.team_id!==b.teamId)return {confirmed:null};
-    await isolated(client,b);
     const rows=await ctx.db.listDevRunObjects({account:ctx.connection.account,id:b.runId});
+    await isolated(client,b,ownDeploymentIds(rows));
     return {confirmed:rows.some(o=>o.object_type==='bypass'&&o.object_id===r.id),
       ownerRevealRef:r.ownerRevealRef,expiresAt:r.expiresAt};
   }

@@ -62,9 +62,15 @@ export async function ownerDeployment(ctx,args){
     throw new RefusalError('This run does not own the requested active deployment');
   const deployment=await bound.client.request('deployments_get',
     {path:{idOrUrl:args.deployment}});
+  // AUD-CD: a first deployment the provider promoted to production
+  // still counts as this run's preview when the run authored it —
+  // recorded active above and stamped with this run's meta when
+  // the shape carries meta (the seed verify's stated equivalence).
+  const ownPreview=deploymentTargetMatches(deployment.target,'preview')||
+    (deployment.target==='production'&&
+     (deployment.meta==null||deployment.meta.rtc_run===args.runId));
   if((deployment?.uid??deployment?.id)!==args.deployment||
-     deployment.projectId!==args.project||
-     !deploymentTargetMatches(deployment.target,'preview'))
+     deployment.projectId!==args.project||!ownPreview)
     throw new RefusalError('Deployment is no longer an owned preview');
   return {...bound,deployment,objects};
 }

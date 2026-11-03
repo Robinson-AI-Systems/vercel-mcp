@@ -131,11 +131,16 @@ export const devIntegrationTools={
             b.client.request('deployments_get',
               {path:{idOrUrl:known.detail.deployment}})
           ]);
+          // AUD-CD: the run's own promoted first deployment
+          // verifies too — target production with this run's
+          // meta (or no meta in the shape) is the run's preview.
           checked=(alias.uid??alias.id)===known.object_id&&alias.alias===host&&
             (alias.deploymentId??alias.deployment?.id)===known.detail.deployment&&
             (deploy.uid??deploy.id)===known.detail.deployment&&
             deploy.projectId===s.project&&
-            deploymentTargetMatches(deploy.target,'preview');
+            (deploymentTargetMatches(deploy.target,'preview')||
+             (deploy.target==='production'&&
+              (deploy.meta==null||deploy.meta.rtc_run===s.runId)));
         }catch{/* Missing, changed or unavailable native alias proof stays unverified */}
         result.push(row('preview-domain',host,checked?'ok':'unverified',
           checked?'Verified Vercel alias still routes to run-owned preview':
