@@ -315,6 +315,107 @@ describe('D-1m destructive empty-project deletion',()=>{
   });
 });
 
+describe('AUD-CH owner-confirmed deletion of a non-empty project',()=>{
+  const full={id:'prj_FAKE_FULL',name:'full-site',hasDeployments:true,
+    link:{type:'github',repo:'owner/repo',repoId:123,org:'owner'},
+    crons:{definitions:[{path:'/api/job',schedule:'0 0 * * *'}]}};
+  const fullDomains={domains:[
+    {name:'full-site.vercel.app',apexName:'vercel.app',projectId:full.id,
+     gitBranch:null,redirect:null,customEnvironmentId:null,verified:true},
+    {name:'demo.example',apexName:'example',projectId:full.id,
+     gitBranch:null,redirect:null,customEnvironmentId:null,verified:true}],
+    pagination:{next:null,count:2}};
+  const fullEnv={envs:[{key:'API_KEY',value:'NEVER_OUTPUT'}],
+    pagination:{next:null,count:1}};
+  const fullDeps={deployments:[
+    {id:'dpl_FAKE_PROD',projectId:full.id,target:'production',readyState:'READY'},
+    {id:'dpl_FAKE_PREV',projectId:full.id,target:null,readyState:'READY'}],
+    pagination:{next:null,count:2}};
+  function fullFixture(){
+    const fake=makeFakeVercel(),replay=new Map(),audits=[];
+    const db={getAccountCredential:async()=>({}),listProtectedResources:async()=>[],
+      recordChange:async row=>audits.push(row),
+      requestReplayStore:()=>({
+        claim:async({key})=>replay.has(key)?
+          {state:'completed',result:replay.get(key)}:{state:'claimed',claimId:key},
+        complete:async({key,result})=>{replay.set(key,result);},
+        release:async()=>{}
+      })};
+    const call=(args,c=connection)=>dispatchReadOnlyTool({registry,
+      name:'vercel_project_delete',args,db,connection:c,fetchImpl:fake.fetch});
+    const rules={
+      project:fake.when('GET','/v9/projects/{idOrName}'),
+      domains:fake.when('GET','/v9/projects/{idOrName}/domains'),
+      env:fake.when('GET','/v10/projects/{idOrName}/env'),
+      deps:fake.when('GET','/v7/deployments'),
+      del:fake.when('DELETE','/v9/projects/{idOrName}')};
+    const inspect=()=>{rules.project.resolves(full);
+      rules.domains.resolves(fullDomains);rules.env.resolves(fullEnv);
+      rules.deps.resolves(fullDeps);};
+    return {fake,call,rules,inspect,audits};
+  }
+  const base={project:full.id,expectedName:full.name,outsideApp:true,
+    requestKey:'FAKE_full_delete_key'};
+  const evaluationOf=preview=>preview.match(/Evaluation: ([0-9a-f]{64})/)?.[1];
+  it('plans a non-empty project with the full warning and an evaluation id, deleting nothing',async()=>{
+    const f=fullFixture();f.inspect();
+    const plan=parse(await f.call({...base,dryRun:true}));
+    expect(plan.status).toBe('preview');
+    expect(plan.preview).toContain('OWNER-CONFIRMED DELETION');
+    expect(plan.preview).toContain('dpl_FAKE_PROD (production, READY)');
+    expect(plan.preview).toContain('demo.example');
+    expect(plan.preview).toContain('owner/repo');
+    expect(plan.preview).toContain('API_KEY');
+    expect(plan.preview).not.toContain('NEVER_OUTPUT');
+    expect(evaluationOf(plan.preview)).toMatch(/^[0-9a-f]{64}$/);
+    expect(f.fake.calls.every(x=>x.method==='GET')).toBe(true);
+    f.fake.verify();
+  });
+  it('refuses a non-empty confirm that names no evaluation, and one that names a stale one',async()=>{
+    const f=fullFixture();f.inspect();
+    const noEval=parse(await f.call({...base,confirm:true}));
+    expect(noEval.status).toBe('refused_by_guard');
+    expect(noEval.reason).toContain('requires confirming the exact evaluation');
+    expect(f.fake.calls.some(x=>x.method==='DELETE')).toBe(false);
+    const g=fullFixture();g.inspect();
+    const stale=parse(await g.call({...base,confirm:true,
+      evaluationId:'0'.repeat(64)}));
+    expect(stale.status).toBe('refused_by_guard');
+    expect(stale.reason).toContain('no longer current');
+    expect(g.fake.calls.some(x=>x.method==='DELETE')).toBe(false);
+  });
+  it('deletes a non-empty project on the exact confirmed evaluation, verified by 404',async()=>{
+    const f=fullFixture();f.inspect();
+    const plan=parse(await f.call({...base,dryRun:true}));
+    const evaluationId=evaluationOf(plan.preview);
+    f.inspect();f.inspect();
+    f.rules.project.rejects(404);
+    f.rules.del.resolves(undefined,204);
+    const done=parse(await f.call({...base,confirm:true,evaluationId}));
+    expect(done).toMatchObject({status:'applied',confirmed:true});
+    expect(JSON.stringify(done)).not.toContain('NEVER_OUTPUT');
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    expect(f.audits).toHaveLength(2);
+    f.fake.verify();
+  });
+  it('refuses when the contents change between the plan and the confirm',async()=>{
+    const f=fullFixture();f.inspect();
+    const plan=parse(await f.call({...base,dryRun:true}));
+    const evaluationId=evaluationOf(plan.preview);
+    // A new deployment appears before the owner confirms.
+    f.rules.project.resolves(full);
+    f.rules.domains.resolves(fullDomains);f.rules.env.resolves(fullEnv);
+    f.rules.deps.resolves({deployments:[...fullDeps.deployments,
+      {id:'dpl_FAKE_NEW',projectId:full.id,target:null,readyState:'READY'}],
+      pagination:{next:null,count:3}});
+    const done=parse(await f.call({...base,confirm:true,evaluationId}));
+    expect(done.status).toBe('refused_by_guard');
+    expect(done.reason).toContain('no longer current');
+    expect(f.fake.calls.some(x=>x.method==='DELETE')).toBe(false);
+    f.fake.verify();
+  });
+});
+
 describe('AUD-M env inventory branch (VMCP-027)',()=>{
   it('deletes when the env list answers in the no-pagination branch with nothing hidden',async()=>{
     // Documented branch: {envs, hiddenProductionEnvCount} and NO
