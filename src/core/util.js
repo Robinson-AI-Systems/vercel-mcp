@@ -2,6 +2,12 @@
 const SECRET_FIELD = /^(?:value|decryptedValue|token|accessToken|refreshToken|secret|secretValue|bypass|bypassSecret|authCode|password|passphrase|privateKey|credential|connectionString|authorization)$/i;
 const SECRET_STRING = /(?:rtc_pass_|vc[pikar]_|vercel_blob_rw_|(?:sk|rk)_(?:live|test)_|whsec_|gh[pousr]_|github_pat_|xox[a-z]?[-_]|AKIA[A-Z0-9]|-----BEGIN\b|postgres(?:ql)?:\/\/[^\s/@:]+:[^\s/@]+@)/i;
 const HIGH_ENTROPY = /^(?:[A-Za-z0-9+/]{32,}={0,2}|[a-f0-9]{32,})$/;
+// A Git commit ID is plain hex (7-64 characters) and is the proof of "what is running". It looks like a
+// long hex secret to HIGH_ENTROPY, so it needs a narrow exemption: only a bare-hex value under a field
+// that names a commit. Any other long hex string (or the same string under another field) stays hidden.
+const COMMIT_FIELD = /^(?:commit|commitSha|sha|headSha|baseSha|githubCommitSha|gitCommitSha|gitlabCommitSha|bitbucketCommitSha)$/;
+const COMMIT_HEX = /^[0-9a-f]{7,64}$/i;
+export const isCommitId = value => typeof value === 'string' && COMMIT_HEX.test(value);
 const CURRENCY = /(?:Cents|_cents)$/;
 const DATE_KEY = /(?:At|Timestamp|_ms|Ms|timestamp)$/;
 const HIDDEN = '[hidden]';
@@ -59,7 +65,8 @@ export function compact(input, maxBytes = MAX_RESULT_BYTES) {
       const result = {};
       for (const [key, child] of Object.entries(value)) {
         if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
-        result[key] = SECRET_FIELD.test(key) ? HIDDEN : walk(child, depth + 1);
+        result[key] = SECRET_FIELD.test(key) ? HIDDEN
+          : COMMIT_FIELD.test(key) && isCommitId(child) ? child : walk(child, depth + 1);
         if (typeof child === 'number' && Number.isSafeInteger(child)) {
           if (DATE_KEY.test(key)) {
             const local = denver(child);
