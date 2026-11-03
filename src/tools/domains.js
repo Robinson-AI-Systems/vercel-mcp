@@ -1,6 +1,7 @@
 // N-1: team and project domains. Reads verify team/project ownership the same
 // way other read tools do; writes are guarded defineWrite operations with
 // production classification per BATCH-N N1 and independent read-back.
+import {createHash} from 'node:crypto';
 import {defineWrite,bindGuardedWrite,requirePreDispatch, RefusalError } from '../core/write.js';
 import {compact,credentialLike} from '../core/util.js';
 import {readProvider,writeProvider} from '../vercel/provider.js';
@@ -213,6 +214,7 @@ const props={
   echMode:{type:'string',enum:['auto','disabled']},
   destination:{type:'string',minLength:1,maxLength:128},
   outsideApp:{type:'boolean',const:true},
+  evaluationId:{type:'string',pattern:'^[0-9a-f]{64}$'},
   confirm:{type:'boolean'},dryRun:{type:'boolean'},
   requestKey:{type:'string',pattern:REQUEST.source}
 };
@@ -438,10 +440,31 @@ const updateWrite=defineWrite({
     }catch{return {confirmed:null};}
   }
 });
+// AUD-CM (owner's ruling, 2026-11-03, from the AUD-CH refusal audit):
+// removeBefore used to refuse confirmation outright while any project
+// or alias used the domain — an eligibility veto over the owner. The
+// usage inventory is now the evaluation: complete (domainUsage already
+// refuses rather than claim a partial inventory), fingerprinted, and
+// rendered in the plan with its consequences. Confirming an in-use
+// removal requires naming the exact evaluationId; execution
+// re-runs the inventory and refuses on drift. An unused domain keeps
+// the simple path unchanged.
+function removeEvaluation(domain,teamId,verified,inUse){
+  const canonical=inUse.map(item=>item.alias!==undefined?
+    {alias:item.alias,project:item.project??null,deployment:item.deployment??null}:
+    {project:item.project??null,domain:item.domain??null});
+  canonical.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  const evaluation={domain,teamId,verified,inUse:canonical};
+  return {evaluation,evaluationId:createHash('sha256')
+    .update(JSON.stringify(evaluation)).digest('hex')};
+}
 async function removeBefore(args,ctx){
-  exactArgs(args,['domain','outsideApp','confirm','dryRun','requestKey']);
+  exactArgs(args,['domain','outsideApp','evaluationId','confirm','dryRun','requestKey']);
   const domain=safeAlias(args.domain);
   assertOutsideApp(args);assertControl(args);assertFull(ctx);
+  if(args.evaluationId!==undefined&&
+    (typeof args.evaluationId!=='string'||!/^[0-9a-f]{64}$/.test(args.evaluationId)))
+    throw new RefusalError('Invalid evaluation identifier');
   validateRequest('domains_remove',{path:{domain},
     query:{teamId:'team_FAKE_validation'}});
   const {client,account}=await teamContext(ctx);
@@ -451,10 +474,16 @@ async function removeBefore(args,ctx){
   const inUse=[...usedBy.projects.map(item=>({project:item.project,domain:item.name})),
     ...usedBy.aliases.map(item=>({alias:item.domain,project:item.projectId,
       deployment:item.deployment}))];
-  // Dry runs may inspect the block; confirmation is refused while in use.
-  if(inUse.length&&args.dryRun!==true)
-    throw new TypeError('Domain '+domain+' is still used; detach it first');
-  return {domain,teamId:account.team_id,verified:current.verified,inUse};
+  const {evaluation,evaluationId}=removeEvaluation(
+    domain,account.team_id,current.verified,inUse);
+  if(args.evaluationId!==undefined&&args.evaluationId!==evaluationId)
+    throw new RefusalError('That evaluation is no longer current: the domain\'s usage has changed since it was made. Run the plan again and confirm the evaluation it shows now');
+  if(inUse.length&&args.confirm===true&&args.dryRun!==true&&
+    args.evaluationId===undefined)
+    throw new RefusalError('Domain '+domain+' is still used; detach it first — or confirm the exact evaluation: run the plan (dryRun) to see everything using it, then confirm with the evaluationId it shows');
+  return {domain,teamId:account.team_id,verified:current.verified,inUse,
+    evaluation,evaluationId,
+    ownerConfirmed:inUse.length>0&&args.evaluationId===evaluationId};
 }
 const removeWrite=defineWrite({
   name:'vercel_domain_remove_from_team',before:removeBefore,
@@ -462,8 +491,16 @@ const removeWrite=defineWrite({
     if(before.inUse.length){
       const names=before.inUse.map(item=>item.project?
         item.domain+' on '+item.project:item.alias).join(', ');
-      return 'REFUSED: '+before.domain+' is still used by '+names+
-        '. Detach it from every project and alias first.';
+      return 'REFUSED on the simple path: '+before.domain+' is still used by '+names+
+        '. Detach it from every project and alias first. '+
+        'OWNER-CONFIRMED REMOVAL: removing it from the team anyway '+
+        'permanently removes the domain from the team — every project '+
+        'domain and alias named above stops working and the sites they '+
+        'serve stop answering on this address; Vercel may itself refuse '+
+        'while the domain is in use, and that verdict is reported as '+
+        'returned. Evaluation: '+before.evaluationId+'. To proceed, '+
+        'confirm with evaluationId set to that exact value; if usage '+
+        'changes, the evaluation changes and the confirmation is refused.';
     }
     return 'Remove '+before.domain+' from the team; the site stops answering on it.';
   },
@@ -477,7 +514,9 @@ const removeWrite=defineWrite({
         ctx.connection?.mode!=='production')
         throw new TypeError('Team domain removal requires an authorized production connection');
       const fresh=await removeBefore({...args,dryRun:true},ctx);
-      if(fresh.domain!==before.domain||fresh.teamId!==before.teamId||fresh.inUse.length)
+      if(fresh.domain!==before.domain||fresh.teamId!==before.teamId||
+        fresh.evaluationId!==before.evaluationId||
+        (fresh.inUse.length&&!before.ownerConfirmed))
         throw new TypeError('Domain usage changed since confirmation');
     });
     return provider.write('domains_remove',{path:{domain:before.domain}},
@@ -837,8 +876,8 @@ export const domainsTools={
       writeContract:updateWrite.writeContract,
       annotations:{readOnlyHint:false,destructiveHint:true}},
     {name:'vercel_domain_remove_from_team',writes:true,guardedWrite:true,profiles:FULL,area:'domains',
-      description:'Remove a domain from the team once no project or alias uses it; the site stops answering on it.',
-      inputSchema:schema(pick(props,'domain','outsideApp','confirm','dryRun','requestKey'),
+      description:'Remove a domain from the team; the site stops answering on it. A domain still in use needs the plan\'s exact evaluationId.',
+      inputSchema:schema(pick(props,'domain','outsideApp','evaluationId','confirm','dryRun','requestKey'),
         ['domain','outsideApp']),
       writeContract:removeWrite.writeContract,
       annotations:{readOnlyHint:false,destructiveHint:true}},

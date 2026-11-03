@@ -228,6 +228,116 @@ describe('N-1 team and project domains',()=>{
     expect(f.claims).toHaveLength(0);
     f.fake.verify();
   });
+  function inUseUsage(fake,times=1){
+    const aliases=fake.when('GET','/v4/aliases');
+    const projects=fake.when('GET','/v10/projects');
+    const domains=fake.when('GET','/v9/projects/{idOrName}/domains');
+    for(let i=0;i<times;i++){
+      aliases.resolves({aliases:[{alias:domain,
+        projectId:project,deploymentId:'dpl_FAKE_ONE'}],pagination:{next:null}});
+      projects.resolves({
+        projects:[{id:project,name:'demo'}],pagination:{next:null}});
+      domains.resolves({domains:[projectDomainRow],pagination:{next:null}});
+    }
+  }
+  it('AUD-CM: the plan for an in-use domain renders the confirmed-removal warning with its evaluation id and deletes nothing',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
+    inUseUsage(f.fake);
+    const preview=value(await f.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,dryRun:true},production));
+    expect(preview.status).toBe('preview');
+    expect(preview.preview).toContain('OWNER-CONFIRMED REMOVAL');
+    expect(preview.preview).toContain(project);
+    expect(preview.preview).toMatch(/Evaluation: [0-9a-f]{64}/);
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('AUD-CM: a confirmation naming a stale evaluation refuses the in-use removal',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
+    inUseUsage(f.fake);
+    const refused=value(await f.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,confirm:true,evaluationId:'0'.repeat(64)},production));
+    expect(refused.status).toBe('refused_by_guard');
+    expect(refused.reason).toMatch(/no longer current/);
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('AUD-CM: a confirmation naming the exact evaluation removes an in-use domain, verified by read-back',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}')
+      .resolves({domain:domainRow}).resolves({domain:domainRow})
+      .resolves({domain:domainRow}).rejects(404);
+    inUseUsage(f.fake,3);
+    f.fake.when('DELETE','/v6/domains/{domain}').resolves({uid:'dom_FAKE_ONE'});
+    const plan=value(await f.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,dryRun:true},production));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const applied=value(await f.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,confirm:true,evaluationId},production));
+    expect(applied).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(1);
+    expect(f.audits.length).toBeGreaterThan(0);
+    f.fake.verify();
+  });
+  it('AUD-CM: a usage change between plan and confirm refuses as stale',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
+    f.fake.when('GET','/v4/aliases')
+      .resolves({aliases:[{alias:domain,projectId:project,
+        deploymentId:'dpl_FAKE_ONE'}],pagination:{next:null}})
+      .resolves({aliases:[],pagination:{next:null}});
+    f.fake.when('GET','/v10/projects').resolves({
+      projects:[{id:project,name:'demo'}],pagination:{next:null}});
+    f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[projectDomainRow],pagination:{next:null}});
+    const plan=value(await f.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,dryRun:true},production));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    const refused=value(await f.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,confirm:true,evaluationId},production));
+    expect(refused.status).toBe('refused_by_guard');
+    expect(refused.reason).toMatch(/no longer current/);
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    f.fake.verify();
+  });
+  it('AUD-CM: a usage change between preview and dispatch refuses at apply',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
+    f.fake.when('GET','/v4/aliases')
+      .resolves({aliases:[{alias:domain,projectId:project,
+        deploymentId:'dpl_FAKE_ONE'}],pagination:{next:null}})
+      .resolves({aliases:[{alias:domain,projectId:project,
+        deploymentId:'dpl_FAKE_ONE'},{alias:domain,projectId:otherProject,
+        deploymentId:'dpl_FAKE_TWO'}],pagination:{next:null}});
+    f.fake.when('GET','/v10/projects').resolves({
+      projects:[{id:project,name:'demo'}],pagination:{next:null}});
+    f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[projectDomainRow],pagination:{next:null}});
+    const plan=value(await f.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,dryRun:true},production));
+    const evaluationId=plan.preview.match(/Evaluation: ([0-9a-f]{64})/)[1];
+    // Re-plan inside one confirm call: before sees the original usage,
+    // the apply-time inventory sees the added alias.
+    const g=fixture();
+    g.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
+    g.fake.when('GET','/v4/aliases')
+      .resolves({aliases:[{alias:domain,projectId:project,
+        deploymentId:'dpl_FAKE_ONE'}],pagination:{next:null}})
+      .resolves({aliases:[{alias:domain,projectId:project,
+        deploymentId:'dpl_FAKE_ONE'},{alias:domain,projectId:otherProject,
+        deploymentId:'dpl_FAKE_TWO'}],pagination:{next:null}});
+    g.fake.when('GET','/v10/projects').resolves({
+      projects:[{id:project,name:'demo'}],pagination:{next:null}});
+    g.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[projectDomainRow],pagination:{next:null}});
+    const refused=value(await g.call('vercel_domain_remove_from_team',
+      {domain,outsideApp:true,confirm:true,evaluationId},production));
+    expect(refused.status).toBe('refused_by_guard');
+    expect(g.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+    expect(f.fake.calls.filter(x=>x.method==='DELETE')).toHaveLength(0);
+  });
   it('removes an unused team domain with absence read-back',async()=>{
     const f=fixture();
     f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow}).resolves({domain:domainRow}).rejects(404);

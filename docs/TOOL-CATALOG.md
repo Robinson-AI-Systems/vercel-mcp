@@ -263,7 +263,7 @@ everything it creates is recorded in a run and tagged where Vercel allows (`rtc_
 | `vercel_domain_check_config` | Is the domain pointed correctly: misconfigured or not, the exact records it needs | — | B Op | R | — | N-1 |
 | `vercel_domain_add_to_team` | Add a domain you already own elsewhere to the team (no purchase) | P | O | F | — | N-1 |
 | `vercel_domain_update` | Move a domain to another team, or change its zone/custom nameserver setting | PR | O | F | y | N-1 |
-| `vercel_domain_remove_from_team` | Remove a domain from the team (its aliases first; the site stops answering on it) | D PR | O | F | y | N-1 |
+| `vercel_domain_remove_from_team` | Remove a domain from the team (the site stops answering on it); a domain still in use needs the plan's exact evaluationId (AUD-CM) | D PR | O | F | y | N-1 |
 | `vercel_domain_list_project_domains` | Domains on a project: production or branch, redirect, verified | — | B Op | R | y | N-1 |
 | `vercel_domain_attach_to_project` | Add a domain to a project (production unless a branch or custom environment is given) | Cp | B Op | E | y | N-1 |
 | `vercel_domain_update_project_domain` | Change a project domain's redirect, status code, branch or custom environment | Cp | Op | E | y | N-1 |
