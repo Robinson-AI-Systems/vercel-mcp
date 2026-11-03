@@ -163,7 +163,9 @@ agent follows.
    service-status JSON naming `endpoint`, `oauth` and `health`.
 2. `GET /api/health`: healthy is HTTP 200 with `status: "ok"`. A 503
    with `status: "degraded"` is a failure signal to triage, not proof
-   of an outage.
+   of an outage. The endpoint answers from memory and configuration
+   only — it never touches the store, so polling it cannot keep the
+   scale-to-zero database awake (AUD-BY).
 3. Keyless `POST /api/mcp`: must answer 401 with the documented
    unauthorized shape (`{"error":"unauthorized", ...}`). Any other
    answer — a success, a different error, no answer — is a posture
@@ -184,13 +186,17 @@ agent follows.
    list. A failure that begins with a promotion is a release problem;
    a failure on an unchanged deployment is an environment problem.
 4. **Follow the degraded leg.** With the front door and the 401 leg
-   healthy, `degraded` means a checked dependency is down. The store
-   read failing points first at the database connection — check the
+   healthy, a public `degraded` points first at configuration — the
+   configured public origin against the served metadata — because
+   the public endpoint checks nothing else (AUD-BY: it never touches
+   the store). To prove the store itself, use the authenticated deep
+   check, `GET /api/health/deep` with a connection bearer token: its
+   `checks.store` carries the real store verdict, and a store failure
+   there points first at the database connection — check the
    database's own status and reachability, and never print connection
-   strings. OAuth metadata inconsistency points first at configuration
-   — the configured public origin against the served metadata. Deeper
-   posture is authenticated: `vercel_whoami` for the connection's own
-   read-back, `vercel_recent_changes` for what changed last.
+   strings. Deeper posture is authenticated: `vercel_whoami` for the
+   connection's own read-back, `vercel_recent_changes` for what
+   changed last.
 
 **Escalation.** Nobody wakes the owner for a probe failure. Escalate to
 the owner only for owner-only needs — credentials, payment, a legal
