@@ -64,9 +64,135 @@ of their STATUS entries records "registry unchanged at 253".
 | 12. No global credential fallback | **CONFORMS at plan level.** | Connections act only through the Vercel account their own sign-in attests and the credentials that account enrolled; there is no service-owned global fallback credential for another tenant. Future changes must keep demonstrating this under row 16's process. |
 | 13. Version evolution (no-reinstall) | **CONFORMS at plan level.** | Additive-only surface evolution; the deletion-conversion family changed no tool name, shape or count. A continuing rule for later changes, not a completed acceptance event. |
 | 14. Pattern appraisal guardrails | **RECORDED; remote coding runtime NOT APPLICABLE.** | This server's `vercel_dev_*` tools run the provider's own Sandbox jobs; they are a product feature, not a fleet remote coding runtime, and no appraisal item is owed for them. |
-| 15. Capability completeness | **CORRECTABLE.** | The tool catalog is this server's retroactive census of the provider's API surface: 254 rows dispositioned — 253 covered, 1 deliberately out (IN-16) — and the one-call composites exist as the `vercel_workflow_*` family. Still owed in census form: beside-API/substrate dispositions, the workflow-frequency research, and the consumer test, filed as a census addendum; and a front-door depth line that cites the census rather than the tool count. |
+| 15. Capability completeness | **CORRECTABLE — PARTIAL under the 2026-11-04 completeness amendment (two-source re-census, 2026-11-04).** | Re-issued 2026-11-04 by the fleet completeness re-census (Critic Step 0, two sealed sources; full addendum below). Graded against the service's full published surface, not this server's catalogue of itself: of **468 mapped endpoint rows** in Vercel's REST reference, **191 are covered by named tools, 136 through the universal door, 112 are missing (21 of them credential-refused by design — see the addendum — leaving 91 build-relevant), and 29 are unverified**. The previous basis for this row (254 catalog rows — 253 covered, 1 deliberately out by IN-16) graded the tool catalogue; the re-census grades the map, and the grade is capped at PARTIAL while plausibly-needed capabilities stand missing. The headline is on this server's own store: **OAuth client registrations are create-only** — no list, no owner read, no update, no delete anywhere in the code, no registration access token issued, and the retention sweep never touches the table (card **RECENSUS-1**, filed with this record). RTC passes likewise have no list or read leg. The core operating families (projects, deployments, domains, DNS, environment variables, teams, drains, routing, rolling releases) stand at or near full named coverage, and token/connection revocation is symmetric and complete. Missing-with-plan rows M1–M10 and the composition-owed flag are in the addendum; still owed from this row's earlier text: the workflow-frequency research, the consumer test, and a front-door depth line that cites this census rather than the tool count. |
 | 16. Conformance-correction process | **CORRECTABLE — process running.** | Step 0 (freeze + inventory) is the 2026-11-02 documentation audit at its baseline plus tonight's spot verification at `f501ba01`; Step 1 is row 15's census state; Step 2 is this record. The row closes when every row conforms or carries a ruled exception with live proof filed. |
 | 17. Owner-obedience (confirmed action) | **CORRECTABLE — conversions source-merged; live proof owed.** | The AUD-CH refusal audit classified this server's refusal points (858 inventoried; aim checks kept hard). Conversions to the confirmed-action pattern merged to `main` on 2026-11-03: project deletion (#427), the deployment webhook receiver (#428), deployment deletion (#429), team-with-enrollments deletion (#430), last-Owner removal/demotion (#431), domain-in-use removal (#432), custom-environment deletion (#433), shared-variable deletion (#434) — each evaluating the exact target, disclosing in plain words, binding confirmation to the evaluation fingerprint, re-checking at execution, journaling, and verifying by read-back. **This row does not close on source:** the family reaches production only with the 2026-11-04 00:01 promotion (`main` → `live`), and each conversion closes only on live proof at that checked release. Separately owed: registering the AUD-CI webhook on the live route and setting its signing secret through the owner's secure route (GO-LIVE-CHECKLIST). |
+
+## Row 15 addendum — the 2026-11-04 two-source completeness re-census
+
+**Method.** Two sealed cartographers, reconciled leg by leg.
+Cartographer A mapped the service from Vercel's published REST API
+reference only (468 endpoint rows, 115 resources, 18 owner
+workflows step-counted; page `last_updated` 2026-11-04).
+Cartographer B inventoried this server only (repo code at `main`
+`f76ab78138bf51f4ad7426915d1bb7c0e09e3e20` — the same commit the
+live front door reported that day — plus the live front door):
+759 of 759 files, **253 tools by registry execution** (profiles
+read_only 103 / everyday 144 / full 253), the catalog's 254 rows
+and the one IN-16 closure confirmed by execution. The graded
+denominator is the service map (468). The server's own operation
+ledger (455 provider operations over the vendored 2026-10-11
+OpenAPI snapshot: 338 reachable by its own accounting, 96
+documented-only, 21 credential-refused) is the second lens,
+published in the reconciliation, never blended into the grade.
+
+**Counts (arithmetic closes: 191 + 136 + 0 + 0 + 112 + 29 = 468).**
+
+| Disposition | Count |
+|---|---:|
+| Mapped endpoint rows | 468 |
+| Covered — named tools | 191 |
+| Covered — universal door only | 136 |
+| Composed (endpoint level; composites re-reach counted legs) | 0 |
+| Owner-excluded operation legs | 0 |
+| Missing | 112 |
+| Unverified | 29 |
+
+Inside Missing, **21 are credential-refused by design** — the
+server declines operations whose credential class the owner's
+architecture does not hold (the posture rows 12 and 17 record).
+They are counted as not-covered because they are not reachable;
+they are not build items, and changing any of them takes an owner
+ruling on credential classes. Build-relevant missing is **91**.
+Under the conservative variant (the door tier counted as
+unproven), covered is 191 of 468 and the grade is PARTIAL under
+both variants. Per-family tables, the symmetry ledger, and the
+full reconciliation are the fleet audit's record
+(`vercel-reconciliation.md`, 2026-11-04); the families carrying
+the missing mass are Vercel CI (17), VCR (14), Integrations &
+Marketplace provider side (10), Sandboxes (8), AI Gateway (7),
+Observability & Analytics (6), Connect (6), Domains/Registrar (5).
+
+**Server-self headline.** OAuth client registrations
+(`oauth_clients`) are create-only: `POST /api/oauth/register`
+inserts the row (`src/db.js`, `createOAuthClient`) and issues no
+registration access token; the only read is an internal lookup;
+there is no list function, no update function, and no
+`DELETE FROM oauth_clients` anywhere in `src/` or `api/`, no
+deregistration route, and the retention sweep never touches the
+table. A registration, once created, cannot be removed through
+the product. RTC passes can be created (two doors) and revoked
+but never listed or read. By contrast: enrolled accounts have a
+full lifecycle ending in a hard delete with a journaled cascade,
+and connection revocation is symmetric through two doors with
+durable tombstones — the wound is specifically registrations,
+not revocation generally. The one ruled closure stands as ruled:
+`vercel_admin_overview` is not an operation on the service map
+and IN-16 is not counted as an exclusion above.
+
+**Missing-with-plan.**
+
+- **M1 — OAuth client registration lifecycle** (list, owner read,
+  update, delete; a management credential or owner-tool door; a
+  retention story for abandoned registrations). **Filed as card
+  RECENSUS-1 with this record.** Acceptance: registrations
+  created through the server become listable and deletable
+  through the product, and a deleted registration reads back gone.
+- **M2 — RTC pass list/read.** An owner list/read for issued
+  passes. To be filed.
+- **M3 — Protected-resources per-item remove** (clear-all exists).
+  Minor; to be filed, may ride M2's card.
+- **M4 — Vercel CI family** (17 missing): disposition decision
+  per leg — named reads or a recorded door-only posture. To be filed.
+- **M5 — VCR** (14 missing): decide whether registry management
+  is plausibly needed for the fleet's container work; if yes,
+  named repository/image/tag legs first. To be filed.
+- **M6 — Marketplace provider-side legs** (7 missing): scope
+  against the fleet's marketplace ambitions; the consumer side
+  is covered. To be filed.
+- **M7 — Sandboxes documented-only legs** (8): extend the
+  dev-sandbox dispatch or record a door-only posture. To be filed.
+- **M8 — Two operations-table entries with no dispatch reference
+  in `src/`** (`firewall_config_get_version`,
+  `registrar_contact_schema` — flagged by this server's own
+  operation ledger): wire the dispatch or remove the table claim.
+  To be filed (small).
+- **M9 — The unverified block (29):** Daemons (3) and
+  Organizations (7) are absent from the vendored snapshot;
+  AI Gateway (6), Feature Flags (6), Vercel CI (4) and Connect (1)
+  surpluses postdate it; the WAF config-version delete (1) rests
+  on a corrupted reference description; the untagged
+  `POST /api-keys` (1) has path-level semantics only. Plan:
+  refresh the vendored OpenAPI snapshot, regenerate the operation
+  ledger (the CAP-1 machinery), and re-disposition at the next
+  census. Unverified counts as neither covered nor missing.
+- **M10 — Composition-owed:** the joined owner job "buy a domain
+  and put it live on my project, verified" takes up to 8 calls
+  (each half is within the 3-call line alone, and a composite
+  already covers the second half). Proposed composite:
+  `vercel_workflow_register_and_attach_domain`. To be filed.
+  Every other workflow in the service map's 18 completes in 3
+  calls or fewer through this server, most in 1 through the
+  `vercel_workflow_*` family.
+
+**Declared limits of this re-census.** The service map's Storage
+area is degraded (its 3 mapped rows are all covered by named
+tools; store listing/update and KV/Postgres store management do
+not appear in the REST reference and are carried as an unverified
+area, not counted as missing — and Blob object operations, which
+sit outside the REST index, are in fact covered here by named
+tools through the dedicated SDK transport). The map's platform
+absences (webhook update, project-member role update, registrar
+delete, team access-request decision endpoint, organization
+delete, billing refund, integration-configuration REST create,
+access-group member add/remove, cron — config-only by platform
+design) are platform facts, recorded in the reconciliation so no
+future census re-opens them as server gaps. The server
+inventory's lifecycle legs rest on tool names plus targeted code
+reads, not all 759 files line-by-line; its live facts are the
+front door, which agreed with the executed registry at the same
+SHA. The two sources differ in vintage by three weeks; the 24
+snapshot-surplus rows sit in Unverified by construction (M9).
 
 ## CI speed note (standing rule, Chris 2026-11-03)
 
