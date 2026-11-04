@@ -34,6 +34,10 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,7 +47,15 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: node scripts/ci-phase.mjs --budget-seconds 180 -- npm test
+      - run: node scripts/ci-phase.mjs --budget-seconds 180 -- npm test -- --shard=${{ matrix.shard }}/3
+
+  rtc-hub:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       # The upstream RTC suite is pinned to a reviewed public Hub SHA.
       # No production origin, account token, secret or write pass enters CI.
       - uses: actions/checkout@v7
@@ -52,6 +64,11 @@ jobs:
           ref: e76b1f8bc76e4658f404263ee47a9edbcbeda625
           path: rtc-hub
           persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npm ci --prefix rtc-hub
       - run: node scripts/ci-phase.mjs --budget-seconds 180 -- npm run test:conformance --prefix rtc-hub
       - run: node scripts/rtc-hub-offline-check.mjs
@@ -59,6 +76,10 @@ jobs:
   db:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     services:
       postgres:
         # Official pinned Postgres major; public ECR mirror exhausted its shared data quota.
@@ -82,7 +103,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: node scripts/ci-phase.mjs --budget-seconds 180 -- npm run test:db
+      - run: node scripts/ci-phase.mjs --budget-seconds 180 -- npm run test:db -- --shard=${{ matrix.shard }}/3
         env:
           TEST_DATABASE_URL: postgresql://postgres:ci-only-not-a-secret@127.0.0.1:5432/postgres
 
@@ -141,7 +162,7 @@ jobs:
 
   ci:
     if: always()
-    needs: [check, unit, db, emulate, conformance]
+    needs: [check, unit, db, emulate, conformance, rtc-hub]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -152,10 +173,12 @@ jobs:
           DB: ${{ needs.db.result }}
           EMULATE: ${{ needs.emulate.result }}
           CONFORMANCE: ${{ needs.conformance.result }}
+          RTC_HUB: ${{ needs.rtc-hub.result }}
         run: |
-          echo "check=$CHECK unit=$UNIT db=$DB emulate=$EMULATE conformance=$CONFORMANCE"
+          echo "check=$CHECK unit=$UNIT db=$DB emulate=$EMULATE conformance=$CONFORMANCE rtc-hub=$RTC_HUB"
           test "$CHECK" = success
           test "$UNIT" = success
           test "$DB" = success
           test "$EMULATE" = success
           test "$CONFORMANCE" = success
+          test "$RTC_HUB" = success
