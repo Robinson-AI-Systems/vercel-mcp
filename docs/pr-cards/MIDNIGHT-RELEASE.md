@@ -12,3 +12,7 @@ Owner instruction 2026-10-13: schedule these six MCP repositories at 00:01 Denve
 Use one daily cron with native America/Denver timezone; preserve green-CI, atomic Denver-day marker, fast-forward-only release and independent provider/production/spending gates. No new trigger, force update or preview build. Verify actual workflow schedule and existing promotion safety tests; required local/remote checks and review before merge. After explicit manual release, separately verify exact source and READY public alias. The midnight schedule next becomes eligible on the next Denver calendar day; delay/dropped schedule is not a passed release.
 
 Reference: https://github.blog/changelog/2026-03-19-github-actions-late-march-2026-updates/
+
+## Release authority — owner's standing rule (2026-11-04)
+
+Release authority: this project gets ONE automatic release per day (the nightly promotion). Every additional release requires the owner's authority — granted in advance with conditions, in the moment, or by any other scheme the owner specifies. Release machinery must encode the owner's permission scheme; no machinery may impose its own numeric cap on owner-ordered releases. Checks (exact-head green, ancestry, receipts) govern HOW an authorized release runs, never WHETHER the owner may order one. The once-per-Denver-day receipt described in this document binds the automatic route only; an owner-authorized release runs the same checked promotion and carries its own receipt.
