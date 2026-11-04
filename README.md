@@ -1,4 +1,4 @@
-# Vercel by Robinson AI Systems
+# Vercel Unleashed by Robinson AI Systems
 
 **Hub compatibility:** This server remains independently usable. Its coding agents should follow the [shared Hub compatibility checklist](docs/HUB-COMPATIBILITY.md) and the linked canonical Hub RTC contract; Hub initiates discovery and keeps provider schemas out of the agent's default tool menu.
 
