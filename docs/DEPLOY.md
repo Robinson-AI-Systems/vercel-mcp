@@ -205,9 +205,17 @@ else is agent-handled, verified fixed by re-probe, and reported in the
 morning summary.
 
 **What not to do.** Do not promote outside the nightly train; the only
-exception is the daily-live workflow's documented recovery dispatch
-(`recover_missed_daily`, gated to the owner's own actor) when a
-scheduled promotion was missed. Do not run writes against real Vercel
+exceptions are the daily-live workflow's two documented owner
+dispatches, both gated to the owner's own actor: the recovery dispatch
+(`recover_missed_daily`) when a scheduled promotion was missed, and
+the owner-authorized additional release (`manual_release`, with
+`expected_main_sha` naming the exact reviewed main head) under the
+owner's release-authority rule (2026-11-04: one automatic release a
+day; every additional release carries the owner's authority, given in
+the moment or in advance). The additional release runs the same check
+gate, writes its own receipt tag (`manual-live-promotion/<sha>`), and
+neither needs nor touches the day's marker. Do not run writes against
+real Vercel
 teams while diagnosing a posture failure — diagnosis is reads only
 until the cause is known.
 
@@ -225,13 +233,16 @@ preference.
    PR gates, then move `live` to it through the checked path: that
    Denver day's scheduled promotion if it has not yet run. If the
    day's promotion already ran, the day's marker tag
-   (`live-promotion/<YYYY-MM-DD>`) makes every later run that day a
-   checked no-op — including the recovery dispatch — so the owner
-   first deletes that day's marker tag, then runs the recovery
-   dispatch (`recover_missed_daily`, gated to the owner's own actor).
-   The script then re-runs the full check gate against `main`'s new
-   head before moving `live`, and writes a fresh marker. Nothing in
-   this path skips a check.
+   (`live-promotion/<YYYY-MM-DD>`) makes every later automatic or
+   recovery run that day a checked no-op — so the owner dispatches
+   the additional release instead (`manual_release` with
+   `expected_main_sha` set to `main`'s new head, gated to the owner's
+   own actor). The script re-runs the full check gate against that
+   exact head before moving `live`, and writes its own receipt tag
+   (`manual-live-promotion/<sha>`); the day's marker stays untouched.
+   Nothing in this path skips a check. (Deleting the day's marker to
+   re-run the recovery dispatch was the earlier procedure and is
+   retired: owner receipts now live in their own namespace.)
 2. **Emergency ref move — manual, outside the checked path.** When
    production cannot wait for a fix to clear the gates, an operator
    with write access can point `live` directly at the last
