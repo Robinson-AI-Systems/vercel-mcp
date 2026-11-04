@@ -190,3 +190,100 @@ test('successful no-change run records a receipt and suppresses later developmen
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('manual release invocation is owner-gated, SHA-pinned and not Denver-time bound', () => {
+  const repo = 'example/repo';
+  const sha = 'c'.repeat(40);
+  const env = { GITHUB_REPOSITORY: repo, GITHUB_REF: 'refs/heads/main',
+    GH_TOKEN: 'fixture', GITHUB_EVENT_NAME: 'workflow_dispatch',
+    GITHUB_ACTOR: 'christcr2012', GITHUB_TRIGGERING_ACTOR: 'christcr2012',
+    MANUAL_RELEASE: 'true', EXPECTED_MAIN_SHA: sha };
+  // The manual route carries the owner's own authority: no elapsed-midnight
+  // condition applies to it (that condition guards missed-schedule recovery).
+  assert.equal(authorizedReleaseInvocation(env, repo, new Date('2026-10-14T06:00:00Z')), true);
+  assert.equal(authorizedReleaseInvocation(env, repo, new Date('2026-10-14T11:00:00Z')), true);
+  for (const changed of [
+    { GITHUB_ACTOR: 'not-the-owner' }, { GITHUB_TRIGGERING_ACTOR: 'not-the-owner' },
+    { GITHUB_TRIGGERING_ACTOR: undefined }, { MANUAL_RELEASE: 'false' },
+    { EXPECTED_MAIN_SHA: undefined }, { EXPECTED_MAIN_SHA: '' },
+    { EXPECTED_MAIN_SHA: 'abc123' }, { EXPECTED_MAIN_SHA: 'z'.repeat(40) },
+    { EXPECTED_MAIN_SHA: sha.toUpperCase() },
+    { GITHUB_EVENT_NAME: 'push' }, { GITHUB_EVENT_NAME: 'pull_request' },
+    { GITHUB_REPOSITORY: 'wrong/repo' }, { GITHUB_REF: 'refs/heads/live' }, { GH_TOKEN: '' }
+  ]) assert.equal(authorizedReleaseInvocation({ ...env, ...changed }, repo,
+    new Date('2026-10-14T11:00:00Z')), false);
+  // With neither dispatch flag set, a bare owner dispatch is still refused.
+  assert.equal(authorizedReleaseInvocation({ ...env, MANUAL_RELEASE: 'false',
+    RECOVER_MISSED_DAILY: 'false' }, repo, new Date('2026-10-14T11:00:00Z')), false);
+});
+
+test('workflow admits the owner manual release and passes its inputs to the script', () => {
+  const workflow = readFileSync(new URL('../workflows/daily-live.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /manual_release:/);
+  assert.match(workflow, /expected_main_sha:/);
+  assert.match(workflow, /inputs.manual_release == true/);
+  assert.match(workflow, /MANUAL_RELEASE:/);
+  assert.match(workflow, /EXPECTED_MAIN_SHA:/);
+});
+
+test('manual release promotes past a consumed day tag, writes its own receipt, and leaves the automatic path capped', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'release-manual-'));
+  const cwd = process.cwd(), fetchBefore = globalThis.fetch;
+  const keys = ['GITHUB_REPOSITORY', 'GITHUB_REF', 'GITHUB_EVENT_NAME', 'GH_TOKEN',
+    'GITHUB_ACTOR', 'GITHUB_TRIGGERING_ACTOR', 'MANUAL_RELEASE', 'EXPECTED_MAIN_SHA', 'RECOVER_MISSED_DAILY'];
+  const before = keys.map(k => process.env[k]);
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: 'pipe' }).trim();
+  try {
+    git('init', '--bare', join(dir, 'remote.git'));
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Release test');
+    git('remote', 'add', 'origin', join(dir, 'remote.git'));
+    writeFileSync(join(dir, 'fixture.txt'), 'first');
+    git('add', 'fixture.txt'); git('commit', '-m', 'first');
+    git('push', 'origin', 'main', 'main:live');
+    const original = git('rev-parse', 'HEAD');
+    // The day's automatic promotion already happened: its receipt tag exists.
+    git('push', 'origin', 'main:refs/tags/live-promotion/' + denverDay());
+    writeFileSync(join(dir, 'fixture.txt'), 'second');
+    git('commit', '-am', 'second'); git('push', 'origin', 'main');
+    const second = git('rev-parse', 'HEAD');
+    Object.assign(process.env, { GITHUB_REPOSITORY: 'example/repo', GITHUB_REF: 'refs/heads/main',
+      GITHUB_EVENT_NAME: 'workflow_dispatch', GH_TOKEN: 'fixture',
+      GITHUB_ACTOR: 'christcr2012', GITHUB_TRIGGERING_ACTOR: 'christcr2012',
+      MANUAL_RELEASE: 'true', EXPECTED_MAIN_SHA: second });
+    process.chdir(dir);
+    const policy = { repository: 'example/repo', requiredChecks: ['ci'] };
+    let head = second;
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ total_count: 1,
+      check_runs: [{ ...good, head_sha: head }] }) });
+    // 1. The owner release promotes the exact authorized head even though the
+    //    day tag is consumed, and writes its own per-head receipt.
+    await run(policy, { attempts: 1, pause: async () => {} });
+    assert.equal(git('ls-remote', 'origin', 'refs/heads/live').split(/\s+/)[0], second);
+    assert.equal(git('ls-remote', 'origin', 'refs/tags/manual-live-promotion/' + second).split(/\s+/)[0], second);
+    // 2. The automatic receipt is untouched: it still names the day's first head.
+    assert.equal(git('ls-remote', 'origin', 'refs/tags/live-promotion/' + denverDay()).split(/\s+/)[0], original);
+    // 3. Re-running the same owner release is a recorded no-op on its own receipt.
+    await run(policy, { attempts: 1, pause: async () => {} });
+    assert.equal(git('ls-remote', 'origin', 'refs/heads/live').split(/\s+/)[0], second);
+    // 4. A stale authorization (main has since moved) refuses before any move.
+    writeFileSync(join(dir, 'fixture.txt'), 'third');
+    git('commit', '-am', 'third'); git('push', 'origin', 'main');
+    const third = git('rev-parse', 'HEAD');
+    head = third;
+    process.env.EXPECTED_MAIN_SHA = 'd'.repeat(40);
+    await assert.rejects(run(policy, { attempts: 1, pause: async () => {} }), /Main moved/);
+    assert.equal(git('ls-remote', 'origin', 'refs/heads/live').split(/\s+/)[0], second);
+    // 5. The automatic path is unchanged: the consumed day tag still caps it,
+    //    and the manual receipt does not leak into the automatic decision.
+    process.env.GITHUB_EVENT_NAME = 'schedule';
+    delete process.env.MANUAL_RELEASE; delete process.env.EXPECTED_MAIN_SHA;
+    await run(policy, { attempts: 1, pause: async () => {} });
+    assert.equal(git('ls-remote', 'origin', 'refs/heads/live').split(/\s+/)[0], second);
+  } finally {
+    process.chdir(cwd); globalThis.fetch = fetchBefore;
+    keys.forEach((key, i) => { if (before[i] === undefined) delete process.env[key]; else process.env[key] = before[i]; });
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
