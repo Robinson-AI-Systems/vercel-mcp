@@ -87,7 +87,7 @@ export const oauthClientsTools = {
       writeContract: { production: true, targets: true } },
     { name: 'vercel_delete_oauth_client', writes: true, localAdmin: true,
       profiles: ['full'],
-      description: 'Delete one OAuth client registration on the owner door, revoking its live token families in the same action. Dry-run, then confirm with the evaluation it returns.',
+      description: 'Delete one OAuth client registration on the owner door, revoking its live token families in the same action. Confirm needs the dry-run evaluation.',
       inputSchema: { type: 'object', additionalProperties: false,
         required: ['clientId'],
         properties: {
