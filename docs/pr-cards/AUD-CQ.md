@@ -1,23 +1,35 @@
-# AUD-CQ — Write legs that can never succeed: the response-shape dead-end (registrar nameservers first)
+# AUD-CQ — Write legs that can never confirm: the response-shape dead-end (registrar nameservers first)
 
 **Commissioned:** 2026-11-04 by the owner, from the fleet findings log
 (`~/workspace/research_notes/unleashed-findings-log.md`, entry
-2026-11-04 ~21:52 MST): *"We will need to fix that in Vercel
-Unleashed."* The night's production nameserver change was completed
-through the dashboard instead, so this card is NOT blocking — it joins
-the queue in normal order.
+2026-11-04 ~21:52 MST, with its same-night CORRECTION appended at
+~21:55 MST): *"We will need to fix that in Vercel Unleashed."* The
+night's production nameserver change is fully live and proven, so
+this card is NOT blocking — it joins the queue in normal order.
 
-## The defect (proven live, twice)
+## The defect (proven live, twice; corrected the same night)
 
-`vercel_registrar_update_nameservers` can never complete. During the
+`vercel_registrar_update_nameservers` can never CONFIRM. During the
 robinsonaisystems.com nameserver flip (to the Cloudflare pair), the
 dry-run previewed correctly (current vs proposed nameservers), but the
 confirmed write returned `outcome_unknown` with failure code
 `response_shape_unverified`, leg `registrar_nameservers` — twice, in
 two separate dry-run → confirm cycles with fresh scoped request keys.
-Independent read-backs after each attempt (`vercel_domain_list` and
-public RDAP) agree: the nameservers never changed. The write is a
-dead-end: no confirmed call through this tool can succeed.
+
+The first report concluded the write never took effect; **that was
+wrong, and the findings log's correction supersedes it.** Registry
+RDAP shows the change landing at 2026-11-05T04:48:33Z — roughly 1–2
+minutes after the SECOND confirmed write — and the dashboard, opened
+a minute later, already showed the new nameservers in place. The
+write APPLIES, on the registrar's own apply latency. What failed was
+confirmation: the tool's read-back leg and the operator's own
+20-second read-back both raced that latency and read the pre-change
+state, so a successful write reported `outcome_unknown`. The reframed
+defect: **the tool cannot verify its own outcome and reports unknown
+on a successful write** — an operator cannot distinguish success from
+failure, which invites duplicate writes (the operator nearly kept
+pushing). No confirmed call through this tool can return a verified
+success.
 
 ## Mechanism (from the source)
 
@@ -35,12 +47,12 @@ map's author never saw. The handler was modeled on an assumed shape,
 never on a captured one: fixture blindness, the recurring root cause
 the research-first rule exists to kill.
 
-One open question the dossier must answer rather than assume: if the
-PATCH reached the provider, why did no read-back ever show the change?
-Distinguish on the scratch-domain proof (below) between (a) the write
-lands but is reported unverified and propagates slowly, and (b) the
-provider call itself is being rejected or no-oped upstream. The cure
-differs; the card does not guess.
+The question the first draft left open — did the write land late, or
+never land at all? — is ANSWERED by the correction: it landed, on a
+delay of roughly 1–2 minutes, and every early read-back (the tool's
+immediate verify and the operator's at 20 seconds) raced the
+registrar's apply latency. The confirmation design must therefore
+model latency, not just shape: see the fix.
 
 ## The fix (dossier-first, per the standing research rule)
 
@@ -53,11 +65,17 @@ differs; the card does not guess.
    without the owner's word): one confirmed write through a
    diagnostic route that records the envelope's SHAPE (keys and
    types, never secret material — a nameserver response carries
-   none), then timed read-backs through the tool and RDAP to settle
-   question (a) vs (b) above.
-3. **Remodel the leg's shape map** from the spec plus the capture, and
-   the test fakes with it; new tests pin the real shape and FAIL with
-   the fix reverted.
+   none), with a timed read-back series that measures the registrar's
+   real apply latency (the one live specimen: ~1–2 minutes).
+3. **Remodel the leg's shape map AND its confirmation behaviour**
+   from the spec plus the capture: the write leg's shape map admits
+   the real envelope, and the verify leg becomes a patient
+   poll-with-read-back against the registrar's own record — re-read
+   the domain's nameservers until the new set appears or a sane bound
+   (modelled on the measured latency, with margin) expires — returning
+   a VERIFIED result instead of a one-shot unknown. The test fakes
+   are remodeled with both; new tests pin the real shape and the
+   delayed-apply confirmation, and FAIL with the fix reverted.
 4. **Census the species, not just the specimen:** audit every write
    leg's `shapeResult` against its documented response contract and
    list any other leg whose assumed shape is unproven. The known
@@ -77,9 +95,12 @@ card's registrar/domain scope.
 ## Acceptance
 
 - A confirmed nameserver write through `vercel_registrar_update_nameservers`
-  COMPLETES (no `response_shape_unverified`) and the new nameservers
-  read back through the tool itself — proven on a disposable/scratch
-  domain, never on a production domain without the owner's word.
+  returns a VERIFIED result (no `outcome_unknown` on a successful
+  write): the tool polls the registrar's own record until the new
+  nameservers appear, inside a bound modelled on the measured apply
+  latency, and the new nameservers read back through the tool itself
+  — proven on a disposable/scratch domain, never on a production
+  domain without the owner's word.
 - The pause leg completes a confirmed pause (and resume) against a
   scratch project, or the census records why its shape differs and a
   follow-up card carries it.
