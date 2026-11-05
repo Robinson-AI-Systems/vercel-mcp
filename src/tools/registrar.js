@@ -422,6 +422,62 @@ function purchaseWrite(kind){
     }
   });
 }
+// Both registrar PATCH legs answer 204 No Content (pinned OpenAPI
+// snapshot: updateDomainNameservers, updateDomainAutoRenew), and the
+// provider client represents an empty success body as a null envelope.
+// Admit that envelope — and, defensively, a plain object body — and
+// reject the rest; confirmation is the read-back verify's job, never
+// this map's guess (AUD-CQ: the previous map rejected the null
+// envelope, so every confirmed PATCH reported outcome_unknown with
+// response_shape_unverified while the write itself applied).
+function registrarPatchResult(value){
+  if(value===null||value===undefined)return {};
+  if(typeof value!=='object'||Array.isArray(value))
+    throw new TypeError('Invalid registrar response');
+  return {};
+}
+// The registrar applies PATCHes on its own latency (live specimen,
+// 2026-11-04: the registry record landed ~1-2 minutes after a write
+// the tool had already reported unknown, and every one-shot read-back
+// inside that window read the pre-change state). Verification polls
+// the registrar's own record until the expected state appears or the
+// bound expires; the bound stays inside the 45-second read-back
+// ceiling (AI-PR-READ-FIRST #3), so a write whose apply outlasts it
+// still reports unknown — never a false confirmation. Tests shrink
+// the window through the env knobs below.
+const VERIFY_DEADLINE_MS=30000;
+const VERIFY_INTERVAL_MS=2500;
+function verifyWindow(ctx){
+  const parse=(raw,fallback,max)=>{
+    const n=Number(raw);
+    return Number.isSafeInteger(n)&&n>=0&&n<=max?n:fallback;};
+  return {deadlineMs:parse(ctx?.env?.REGISTRAR_VERIFY_DEADLINE_MS,
+      VERIFY_DEADLINE_MS,40000),
+    intervalMs:parse(ctx?.env?.REGISTRAR_VERIFY_INTERVAL_MS,
+      VERIFY_INTERVAL_MS,10000)};
+}
+async function pollDomainRow(ctx,teamId,domain,verdict){
+  let polls=0,current=null;
+  try{
+    const {client,account}=await teamContext(ctx);
+    if(account.team_id!==teamId)return {confirmed:null,polls,current};
+    const {deadlineMs,intervalMs}=verifyWindow(ctx);
+    const started=Date.now();
+    for(;;){
+      polls++;
+      try{current=await domainRow(client,domain);}catch{current=null;}
+      if(current){
+        const answer=verdict(current);
+        if(answer!==null)return {confirmed:answer,polls,current};
+      }
+      const elapsed=Date.now()-started;
+      if(elapsed>=deadlineMs)return {confirmed:null,polls,current};
+      await new Promise(resolve=>setTimeout(resolve,
+        Math.min(intervalMs,deadlineMs-elapsed)));
+    }
+  }catch{return {confirmed:null,polls,current};}
+}
+
 const buyWrite=purchaseWrite('buy');
 const renewWrite=purchaseWrite('renew');
 const transferWrite=purchaseWrite('transfer');
@@ -479,22 +535,16 @@ const autoRenewWrite=defineWrite({
       return await provider.write('registrar_auto_renew',
         {path:{domain:before.domain},body},
         {requestKey,tool:'vercel_registrar_set_auto_renew',
-          shapeResult:value=>{
-            if(value!==undefined&&
-              (!value||typeof value!=='object'||Array.isArray(value)))
-              throw new TypeError('Invalid auto-renew response');
-            return {};
-          }});
+          shapeResult:registrarPatchResult});
     }catch(error){throw providerRejection(error,'registrar_auto_renew');}
   },
   async verify(_args,ctx,before){
-    try{
-      const {client,account}=await teamContext(ctx);
-      if(account.team_id!==before.teamId)return {confirmed:null};
-      const current=await domainRow(client,before.domain);
-      if(current.autoRenew===null)return {confirmed:null};
-      return {confirmed:current.autoRenew===before.autoRenew};
-    }catch{return {confirmed:null};}
+    // Only the target state confirms; anything else is "not landed
+    // yet" (null → keep polling), never a refutation.
+    const polled=await pollDomainRow(ctx,before.teamId,before.domain,
+      current=>current.autoRenew===before.autoRenew?true:null);
+    return {confirmed:polled.confirmed,polls:polled.polls,
+      autoRenew:polled.current?.autoRenew??null};
   },
   async inverse(_args,before){
     if(before.current.autoRenew===null)return null;
@@ -554,23 +604,18 @@ const nameserversWrite=defineWrite({
       return await provider.write('registrar_nameservers',
         {path:{domain:before.domain},body},
         {requestKey,tool:'vercel_registrar_update_nameservers',
-          shapeResult:value=>{
-            if(value!==undefined&&
-              (!value||typeof value!=='object'||Array.isArray(value)))
-              throw new TypeError('Invalid nameservers response');
-            return {};
-          }});
+          shapeResult:registrarPatchResult});
     }catch(error){throw providerRejection(error,'registrar_nameservers');}
   },
   async verify(_args,ctx,before){
-    try{
-      const {client,account}=await teamContext(ctx);
-      if(account.team_id!==before.teamId)return {confirmed:null};
-      const current=await domainRow(client,before.domain);
-      if(!Array.isArray(current.nameservers))return {confirmed:null};
-      return {confirmed:NAMESERVER_SET(current.nameservers)===
-        NAMESERVER_SET(before.nameservers)};
-    }catch{return {confirmed:null};}
+    // Only the target set confirms; a stale or unreadable record is
+    // "not landed yet" (null → keep polling), never a refutation.
+    const polled=await pollDomainRow(ctx,before.teamId,before.domain,
+      current=>!Array.isArray(current.nameservers)?null:
+        NAMESERVER_SET(current.nameservers)===
+          NAMESERVER_SET(before.nameservers)?true:null);
+    return {confirmed:polled.confirmed,polls:polled.polls,
+      nameservers:polled.current?.nameservers??null};
   },
   async inverse(_args,before){
     if(!Array.isArray(before.current.nameservers))return null;

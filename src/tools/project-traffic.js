@@ -37,15 +37,37 @@ async function project(ctx,selector){
     throw new RefusalError('Project identity unavailable');
   return {row,client};
 }
+// Pause state in the provider's real project shape. The flag is a
+// boolean while a pause is in effect or after one is lifted, and null
+// on a never-paused project (the project list shows the same null);
+// pauseStatus can speak independently. A flag of any other type, a
+// missing flag with no status, an unrecognized status, or a conflict
+// between the two is unknown — unknown refuses, never guesses. This
+// mirrors verifiedPaused in projects.js, plus the live-proven null
+// flag (AUD-CQ; the 2026-11-04 pause dead-end, where the previous
+// boolean-only check refused every never-paused project).
+function pausedState(row){
+  const flag=row?.paused;
+  if(flag!==undefined&&typeof flag!=='boolean'&&flag!==null)return null;
+  const fromFlag=flag===undefined?null:flag===true;
+  const status=row?.pauseStatus?.status;
+  if(status!==undefined&&status!==null){
+    if(status!=='PAUSED'&&status!=='UNPAUSED')return null;
+    const fromStatus=status==='PAUSED';
+    return fromFlag!==null&&fromFlag!==fromStatus?null:fromStatus;
+  }
+  return fromFlag;
+}
 function trafficWrite({name,id,desired,opposite}){
   return defineWrite({
     name,
     async before(args,ctx){
       assertArgs(args);
       const {row}=await project(ctx,args.project);
-      if(typeof row.paused!=='boolean')
+      const paused=pausedState(row);
+      if(paused===null)
         throw new RefusalError('Project pause state cannot be verified');
-      return {id:row.id,name:row.name,paused:row.paused};
+      return {id:row.id,name:row.name,paused};
     },
     async preview(_args,_ctx,before){
       const change=desired?'Pause production traffic':'Resume production traffic';
@@ -70,7 +92,7 @@ function trafficWrite({name,id,desired,opposite}){
         // Same immutable credential/team for the final proof and traffic POST.
         const row=await provider.read('projects_get',{path:{idOrName:before.id}});
         if(row?.id!==before.id||row?.name!==before.name||
-          typeof row.paused!=='boolean'||row.paused!==before.paused)
+          pausedState(row)!==before.paused)
           throw new TypeError('Production traffic identity or pause state changed');
       });
       return provider.write(id,{path:{projectId:before.id}},{
@@ -79,9 +101,10 @@ function trafficWrite({name,id,desired,opposite}){
     },
     async verify(_args,ctx,before){
       const {row}=await project(ctx,before.id);
-      return {confirmed:typeof row.paused==='boolean'?
-        row.id===before.id && row.paused===desired : null,
-        project:before.id,paused:typeof row.paused==='boolean'?row.paused:null};
+      const paused=pausedState(row);
+      return {confirmed:paused===null?null:
+        row.id===before.id && paused===desired,
+        project:before.id,paused};
     },
     // X-1: pause and unpause are exact opposites.
     async inverse(_args,before){

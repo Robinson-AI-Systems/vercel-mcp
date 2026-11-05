@@ -113,6 +113,36 @@ describe('N-1 team and project domains',()=>{
     expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET','GET']);
     f.fake.verify();
   });
+  it('gets one domain whose alias inventory holds subdomain aliases',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
+    f.fake.when('GET','/v9/domains/{domain}/verification').resolves({
+      txtRecord:'vercel-domain-verify=example.test,FAKE123',
+      verificationDomain:'_vercel.example.test'});
+    f.fake.when('GET','/v4/aliases').resolves({aliases:[
+      {alias:'www.'+domain,projectId:project,deploymentId:'dpl_FAKE_ONE'},
+      {alias:domain,projectId:project,deploymentId:'dpl_FAKE_ONE'}],
+      pagination:{next:null}});
+    f.fake.when('GET','/v10/projects').resolves({
+      projects:[{id:project,name:'demo'}],pagination:{next:null}});
+    f.fake.when('GET','/v9/projects/{idOrName}/domains').resolves({
+      domains:[],pagination:{next:null}});
+    const result=value(await f.call('vercel_domain_get',{domain}));
+    expect(result.usedBy.aliases.map(x=>x.domain))
+      .toEqual(['www.'+domain,domain]);
+    f.fake.verify();
+  });
+  it('still refuses an alias inventory row outside the domain',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}').resolves({domain:domainRow});
+    f.fake.when('GET','/v9/domains/{domain}/verification').resolves({
+      txtRecord:'vercel-domain-verify=example.test,FAKE123',
+      verificationDomain:'_vercel.example.test'});
+    f.fake.when('GET','/v4/aliases').resolves({aliases:[
+      {alias:'other.test',projectId:project}],pagination:{next:null}});
+    expect((await f.call('vercel_domain_get',{domain})).isError).toBe(true);
+    f.fake.verify();
+  });
   it('checks domain config and reports the exact records still needed',async()=>{
     const f=fixture();
     f.fake.when('GET','/v6/domains/{domain}/config').resolves({...configRow,
