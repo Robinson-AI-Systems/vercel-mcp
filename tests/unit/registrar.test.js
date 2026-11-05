@@ -63,9 +63,9 @@ function fixture({withIntents=true}={}){
       row.status='consumed';return true;
     };
   }
-  const call=(name,args,connection=production)=>
+  const call=(name,args,connection=production,env=ENV)=>
     dispatchReadOnlyTool({registry,name,args,connection,db,
-      fetchImpl:fake.fetch,env:ENV});
+      fetchImpl:fake.fetch,env});
   return {fake,audits,replay,intents,call,db};
 }
 const value=result=>JSON.parse(result.content[0].text);
@@ -217,7 +217,7 @@ describe('N-3 registrar',()=>{
     f.fake.when('GET','/v1/registrar/domains/{domain}/price')
       .resolves(price()).resolves(price());
     f.fake.when('PATCH','/v1/registrar/domains/{domain}/auto-renew')
-      .resolves({});
+      .resolves(undefined,204);
     const on=value(await f.call('vercel_registrar_set_auto_renew',
       {domain,autoRenew:true,outsideApp:true,confirm:true,
         requestKey:'reg-autorenew-001'},production));
@@ -227,7 +227,7 @@ describe('N-3 registrar',()=>{
       .resolves(domainReply())
       .resolves(domainReply({nameservers:['ns1.exampledns.net','ns2.exampledns.net']}));
     g.fake.when('PATCH','/v1/registrar/domains/{domain}/nameservers')
-      .resolves({});
+      .resolves(undefined,204);
     const ns=value(await g.call('vercel_registrar_update_nameservers',
       {domain,nameservers:['ns1.exampledns.net','ns2.exampledns.net'],
         outsideApp:true,confirm:true,requestKey:'reg-nameservers-1'},
@@ -237,6 +237,61 @@ describe('N-3 registrar',()=>{
     expect(patch.body).toEqual({nameservers:['ns1.exampledns.net',
       'ns2.exampledns.net']});
     f.fake.verify();g.fake.verify();
+  });
+  it('confirms a nameserver change that lands after the first read-backs (delayed registrar apply)',async()=>{
+    const g=fixture();
+    g.fake.when('GET','/v5/domains/{domain}')
+      .resolves(domainReply())
+      .resolves(domainReply())
+      .resolves(domainReply())
+      .resolves(domainReply({nameservers:['ns1.exampledns.net','ns2.exampledns.net']}));
+    g.fake.when('PATCH','/v1/registrar/domains/{domain}/nameservers')
+      .resolves(undefined,204);
+    const ns=value(await g.call('vercel_registrar_update_nameservers',
+      {domain,nameservers:['ns1.exampledns.net','ns2.exampledns.net'],
+        outsideApp:true,confirm:true,requestKey:'reg-nameservers-2'},
+      production,{...ENV,REGISTRAR_VERIFY_INTERVAL_MS:'1',
+        REGISTRAR_VERIFY_DEADLINE_MS:'5000'}));
+    expect(ns).toMatchObject({status:'applied',confirmed:true});
+    // The before read(s) plus repeated verify polls: the record only
+    // flips on a later poll, and confirmation waits for it.
+    expect(g.fake.calls.filter(x=>x.method==='GET').length)
+      .toBeGreaterThanOrEqual(4);
+    g.fake.verify();
+  });
+  it('never confirms when the record does not land inside the verify window',async()=>{
+    const g=fixture();
+    g.fake.when('GET','/v5/domains/{domain}').resolves(domainReply());
+    g.fake.when('PATCH','/v1/registrar/domains/{domain}/nameservers')
+      .resolves(undefined,204);
+    const ns=value(await g.call('vercel_registrar_update_nameservers',
+      {domain,nameservers:['ns1.exampledns.net','ns2.exampledns.net'],
+        outsideApp:true,confirm:true,requestKey:'reg-nameservers-3'},
+      production,{...ENV,REGISTRAR_VERIFY_DEADLINE_MS:'0'}));
+    // The write applied; confirmation honestly stays null (the same
+    // applied-with-null shape the pause suite pins), never true.
+    expect(ns.status).toBe('applied');
+    expect(ns.confirmed).toBeNull();
+    g.fake.verify();
+  });
+  it('confirms a delayed auto-renew change against the same record',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v5/domains/{domain}')
+      .resolves(domainReply({autoRenew:false}))
+      .resolves(domainReply({autoRenew:false}))
+      .resolves(domainReply({autoRenew:false}))
+      .resolves(domainReply({autoRenew:true}));
+    f.fake.when('GET','/v1/registrar/domains/{domain}/price')
+      .resolves(price()).resolves(price());
+    f.fake.when('PATCH','/v1/registrar/domains/{domain}/auto-renew')
+      .resolves(undefined,204);
+    const on=value(await f.call('vercel_registrar_set_auto_renew',
+      {domain,autoRenew:true,outsideApp:true,confirm:true,
+        requestKey:'reg-autorenew-002'},production,
+      {...ENV,REGISTRAR_VERIFY_INTERVAL_MS:'1',
+        REGISTRAR_VERIFY_DEADLINE_MS:'5000'}));
+    expect(on).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
   });
   it('reads order, transfer and verification status through the one status tool',async()=>{
     const f=fixture();

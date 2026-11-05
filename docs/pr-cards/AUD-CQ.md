@@ -109,3 +109,55 @@ card's registrar/domain scope.
   green at the exact head before merge; release under the owner's
   release-authority rule (nightly train, or his order / a standing
   grant), verified live at the exact deployed SHA after.
+
+## Delivery (2026-11-04, this card's PR)
+
+**Shape map** — dossier: the pinned OpenAPI snapshot
+(`vendor/vercel-openapi/openapi-2026-10-11.json`) plus the
+2026-11-04 live specimen:
+
+| Leg | Documented success | Client envelope | Old model | Verdict |
+|---|---|---|---|---|
+| `PATCH /v1/registrar/domains/{domain}/nameservers` | 204 No Content (only success) | `null` | shape map admitted `undefined` / plain object only → threw on `null` | CONVICTED, live-proven |
+| `PATCH /v1/registrar/domains/{domain}/auto-renew` | 204 No Content (only success) | `null` | identical pattern | CONVICTED by spec (latent twin) |
+| `POST /v1/projects/{id}/pause`, `/unpause` | 200, empty body | `null` | write map accept-anything (never the problem); before / pre-dispatch / verify demanded `paused` be a boolean | CONVICTED on the verification legs: the real flag is boolean-or-null (null on a never-paused project) with `pauseStatus` speaking independently |
+| every other `provider.write` leg | 200/201 with a body, or 204 | body / `null` | maps require the documented body; the other 204 legs (`drains_delete`, `webhooks_delete`, `global_config_delete`, `global_config_delete_tokens`, `integrations_configuration_delete`, `projects_delete`) already accept anything | not convicted |
+
+**What changed**
+
+- `src/tools/registrar.js`: both PATCH legs share one envelope map
+  that admits the contract shape (null/undefined, defensively a plain
+  object; arrays and scalars still throw). Their verify legs poll
+  the registrar's own record (`domains_get`) until the target state
+  appears or the bound expires — only the target state confirms; a
+  stale record is "not landed yet", never a refutation.
+- **Decision (recorded):** the poll bound is 30 s at a 2.5 s interval,
+  inside AI-PR-READ-FIRST #3's 45-second read-back ceiling, and
+  shrinkable via `REGISTRAR_VERIFY_DEADLINE_MS` /
+  `REGISTRAR_VERIFY_INTERVAL_MS`. The measured registry latency
+  (1–2 min) can outlast any in-call bound; a write whose apply
+  outlasts the window still reports `confirmed: null` — honest
+  unknown, never a false success — and the domain read settles it
+  afterwards.
+- `src/tools/project-traffic.js`: before, pre-dispatch and verify
+  share one pause-state normalization mirroring `verifiedPaused` in
+  `projects.js` plus the live-proven null flag. A missing flag with
+  no status, an unrecognized status, or a flag/status conflict still
+  refuses as unverifiable.
+- `src/tools/domains.js`: the usage inventory counts aliases at or
+  under the domain as usage (the apex plus its subdomains); a name
+  outside the domain still refuses. `vercel_domain_get` by plain
+  name works again for domains with subdomain aliases.
+- Tests remodeled from the contract: the registrar PATCH fakes
+  answered 200 with an object — the fixture blindness that hid the
+  defect — and now answer the documented 204. Eight new/remodeled
+  tests fail with the fix reverted and pass with it (negative
+  control run on the PC bench).
+
+**Live proof — PENDING, declared.** No disposable domain exists on
+the team (only the three production domains), so the
+confirmed-write-on-a-scratch-domain acceptance was not run and no
+production domain was touched. The pause leg's live proof likewise
+waits for the post-promotion window against a scratch project. Both
+ride the nightly train with this merge; the proofs run after it
+lands.

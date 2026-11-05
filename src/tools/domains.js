@@ -130,7 +130,12 @@ async function domainUsage(client,account,domain){
   const aliasRows=completePage(aliasPage,aliasPage?.aliases,100,'Alias');
   const aliases=aliasRows.map(row=>{
     const name=safeAlias(row?.alias??row?.domain??row?.name);
-    if(name!==domain)throw new RefusalError('Alias inventory returned an unrelated domain');
+    // The domain filter answers every alias AT or UNDER the domain —
+    // the apex itself plus its subdomains; only a name outside the
+    // domain is unrelated (AUD-CQ: the exact-name check made
+    // vercel_domain_get refuse any domain that has subdomain aliases).
+    if(name===null||(name!==domain&&!name.endsWith('.'+domain)))
+      throw new RefusalError('Alias inventory returned an unrelated domain');
     const deployment=row?.deploymentId??row?.deployment?.id??row?.deployment?.uid;
     return {domain:name,
       projectId:typeof row?.projectId==='string'&&PROJECT.test(row.projectId)?

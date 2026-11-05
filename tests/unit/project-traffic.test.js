@@ -90,6 +90,44 @@ describe('D-1k guarded project pause/unpause',()=>{
     expect(blocked.status).toBe('refused_by_guard');
     f.fake.verify();
   });
+  it('pauses a never-paused project whose flag reads null (the live shape)',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({...before,paused:null}).resolves({...before,paused:null})
+      .resolves({...before,paused:true});
+    f.fake.when('POST','/v1/projects/{projectId}/pause').resolves({});
+    const result=parse(await f.call('vercel_project_pause',{project:before.id,confirm:true}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    expect(f.fake.calls.map(x=>x.method)).toEqual(['GET','GET','POST','GET']);
+    f.fake.verify();
+  });
+  it('unpauses back to the null flag and confirms',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({...before,paused:true}).resolves({...before,paused:true})
+      .resolves({...before,paused:null});
+    f.fake.when('POST','/v1/projects/{projectId}/unpause').resolves({});
+    const result=parse(await f.call('vercel_project_unpause',{project:before.id,confirm:true}));
+    expect(result).toMatchObject({status:'applied',confirmed:true});
+    f.fake.verify();
+  });
+  it('reads pause state from pauseStatus when the flag is absent, and refuses a flag/status conflict',async()=>{
+    const f=fixture();
+    f.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({id:before.id,name:before.name,pauseStatus:{status:'UNPAUSED'}})
+      .resolves({id:before.id,name:before.name,pauseStatus:{status:'UNPAUSED'}})
+      .resolves({...before,paused:true});
+    f.fake.when('POST','/v1/projects/{projectId}/pause').resolves({});
+    const ok=parse(await f.call('vercel_project_pause',{project:before.id,confirm:true}));
+    expect(ok).toMatchObject({status:'applied',confirmed:true});
+    const g=fixture();
+    g.fake.when('GET','/v9/projects/{idOrName}')
+      .resolves({...before,paused:null,pauseStatus:{status:'PAUSED'}});
+    const conflict=parse(await g.call('vercel_project_pause',{project:before.id,confirm:true}));
+    expect(conflict.status).toBe('refused_by_guard');
+    expect(g.fake.calls.filter(x=>x.method==='POST')).toHaveLength(0);
+    f.fake.verify();g.fake.verify();
+  });
   it('does not mistake absent after-state for successful provider verification',async()=>{
     const f=fixture();
     f.fake.when('GET','/v9/projects/{idOrName}').resolves(before)
