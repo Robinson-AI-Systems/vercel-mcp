@@ -1,7 +1,7 @@
 // Database schema and the only SQL entry point for Robinson Vercel MCP.
 // Additive by design: schema initialization never drops or rewrites existing data.
 import { neon } from '@neondatabase/serverless';
-import { hashToken } from './core/oauth.js';
+import { hashToken, validRedirectUri } from './core/oauth.js';
 import { compact } from './core/util.js';
 import { randomUUID,randomBytes } from 'node:crypto';
 
@@ -141,6 +141,29 @@ const rtcWritePassShape=(row)=>row.allow_writes===true&&
   Number.isSafeInteger(row.spend_limit_cents)&&row.spend_limit_cents>=0&&
   rtcProjectIdList(row.project_ids??null);
 
+// RECENSUS-1: the owner-facing shape of an oauth_clients row. The
+// stored secret hash never leaves the store; activity markers are
+// computed from the token/code tables by the lifecycle queries,
+// never stored on the registration itself.
+const isoOrNull = (value) => value instanceof Date ? value.toISOString() :
+  typeof value === 'string' ? value : null;
+export function oauthClientPublic(row) {
+  const data = row?.data && typeof row.data === 'object' ? row.data : {};
+  return {
+    client_id: row.client_id,
+    client_name: typeof data.client_name === 'string' ? data.client_name : null,
+    redirect_uris: Array.isArray(data.redirect_uris) ? [...data.redirect_uris] : [],
+    token_endpoint_auth_method: typeof data.token_endpoint_auth_method === 'string' ?
+      data.token_endpoint_auth_method : null,
+    client_type: data.client_secret_hash ? 'confidential' : 'public',
+    created_at: isoOrNull(row.created_at),
+    live_tokens: Number.isInteger(row.live_tokens) ? row.live_tokens : null,
+    tokens_total: Number.isInteger(row.tokens_total) ? row.tokens_total : null,
+    last_used_at: isoOrNull(row.last_used_at),
+    codes_outstanding: Number.isInteger(row.codes_outstanding) ?
+      row.codes_outstanding : null
+  };
+}
 export function connectionSettings(row) {
   if (!row || typeof row !== 'object') throw new TypeError('A connection row is required');
   return Object.fromEntries(CONNECTION_FIELDS.map((field) => [field, row[field]]));
@@ -1405,6 +1428,114 @@ export function createDb(query) {
       const run = getSql();
       const rows = await run`SELECT client_id, data FROM oauth_clients WHERE client_id = ${clientId}`;
       return rows[0] ? { client_id: rows[0].client_id, ...rows[0].data } : null;
+    },
+    // RECENSUS-1: owner lifecycle reads. One aggregate shape for the
+    // list and the single read, so the two can never drift.
+    async listOAuthClients() {
+      const run = getSql();
+      const rows = await run`SELECT c.client_id, c.data, c.created_at,
+        (SELECT count(*)::integer FROM oauth_tokens t
+          WHERE t.client_id = c.client_id AND t.revoked_at IS NULL) AS live_tokens,
+        (SELECT count(*)::integer FROM oauth_tokens t
+          WHERE t.client_id = c.client_id) AS tokens_total,
+        (SELECT max(t.last_used_at) FROM oauth_tokens t
+          WHERE t.client_id = c.client_id) AS last_used_at,
+        (SELECT count(*)::integer FROM oauth_codes k
+          WHERE k.client_id = c.client_id AND k.expires_at > now()) AS codes_outstanding
+        FROM oauth_clients c ORDER BY c.created_at, c.client_id`;
+      return rows.map(oauthClientPublic);
+    },
+    async getOAuthClientRegistration(clientId) {
+      if (typeof clientId !== 'string' || !clientId) return null;
+      const run = getSql();
+      const rows = await run`SELECT c.client_id, c.data, c.created_at,
+        (SELECT count(*)::integer FROM oauth_tokens t
+          WHERE t.client_id = c.client_id AND t.revoked_at IS NULL) AS live_tokens,
+        (SELECT count(*)::integer FROM oauth_tokens t
+          WHERE t.client_id = c.client_id) AS tokens_total,
+        (SELECT max(t.last_used_at) FROM oauth_tokens t
+          WHERE t.client_id = c.client_id) AS last_used_at,
+        (SELECT count(*)::integer FROM oauth_codes k
+          WHERE k.client_id = c.client_id AND k.expires_at > now()) AS codes_outstanding
+        FROM oauth_clients c WHERE c.client_id = ${clientId}`;
+      return rows[0] ? oauthClientPublic(rows[0]) : null;
+    },
+    // RECENSUS-1: only the display name and the redirect URIs are
+    // mutable (recorded decision in the card's delivery). The client
+    // id, the authentication method and the stored secret hash are
+    // the registration's identity and credential — changing any of
+    // them is a re-registration, not an edit, so this method refuses
+    // every other field by construction.
+    async updateOAuthClient({ clientId, clientName, redirectUris }) {
+      if (typeof clientId !== 'string' || !clientId ||
+        (clientName === undefined && redirectUris === undefined) ||
+        (clientName !== undefined && clientName !== null &&
+          (typeof clientName !== 'string' || clientName.length > 100)) ||
+        (redirectUris !== undefined &&
+          (!Array.isArray(redirectUris) || redirectUris.length < 1 ||
+            redirectUris.length > 8 ||
+            !redirectUris.every((uri) => typeof uri === 'string' && validRedirectUri(uri)) ||
+            new Set(redirectUris).size !== redirectUris.length))) {
+        throw new TypeError('Invalid OAuth client update');
+      }
+      const current = await this.getOAuthClient(clientId);
+      if (!current) return null;
+      const data = JSON.stringify({
+        client_secret_hash: current.client_secret_hash ?? null,
+        token_endpoint_auth_method: current.token_endpoint_auth_method,
+        redirect_uris: redirectUris === undefined ? current.redirect_uris : redirectUris,
+        client_name: clientName === undefined ? (current.client_name ?? null) : clientName
+      });
+      const run = getSql();
+      await run`UPDATE oauth_clients SET data = ${data}::jsonb WHERE client_id = ${clientId}`;
+      return this.getOAuthClientRegistration(clientId);
+    },
+    // RECENSUS-1: the delete leg, one statement in the shape of
+    // revokeRtcPass — the dependent revocation, the code cleanup,
+    // the row removal and the change_log journal land together or
+    // not at all. Every mutation is gated on the registration
+    // existing in the statement's snapshot, so deleting a
+    // nonexistent client_id mutates nothing and journals nothing.
+    // Deleting settles dependents deliberately: live oauth_tokens
+    // families for the client are revoked (never hard-deleted — the
+    // revocation record is the audit trail), and outstanding
+    // oauth_codes rows are removed (a code for a deleted client can
+    // never be exchanged; expired ones were already sweep-reaped).
+    async deleteOAuthClient({ clientId, account, mode = 'production',
+      production = true }) {
+      if (typeof clientId !== 'string' || !clientId ||
+        typeof account !== 'string' || !account) {
+        throw new TypeError('Client id and journaling account required');
+      }
+      const run = getSql();
+      const summary = 'Owner deleted OAuth client registration ' + clientId +
+        '; its live token families were revoked and its outstanding ' +
+        'authorization codes removed in the same action';
+      const rows = await run`WITH target AS (
+          SELECT client_id FROM oauth_clients WHERE client_id = ${clientId}
+        ), revoked AS (
+          UPDATE oauth_tokens SET revoked_at = now()
+          WHERE client_id = ${clientId} AND revoked_at IS NULL
+            AND EXISTS (SELECT 1 FROM target) RETURNING token_hash
+        ), codes AS (
+          DELETE FROM oauth_codes WHERE client_id = ${clientId}
+            AND EXISTS (SELECT 1 FROM target) RETURNING code
+        ), removed AS (
+          DELETE FROM oauth_clients
+          WHERE client_id IN (SELECT client_id FROM target) RETURNING client_id
+        ), audited AS (
+          INSERT INTO change_log (vercel_account, mode, tool, summary, dry_run, production)
+          SELECT ${account}, ${mode}, 'vercel_delete_oauth_client', ${summary}, FALSE, ${production}
+          FROM removed RETURNING id
+        ) SELECT (SELECT COUNT(*) FROM revoked)::integer AS tokens_revoked,
+          (SELECT COUNT(*) FROM codes)::integer AS codes_removed,
+          (SELECT COUNT(*) FROM removed)::integer AS removed_count,
+          (SELECT COUNT(*) FROM audited)::integer AS audited`;
+      if (rows.length !== 1) return false;
+      if (rows[0].removed_count === 0) return null;
+      if (rows[0].audited !== 1) return false;
+      return { deleted: true, tokensRevoked: rows[0].tokens_revoked,
+        codesRemoved: rows[0].codes_removed };
     },
     async createAuthCode({
       code, clientId, redirectUri, codeChallenge, codeChallengeMethod = 'S256',

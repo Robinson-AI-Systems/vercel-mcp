@@ -6,7 +6,7 @@
 Every tool this server will have, by area — the product scope. The implementing model builds exactly these; anything else
 goes in `docs/ROADMAP.md` and the PR report. When a tool merges, its Card cell gains `built #<PR>`.
 
-**Built vs planned (2026-10-31 documentation audit AUD-AN, main `8fb9e83`; consolidated by the AUD-AY shadow pass the same day): 253 of the 254 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list; `scripts/check-catalog.mjs` verifies 254 catalog tools, 253 registered). The build-out completed 2026-10-30 (batches O-5, P-3, W and X and `vercel_undo_change` all shipped); the sign-in cleanup program (AUD-AZ…AUD-AY, 2026-10-31) then added thirteen owner-connection tools — `vercel_set_read_only` (AUD-AQ), `vercel_apply_owner_approval` (AUD-AS), the eight account tools (AUD-AT) and the three pass/reveal tools (AUD-AU) — and deleted the owner setup page (AUD-AV). The one unbuilt row is `vercel_admin_overview`, **closed by owner ruling IN-16 (ratified 2026-10-30) — it will not be built**; its row below records the closure. A Card cell saying `candidate #NNN` is the historical delivery-PR label from that tool's build era, not a build state; built state is the registry's, per the counts above. Do not read a catalog count as an implementation count. Where a dated note below describes owner review, apply, reveal, enrollment or pass issuance happening on the setup page, it describes the state at its date — the AUD-AV and AUD-AY notes at the end of the owner family close them: those actions now happen on the owner's own connection, and no setup page exists. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
+**Built vs planned (2026-10-31 documentation audit AUD-AN, main `8fb9e83`; consolidated by the AUD-AY shadow pass the same day): 257 of the 258 tools below are implemented** in `src/tools/` and registered in `src/tools/index.js` (the registry is the reliable source; `tests/unit/registry.test.js` pins the list; `scripts/check-catalog.mjs` verifies 258 catalog tools, 257 registered). The build-out completed 2026-10-30 (batches O-5, P-3, W and X and `vercel_undo_change` all shipped); the sign-in cleanup program (AUD-AZ…AUD-AY, 2026-10-31) then added thirteen owner-connection tools — `vercel_set_read_only` (AUD-AQ), `vercel_apply_owner_approval` (AUD-AS), the eight account tools (AUD-AT) and the three pass/reveal tools (AUD-AU) — and deleted the owner setup page (AUD-AV). The one unbuilt row is `vercel_admin_overview`, **closed by owner ruling IN-16 (ratified 2026-10-30) — it will not be built**; its row below records the closure. A Card cell saying `candidate #NNN` is the historical delivery-PR label from that tool's build era, not a build state; built state is the registry's, per the counts above. Do not read a catalog count as an implementation count. Where a dated note below describes owner review, apply, reveal, enrollment or pass issuance happening on the setup page, it describes the state at its date — the AUD-AV and AUD-AY notes at the end of the owner family close them: those actions now happen on the owner's own connection, and no setup page exists. Area tools are `vercel_<area>_<verb>[_<object>]`; the contract's meta-tools keep
 
 are `vercel_dev_<job>` (contract §10).
 
@@ -54,7 +54,7 @@ the owner tools (`vercel_add_protected_resource` / `vercel_clear_protected_resou
 `R` read_only · `E` everyday · `F` full (every read tool is in `R`). **App:** `y` = the project-profile guard (Batch P)
 checks this tool against resources a profiled app owns; `—` = not applicable.
 
-## Server about itself (`vercel_*`) — 34
+## Server about itself (`vercel_*`) — 38
 
 | Tool | What it does | Safety | Aud. | Prof. | App | Card |
 |---|---|---|---|---|---|---|
@@ -68,6 +68,10 @@ checks this tool against resources a profiled app owns; `—` = not applicable.
 | `vercel_revoke_connection` | Propose revoking an exact current OAuth connector; independently authenticated owner must approve | C | O | F | — | B-8b built #40 |
 | `vercel_remove_account` | Propose removing an exact enrolled account row — its stored credential, connections, passes and account-scoped settings are removed with it; the default account refuses while other accounts remain; independently authenticated owner must approve | C | O | F | — | AUD-AA |
 | `vercel_apply_owner_approval` | Inspect (dryRun) or apply (confirm) one pending owner approval by its single-use reference — an owner account change, an exact purchase intent, an RTC pass request or a production-enable receipt; the apply step runs only on the owner's own connector connection (a delegated pass can never apply one) and consumes the envelope exactly once through the family's own apply function | C | O | F | — | AUD-AS |
+| `vercel_list_oauth_clients` | List the server's OAuth client registrations on the owner's own connector connection: client_id, name, redirect URIs, client type, created-at and honest activity markers (live/total token families, last use, outstanding codes); the stored secret hash is never shown | C | O | F | — | RECENSUS-1 |
+| `vercel_get_oauth_client` | Read one OAuth client registration by client_id on the owner door, in the same public shape as the list; a nonexistent id is a clean refusal | C | O | F | — | RECENSUS-1 |
+| `vercel_update_oauth_client` | Update a registration's display name and/or redirect URIs (the only mutable fields; the id, auth method and stored secret are identity/credential and change only by re-registering); dryRun discloses the exact field changes, confirm applies and the result is verified by read-back | C | O | F | — | RECENSUS-1 |
+| `vercel_delete_oauth_client` | Delete one OAuth client registration under the confirmed-action pattern (row 17): evaluate the exact target, disclose in plain words (live token families and outstanding codes included), bind confirmation to the evaluation fingerprint, re-check at execution, journal in `change_log`, verify by read-back. The same action revokes the client's live `oauth_tokens` families and removes its outstanding `oauth_codes` rows | D | O | F | — | RECENSUS-1 |
 | `vercel_export_owner_data` | Export everything this server holds for the account — account metadata (never token values), connections, passes, protected resources, settings, project profiles, Blob store connections and the change log — to a stored result read back with `vercel_get_result`; the change_log row lands before the export is stored (an unjournaled export never leaves), and the tool runs only on the owner's own connector connection | C | O | F | — | AUD-AT |
 | `vercel_set_purchase_policy` | Propose the account purchase policy (optional agent budget in cents; per-purchase grant flag) as an owner-approval envelope carrying the setup form's validations verbatim; the owner applies it with `vercel_apply_owner_approval` | P | O | F | — | AUD-AT |
 | `vercel_set_token_no_expiry` | Propose the owner's no-expiry attestation for the enrolled token (IN-04) as an owner-approval envelope bound to the token version it is made for — a rotation before application refuses unverified; the owner applies it with `vercel_apply_owner_approval` | C | O | F | — | AUD-AT |
@@ -632,7 +636,7 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 
 | Section | Tools | Batch |
 |---|---|---|
-| Server about itself | 34 | A, B, C, R, X, O |
+| Server about itself | 38 | A, B, C, R, X, O |
 | Projects, crons and Git | 15 | D |
 | Deployments: reads, logs and checks | 10 | D |
 | Deployments: changes | 5 | D |
@@ -658,12 +662,12 @@ Counted by `python3` over this file's tables (one row = one tool; rows naming tw
 | Owner: administration | 5 | O |
 | Project profiles | 5 | P |
 | Workflows | 12 | W |
-| **Hand-built total** | **250** | |
+| **Hand-built total** | **254** | |
 | Universal tools | 4 | U |
-| **All tools** | **254** | |
+| **All tools** | **258** | |
 
 Per batch, by the card that first builds each tool: A 2 · B 10 · C 5 · D 42 · E 27 · V 17 · N 29 · F 27 · M 25 ·
-O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 18 (= 254). By lowest profile, of the 253 **registered** tools (registry truth, re-measured by the AUD-AY shadow pass, 2026-10-31): `read_only` 103, `everyday` 41, `full` 109 — cumulative visibility `read_only` 103, `everyday` 144, `full` 253; the 254th catalog row (`vercel_admin_overview`, `full`) is unbuilt by the IN-16 ruling
+O 29 · P 5 · W 12 · U 4 · R 1 · X 1 · AUD 18 · RECENSUS 4 (= 258). By lowest profile, of the 257 **registered** tools (registry truth, re-measured by the AUD-AY shadow pass, 2026-10-31): `read_only` 103, `everyday` 41, `full` 113 — cumulative visibility `read_only` 103, `everyday` 144, `full` 257; the 258th catalog row (`vercel_admin_overview`, `full`) is unbuilt by the IN-16 ruling
 (B-6 prints the exact counts from the registry). In compact mode (`docs/designs/BATCH-C.md`) an agent loads about 20
 tools up front and reaches the rest through `vercel_search_tools` / `vercel_call`.
 
@@ -788,3 +792,5 @@ IN-08 (#110): central guarded-write executor routes charges through separately o
 **AUD-BT pass-door typed outcomes (2026-11-02):** two fixes, no tool added, removed or renamed and no schema changes. (1) The RTC pass door now unwraps the production result envelope (`{mode:'PRODUCTION', banner, result}`) before judging a dispatch payload: on a production-mode pass, a guarded write's structured refusal (`vercel_registrar_buy`'s by-design AUD-AV refusal, a pass project-restriction refusal, a priced refusal over the pass ceiling) previously nested one level below the door's AUD-BQ check and flattened into a 503 `service_error`; it now surfaces as the door's 403 `refused_by_guard`, and stored write results reach the route's stored branch in production mode as in preview. (2) `vercel_project_update_settings`' rename target now declares `projectId` (the same project under its new name), so a pass restricted to that project no longer refuses its rename as out-of-scope. The registry is unchanged at 253.
 
 **AUD-BS branch-preview projectSettings (2026-11-02):** `vercel_dev_preview_branch` now supplies `projectSettings` on a project's first deployment. The vendored createDeployment contract requires them for the first deployment of a project and saves them for later ones; a git-source create that omitted them against a settings-less project was refused live with 400 `missing_project_settings` (VMCP-016 branch G, 2026-11-02 — AUD-BP's fix had carried the flow to the provider write). Following AUD-AD's rule, the settings are sent ONLY when the project record's documented `hasDeployments` flag is false, echoing the record's own stored fields through the shared `deploymentProjectSettings()` helper (null = provider auto-detects; framework null — a documented enum member — selects no framework; `other` is not in the pinned enum and is never sent). On a deployed project the body is unchanged and the provider inherits its saved settings. No tool added, removed or renamed; the registry is unchanged at 253.
+
+**RECENSUS-1 OAuth client registration lifecycle (2026-11-04):** four owner-door tools added — `vercel_list_oauth_clients`, `vercel_get_oauth_client`, `vercel_update_oauth_client`, `vercel_delete_oauth_client` — giving the previously create-only `oauth_clients` store its list/read/update/delete legs. Registry 253 → 257; the catalog lists 258 rows (the 257 built tools plus `vercel_admin_overview`, closed by IN-16). Recorded decisions (card delivery): only the display name and redirect URIs are mutable; no `registration_access_token` is issued — the owner door is the management credential; registrations are owner-reaped only, never swept.
