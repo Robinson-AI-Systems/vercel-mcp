@@ -61,7 +61,8 @@ export const oauthClientsTools = {
     { name: 'vercel_list_oauth_clients', writes: true, localAdmin: true,
       profiles: ['full'],
       description: 'List OAuth client registrations (name, redirect URIs, type, created, live token counts) on the owner door; secret material is never shown.',
-      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      inputSchema: { type: 'object', additionalProperties: false,
+        properties: { confirm: { type: 'boolean' }, dryRun: { type: 'boolean' } } },
       annotations: { readOnlyHint: false, destructiveHint: false },
       writeContract: { production: true, targets: true } },
     { name: 'vercel_get_oauth_client', writes: true, localAdmin: true,
@@ -69,7 +70,8 @@ export const oauthClientsTools = {
       description: 'Read one OAuth client registration by client_id on the owner door, with its live token and code counts; secret material is never shown.',
       inputSchema: { type: 'object', additionalProperties: false,
         required: ['clientId'],
-        properties: { clientId: { type: 'string', pattern: '^[A-Za-z0-9_-]{16,64}$' } } },
+        properties: { clientId: { type: 'string', pattern: '^[A-Za-z0-9_-]{16,64}$' },
+          confirm: { type: 'boolean' }, dryRun: { type: 'boolean' } } },
       annotations: { readOnlyHint: false, destructiveHint: false },
       writeContract: { production: true, targets: true } },
     { name: 'vercel_update_oauth_client', writes: true, localAdmin: true,
@@ -99,7 +101,7 @@ export const oauthClientsTools = {
   ],
   handlers: {
     async vercel_list_oauth_clients(args, { connection, db }) {
-      requireFields(args ?? {}, []);
+      requireFields(args ?? {}, ['dryRun', 'confirm']);
       const gate = ownerGate(connection);
       if (gate) return refused(gate);
       if (!requireDb(db, ['listOAuthClients'])) throw new Error('Registration store unavailable');
@@ -107,7 +109,7 @@ export const oauthClientsTools = {
       return asText({ clients, count: clients.length });
     },
     async vercel_get_oauth_client(args, { connection, db }) {
-      requireFields(args, ['clientId']);
+      requireFields(args, ['clientId', 'dryRun', 'confirm']);
       const gate = ownerGate(connection);
       if (gate) return refused(gate);
       if (!requireDb(db, ['getOAuthClientRegistration'])) throw new Error('Registration store unavailable');
