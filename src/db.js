@@ -1,6 +1,6 @@
 // Database schema and the only SQL entry point for Robinson Vercel MCP.
 // Additive by design: schema initialization never drops or rewrites existing data.
-import { neon } from '@neondatabase/serverless';
+import { storeSql } from './db-transport.js';
 import { hashToken, validRedirectUri } from './core/oauth.js';
 import { compact } from './core/util.js';
 import { randomUUID,randomBytes } from 'node:crypto';
@@ -176,9 +176,12 @@ export function createDb(query) {
   let sql = query;
   function getSql() {
     if (sql) return sql;
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) throw new Error('DATABASE_URL is not configured. Set DATABASE_URL before using the database.');
-    sql = neon(connectionString);
+    // RACK-STAGING S-1: the production handle comes from the transport
+    // selection (src/db-transport.js) — the Neon HTTP driver for a Neon
+    // store URL (the hosted build, unchanged), node-postgres otherwise
+    // or when STORE_TRANSPORT says so. storeSql throws this module's
+    // historical DATABASE_URL error when the variable is unset.
+    sql = storeSql(process.env);
     return sql;
   }
 

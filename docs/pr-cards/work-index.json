@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-31",
+  "updated": "2026-11-06",
   "order": [
     "A",
     "B",
@@ -19,7 +19,7 @@
     "X",
     "CAP"
   ],
-  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400\u2013800 changed production-code lines and 2\u20135 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims. Owner clarification 2026-10-14: PR workload accounting counts whole predefined batch subsections in the authoritative roadmap/design, never a function, UI hookup, guard, helper or execution-packet subtask. Partial subsections count zero completed batch subsections; count each subsection once with full eligible engineering and pre-merge evidence. Group related subsections into substantial PRs; use focused checks during work and full required gates on the coherent PR. Existing acceptance and safety gates remain.",
+  "process": "Just-in-time cards from approved designs; each card runs the drift protocol and updates this index as if merged. Session execution and queued deployed acceptance follow docs/SESSION-START.md. Session PR counts are informational; combine related approved slices and checkpoint for context safety. Owner-requested throughput measurement: average 400–800 changed production-code lines and 2–5 fully completed slices per substantive PR; record actual diffs/slice evidence and use session:status for remaining indexed units. These are advisory averages, never padding or acceptance claims. Owner clarification 2026-10-14: PR workload accounting counts whole predefined batch subsections in the authoritative roadmap/design, never a function, UI hookup, guard, helper or execution-packet subtask. Partial subsections count zero completed batch subsections; count each subsection once with full eligible engineering and pre-merge evidence. Group related subsections into substantial PRs; use focused checks during work and full required gates on the coherent PR. Existing acceptance and safety gates remain.",
   "cards": [
     {
       "id": "A-1",
@@ -440,7 +440,7 @@
         46
       ],
       "revisit": {
-        "reason": "Audit finding VMCP-009 (docs/MCP-AUDIT-2026-10-27.md): new connections default to the catalog listing (everyday \u2248 15,347 tokens by the repo tokenizer) while the compact listing (7 tools, \u2248 1,016 tokens) is opt-in, and the full-profile catalog (24,878) exceeds the builder-set 20,000 line unenforced. Owner ruling OP-1 (2026-10-27) makes the curated front door the default under a 5,000-token owner-policy budget.",
+        "reason": "Audit finding VMCP-009 (docs/MCP-AUDIT-2026-10-27.md): new connections default to the catalog listing (everyday ≈ 15,347 tokens by the repo tokenizer) while the compact listing (7 tools, ≈ 1,016 tokens) is opt-in, and the full-profile catalog (24,878) exceeds the builder-set 20,000 line unenforced. Owner ruling OP-1 (2026-10-27) makes the curated front door the default under a 5,000-token owner-policy budget.",
         "trigger": "design-amendment",
         "owner": "next Vercel MCP implementer (C-2 revisit)",
         "checkpoint": "At the PR boundary that changes listing defaults, and again at each audit delta review of front-door membership.",
@@ -753,7 +753,7 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-2 implementer",
-        "reason": "E-2 metadata reads #194 and guarded custom lifecycle #197 merged; shared-variable four-mode set/unlink/delete merged in PR #198 (6b0cb04) \u2014 vercel_shared_env_set/delete are registered. Owner-scoped live acceptance requires separately verified checked release and TEST fixtures.",
+        "reason": "E-2 metadata reads #194 and guarded custom lifecycle #197 merged; shared-variable four-mode set/unlink/delete merged in PR #198 (6b0cb04) — vercel_shared_env_set/delete are registered. Owner-scoped live acceptance requires separately verified checked release and TEST fixtures.",
         "nextAction": "Independently revisit native E-1/E-2 acceptance after checked live release and owner-granted TEST fixtures; advance to next eligible roadmap work in order.",
         "checkpoint": "Checked live release and owner-granted TEST fixtures; next eligible roadmap work",
         "evidenceNeeded": "Approved four-mode shared variable CI and real TEST provider set/update/unlink/delete with exact scope, values hidden, complete inventory, independent readback and cleanup",
@@ -820,7 +820,7 @@
       "revisit": {
         "trigger": "next-implementation-slice",
         "owner": "next E-4 implementer",
-        "reason": "E-4 native token inventory/revoke merged #201; schema read and compatible set/remove merged in PR #202 (41dc332) \u2014 vercel_globalconfig_get/set_schema are registered. Native owner TEST acceptance still queued.",
+        "reason": "E-4 native token inventory/revoke merged #201; schema read and compatible set/remove merged in PR #202 (41dc332) — vercel_globalconfig_get/set_schema are registered. Native owner TEST acceptance still queued.",
         "nextAction": "Retain native owner TEST acceptance tasks; advance to next eligible approved roadmap work in repository order.",
         "checkpoint": "Next E-4 acceptance session; on next checked release",
         "evidenceNeeded": "Full CI/schema compatibility regression, pinned GET/POST/DELETE path proof, protected/project/production denial, provider schema readback and owner-approved native TEST fixture cleanup",
@@ -1358,8 +1358,8 @@
         "resolution": "Owner ruling recorded in docs/OWNER-INPUTS.md (IN-04) and docs/DECISIONS.md on 2026-10-27: the server respects the expiry the owner chose and its only duty is to notify ahead of an upcoming expiration (14 days before) for keys that have one. Enrolled-token leg implemented by packet AUD-E (audit pipeline S6, 2026-10-28): vercel_accounts gains token_no_expiry (BOOLEAN NOT NULL DEFAULT FALSE, additive); the owner-only setup attestation (sibling set_token_no_expiry action, production-only, confirm + fresh passphrase, journaled vercel_set_token_no_expiry change_log rows with read-back) is the establishment bridge until the O-3 token tools record the choice at creation, and enrolling or rotating a token clears any prior attestation. A shared derivation (src/vercel/token-expiry.js) drives both surfaces in packet order — stored past date expired, stored future date expiring, null date + attestation no_expiry, null date unattested unknown ('expiry not recorded for this token', never owner's choice): vercel_whoami returns expiresAt/expiresAtLocal/daysLeft/expiryPosture/expiryPostureText with tokenWarning byte-compatible, and the setup account list states the posture per account with a banner only inside the 14-day window or once expired. VMCP-003's token-tool leg (creation-time recording of the owner's choice) remains this card's scope; VMCP-003 closes only at S7 live verification.",
         "owner": "next Vercel MCP implementer (O-3)",
         "checkpoint": "When the O-3 card is written at start (WRITE_CARD_AT_START) and again at its PR boundary.",
-        "nextAction": "Write the O-3 card with token list/create/remove shaped by the ruling: the expiry the owner chose (or none) is what is stored and displayed, no default term is imposed at creation, and notify-ahead behavior is covered for expiring keys. Include the D-E expiry surface: vercel_whoami and the setup page show expiry state and days-left for the enrolled token, and the notify-ahead warning fires inside the 14-day window; never-expiring tokens show no warning. The enrolled-token leg is packetized separately as docs/pr-cards/AUD-E.md (audit pipeline S5, filed 2026-10-27) and may land independently of the O-3 token tools; AUD-E's drift check corrects the baseline: vercel_whoami already computes days-left and warns inside the window, so the packet adds the explicit posture fields, the no-expiry statement and the setup display rather than rebuilding the warning. Enrollment-probe leg: implement packet docs/pr-cards/AUD-F.md (audit pipeline, filed 2026-10-28) \u2014 make probeToken scope-aware so a project-scoped token enrolls on in-scope reads, keep team/full probe behavior unchanged, and make setup failures name the failed probe leg. AUD-F jumps the AUD packet queue for the enrollment dependency only, because VMCP-016's fixture gates on it; it does not otherwise reorder the O-3 token tools, which stay this card's scope.",
-        "evidenceNeeded": "Token tool tests covering never-expiring and owner-dated keys, notify-ahead behavior, and no imposed expiry appearing in creation flows. whoami/setup tests showing days-left for an expiring enrolled token, silence for a never-expiring one, and the notify-ahead warning inside the window. For VMCP-022: AUD-F acceptance \u2014 scoped-fake enrollment succeeding with scope 'project', team/full regressions unchanged, each probe leg's failure named on the setup surface, and the live enrollment receipt for the rtc-scratch fixture (account team/project, scope project).",
+        "nextAction": "Write the O-3 card with token list/create/remove shaped by the ruling: the expiry the owner chose (or none) is what is stored and displayed, no default term is imposed at creation, and notify-ahead behavior is covered for expiring keys. Include the D-E expiry surface: vercel_whoami and the setup page show expiry state and days-left for the enrolled token, and the notify-ahead warning fires inside the 14-day window; never-expiring tokens show no warning. The enrolled-token leg is packetized separately as docs/pr-cards/AUD-E.md (audit pipeline S5, filed 2026-10-27) and may land independently of the O-3 token tools; AUD-E's drift check corrects the baseline: vercel_whoami already computes days-left and warns inside the window, so the packet adds the explicit posture fields, the no-expiry statement and the setup display rather than rebuilding the warning. Enrollment-probe leg: implement packet docs/pr-cards/AUD-F.md (audit pipeline, filed 2026-10-28) — make probeToken scope-aware so a project-scoped token enrolls on in-scope reads, keep team/full probe behavior unchanged, and make setup failures name the failed probe leg. AUD-F jumps the AUD packet queue for the enrollment dependency only, because VMCP-016's fixture gates on it; it does not otherwise reorder the O-3 token tools, which stay this card's scope.",
+        "evidenceNeeded": "Token tool tests covering never-expiring and owner-dated keys, notify-ahead behavior, and no imposed expiry appearing in creation flows. whoami/setup tests showing days-left for an expiring enrolled token, silence for a never-expiring one, and the notify-ahead warning inside the window. For VMCP-022: AUD-F acceptance — scoped-fake enrollment succeeding with scope 'project', team/full regressions unchanged, each probe leg's failure named on the setup surface, and the live enrollment receipt for the rtc-scratch fixture (account team/project, scope project).",
         "eligibilityCondition": "Eligible once O-1 lands; no further owner input needed.",
         "dependencies": [
           "O-1"
@@ -1926,7 +1926,7 @@
         "IN-06"
       ],
       "revisit": {
-        "reason": "IN-06 was answered YES by the owner on 2026-10-27: the scratch project and project-scoped key are approved as a builder acceptance fixture (logistics, not product policy). Amended 2026-10-28: the fixture now EXISTS in Vercel \u2014 project rtc-scratch (project ID withheld under the repo secret-scan policy) and the project-scoped token 'rtc-scratch X-2 fixture' (30-day expiry, owner's choice, expiring 2026-11-27) were created at the owner's direction and verified \u2014 but enrollment on the setup page failed twice because the enrollment probe cannot accept a project-scoped token (finding VMCP-022, P1). The X-2 write run is now blocked on the VMCP-022 fix (packet AUD-F) plus enrollment, not on fixture creation. Removal commitment (owner, 2026-10-28): token + project are deleted once X-2 / S7 no longer need them; the token's 2026-11-27 expiry is the backstop, and an expired token is re-created identically before enrollment.",
+        "reason": "IN-06 was answered YES by the owner on 2026-10-27: the scratch project and project-scoped key are approved as a builder acceptance fixture (logistics, not product policy). Amended 2026-10-28: the fixture now EXISTS in Vercel — project rtc-scratch (project ID withheld under the repo secret-scan policy) and the project-scoped token 'rtc-scratch X-2 fixture' (30-day expiry, owner's choice, expiring 2026-11-27) were created at the owner's direction and verified — but enrollment on the setup page failed twice because the enrollment probe cannot accept a project-scoped token (finding VMCP-022, P1). The X-2 write run is now blocked on the VMCP-022 fix (packet AUD-F) plus enrollment, not on fixture creation. Removal commitment (owner, 2026-10-28): token + project are deleted once X-2 / S7 no longer need them; the token's 2026-11-27 expiry is the backstop, and an expired token is re-created identically before enrollment.",
         "trigger": "owner-input-answered",
         "ownerInputRefs": [
           "IN-06"
@@ -2058,6 +2058,32 @@
       ],
       "readiness": "WRITE_CARD_AT_START",
       "ownerInputs": []
+    },
+    {
+      "id": "RACK-STAGING",
+      "title": "Store transport seam and rack entrypoint for the Development Rack move (owner program)",
+      "batch": "CAP",
+      "design": "docs/DEPLOY.md",
+      "dependencies": [],
+      "card": "docs/pr-cards/RACK-STAGING.md",
+      "status": "IN_PROGRESS",
+      "migration": "none",
+      "budget": 200,
+      "units": [
+        "RACK-STAGING"
+      ],
+      "readiness": "WRITE_CARD_AT_START",
+      "ownerInputs": [],
+      "revisit": {
+        "reason": "S-1 (store transport promotion) lands in the first PR; S-2 (rack-server.mjs entrypoint with the body-contract route-table test) remains before the card can close.",
+        "evidenceNeeded": "Bench and CI evidence at the exact PR heads: npm run check, the unit suite, and the db suite green for both PRs, with the S-2 route-table test naming the webhook raw-body leg.",
+        "eligibilityCondition": "S-1 merged to main at a green exact head; the S-2 branch starts from that main.",
+        "dependencies": [],
+        "owner": "Vivienne (rack migration program crew)",
+        "checkpoint": "S-1 PR open from branch ai/rack/s1-transport; card and STATUS carry the resume note.",
+        "trigger": "next-implementation-slice",
+        "nextAction": "Merge S-1 at green exact head, then open the S-2 PR (rack-server.mjs) from the new main under this same card."
+      }
     }
   ],
   "gatewayBoundary": {
