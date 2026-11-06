@@ -2075,15 +2075,18 @@
       "readiness": "WRITE_CARD_AT_START",
       "ownerInputs": [],
       "revisit": {
-        "reason": "S-1 (store transport promotion) lands in the first PR; S-2 (rack-server.mjs entrypoint with the body-contract route-table test) remains before the card can close.",
-        "evidenceNeeded": "Bench and CI evidence at the exact PR heads: npm run check, the unit suite, and the db suite green for both PRs, with the S-2 route-table test naming the webhook raw-body leg.",
-        "eligibilityCondition": "S-1 merged to main at a green exact head; the S-2 branch starts from that main.",
+        "reason": "S-1 (store transport promotion) merged as PR #447; S-2 (rack-server.mjs entrypoint with the body-contract route-table test) is the remaining PR before the card can close.",
+        "evidenceNeeded": "Bench and CI evidence at the S-2 exact PR head: npm run check, the unit suite (including tests/unit/rack-server.test.js), and the db suite green.",
+        "eligibilityCondition": "S-1 is merged to main (PR #447, squash 9e10724e); the S-2 branch stands on that main.",
         "dependencies": [],
         "owner": "Vivienne (rack migration program crew)",
-        "checkpoint": "S-1 PR open from branch ai/rack/s1-transport; card and STATUS carry the resume note.",
+        "checkpoint": "S-2 PR open from branch ai/rack/s2-rack-server; card and STATUS carry the resume note.",
         "trigger": "next-implementation-slice",
-        "nextAction": "Merge S-1 at green exact head, then open the S-2 PR (rack-server.mjs) from the new main under this same card."
-      }
+        "nextAction": "Merge S-2 at green exact head; the card then closes and the rack rehearsal battery proceeds under the migration program."
+      },
+      "pr": [
+        447
+      ]
     }
   ],
   "gatewayBoundary": {
