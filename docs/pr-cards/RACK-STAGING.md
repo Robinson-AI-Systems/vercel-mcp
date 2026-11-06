@@ -101,4 +101,18 @@ registry stays at 257.
 
 ## Delivery — S-1
 
+Merged as PR #447 (squash `9e10724e`) at exact head `54333557`.
+Bench evidence (PC bench, fleet-run ledger entries `vercel-s1-check2`,
+`vercel-s1-unit`, `vercel-s1-db2`; the pushed tree was hash-identical
+to the verified tree, `d89d32a8`): `npm run check` exit 0; unit
+suite 186 files / 1,863 tests passed; db targeted run 15/15
+(`transport`, `developer-handoff`, `schema`, `oauth-clients`). CI
+`ci` + `release-policy` green at the exact head before merge. One
+correction during verification, in the new test only: its
+independent read-back first queried a `client_name` column that
+does not exist (the name lives in the row's `data` jsonb) — fixed
+and re-verified; production code was never at fault.
+
+## Delivery — S-2
+
 Filled in at merge: PR number, exact head, bench evidence, CI runs.
