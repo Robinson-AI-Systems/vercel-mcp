@@ -1,5 +1,7 @@
 # DEPLOY — Owner guide to setting up Vercel by Robinson AI Systems
 
+**Hosting update (2026-11-08):** production no longer results from the route this guide describes. The server moved to the Robinson AI Systems development rack on 2026-11-08 and serves production at https://vercel.robinsonaisystems.com; the dedicated Vercel project and Neon database this guide provisions were retired (deleted) the same day under the owner's dead-copy ruling. Sections 1–5 below now stand as the record of the original first-time setup of the hosted shape, kept for provenance and for any future hosted deployment — do not re-provision from them expecting to rebuild production.
+
 **Branding/connection status (2026-10-19):** Owner-controlled service display name is **Vercel by Robinson AI Systems** (unofficial and independently operated). Technical IDs, origins, OAuth grants and stored credentials stay stable. Acceptance state no longer lives in this header: the 2026-10-30 acceptance filings in `docs/STATUS.md` record what has been exercised live (A-3/A-6/A-10/A-14/A-15 pass); the formal per-client acceptance matrix remains open. A production deployment/real user action remains separate. (Header updated 2026-10-31, AUD-AN.) The owner-approved directive does not permit unscheduled release, distribution decisions (owned outside this repository) or account changes.
 
 
