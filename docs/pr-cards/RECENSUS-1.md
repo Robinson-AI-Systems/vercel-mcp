@@ -121,3 +121,94 @@ registrations created for the purpose.
 flows (complete and symmetric today), CIMD clients (stateless —
 nothing stored, nothing owed), enrolled-account lifecycle
 (complete), and the IN-16 closure, which stands as ruled.
+
+## Delivery (2026-11-04, this card's PR)
+
+**What was built.** `src/db.js` gains the lifecycle legs beside
+`createOAuthClient` / `getOAuthClient`: `listOAuthClients`,
+`getOAuthClientRegistration` (one aggregate public shape for both
+reads — client_id, name, redirect URIs, auth method, client type,
+real `created_at`, and activity markers computed from the token
+and code stores: live/total token families, last use, outstanding
+codes; the stored secret hash is never in the shape),
+`updateOAuthClient`, and `deleteOAuthClient`. Four owner-door
+tools (`src/tools/oauth-clients.js`, registered through the
+registry and added to the owner-door list in
+`src/core/mcp-server.js`): `vercel_list_oauth_clients`,
+`vercel_get_oauth_client`, `vercel_update_oauth_client`,
+`vercel_delete_oauth_client`. Registry 253 → 257; catalog rows
+added in the same PR.
+
+**Delete follows the row-17 confirmed-action pattern:** the dry
+run evaluates the exact target and discloses it in plain words
+(live token families and outstanding codes counted); confirmation
+must echo the evaluation fingerprint the dry run returned;
+execution re-reads and re-binds, so a registration that changed
+since the evaluation refuses instead of deleting; the delete
+itself is one statement (the `revokeRtcPass` shape) — dependent
+revocation, code cleanup, row removal and the `change_log`
+journal land together or not at all, every mutation gated on the
+registration existing in the statement's snapshot; the handler
+verifies by read-back (row gone) before it calls the deletion
+confirmed. Deleting a nonexistent client_id is a clean refusal
+that mutates nothing and journals nothing — proven against
+orphan token rows keyed to a client with no registration.
+
+**Dependent state, stated plainly.** Deleting a registration
+**revokes its live `oauth_tokens` families in the same action**
+(the rows stay as the revocation record; already-revoked families
+are untouched). Its **`oauth_codes` rows are removed in the same
+action** — a code for a deleted client can never be exchanged
+(the token route reads the client first), and expired codes were
+already the retention sweep's to reap.
+
+**The three recorded decisions.**
+
+1. **Mutable fields:** the display name (`client_name`) and the
+   redirect URIs (`redirect_uris`) — the metadata the registration
+   model itself treats as descriptive. **Immutable:** `client_id`
+   (the registration's identity), `token_endpoint_auth_method`
+   and the stored secret hash (credential material — changing
+   either is a re-registration, not an edit; a client that needs
+   a new secret or auth method registers again). The update
+   method refuses every other field by construction, and the
+   update's read-back proves the credential survived untouched.
+2. **Management credential: owner-door-only is the settled
+   answer; no `registration_access_token` is issued.** A
+   registration on this server is created by anonymous public
+   registration and carries no account authority (A-3's own
+   boundary), so the registrant has no management claim to
+   credential; the only principal with a legitimate management
+   interest in the store as a whole is the server owner, whose
+   door already exists and is already authenticated by the
+   owner's own connector connection. Issuing an RFC 7592 token
+   would create a new bearer-credential class — stored, leaked,
+   rotated, revoked — to serve a surface nobody but the owner
+   may use. If a future card gives registrants a per-client door
+   (the card's "if a per-client door is also built" case), the
+   token decision reopens with it.
+3. **Retention: registrations are owner-reaped only; the sweep
+   never touches `oauth_clients`, and no sweep was built.** A
+   registration's age cannot judge its liveness (a stored client
+   may be dormant but legitimate), and deletion revokes live
+   token families — too destructive for an unattended reaper.
+   The delete leg is the reap tool; the owner works it from the
+   list's activity markers.
+
+**Refusals.** The four tools are visible and callable only on
+the owner door (full profile + the owner-tool list); handlers
+additionally refuse any connection that is not the owner's own
+connector connection before touching the store, so a delegated
+pass — even a full-profile one — can neither list, read, update
+nor delete any registration, and narrower profiles never see the
+tools at all. Because registrations carry no per-principal
+owner, "a registration that is not theirs" is every registration,
+for every non-owner principal.
+
+**Live acceptance — PENDING the nightly train, declared.** At
+the checked release: register a throwaway client through the
+public route, see it in the owner list, delete it through the
+owner door under the confirmed-action pattern, and read back
+list/read empty with its tokens revoked. The lifecycle is proven
+now against isolated Postgres and at the tool boundary in unit
+tests; the live leg runs after this merge rides the train.

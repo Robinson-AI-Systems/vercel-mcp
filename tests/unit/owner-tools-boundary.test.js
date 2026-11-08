@@ -27,7 +27,9 @@ const OWNER_TOOLS = ['vercel_enable_production', 'vercel_disable_production',
   'vercel_set_token_no_expiry', 'vercel_set_production_strictness',
   'vercel_add_protected_resource', 'vercel_clear_protected_resources',
   'vercel_disconnect_blob_store', 'vercel_issue_pass', 'vercel_revoke_pass',
-  'vercel_reveal_one_time_secret'];
+  'vercel_reveal_one_time_secret', 'vercel_list_oauth_clients',
+  'vercel_get_oauth_client', 'vercel_update_oauth_client',
+  'vercel_delete_oauth_client'];
 
 const listed = (profile) =>
   listMcpTools(registry, { profile, listing: 'catalog' }).map(t => t.name);
