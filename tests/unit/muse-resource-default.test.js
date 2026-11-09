@@ -100,4 +100,25 @@ describe('Muse sign-in with resource omitted', () => {
     expect(foreignToken.statusCode).toBe(400);
     expect(json(foreignToken).error).toBe('invalid_target');
   });
+
+  // D-006 MC-8: plain `muse` is the Client ID anyone can type.
+  it('accepts plain muse as the Client ID through authorize, token and refresh', async () => {
+    const { db, handlers } = createFixture();
+    expect(await db.getOAuthClient('muse')).toBeNull();
+    const args = museAuthorizeArgs({ client_id: 'muse' });
+    delete args.resource;
+    const authorized = await call(handlers.authorize, request('POST', { ...args, passphrase: baseEnv.ADMIN_PASSPHRASE }));
+    expect(authorized.statusCode).toBe(302);
+    const code = new URL(authorized.headers.Location).searchParams.get('code');
+    const granted = await call(handlers.token, request('POST', {
+      client_id: 'muse', grant_type: 'authorization_code', redirect_uri: museCallback, code, code_verifier: verifier
+    }));
+    expect(granted.statusCode).toBe(200);
+    const refreshed = await call(handlers.token, request('POST', {
+      client_id: 'muse', grant_type: 'refresh_token', refresh_token: json(granted).refresh_token
+    }));
+    expect(refreshed.statusCode).toBe(200);
+    const wrong = await call(handlers.authorize, request('GET', museAuthorizeArgs({ client_id: 'muse', redirect_uri: 'https://evil.example.test/cb' })));
+    expect(wrong.statusCode).toBe(400);
+  });
 });

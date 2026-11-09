@@ -110,7 +110,10 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
   // revocation, so no surface can drift from another.
   const resolveCimdClient = createCimdResolver(fetchDocument ? { fetchDocument } : {});
   async function resolveClient(clientId) {
-    if (typeof clientId === 'string' && clientId === museClientDocument().client_id) {
+    // RAS MCP Standard D-006 MC-8: plain `muse` is the easy Client ID anyone
+    // can type, the same built-in public client as the document address.
+    if (clientId === 'muse' ||
+      (typeof clientId === 'string' && clientId === museClientDocument().client_id)) {
       return {
         client_id: clientId, client_name: 'Muse',
         redirect_uris: [MUSE_REDIRECT_URI],
