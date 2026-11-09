@@ -79,6 +79,15 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     return { origin, resource: origin + '/api/mcp' };
   }
   function validateResource(value) { return value === urls().resource; }
+  // RAS MCP Standard, Muse connection design (MC-4): phone apps such as
+  // Muse may leave `resource` out. Absent (or empty) means this server's
+  // own MCP endpoint; any other value must still match exactly.
+  function withDefaultResource(params) {
+    if (params.resource === undefined || params.resource === null || params.resource === '') {
+      return { ...params, resource: urls().resource };
+    }
+    return params;
+  }
 
   function museClientDocument() {
     const { origin } = urls();
@@ -451,6 +460,7 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed authorization request');
     }
+    params = withDefaultResource(params);
     // SR-2: a returning attested flow is validated against its
     // own record (authorizeAttested re-checks the client and
     // redirect from it); only a fresh request validates the
@@ -493,6 +503,7 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed authorization request');
     }
+    params = withDefaultResource(params);
     const client = await resolveClient(str(params.client_id));
     if (!client || !redirectUriAllowed(client, params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
       return bad(res, 400, 'invalid_request', 'Unknown client or redirect address');
@@ -922,6 +933,7 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed token request');
     }
+    params = withDefaultResource(params);
     if (!validateResource(params.resource)) return bad(res, 400, 'invalid_target', 'Token resource must be this MCP');
     const client = await resolveClient(str(params.client_id));
     // Legacy records without an explicit authentication method remain
