@@ -79,6 +79,15 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     return { origin, resource: origin + '/api/mcp' };
   }
   function validateResource(value) { return value === urls().resource; }
+  // RAS MCP Standard, Muse connection design (MC-4): phone apps such as
+  // Muse may leave `resource` out. Absent (or empty) means this server's
+  // own MCP endpoint; any other value must still match exactly.
+  function withDefaultResource(params) {
+    if (params.resource === undefined || params.resource === null || params.resource === '') {
+      return { ...params, resource: urls().resource };
+    }
+    return params;
+  }
 
   function museClientDocument() {
     const { origin } = urls();
@@ -101,7 +110,10 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
   // revocation, so no surface can drift from another.
   const resolveCimdClient = createCimdResolver(fetchDocument ? { fetchDocument } : {});
   async function resolveClient(clientId) {
-    if (typeof clientId === 'string' && clientId === museClientDocument().client_id) {
+    // RAS MCP Standard D-006 MC-8: plain `muse` is the easy Client ID anyone
+    // can type, the same built-in public client as the document address.
+    if (clientId === 'muse' ||
+      (typeof clientId === 'string' && clientId === museClientDocument().client_id)) {
       return {
         client_id: clientId, client_name: 'Muse',
         redirect_uris: [MUSE_REDIRECT_URI],
@@ -233,14 +245,19 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
   const bindingCookieName = () =>
     typeof service.signinBindingCookie === 'function' ?
       service.signinBindingCookie() : 'rmcp_signin_binding';
-  function cookieValue(req, name) {
+  // Every value sent under one cookie name, at most four.
+  function cookieValues(req, name) {
     const header = req?.headers?.cookie;
-    if (typeof header !== 'string') return null;
+    if (typeof header !== 'string') return [];
+    const out = [];
     for (const part of header.split(';')) {
       const eq = part.indexOf('=');
-      if (eq >= 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+      if (eq >= 0 && part.slice(0, eq).trim() === name) {
+        const value = part.slice(eq + 1).trim();
+        if (value) out.push(value);
+      }
     }
-    return null;
+    return out.slice(0, 4);
   }
   function attestedWho(flow) {
     const claims = claimsOf(flow);
@@ -366,8 +383,12 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     }
     flow.handle = handle;
     if (flow.browser_binding_hash) {
-      const cookie = cookieValue(req, bindingCookieName());
-      if (!cookie || !secretsMatch(hashToken(cookie), flow.browser_binding_hash)) {
+      // RAS MCP Standard D-006 MC-7.3: a browser may hold more than one
+      // copy of the binding cookie (an earlier sign-in's copy beside this
+      // one). Any copy matching this flow binds it; none matching is the
+      // existing plain refusal page, never a restart (MC-7.2).
+      const copies = cookieValues(req, bindingCookieName());
+      if (!copies.some((copy) => secretsMatch(hashToken(copy), flow.browser_binding_hash))) {
         return { refusal: 'browser' };
       }
     }
@@ -451,6 +472,7 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed authorization request');
     }
+    params = withDefaultResource(params);
     // SR-2: a returning attested flow is validated against its
     // own record (authorizeAttested re-checks the client and
     // redirect from it); only a fresh request validates the
@@ -493,6 +515,7 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed authorization request');
     }
+    params = withDefaultResource(params);
     const client = await resolveClient(str(params.client_id));
     if (!client || !redirectUriAllowed(client, params.redirect_uri) || !validRedirectUri(params.redirect_uri)) {
       return bad(res, 400, 'invalid_request', 'Unknown client or redirect address');
@@ -922,6 +945,7 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     try { params = paramsOf(req); } catch {
       return bad(res, 400, 'invalid_request', 'Malformed token request');
     }
+    params = withDefaultResource(params);
     if (!validateResource(params.resource)) return bad(res, 400, 'invalid_target', 'Token resource must be this MCP');
     const client = await resolveClient(str(params.client_id));
     // Legacy records without an explicit authentication method remain

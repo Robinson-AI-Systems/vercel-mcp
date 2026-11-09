@@ -313,6 +313,26 @@ describe('SR-2 public-class journey', () => {
     expect(missing.body).toContain('browser that started it');
   });
 
+  // RAS MCP Standard D-006 MC-7.3: a stale binding copy beside the real one
+  // still binds this browser; a browser with only stale copies still gets
+  // the plain refusal page (MC-7.2), never a restart.
+  it('accepts the matching binding copy when the browser sends duplicates', async () => {
+    const world = makeWorld(publicEnv);
+    await seedAccounts(world.db, publicEnv);
+    const { handle, cookie } = await attestJourney(world, publicEnv);
+    const both = response();
+    await world.handlers.authorize(
+      getReq({ flow: handle }, { cookie: 'rmcp_signin_binding=stale-copy; ' + cookie }), both);
+    expect(both.statusCode).toBe(200);
+    expect(both.body).toContain('Signed in to Vercel as');
+    const staleOnly = response();
+    await world.handlers.authorize(
+      getReq({ flow: handle }, { cookie: 'rmcp_signin_binding=stale-one; rmcp_signin_binding=stale-two' }), staleOnly);
+    expect(staleOnly.statusCode).toBe(400);
+    expect(staleOnly.body).toContain('browser that started it');
+    expect(staleOnly.headers.Location).toBeUndefined();
+  });
+
   it('refuses an expired flow at the consent step', async () => {
     // A store clock eleven minutes in the past: the flow it
     // seeds is already expired by the real clock the handler
