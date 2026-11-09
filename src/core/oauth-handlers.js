@@ -242,14 +242,19 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
   const bindingCookieName = () =>
     typeof service.signinBindingCookie === 'function' ?
       service.signinBindingCookie() : 'rmcp_signin_binding';
-  function cookieValue(req, name) {
+  // Every value sent under one cookie name, at most four.
+  function cookieValues(req, name) {
     const header = req?.headers?.cookie;
-    if (typeof header !== 'string') return null;
+    if (typeof header !== 'string') return [];
+    const out = [];
     for (const part of header.split(';')) {
       const eq = part.indexOf('=');
-      if (eq >= 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+      if (eq >= 0 && part.slice(0, eq).trim() === name) {
+        const value = part.slice(eq + 1).trim();
+        if (value) out.push(value);
+      }
     }
-    return null;
+    return out.slice(0, 4);
   }
   function attestedWho(flow) {
     const claims = claimsOf(flow);
@@ -375,8 +380,12 @@ export function createOAuthHandlers({ db, env = process.env, service, fetchDocum
     }
     flow.handle = handle;
     if (flow.browser_binding_hash) {
-      const cookie = cookieValue(req, bindingCookieName());
-      if (!cookie || !secretsMatch(hashToken(cookie), flow.browser_binding_hash)) {
+      // RAS MCP Standard D-006 MC-7.3: a browser may hold more than one
+      // copy of the binding cookie (an earlier sign-in's copy beside this
+      // one). Any copy matching this flow binds it; none matching is the
+      // existing plain refusal page, never a restart (MC-7.2).
+      const copies = cookieValues(req, bindingCookieName());
+      if (!copies.some((copy) => secretsMatch(hashToken(copy), flow.browser_binding_hash))) {
         return { refusal: 'browser' };
       }
     }
