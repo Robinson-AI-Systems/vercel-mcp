@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
-import { encryptSecret, decryptSecret } from '../../src/core/secret-box.js';
+import { encryptSecret, decryptSecret, readPreviousKeys } from '../../src/core/secret-box.js';
 
 const env = { TOKEN_ENCRYPTION_KEY: randomBytes(32).toString('hex') };
 const fakeSecret = 'vcp_FAKEexampleSecretValue_123456789';
@@ -36,5 +36,51 @@ describe('server-only authenticated credential encryption', () => {
     expect(() => encryptSecret('x'.repeat(65537), 'once:ref_FAKE', env)).toThrow(/too large/);
     expect(() => encryptSecret('', 'once:ref_FAKE', env)).toThrow(/non-empty/);
     expect(() => encryptSecret('fixture', '', env)).toThrow(/purpose/);
+  });
+});
+
+describe('previous-key read support (TOKEN_ENCRYPTION_KEY_PREVIOUS)', () => {
+  const oldKeyHex = randomBytes(32).toString('hex');
+  const olderKeyB64 = randomBytes(32).toString('base64url');
+  const newKeyHex = randomBytes(32).toString('hex');
+  const oldEnv = { TOKEN_ENCRYPTION_KEY: oldKeyHex };
+  const rotatedEnv = { TOKEN_ENCRYPTION_KEY: newKeyHex, TOKEN_ENCRYPTION_KEY_PREVIOUS: oldKeyHex };
+
+  it('decrypts values sealed under the old key after a rotation', () => {
+    const box = encryptSecret(fakeSecret, 'token:account_FAKE', oldEnv);
+    expect(decryptSecret(box, 'token:account_FAKE', rotatedEnv)).toBe(fakeSecret);
+  });
+
+  it('seals new values with the current key only', () => {
+    const box = encryptSecret(fakeSecret, 'token:account_FAKE', rotatedEnv);
+    expect(decryptSecret(box, 'token:account_FAKE', { TOKEN_ENCRYPTION_KEY: newKeyHex })).toBe(fakeSecret);
+    expect(() => decryptSecret(box, 'token:account_FAKE', oldEnv)).toThrow(/Unable to decrypt/);
+  });
+
+  it('behaves exactly as before when PREVIOUS is unset', () => {
+    const box = encryptSecret(fakeSecret, 'token:account_FAKE', oldEnv);
+    expect(decryptSecret(box, 'token:account_FAKE', oldEnv)).toBe(fakeSecret);
+    expect(() => decryptSecret(box, 'token:account_FAKE', { TOKEN_ENCRYPTION_KEY: newKeyHex }))
+      .toThrow(/Unable to decrypt/);
+    expect(readPreviousKeys({})).toEqual([]);
+    expect(readPreviousKeys({ TOKEN_ENCRYPTION_KEY_PREVIOUS: '  ' })).toEqual([]);
+  });
+
+  it('accepts up to two previous keys in either key shape', () => {
+    const sealedByOlder = encryptSecret(fakeSecret, 'token:account_FAKE',
+      { TOKEN_ENCRYPTION_KEY: olderKeyB64 });
+    const env = { TOKEN_ENCRYPTION_KEY: newKeyHex,
+      TOKEN_ENCRYPTION_KEY_PREVIOUS: oldKeyHex + ',' + olderKeyB64 };
+    expect(decryptSecret(sealedByOlder, 'token:account_FAKE', env)).toBe(fakeSecret);
+    expect(readPreviousKeys(env)).toHaveLength(2);
+  });
+
+  it('validates the previous-key setting and never lets it weaken the current key', () => {
+    expect(() => readPreviousKeys({ TOKEN_ENCRYPTION_KEY_PREVIOUS: 'weak' })).toThrow(/32-byte/);
+    expect(() => readPreviousKeys({ TOKEN_ENCRYPTION_KEY_PREVIOUS:
+      [oldKeyHex, oldKeyHex, oldKeyHex].join(',') })).toThrow(/at most two/);
+    const box = encryptSecret(fakeSecret, 'token:account_FAKE', { TOKEN_ENCRYPTION_KEY: newKeyHex });
+    const messy = { TOKEN_ENCRYPTION_KEY: newKeyHex, TOKEN_ENCRYPTION_KEY_PREVIOUS: 'weak' };
+    expect(decryptSecret(box, 'token:account_FAKE', messy)).toBe(fakeSecret);
   });
 });
