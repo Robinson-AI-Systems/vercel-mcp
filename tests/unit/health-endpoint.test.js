@@ -4,7 +4,7 @@ import { createDb } from '../../src/db.js';
 import { DEEP_HEALTH_PATH, HEALTH_PATH, createDeepHealthHandler, createHealthHandler,
   deepHealthDocument, healthDocument, oauthMetadataConsistent } from '../../src/health.js';
 import { oauthServerMetadata } from '../../src/core/oauth-handlers.js';
-import { SERVICE_VERSION } from '../../src/service-identity.js';
+import { releaseVersion } from '../../src/release.js';
 import { registry } from '../../src/tools/index.js';
 
 // AUD-AP: the public health endpoint. The watch reads it keyless every
@@ -41,7 +41,7 @@ describe('AUD-AP health document', () => {
     expect(healthy).toBe(true);
     expect(Object.keys(document).sort()).toEqual(FIELDS);
     expect(document).toEqual({
-      status: 'ok', version: SERVICE_VERSION, deployed_source_sha: SHA,
+      status: 'ok', version: releaseVersion({ VERCEL_GIT_COMMIT_SHA: SHA }), deployed_source_sha: SHA,
       tools: registry.tools.length, timestamp: '2026-10-31T07:00:00.000Z'
     });
   });
@@ -204,7 +204,7 @@ describe('AUD-BY deep health (authenticated store check)', () => {
     expect(okDoc.healthy).toBe(true);
     expect(Object.keys(okDoc.document).sort()).toEqual(DEEP_FIELDS);
     expect(okDoc.document).toEqual({
-      status: 'ok', version: SERVICE_VERSION, deployed_source_sha: SHA,
+      status: 'ok', version: releaseVersion({ VERCEL_GIT_COMMIT_SHA: SHA }), deployed_source_sha: SHA,
       tools: registry.tools.length, timestamp: '2026-10-31T07:00:00.000Z',
       checks: { store: true, oauth_metadata: true }
     });

@@ -21,7 +21,7 @@ import { createDb } from './db.js';
 import { only, publicOrigin, send } from './core/http.js';
 import { requireMcpToken } from './core/mcp-auth.js';
 import { oauthServerMetadata } from './core/oauth-handlers.js';
-import { SERVICE_VERSION } from './service-identity.js';
+import { releaseVersion } from './release.js';
 import { registry } from './tools/index.js';
 
 export const HEALTH_PATH = '/api/health';
@@ -61,7 +61,7 @@ function baseDocument({ env, buildSha, now, metadataFor }) {
     sourceSha,
     metadata: oauthMetadataConsistent(env, metadataFor),
     fields: {
-      version: SERVICE_VERSION,
+      version: releaseVersion({ VERCEL_GIT_COMMIT_SHA: buildSha }),
       deployed_source_sha: sourceSha,
       tools: registry.tools.length,
       timestamp: now().toISOString()
