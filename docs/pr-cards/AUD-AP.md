@@ -107,3 +107,10 @@ bullet as the docs reconciliation.
   evidence files this under observability, and the main chat repoints
   vercel-watch's third leg from the OAuth metadata document to
   `/api/health`. No live call is made by this card.
+
+**2026-11-10 follow-on (VER-1).** The `version` field pinned above no
+longer comes from `SERVICE_VERSION` — that literal was deleted under
+Chris's rule that version identity is derived from the build. /health
+now reports the VER-1 release version from `src/release.js` (package
+version + the platform-stamped commit, else `unknown`); the field name
+and shape are unchanged.
