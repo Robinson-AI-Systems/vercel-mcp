@@ -44,6 +44,11 @@ describe('public landing cannot claim account setup or connected acceptance',()=
   expect(r.payload).toContain('#00B67A');
   expect(r.payload).toContain('Status: hosted service endpoint');
   expect(r.payload).toContain('Registered tools: ' + registry.tools.length);
+  // Every major app has its own steps, after How connecting works (owner request 2026-11-10).
+  for(const app of ['How connecting works','Muse','Claude (web, desktop and phone app)','ChatGPT','Claude Code','Cursor','VS Code (GitHub Copilot)','OpenAI Codex (and the ChatGPT desktop app)','Gemini CLI','Windsurf','Any other app'])
+    expect(r.payload).toContain('<h2>'+app+'</h2>');
+  expect(r.payload.indexOf('How connecting works')).toBeLessThan(r.payload.indexOf('id="connect"'));
+  expect(r.payload).toContain('codex mcp add vercel-unleashed --url https://vercel.robinsonaisystems.com/api/mcp');
   // SR-6: the public page states the one sign-in truth, no tier census.
   expect(r.payload).toContain('Every sign-in gets the full tool set');
   expect(r.payload).not.toContain('Available by connection profile');

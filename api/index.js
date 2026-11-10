@@ -48,6 +48,13 @@ export default function handler(req, res) {
       '<li>Changes are previewed first; spending follows the purchase policy you set, and everything is journaled.</li>' +
       '<li>Switch a connection to read-only and it can look but not change anything — switch it back whenever you like. You can disconnect at any time.</li>' +
       '</ul>' +
+      '<section id="start"><h2>How connecting works</h2><ol>' +
+      '<li><a href="#connect">Add the address below</a> to your AI app.</li>' +
+      '<li>Your app opens Vercel\'s own sign-in. Sign in to <b>your</b> Vercel account and approve the connection. ' +
+      'We never see or ask for your Vercel password.</li>' +
+      '<li>Then ask your assistant for what you need; changes are shown to you first.</li></ol>' +
+      '<p><small>Later, <a href="/connection">My connection</a> is where you switch to read-only, see what a ' +
+      'connection can do, or disconnect.</small></p></section>' +
       '<section id="connect"><h2>Connect your AI app</h2>' +
       '<p>Paste this address into your AI app when it asks for a server or connector address:</p>' +
       '<code class="addr" id="address">' + BRANDED_ORIGIN + '/api/mcp</code>' +
@@ -72,8 +79,8 @@ export default function handler(req, res) {
       'app fails. Every other app below leaves both boxes blank.</small></p>' +
       '<h2>Claude (web, desktop and phone app)</h2><ol>' +
       '<li>Open Claude on the web, or in the desktop or phone app, and ' +
-      'go to <b>Customize</b>, then <b>Connectors</b>.</li>' +
-      '<li>Choose <b>Add custom connector</b> and paste the address above.</li>' +
+      'go to <b>Settings</b> (called <b>Customize</b> in some versions), then <b>Connectors</b>.</li>' +
+      '<li>Choose <b>+</b> or <b>Add</b>, then <b>Add custom connector</b>, give it a name and paste the address above.</li>' +
       '<li>Leave the Client ID and the Client Secret blank \u2014 the ' +
       'app identifies itself automatically.</li>' +
       '<li>Choose <b>Add</b>, then <b>Connect</b>, and sign in with ' +
@@ -100,6 +107,32 @@ export default function handler(req, res) {
       '<code>~/.cursor/mcp.json</code>), then sign in when asked:</p>' +
       '<pre>{\n  "mcpServers": {\n    "vercel-unleashed": { "url": "' +
       BRANDED_ORIGIN + '/api/mcp" }\n  }\n}</pre>' +
+      // Added 2026-11-10, checked against each app's current docs: VS Code
+      // (code.visualstudio.com/docs/copilot/reference/mcp-configuration), OpenAI Codex
+      // (developers.openai.com/codex/mcp), Gemini CLI (gemini mcp add --transport http,
+      // /mcp auth), Windsurf (mcp_config.json "serverUrl").
+      '<h2>VS Code (GitHub Copilot)</h2>' +
+      '<p>Open the Command Palette (Ctrl+Shift+P, or Cmd+Shift+P on a Mac), run <b>MCP: Add Server</b>, ' +
+      'choose <b>HTTP</b> and paste the address. Or add this to <code>.vscode/mcp.json</code>:</p>' +
+      '<pre>{\n  "servers": {\n    "vercel-unleashed": { "type": "http", "url": "' +
+      BRANDED_ORIGIN + '/api/mcp" }\n  }\n}</pre>' +
+      '<p><small>Sign in with your Vercel account when VS Code asks.</small></p>' +
+      '<h2>OpenAI Codex (and the ChatGPT desktop app)</h2>' +
+      '<pre>codex mcp add vercel-unleashed --url ' + BRANDED_ORIGIN + '/api/mcp\n' +
+      'codex mcp login vercel-unleashed</pre>' +
+      '<p><small>In the desktop app instead: <b>Settings</b>, <b>MCP servers</b>, <b>Add server</b>, ' +
+      'choose <b>Streamable HTTP</b>, paste the address, save, then <b>Authenticate</b>.</small></p>' +
+      '<h2>Gemini CLI</h2>' +
+      '<pre>gemini mcp add --transport http --scope user vercel-unleashed ' + BRANDED_ORIGIN + '/api/mcp</pre>' +
+      '<p><small>Then start <code>gemini</code> and type <code>/mcp auth vercel-unleashed</code> to sign in.</small></p>' +
+      '<h2>Windsurf</h2>' +
+      '<p>In <b>Windsurf Settings</b>, <b>Cascade</b>, <b>MCP servers</b>, choose <b>View raw config</b> and add:</p>' +
+      '<pre>{\n  "mcpServers": {\n    "vercel-unleashed": { "serverUrl": "' +
+      BRANDED_ORIGIN + '/api/mcp" }\n  }\n}</pre>' +
+      '<p><small>Save and refresh; Windsurf opens the Vercel sign-in.</small></p>' +
+      '<h2>Any other app</h2>' +
+      '<p>Any app that can add a remote MCP server with sign-in (OAuth) works: paste the address, ' +
+      'leave any Client ID and Secret blank, and sign in with your Vercel account.</p>' +
       '<p>Already connected, or want to know what a connection can ' +
       'do and how to disconnect?</p>' +
       '<a class="button" href="/connection">Open My connection</a></section>' +
