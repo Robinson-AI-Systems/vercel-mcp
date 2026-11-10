@@ -1,5 +1,5 @@
 import { registry } from '../src/tools/index.js';
-import { SERVICE_VERSION } from '../src/service-identity.js';
+import { releaseVersion } from '../src/release.js';
 import { BRANDED_ORIGIN, FRONT_DOOR_CSP, FRONT_DOOR_PRODUCT_NAME, frontDoorPage } from '../src/front-door.js';
 import { iconBytes } from '../src/brand-assets.js';
 
@@ -11,7 +11,7 @@ export function publicInfo(buildSha = process.env.VERCEL_GIT_COMMIT_SHA) {
     ? buildSha : null;
   return {
     name: FRONT_DOOR_PRODUCT_NAME, status: 'service-online',
-    version: SERVICE_VERSION, deployed_source_sha: sourceSha,
+    version: releaseVersion({ VERCEL_GIT_COMMIT_SHA: buildSha }), deployed_source_sha: sourceSha,
     tools: registry.tools.length,
     oauth: '/.well-known/oauth-authorization-server', endpoint: '/api/mcp', health: '/api/health',
     note: 'HTTP reachability is not provider setup, OAuth consent or RTC acceptance. ' +
@@ -106,7 +106,7 @@ export default function handler(req, res) {
       '<section><h2>Service facts</h2>' +
       '<p>Registered tools: ' + registry.tools.length + '</p>' +
       '<p>Every sign-in gets the full tool set — there are no sign-in tiers.</p>' +
-      '<p>Service version: ' + SERVICE_VERSION + '</p>' +
+      '<p>Service version: ' + releaseVersion() + '</p>' +
       '<p>MCP endpoint: <code>/api/mcp</code></p>' +
       '<p>OAuth issuer: <code>/.well-known/oauth-authorization-server</code></p>' +
       '<p>Account connection and permissions are private; sign in to ' +

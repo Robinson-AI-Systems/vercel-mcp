@@ -3,7 +3,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { requireMcpToken } from './mcp-auth.js';
-import { SERVICE_TECHNICAL_NAME, SERVICE_DISPLAY_NAME, SERVICE_VERSION } from '../service-identity.js';
+import { SERVICE_TECHNICAL_NAME, SERVICE_DISPLAY_NAME } from '../service-identity.js';
+import { releaseVersion } from '../release.js';
 import { visibleToProfile, listProfileTools, profileToolCounts as countByProfile } from './profiles.js';
 import { FRONT_DOOR_TOOLS } from '../data/front-door.js';
 
@@ -127,7 +128,7 @@ export function createMcpHandler({ db, registry, env = process.env, formatError,
   return async function mcp(req, res) {
     const connection = await requireMcpToken(req, res, db, env);
     if (!connection) return;
-    const server = new Server({ name: SERVICE_TECHNICAL_NAME, title: SERVICE_DISPLAY_NAME, version: SERVICE_VERSION }, { capabilities: { tools: {} } });
+    const server = new Server({ name: SERVICE_TECHNICAL_NAME, title: SERVICE_DISPLAY_NAME, version: releaseVersion() }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: listMcpTools(registry, connection)
     }));
