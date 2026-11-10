@@ -29,7 +29,8 @@ describe('O-6 connection page (RAS MCP Standard, Branded front door)',()=>{
  it('gives the connect routes for each client class, branded address only',()=>{
   const {payload}=render();
   expect(payload).toContain('https://vercel.robinsonaisystems.com');
-  expect(payload).toContain('https://vercel.robinsonaisystems.com/.well-known/muse-client.json');
+  // D-006 MC-8: the Client ID people are told is plain `muse`.
+  expect(payload).toContain('type <b>muse</b> and leave the Client Secret blank');
   expect(payload).toContain('custom connector');
   // The client-document instruction is Muse-only; every other client
   // registers itself, and pasting the Muse document there fails
@@ -37,7 +38,7 @@ describe('O-6 connection page (RAS MCP Standard, Branded front door)',()=>{
   expect(payload).toContain('Muse only: if Muse asks for a Client ID');
   expect(payload).toContain('leave the Client ID and the Client Secret blank');
   expect(payload).toContain('identifies itself automatically');
-  expect(payload).toContain('Do not paste the Muse document there');
+  expect(payload).toContain('Do not type muse there');
   expect(payload).not.toContain('In your client (for example Muse)');
   expect(payload).toContain('scoped pass');
   // Instructions name the branded address only — the deployment address

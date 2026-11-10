@@ -40,6 +40,10 @@ describe('AUD-BW home page per-client instructions', () => {
     expect(docAt).toBeGreaterThan(museAt);
     expect(docAt).toBeLessThan(claudeAt);
     expect(payload).toContain('Client Secret: leave blank.');
+    // D-006 MC-8: the main instruction is plain `muse`, inside the Muse section.
+    const museIdAt = payload.indexOf('<code class="addr" id="muse-client-id">muse</code>');
+    expect(museIdAt).toBeGreaterThan(museAt);
+    expect(museIdAt).toBeLessThan(docAt);
     // Every other client: blank boxes, outcome-level wording (AUD-BW
     // correction: no claim about this server's registration endpoint).
     expect(payload.split('identifies itself automatically').length - 1).toBe(2);

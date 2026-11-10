@@ -20,13 +20,12 @@ export default function handler(req, res) {
     '<p>In your client, add a custom connector with this ' +
     'address:</p>' +
     '<code class="addr">' + BRANDED_ORIGIN + '/api/mcp</code>' +
-    '<p>Muse only: if Muse asks for a Client ID, paste the ' +
-    'server\'s own client document:</p>' +
-    '<code class="addr">' + BRANDED_ORIGIN +
-    '/.well-known/muse-client.json</code>' +
+    '<p>Muse only: if Muse asks for a Client ID, type ' +
+    '<b>muse</b> and leave the Client Secret blank:</p>' +
+    '<code class="addr">muse</code>' +
     '<p>In Claude, ChatGPT, or any other client, leave the Client ' +
     'ID and the Client Secret blank \u2014 the app identifies ' +
-    'itself automatically. Do not paste the Muse document there: ' +
+    'itself automatically. Do not type muse there: ' +
     'it only accepts Muse\'s own return address, so any other ' +
     'client using it fails with an \u201cUnknown client or ' +
     'redirect address\u201d error.</p>' +
