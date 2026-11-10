@@ -56,18 +56,19 @@ export default function handler(req, res) {
       '<b>Add custom connector</b>. Name it Vercel Unleashed and paste ' +
       'the address above as the server address.</p>' +
       '<p>If Muse shows the <b>Secure credentials store</b> screen ' +
-      'asking for a Client ID, paste this \u2014 the server\'s own ' +
-      'client document, the same for everyone:</p>' +
-      '<code class="addr">' + BRANDED_ORIGIN +
-      '/.well-known/muse-client.json</code>' +
+      'asking for a Client ID, type this \u2014 the same for everyone, ' +
+      'and nothing secret:</p>' +
+      '<code class="addr" id="muse-client-id">muse</code>' +
+      '<p class="muted"><small>Set up before? The longer address <code>' +
+      BRANDED_ORIGIN + '/.well-known/muse-client.json</code> still works.</small></p>' +
       '<p><b>Client Secret: leave blank.</b> Then choose <b>Add</b>. ' +
       'Muse opens Vercel\'s own sign-in, where you sign in to your own ' +
       'Vercel account and approve the connection. Never enter a Vercel ' +
       'password or token in Muse \u2014 sign-in happens on Vercel\'s ' +
       'own page.</p>' +
       '<p><small>The Client ID identifies Muse, not you, and gives no ' +
-      'access by itself. It works only in Muse: the document accepts ' +
-      'only Muse\'s own return address, so pasting it into any other ' +
+      'access by itself. It works only in Muse: it accepts only ' +
+      'Muse\'s own return address, so typing it into any other ' +
       'app fails. Every other app below leaves both boxes blank.</small></p>' +
       '<h2>Claude (web, desktop and phone app)</h2><ol>' +
       '<li>Open Claude on the web, or in the desktop or phone app, and ' +

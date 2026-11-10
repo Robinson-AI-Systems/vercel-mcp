@@ -35,3 +35,7 @@ resource was the only gap.
 - Live (after release): the D-006 §7 knock probe. Authorize with the
   document address and no `resource` reaches Sign in with Vercel. Then a real
   Muse connect lists tools and runs one call.
+
+## Follow-up 2026-11-09: front-door copy (MC-8)
+
+The home page and My connection page now give `muse` as the Client ID (Client Secret blank); the document address remains as the older long form. Wording only.
