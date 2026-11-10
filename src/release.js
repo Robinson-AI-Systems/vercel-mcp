@@ -6,7 +6,9 @@
 // build was produced) — never from main HEAD, request data, a guessed tag
 // or the last CI run. An unknown commit is stated as unknown; one is
 // never synthesised, and no version literal lives in code.
-import pkg from '../package.json' with { type: 'json' };
+import { createRequire } from 'node:module';
+
+const pkg = createRequire(import.meta.url)('../package.json');
 
 export const RELEASE_REPOSITORY_URL =
   'https://github.com/Robinson-AI-Systems/vercel-mcp';
