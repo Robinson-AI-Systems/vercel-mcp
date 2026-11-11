@@ -537,7 +537,7 @@ In REST-only sessions, open a draft PR after the first cohesive tested slice and
 
 ## Daily release and build-cost policy (owner, 2026-10-12)
 
-PRs target `main`. Follow [the daily release policy](.github/RELEASE-POLICY.md): only the daily scheduled job updates `live`; Vercel builds only `live`. Do not request or wait for a Vercel preview deployment, manually deploy production, or promote at a development batch boundary. Keep all existing local/Actions tests mandatory; this policy introduces no new application build/browser requirement where none existed. This newer owner instruction supersedes older batch/weekly release guidance.
+PRs target `main`. Follow [the daily release policy](.github/RELEASE-POLICY.md): live is promoted automatically once a day as a floor; an agent may promote an exact green main SHA any additional time, with no cap. Only the checked promotion workflow (`.github/workflows/daily-live.yml` — the daily schedule, missed-event recovery, or the on-demand `manual_release` dispatch with an exact `expected_main_sha`) updates `live`; Vercel builds only `live`. Do not request or wait for a Vercel preview deployment, manually deploy production outside that checked workflow, or promote at a development batch boundary without the checked dispatch. Keep all existing local/Actions tests mandatory; this policy introduces no new application build/browser requirement where none existed. This newer owner instruction supersedes older batch/weekly release guidance.
 
 ## Verified hosting and main protections — October 12, 2026
 
