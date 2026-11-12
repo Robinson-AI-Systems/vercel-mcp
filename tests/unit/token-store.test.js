@@ -47,12 +47,15 @@ describe('A-5 Vercel token probes and encrypted persistence', () => {
     const loaded = await loadToken({ db, accountId: 'team_FAKE', env });
     expect(loaded.token).toBe(token);
     expect(loaded.account.team_id).toBe('team_FAKE');
-    // AUD-BI: the probe's three proof legs carry the teamId; the one
-    // additional documented read (the token list) is unscoped.
-    expect(api.calls).toHaveLength(4);
+    // AUD-BI: the probe's three proof legs carry the teamId; the
+    // documented token-list reads (the probe's own-record scope
+    // classification and the enrollment expiry leg) are unscoped.
+    expect(api.calls).toHaveLength(5);
     for (const call of api.calls.slice(0, 3)) expect(call.query.teamId).toBe('team_FAKE');
     expect(api.calls[3].path).toBe('/v6/user/tokens');
     expect(api.calls[3].query.teamId).toBeUndefined();
+    expect(api.calls[4].path).toBe('/v6/user/tokens');
+    expect(api.calls[4].query.teamId).toBeUndefined();
     // The fixture's empty token list records nothing — honestly.
     expect(db.rows.get('team_FAKE').probe.tokenExpiry).toEqual({ state: 'unrecorded' });
   });
@@ -162,7 +165,82 @@ describe('AUD-BI enrollment expiry recording (VMCP-003)', () => {
     const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
       env, fetchImpl: api.fetch, expiresAt: 1893456000000 });
     expect(receipt.expiry).toBe(1893456000000);
-    expect(api.calls.filter(call => call.path === '/v6/user/tokens')).toHaveLength(0);
+    // The expiry leg is skipped — but the probe's own-record scope
+    // classification read still runs (and finds only the team row).
+    expect(api.calls.filter(call => call.path === '/v6/user/tokens')).toHaveLength(1);
     expect(db.rows.get('team_FAKE').probe.tokenExpiry).toBeUndefined();
+  });
+});
+
+describe('scope classification from the token\'s own record', () => {
+  // The visible-team count cannot see account-wide scope on a
+  // one-team account. The token's own AuthToken record states the
+  // grant directly: a scope entry naming no teamId is a user-scope
+  // (account-wide) grant. Only a unique match counts; anything
+  // else leaves the count-based derivation exactly as it was.
+  const token = 'vcp_FAKEteamToken_12345678';
+  const ownRow = (overrides = {}) => ({
+    id: 'tokid_FAKE1', name: 'fixture token', type: 'oauth2-token',
+    prefix: 'vcp_', suffix: '345678',
+    createdAt: 1700000000000, activeAt: 1700000000000,
+    scopes: [{ type: 'team', teamId: 'team_FAKE', createdAt: 1700000000000 }],
+    ...overrides
+  });
+  const userRow = () => ownRow({
+    scopes: [{ type: 'user', createdAt: 1700000000000 }] });
+  const withTokens = (rows, fixtureArgs) => {
+    const api = fixture(fixtureArgs);
+    api.when('GET', '/v6/user/tokens').resolves({ tokens: rows,
+      pagination: { count: rows.length, next: null, prev: null } });
+    return api;
+  };
+
+  it('one visible team + a user-scope own record + owner allowance stores full', async () => {
+    const result = await probeToken({ token, teamId: 'team_FAKE', allowFull: true,
+      fetchImpl: withTokens([userRow()]).fetch });
+    expect(result.scope).toBe('full');
+    expect(result.visibleTeamCount).toBe(1);
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE', allowFull: true,
+      env, fetchImpl: withTokens([userRow()]).fetch });
+    expect(receipt.scope).toBe('full');
+    expect(db.rows.get('team_FAKE').scope).toBe('full');
+  });
+
+  it('one visible team + a team-only own record stores team', async () => {
+    const result = await probeToken({ token, teamId: 'team_FAKE',
+      fetchImpl: withTokens([ownRow()]).fetch });
+    expect(result.scope).toBe('team');
+    const db = fakeDb();
+    const receipt = await storeToken({ db, token, teamId: 'team_FAKE',
+      env, fetchImpl: withTokens([ownRow()]).fetch });
+    expect(receipt.scope).toBe('team');
+    expect(db.rows.get('team_FAKE').scope).toBe('team');
+  });
+
+  it('a user-scope own record without the owner allowance refuses as broad visibility', async () => {
+    const err = await probeToken({ token, teamId: 'team_FAKE',
+      fetchImpl: withTokens([userRow()]).fetch }).catch(e => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.probeLeg).toBe('broad_visibility');
+    expect(err.message).toMatch(/owner allowance/);
+  });
+
+  it('an ambiguous own record (two matches) leaves the count derivation in charge', async () => {
+    const rows = [userRow(), ownRow({ id: 'tokid_FAKE2', suffix: '45678',
+      scopes: [{ type: 'user', createdAt: 1700000000000 }] })];
+    const result = await probeToken({ token, teamId: 'team_FAKE', allowFull: true,
+      fetchImpl: withTokens(rows).fetch });
+    expect(result.scope).toBe('team');
+  });
+
+  it('the multi-team count behavior is unchanged by the own record', async () => {
+    await expect(probeToken({ token, teamId: 'team_FAKE',
+      fetchImpl: withTokens([ownRow()], { multipleTeams: true }).fetch }))
+      .rejects.toThrow(/owner allowance/);
+    const result = await probeToken({ token, teamId: 'team_FAKE', allowFull: true,
+      fetchImpl: withTokens([ownRow()], { multipleTeams: true }).fetch });
+    expect(result.scope).toBe('full');
+    expect(result.visibleTeamCount).toBe(2);
   });
 });

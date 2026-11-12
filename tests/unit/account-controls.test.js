@@ -27,13 +27,18 @@ function fixture({ broad = false, incomplete = false, missing = false, expired =
     projects:[{id:'prj_FAKE_a',name:'fixture-a'}],
     pagination:{next:incomplete ? 'next_FAKE' : null}
   });
+  // The probe's own-record scope classification read: this
+  // fixture's list is empty, so the derivation rests on the
+  // visible counts exactly as before.
+  api.when('GET','/v6/user/tokens').resolves({tokens:[],
+    pagination:{count:0,next:null,prev:null}});
   const call = (args = {}) => dispatchReadOnlyTool({
     registry, name:'vercel_check_token', args, connection, db, env, fetchImpl:api.fetch
   });
   return {db,api,call};
 }
 describe('B-8b read-only stored-token recheck',()=>{
-  it('probes only the authenticated stored scope with three GETs and no mutations',async()=>{
+  it('probes only the authenticated stored scope with four GETs and no mutations',async()=>{
     const {db,api,call}=fixture();
     const result=await call();
     expect(result.isError).not.toBe(true);
@@ -44,9 +49,13 @@ describe('B-8b read-only stored-token recheck',()=>{
       visibleTeamCount:1,visibleProjectCount:1});
     expect(result.content[0].text).not.toContain(token);
     expect(result.content[0].text).not.toContain('token_enc');
-    expect(api.calls).toHaveLength(3);
-    expect(api.calls.map(x=>x.method)).toEqual(['GET','GET','GET']);
-    expect(api.calls.every(x=>x.query.teamId==='team_FAKE_a')).toBe(true);
+    expect(api.calls).toHaveLength(4);
+    expect(api.calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET']);
+    expect(api.calls.slice(0,3).every(x=>x.query.teamId==='team_FAKE_a')).toBe(true);
+    // The fourth read is the probe's own-record scope
+    // classification: the token list, unscoped by design.
+    expect(api.calls[3].path).toBe('/v6/user/tokens');
+    expect(api.calls[3].query.teamId).toBeUndefined();
     expect(db.getAccountCredential).toHaveBeenCalledWith(accountId);
     expect(db.upsertVercelAccount).not.toHaveBeenCalled();
     expect(db.logChange).not.toHaveBeenCalled();
