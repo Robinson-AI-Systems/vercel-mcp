@@ -139,10 +139,12 @@ describe('OAuth enrollment branch (AUD-AR)', () => {
     expect(res.headers.Location).toBeUndefined();
     expect(res.body).not.toContain(teamToken);
     // The probe ran (identity, teams, projects) before the store,
-    // and only ciphertext was persisted. AUD-BI adds the one
-    // documented token-list read after the probe: 4 calls.
-    expect(api.calls).toHaveLength(4);
+    // and only ciphertext was persisted. The documented token-list
+    // reads (the probe's own-record scope classification, then
+    // AUD-BI's expiry leg) follow it: 5 calls.
+    expect(api.calls).toHaveLength(5);
     expect(api.calls[3].path).toBe('/v6/user/tokens');
+    expect(api.calls[4].path).toBe('/v6/user/tokens');
     const accounts = await db.listVercelAccounts();
     expect(accounts).toHaveLength(1);
     expect(accounts[0]).toMatchObject({ id: 'team_FAKE', scope: 'team', token_last4: '5678' });
