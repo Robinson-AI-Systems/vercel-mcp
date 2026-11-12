@@ -176,7 +176,7 @@ async function visibleRows(client, operation, field, leg = field) {
 // The original probe: identity + team visibility + project visibility, all
 // through the team-scoped client. This remains the behavior for team and
 // full tokens, and for project enrollments whose token can satisfy it.
-async function probeTeamVisible(client, { teamId, projectId, allowFull }) {
+async function probeTeamVisible(client, { token, teamId, projectId, allowFull }) {
   const [identity, teams, projects] = await Promise.all([
     client.request('user_get').catch(err => { throw transportFail('identity', err); }),
     visibleRows(client, 'teams_list', 'teams'),
@@ -193,7 +193,22 @@ async function probeTeamVisible(client, { teamId, projectId, allowFull }) {
   if (projectId && !project) throw probeFail('projects', 'Token cannot access the selected project');
   // Multiple visible teams/projects mean broader privileges might exist.
   // Even a single returned team does NOT establish exact token scope.
-  const broad = teams.length > 1 || (projectId && projects.some(item => item.id !== projectId));
+  let broad = teams.length > 1 || (projectId && projects.some(item => item.id !== projectId));
+  if (!broad) {
+    // The count cannot see account-wide scope on a one-team account:
+    // a Full Account token and a team token return the same single
+    // team there, so count alone stored 'team' for genuinely
+    // account-wide tokens. The token's own AuthToken record (the
+    // AUD-BI read, shared with the expiry leg) states the grant
+    // directly — a scope entry naming no teamId is a user-scope
+    // (account-wide) grant, which IS broad visibility, so the
+    // allowFull gate below governs it exactly as it governs the
+    // count. Only a unique match counts; an unreadable, ambiguous
+    // or team-only record leaves the count-based derivation
+    // exactly as it was.
+    const ownRow = await readOwnTokenRow(client, { token, teamId });
+    if (ownRow && ownRowHasUserScope(ownRow)) broad = true;
+  }
   if (broad && !allowFull) {
     throw probeFail('broad_visibility', 'Broader token visibility requires explicit owner allowance');
   }
@@ -303,9 +318,9 @@ export async function probeToken({ token, teamId, projectId = null, allowFull = 
     ...(fetchImpl ? { fetchImpl } : {}),
     ...(baseUrl ? { baseUrl } : {})
   });
-  if (!projectId) return probeTeamVisible(client, { teamId, projectId, allowFull });
+  if (!projectId) return probeTeamVisible(client, { token, teamId, projectId, allowFull });
   try {
-    return await probeTeamVisible(client, { teamId, projectId, allowFull });
+    return await probeTeamVisible(client, { token, teamId, projectId, allowFull });
   } catch (err) {
     // Only a failure of the identity, teams or projects legs can mean the
     // token's scope is narrower than the team-visible probe assumes; broad
@@ -690,25 +705,41 @@ function ownTokenRow(row, token, teamId) {
   return row.scopes.every(scope => scope && typeof scope === 'object' &&
     (scope.teamId === undefined || scope.teamId === teamId));
 }
-async function readOwnTokenExpiry(client, { token, teamId }) {
+// The one own-record read behind both of its consumers — the
+// scope classifier in probeTeamVisible and the expiry leg below.
+// It returns the uniquely matched row, or null when the read
+// refuses, the shape is off, or the match is not unique: evidence
+// only, never load-bearing, the expiry leg's standing discipline.
+async function readOwnTokenRow(client, { token, teamId }) {
   try {
     const result = await client.request('tokens_list', {}, { timeoutMs: 5000 });
-    if (!Array.isArray(result?.tokens)) return { state: 'unrecorded' };
+    if (!Array.isArray(result?.tokens)) return null;
     const candidates = result.tokens.filter(row => ownTokenRow(row, token, teamId));
-    if (candidates.length !== 1) return { state: 'unrecorded' };
-    const row = candidates[0];
-    if (typeof row.expiresAt === 'number' && Number.isFinite(row.expiresAt) &&
-      row.expiresAt > 0) {
-      return { state: 'recorded', providerTokenId: row.id,
-        expiresAt: new Date(row.expiresAt).toISOString() };
-    }
-    if (row.expiresAt === undefined || row.expiresAt === null) {
-      return { state: 'none_reported', providerTokenId: row.id };
-    }
-    return { state: 'unrecorded' };
+    return candidates.length === 1 ? candidates[0] : null;
   } catch {
-    return { state: 'unrecorded' };
+    return null;
   }
+}
+// A user-scope grant is the scope entry naming no teamId — the
+// account-wide grant a Full Account token carries. ownTokenRow's
+// consistency check has already proven every other entry names
+// the enrollment team (or none).
+function ownRowHasUserScope(row) {
+  return Array.isArray(row?.scopes) && row.scopes.some(scope =>
+    scope && typeof scope === 'object' && scope.teamId === undefined);
+}
+async function readOwnTokenExpiry(client, { token, teamId }) {
+  const row = await readOwnTokenRow(client, { token, teamId });
+  if (!row) return { state: 'unrecorded' };
+  if (typeof row.expiresAt === 'number' && Number.isFinite(row.expiresAt) &&
+    row.expiresAt > 0) {
+    return { state: 'recorded', providerTokenId: row.id,
+      expiresAt: new Date(row.expiresAt).toISOString() };
+  }
+  if (row.expiresAt === undefined || row.expiresAt === null) {
+    return { state: 'none_reported', providerTokenId: row.id };
+  }
+  return { state: 'unrecorded' };
 }
 
 export async function storeToken({ db, token, teamId, projectId = null,
