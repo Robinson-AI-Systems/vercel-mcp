@@ -14,3 +14,7 @@ Chris: "Yes" to dealing with the Second Shift 48-hour run's relational-map findi
 ## Drift check
 
 Docs and a check only; no tool or behaviour change; registry unchanged at 257.
+
+## Also: RUNNER-DEADLOCK-1 (same morning)
+
+With two of the three self-hosted machines offline, a release's promotion job waited for the newest required check on main, which was another release run's job queued behind it on the only runner, until its 15-minute timeout (seen live on rack-mcp). `.github/release/promote-live.mjs` now goes by the newest *finished* run of each required check: a queued copy no longer holds it back, a newer failure still blocks, nothing passes without a finished success. Acceptance: `.github/release/promote-live.test.mjs`.
