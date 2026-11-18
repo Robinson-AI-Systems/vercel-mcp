@@ -7,6 +7,12 @@
   `rack-server.mjs`, a thin standalone Node server that reproduces the
   Vercel function contract route-for-route. The hosted Vercel deployment
   and its dedicated Neon store were retired the same day.
+  Evidence: the 2026-11-08 entry in `docs/STATUS.md` (the move, then the
+  Vercel project and Neon store deleted and read back gone). Re-checked
+  live 2026-11-18: the rack's route table serves
+  `vercel.robinsonaisystems.com` from a rack instance (route generation 15,
+  production release receipt 364), and the Vercel team's project list has
+  no vercel-mcp project.
 - **Vercel-shaped contract:** `api/**/*.js` default exports are the
   handlers; `vercel.json` carries the rewrites. `rack-server.mjs`
   implements exactly the same binding (filesystem routes, `[name]` /
