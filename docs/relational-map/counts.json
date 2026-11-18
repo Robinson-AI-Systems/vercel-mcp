@@ -1,0 +1,13 @@
+{
+  "about": "MAP-COUNTS-1: every number the map states about the code, checked in CI by scripts/check-map-counts.mjs.",
+  "counts": [
+    { "name": "tool modules", "value": 108, "files": ["README.md", "03-tools-and-gateway.md"],
+      "how": { "files": "src/tools/*.js" } },
+    { "name": "registered tools", "value": 257, "files": ["03-tools-and-gateway.md"],
+      "how": { "command": "node scripts/check-catalog.mjs", "match": "(\\d+) registered" } },
+    { "name": "catalog tools", "value": 258, "files": ["03-tools-and-gateway.md"],
+      "how": { "command": "node scripts/check-catalog.mjs", "match": "(\\d+) catalog tools" } },
+    { "name": "database tables", "value": 22, "files": ["README.md"],
+      "how": { "matches": "CREATE TABLE IF NOT EXISTS \\w+", "in": "src/db.js" } }
+  ]
+}
