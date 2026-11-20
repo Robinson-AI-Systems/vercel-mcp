@@ -10,7 +10,7 @@
   store was retired 2026-11-08 with the hosted deployment). Tests use
   disposable Postgres only, never the real store.
 
-## Tables (`SCHEMA_TABLES` in `src/db.js` — 22)
+## Tables (`SCHEMA_TABLES` in `src/db.js`: 22 tables)
 
 | Group | Tables |
 |---|---|

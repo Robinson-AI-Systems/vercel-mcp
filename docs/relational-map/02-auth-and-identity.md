@@ -57,7 +57,7 @@ Separately from OAuth, the owner can issue **RTC passes**
 (`rtc_passes` table) for Hub/agent access: a proposal
 (`vercel_create_pass` family in `src/tools/pass-*.js`) is reviewed and
 applied by the owner; passes carry a per-minute rate limit and, since
-R-1W, may carry write scope under the same owner review. Pass auth is
+R-1W (card: `docs/pr-cards/R-1W.md`), may carry write scope under the same owner review. Pass auth is
 enforced atomically across instances in the store.
 
 ## Owner administration

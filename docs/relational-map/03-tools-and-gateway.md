@@ -4,7 +4,7 @@
 
 - `src/tools/index.js` merges every tool family module in `src/tools/`
   (108 modules) through `src/core/registry.js` (`mergeNamespaces`).
-- **257 of 258 catalog tools are registered.** The one unbuilt row,
+- **258 catalog tools; 257 registered tools.** The one unbuilt row,
   `vercel_admin_overview`, is closed by owner ruling IN-16 and will
   not be built. The catalog is `docs/TOOL-CATALOG.md`;
   `scripts/check-catalog.mjs` pins catalog ↔ registry agreement.

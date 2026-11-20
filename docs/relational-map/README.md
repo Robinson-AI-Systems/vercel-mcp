@@ -34,7 +34,7 @@ flowchart LR
   end
 
   subgraph tools["Tools — src/tools/ (108 modules)"]
-    T["253 registered vercel_* tools<br/>index.js merges all families"]
+    T["257 registered vercel_* tools<br/>index.js merges all families"]
   end
 
   subgraph prov["Provider layer — src/vercel/"]

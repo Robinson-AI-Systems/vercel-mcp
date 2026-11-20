@@ -31,7 +31,7 @@
 | `/api/mcp` | `api/mcp.js` | Streamable HTTP MCP transport (SDK) |
 | `/api/contract`, `/api/openapi.json` | `api/contract.js`, `api/rtc-openapi.js` | RTC 1 contract + OpenAPI document |
 | `/api/whoami` | `api/whoami.js` | Authenticated identity / connection read |
-| `/api/tools`, `/api/tools/{name}`, `/api/tools/_batch` | `api/tools/*` | RTC 1 tool invocation doors |
+| `/api/tools`, `/api/tools/{name}`, `/api/tools/_batch` | `api/tools/*` | RTC-1 tool invocation doors |
 | `/api/results/{handle}` | `api/results/[handle].js` | Stored large-result delivery |
 | `/api/oauth/*` | `api/oauth/*` | OAuth issuer: authorize, token, register, revoke, enroll, Vercel callback |
 | `/api/vercel/connect`, `/api/vercel/integration` | `api/vercel/*` | Connection doors (integration install / token enrollment branch) |
