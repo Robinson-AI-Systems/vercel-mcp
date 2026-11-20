@@ -1,0 +1,92 @@
+{
+  "claims": [
+    {
+      "file": "01-entry-and-clients.md",
+      "states": "Since 2026-11-08 production serves from the rack",
+      "source": {
+        "in": "docs/STATUS.md",
+        "matches": "^- 2026-11-08: RACK MOVE COMPLETE \\+ HOSTED COPIES RETIRED.*Vercel project and the Neon store were then DELETED and read back gone"
+      }
+    },
+    {
+      "file": "01-entry-and-clients.md",
+      "states": "Evidence: the 2026-11-08 entry in `docs/STATUS.md`",
+      "source": {
+        "in": "docs/STATUS.md",
+        "matches": "^- 2026-11-08: RACK MOVE COMPLETE \\+ HOSTED COPIES RETIRED.*Vercel project and the Neon store were then DELETED and read back gone"
+      }
+    },
+    {
+      "file": "01-entry-and-clients.md",
+      "states": "Re-checked live 2026-11-18: the rack's route table serves `vercel.robinsonaisystems.com` from a rack instance (route generation 15, production release receipt 364)",
+      "source": {
+        "in": "docs/STATUS.md",
+        "matches": "^- 2026-11-18: MAP-COUNTS-1.*2026-11-18 live re-check \\(rack route generation 15, release receipt 364"
+      }
+    },
+    {
+      "file": "02-auth-and-identity.md",
+      "states": "SR-1…SR-6, live 2026-11-02",
+      "source": {
+        "in": "docs/STATUS.md",
+        "matches": "^- 2026-11-02: Post-sitting closure filings.*SR-6 live ahead of it"
+      }
+    },
+    {
+      "file": "02-auth-and-identity.md",
+      "states": "R-1W (card: `docs/pr-cards/R-1W.md`), may carry write scope",
+      "source": {
+        "in": "docs/pr-cards/R-1W.md",
+        "matches": "`rtc_passes` adopted for writes"
+      }
+    },
+    {
+      "file": "05-storage-and-secrets.md",
+      "states": "store was retired 2026-11-08 with the hosted deployment",
+      "source": {
+        "in": "docs/STATUS.md",
+        "matches": "^- 2026-11-08: RACK MOVE COMPLETE \\+ HOSTED COPIES RETIRED.*Vercel project and the Neon store were then DELETED and read back gone"
+      }
+    },
+    {
+      "file": "05-storage-and-secrets.md",
+      "states": "`change_log` and the purchase ledger: **400 days**.",
+      "source": {
+        "in": "src/db.js",
+        "matches": "^export const CHANGE_LOG_RETENTION_DAYS = 400;\\nexport const PURCHASE_LEDGER_RETENTION_DAYS = 400;"
+      }
+    },
+    {
+      "file": "05-storage-and-secrets.md",
+      "states": "Authorizations never exercised: out **180 days** after they lapse.",
+      "source": {
+        "in": "src/db.js",
+        "matches": "^export const UNUSED_AUTHORIZATION_RETENTION_DAYS = 180;"
+      }
+    },
+    {
+      "file": "06-release-and-operations.md",
+      "states": "nightly at 20:23 America/Denver",
+      "source": {
+        "in": ".github/workflows/daily-live.yml",
+        "matches": "cron: '23 20 \\* \\* \\*'\\n\\s+timezone: America/Denver"
+      }
+    },
+    {
+      "file": "06-release-and-operations.md",
+      "states": "One automatic promotion a day is the floor, not a cap",
+      "source": {
+        "in": ".github/release/promote-live.test.mjs",
+        "matches": "manual release promotes past a consumed day tag, writes its own receipt, and leaves the automatic path capped"
+      }
+    },
+    {
+      "file": "06-release-and-operations.md",
+      "states": "the single merge gate is job `ci`",
+      "source": {
+        "in": ".github/workflows/ci.yml",
+        "matches": "^  ci:\\n(?:.*\\n)*?\\s+needs: \\[check, unit, db, emulate, conformance, rtc-hub\\]"
+      }
+    }
+  ]
+}
